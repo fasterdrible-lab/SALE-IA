@@ -15,4 +15,4 @@ pydantic==2.9.2
 python-dotenv==1.0.1
 
 # Suporte a multipart (upload de áudio futuro)
-python-multipart==0.0.12
+python-multipart==0.0.22
