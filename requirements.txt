@@ -1,0 +1,18 @@
+# Dependências do SALEIA — Backend FastAPI
+
+# Framework web
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
+
+# Variáveis de ambiente
+python-dotenv==1.0.1
+
+# ─── Provedores de LLM ───────────────────────────────────────
+# OpenAI (GPT-4o, GPT-4o-mini)
+openai==1.35.7
+
+# Anthropic (Claude 3.5 Sonnet) — opcional
+anthropic==0.26.0
+
+# Google (Gemini 1.5 Pro) — opcional
+google-generativeai==0.7.0

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SALEIA — Assistente de Vendas</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+
+  <!-- Cabeçalho -->
+  <div class="header">
+    <div class="logo">🤖 SALEIA</div>
+    <div class="subtitle">Assistente de Vendas com IA</div>
+  </div>
+
+  <!-- Status da conexão com o backend -->
+  <div class="section">
+    <label class="section-title">🔗 Backend SALEIA</label>
+    <div class="input-row">
+      <input
+        type="text"
+        id="input-backend-url"
+        placeholder="http://localhost:8000"
+      />
+      <button id="btn-test-backend">Testar</button>
+    </div>
+    <div id="backend-status" class="status-msg">⚪ Não testado</div>
+  </div>
+
+  <!-- Seleção de modelo de IA -->
+  <div class="section">
+    <label class="section-title">🧠 Modelo de IA</label>
+
+    <div class="llm-option selected" data-llm="gpt-4o" data-provider="openai">
+      <div class="llm-icon">🟢</div>
+      <div class="llm-info">
+        <div class="llm-name">GPT-4o</div>
+        <div class="llm-desc">Máxima qualidade • ~R$3,50/reunião</div>
+      </div>
+      <div class="llm-badge recommended">Recomendado</div>
+    </div>
+
+    <div class="llm-option" data-llm="gpt-4o-mini" data-provider="openai">
+      <div class="llm-icon">🔵</div>
+      <div class="llm-info">
+        <div class="llm-name">GPT-4o Mini</div>
+        <div class="llm-desc">Ótima qualidade • ~R$0,30/reunião</div>
+      </div>
+      <div class="llm-badge economy">Econômico</div>
+    </div>
+
+    <div class="llm-option" data-llm="claude-3-5-sonnet-20241022" data-provider="anthropic">
+      <div class="llm-icon">🟠</div>
+      <div class="llm-info">
+        <div class="llm-name">Claude 3.5 Sonnet</div>
+        <div class="llm-desc">Melhor análise emocional • ~R$4,00/reunião</div>
+      </div>
+      <div class="llm-badge emotion">Emocional</div>
+    </div>
+
+    <div class="llm-option" data-llm="gemini-1.5-pro" data-provider="google">
+      <div class="llm-icon">🔴</div>
+      <div class="llm-info">
+        <div class="llm-name">Gemini 1.5 Pro</div>
+        <div class="llm-desc">Google AI • ~R$2,00/reunião</div>
+      </div>
+      <div class="llm-badge google">Google</div>
+    </div>
+  </div>
+
+  <!-- Chaves de API por provedor -->
+  <div class="section" id="api-keys-section">
+    <label class="section-title">🔑 Chaves de API</label>
+
+    <div class="api-key-group" id="key-openai">
+      <label>OpenAI API Key</label>
+      <div class="key-input-row">
+        <input type="password" id="input-openai-key" placeholder="sk-..." />
+        <span class="key-status" id="status-openai">⚪</span>
+      </div>
+    </div>
+
+    <div class="api-key-group hidden" id="key-anthropic">
+      <label>Anthropic API Key</label>
+      <div class="key-input-row">
+        <input type="password" id="input-anthropic-key" placeholder="sk-ant-..." />
+        <span class="key-status" id="status-anthropic">⚪</span>
+      </div>
+    </div>
+
+    <div class="api-key-group hidden" id="key-google">
+      <label>Google AI API Key</label>
+      <div class="key-input-row">
+        <input type="password" id="input-google-key" placeholder="AIza..." />
+        <span class="key-status" id="status-google">⚪</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status geral -->
+  <div class="footer">
+    <span id="save-status">✅ Configurações salvas automaticamente</span>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
