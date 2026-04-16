@@ -94,18 +94,29 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function exibirUltimasDicas(dicas, timestamp) {
     if (!dicas) return;
+
+    function escaparHtml(str) {
+      if (str == null) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
     let html = '';
     if (dicas.proxima_acao) {
-      html += '<div class="popup-dica"><span class="popup-dica-icon">💬</span>' + dicas.proxima_acao + '</div>';
+      html += '<div class="popup-dica"><span class="popup-dica-icon">💬</span>' + escaparHtml(dicas.proxima_acao) + '</div>';
     }
     if (dicas.perfil_disc && dicas.perfil_disc.tipo) {
-      html += '<div class="popup-dica"><span class="popup-dica-icon">🎯</span>Perfil: <strong>' + dicas.perfil_disc.tipo + '</strong></div>';
+      html += '<div class="popup-dica"><span class="popup-dica-icon">🎯</span>Perfil: <strong>' + escaparHtml(dicas.perfil_disc.tipo) + '</strong></div>';
     }
     if (dicas.sinal_financeiro) {
-      html += '<div class="popup-dica"><span class="popup-dica-icon">💰</span>' + dicas.sinal_financeiro + '</div>';
+      html += '<div class="popup-dica"><span class="popup-dica-icon">💰</span>' + escaparHtml(dicas.sinal_financeiro) + '</div>';
     }
     if (timestamp) {
-      html += '<div class="popup-dica-hora">Atualizado: ' + new Date(timestamp).toLocaleTimeString('pt-BR') + '</div>';
+      html += '<div class="popup-dica-hora">Atualizado: ' + escaparHtml(new Date(timestamp).toLocaleTimeString('pt-BR')) + '</div>';
     }
     if (html) {
       ultimasDicas.innerHTML = html;

@@ -12,6 +12,19 @@
   'use strict';
 
   // ─────────────────────────────────────────────
+  // UTILITÁRIO — ESCAPE HTML (evitar XSS)
+  // ─────────────────────────────────────────────
+  function escaparHtml(str) {
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // ─────────────────────────────────────────────
   // CONFIGURAÇÕES PADRÃO
   // ─────────────────────────────────────────────
   const CONFIG = {
@@ -379,16 +392,16 @@
       const cor = corDisc[tipo] || '#ffffff';
 
       document.getElementById('saleia-disc-texto').innerHTML =
-        '<span class="saleia-badge" style="background:' + cor + '">' + tipo + '</span> ' +
-        '<strong>' + confianca + '</strong><br>' +
-        '<em>' + evidencia + '</em>' +
-        (acaoSugerida ? '<br><span class="saleia-acao">' + acaoSugerida + '</span>' : '');
+        '<span class="saleia-badge" style="background:' + cor + '">' + escaparHtml(tipo) + '</span> ' +
+        '<strong>' + escaparHtml(confianca) + '</strong><br>' +
+        '<em>' + escaparHtml(evidencia) + '</em>' +
+        (acaoSugerida ? '<br><span class="saleia-acao">' + escaparHtml(acaoSugerida) + '</span>' : '');
     }
 
     // Próxima ação / fala sugerida
     if (dados.proxima_acao) {
       document.getElementById('saleia-proxima-fala-texto').innerHTML =
-        '<span class="saleia-verde">' + dados.proxima_acao + '</span>';
+        '<span class="saleia-verde">' + escaparHtml(dados.proxima_acao) + '</span>';
     }
 
     // Sinal financeiro
@@ -404,9 +417,9 @@
     const produtoEl = document.getElementById('saleia-produto');
     if (dados.produto_indicado) {
       document.getElementById('saleia-produto-texto').innerHTML =
-        '<strong>' + dados.produto_indicado.nome + '</strong><br>' +
-        'R$ ' + dados.produto_indicado.valor + '<br>' +
-        '<em>' + dados.produto_indicado.justificativa + '</em>';
+        '<strong>' + escaparHtml(dados.produto_indicado.nome) + '</strong><br>' +
+        'R$ ' + escaparHtml(dados.produto_indicado.valor) + '<br>' +
+        '<em>' + escaparHtml(dados.produto_indicado.justificativa) + '</em>';
       produtoEl.style.display = 'block';
     } else {
       produtoEl.style.display = 'none';
@@ -426,8 +439,8 @@
     if (dados.objecoes && dados.objecoes.length > 0) {
       const html = dados.objecoes.map(function (obj) {
         return '<div class="saleia-objecao">' +
-               '<strong>' + obj.objecao + '</strong>' +
-               (obj.resposta ? '<br><span class="saleia-resposta">↳ ' + obj.resposta + '</span>' : '') +
+               '<strong>' + escaparHtml(obj.objecao) + '</strong>' +
+               (obj.resposta ? '<br><span class="saleia-resposta">↳ ' + escaparHtml(obj.resposta) + '</span>' : '') +
                '</div>';
       }).join('');
       document.getElementById('saleia-objecoes-texto').innerHTML = html;
