@@ -1,233 +1,489 @@
 """
-API Principal do Agente SALEIA — FastAPI
-Substitui 100% do trabalho manual do vendedor e fornece inteligência em tempo real.
+SALEIA — api/main.py
+Backend FastAPI para o Assistente de Vendas em Tempo Real.
 
 Endpoints:
-  GET  /                        — health check
-  POST /webhook/tactiq          — recebe transcrição do Tactiq, processa tudo e retorna relatório
-  POST /tempo-real              — análise em tempo real durante a reunião (a cada 60s)
-  POST /diagnostico-financeiro  — extrai perfil financeiro da transcrição
-  POST /perfil-disc             — identifica perfil DISC + objeções
-  POST /recapitulacao-completa  — gera relatório completo pós-reunião
-  POST /produto-recomendado     — retorna produto ideal com base no diagnóstico financeiro
+  POST /tempo-real           → análise em tempo real durante a reunião
+  POST /webhook/tactiq       → recebe transcrição completa do Tactiq
+  POST /diagnostico-financeiro → extrai dados financeiros da transcrição
+  POST /perfil-disc          → identifica perfil DISC + objeções
+  POST /recapitulacao-completa → recapitulação pós-reunião completa
+  GET  /relatorio            → página HTML com último relatório
+  GET  /health               → verificação de saúde do serviço
 """
 
-import asyncio
 import os
+import json
+import html as html_module
+import logging
+from datetime import datetime
+from typing import Optional, List
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
+from openai import OpenAI
 
-from api.models import (
-    DiagnosticoFinanceiroOutput,
-    PerfilDiscOutput,
-    RelatorioCompletoOutput,
-    TactiqWebhookPayload,
-    TempoRealInput,
-    TranscricaoInput,
-)
-from agent.agente_tempo_real import analisar_fragmento
-from agent.diagnostico_financeiro import extrair_diagnostico_financeiro
-from agent.perfil_disc import identificar_perfil_disc
-from agent.recapitulacao import gerar_recapitulacao_completa
+logger = logging.getLogger(__name__)
 
-# ──────────────────────────────────────────────
-# Inicialização da aplicação
-# ──────────────────────────────────────────────
+# ─────────────────────────────────────────────
+# CONFIGURAÇÃO
+# ─────────────────────────────────────────────
 app = FastAPI(
-    title="SALEIA — Agente de Vendas com IA",
-    description=(
-        "Sistema de Automação de Leads, Engajamento e Inteligência Artificial em Atendimento. "
-        "Substitui 100% do trabalho manual do vendedor com inteligência em tempo real."
-    ),
+    title="SALEIA — Assistente de Vendas IA",
+    description="Backend para o assistente de vendas em tempo real no Google Meet",
     version="1.0.0",
 )
 
-# Permite requisições do frontend HTML (painel.html abre diretamente no navegador)
+# CORS — permite requisições da extensão Chrome (chrome-extension://)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Cliente OpenAI (inicializado de forma lazy para não falhar se a chave não estiver configurada)
+_openai_client: Optional[OpenAI] = None
 
-# ──────────────────────────────────────────────
-# Endpoint 1 — Health Check
-# ──────────────────────────────────────────────
-@app.get("/", tags=["Status"])
-async def health_check():
-    """Verifica se a API está no ar e com a chave OpenAI configurada."""
-    chave_configurada = bool(os.environ.get("OPENAI_API_KEY"))
+
+def get_openai_client() -> OpenAI:
+    """Retorna o cliente OpenAI, inicializando-o na primeira chamada."""
+    global _openai_client
+    if _openai_client is None:
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            raise HTTPException(
+                status_code=503,
+                detail="OPENAI_API_KEY não configurada. Defina a variável de ambiente."
+            )
+        _openai_client = OpenAI(api_key=api_key)
+    return _openai_client
+
+# Armazenamento em memória do último relatório (em produção, usar banco de dados)
+ultimo_relatorio: dict = {}
+
+# ─────────────────────────────────────────────
+# TABELA DE PREÇOS DOS PRODUTOS
+# ─────────────────────────────────────────────
+PRODUTOS = {
+    "base": {
+        "nome": "Produto Base",
+        "valor": "3.000 - 4.000",
+        "perfil": "Clientes com faturamento baixo, CLT ou micro-empreendedor com estoque"
+    },
+    "intermediario": {
+        "nome": "Produto Intermediário",
+        "valor": "15.984,00",
+        "perfil": "Clientes com capacidade média de investimento"
+    },
+    "completo": {
+        "nome": "Produto Completo",
+        "valor": "29.892,00",
+        "perfil": "Clientes com boa capacidade financeira e alto potencial de crescimento"
+    }
+}
+
+# ─────────────────────────────────────────────
+# MODELOS PYDANTIC
+# ─────────────────────────────────────────────
+class TempoRealRequest(BaseModel):
+    transcricao_parcial: str
+    historico: Optional[str] = ""
+    perfil_disc_atual: Optional[str] = None
+
+
+class TactiqWebhookRequest(BaseModel):
+    meeting_title: Optional[str] = "Reunião de Vendas"
+    participants: Optional[List[str]] = []
+    date: Optional[str] = None
+    transcript: str
+    duration: Optional[int] = None
+
+
+class DiagnosticoFinanceiroRequest(BaseModel):
+    transcricao: str
+
+
+class PerfilDiscRequest(BaseModel):
+    transcricao: str
+
+
+class RecapitulacaoRequest(BaseModel):
+    transcricao: str
+    titulo_reuniao: Optional[str] = "Reunião de Vendas"
+    data: Optional[str] = None
+
+
+# ─────────────────────────────────────────────
+# PROMPTS DO SISTEMA
+# ─────────────────────────────────────────────
+PROMPT_TEMPO_REAL = """Você é SALEIA, um assistente de IA especializado em vendas consultivas em tempo real.
+
+Analise a transcrição parcial de uma reunião de vendas e retorne um JSON com dicas imediatas para o vendedor.
+
+CONTEXTO DOS PRODUTOS:
+- Produto Base: R$ 3.000-4.000 → para quem fatura pouco ou CLT/baixo salário
+- Produto Intermediário: R$ 15.984 → capacidade média
+- Produto Completo: R$ 29.892 → boa capacidade financeira
+
+MÉTODO DISC:
+- D (Dominante): direto, quer resultados rápidos, não gosta de rodeios
+- I (Influente): emotivo, gosta de histórias, precisa de empolgação e conexão
+- S (Estável): cauteloso, precisa de segurança e garantias, medo de errar
+- C (Consciente): analítico, quer dados concretos, compara, questiona tudo
+
+Retorne APENAS um JSON válido com esta estrutura (sem markdown, sem explicações):
+{
+  "alerta_urgente": "texto se houver algo crítico, ou null",
+  "perfil_disc": {
+    "tipo": "D|I|S|C",
+    "confianca": "alta|média|baixa",
+    "evidencia": "trecho que evidencia o perfil",
+    "acao_sugerida": "como adaptar a abordagem agora"
+  },
+  "proxima_acao": "próxima fala ou ação sugerida ao vendedor",
+  "sinal_financeiro": "sinal financeiro identificado ou null",
+  "produto_indicado": {
+    "nome": "nome do produto",
+    "valor": "valor",
+    "justificativa": "por que este produto"
+  },
+  "oportunidade_perdida": "oportunidade não explorada ou null",
+  "objecoes": [
+    {
+      "objecao": "objeção identificada ou provável",
+      "resposta": "como responder"
+    }
+  ],
+  "historico_resumido": "resumo de 2-3 linhas do que foi discutido"
+}"""
+
+PROMPT_DIAGNOSTICO_FINANCEIRO = """Você é um especialista em análise financeira para vendas consultivas.
+
+Com base na transcrição da reunião, extraia as informações financeiras do cliente.
+
+Retorne APENAS um JSON válido (sem markdown):
+{
+  "faturamento_mensal": "valor estimado ou 'não mencionado'",
+  "capacidade_investimento": "quanto tem disponível para investir",
+  "tem_cartao_credito": true/false/null,
+  "limite_cartao": "valor ou 'não mencionado'",
+  "tipo_renda": "CLT|autônomo|empresário|não identificado",
+  "salario_clt": "valor se CLT ou null",
+  "tem_estoque": true/false/null,
+  "produto_recomendado": "base|intermediario|completo",
+  "justificativa": "por que este produto baseado no perfil financeiro",
+  "sinais_financeiros": ["lista de sinais detectados na conversa"],
+  "capacidade_pagamento": "à vista|parcelado|cartão|misto|não identificado"
+}"""
+
+PROMPT_PERFIL_DISC = """Você é especialista no método DISC aplicado a vendas consultivas.
+
+Analise a transcrição e identifique o perfil comportamental do cliente.
+
+PERFIS:
+- D (Dominante): assertivo, direto, orientado a resultados, impaciente, competitivo
+- I (Influente): entusiasta, sociável, emotivo, otimista, gosta de reconhecimento
+- S (Estável): paciente, leal, resistente a mudanças, precisa de segurança, evita conflitos
+- C (Consciente): analítico, perfeccionista, meticuloso, questiona tudo, precisa de dados
+
+Retorne APENAS um JSON válido (sem markdown):
+{
+  "perfil_primario": "D|I|S|C",
+  "perfil_secundario": "D|I|S|C ou null",
+  "confianca": "alta|média|baixa",
+  "evidencias": ["lista de comportamentos/falas que indicam o perfil"],
+  "como_abordar": "estratégia ideal para este perfil",
+  "o_que_evitar": "o que NÃO fazer com este perfil",
+  "gatilhos_emocionais": ["gatilhos que funcionam para este perfil"],
+  "objecoes_provaveis": [
+    {
+      "objecao": "objeção típica deste perfil",
+      "resposta": "como responder efetivamente"
+    }
+  ],
+  "nivel_engajamento": "alto|médio|baixo",
+  "momento_reuniao": "abertura|desenvolvimento|negociação|fechamento|resistência"
+}"""
+
+PROMPT_RECAPITULACAO = """Você é SALEIA, especialista em recapitulação de reuniões de vendas consultivas.
+
+Gere uma recapitulação completa e estratégica da reunião com base na transcrição.
+
+CONTEXTO DOS PRODUTOS:
+- Produto Base: R$ 3.000-4.000
+- Produto Intermediário: R$ 15.984
+- Produto Completo: R$ 29.892
+
+Retorne APENAS um JSON válido (sem markdown):
+{
+  "resumo_executivo": "3 linhas resumindo o essencial",
+  "recapitulacao_emocional": {
+    "estado_emocional_cliente": "como o cliente estava emocionalmente",
+    "motivacoes_principais": ["o que realmente motiva este cliente"],
+    "medos_objecoes": ["medos e resistências identificadas"],
+    "nivel_interesse": "alto|médio|baixo",
+    "rapport": "como foi a conexão com o vendedor"
+  },
+  "recapitulacao_estrategica": {
+    "dores_identificadas": ["problemas que o cliente quer resolver"],
+    "objetivos_cliente": ["o que o cliente quer alcançar"],
+    "capacidade_financeira": "diagnóstico financeiro resumido",
+    "produto_recomendado": {
+      "nome": "nome do produto",
+      "valor": "valor",
+      "justificativa": "por que este produto para este cliente"
+    },
+    "objecoes_levantadas": ["objeções que surgiram"],
+    "pontos_positivos": ["o que funcionou bem"]
+  },
+  "perfil_disc": {
+    "tipo": "D|I|S|C",
+    "descricao": "como o perfil se manifestou",
+    "estrategia_fechamento": "melhor abordagem para fechar com este perfil"
+  },
+  "proximos_passos": [
+    {
+      "acao": "ação a ser tomada",
+      "prazo": "quando",
+      "responsavel": "vendedor|cliente"
+    }
+  ],
+  "probabilidade_fechamento": "alta|média|baixa",
+  "justificativa_probabilidade": "por que esta probabilidade"
+}"""
+
+# ─────────────────────────────────────────────
+# FUNÇÃO AUXILIAR — CHAMAR GPT-4o
+# ─────────────────────────────────────────────
+def chamar_gpt(system_prompt: str, user_content: str, modelo: str = "gpt-4o") -> dict:
+    """Chama o GPT-4o e retorna o JSON da resposta."""
+    try:
+        openai_client = get_openai_client()
+        resposta = openai_client.chat.completions.create(
+            model=modelo,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content},
+            ],
+            temperature=0.3,
+            response_format={"type": "json_object"},
+        )
+        conteudo = resposta.choices[0].message.content
+        return json.loads(conteudo)
+    except json.JSONDecodeError as e:
+        logger.error("Erro ao parsear resposta da IA: %s", e)
+        raise HTTPException(status_code=500, detail="Erro ao processar resposta da IA. Tente novamente.")
+    except Exception as e:
+        logger.error("Erro ao chamar GPT-4o: %s", e)
+        raise HTTPException(status_code=500, detail="Erro ao conectar com a IA. Verifique a chave OPENAI_API_KEY.")
+
+
+# ─────────────────────────────────────────────
+# ENDPOINTS
+# ─────────────────────────────────────────────
+
+@app.get("/health")
+def health_check():
+    """Verificação de saúde do serviço."""
     return {
         "status": "online",
-        "agente": "SALEIA v1.0",
-        "openai_configurado": chave_configurada,
-        "mensagem": "API do agente SALEIA está operacional." if chave_configurada
-                    else "⚠️ OPENAI_API_KEY não configurada. Defina no arquivo .env",
+        "servico": "SALEIA Backend",
+        "versao": "1.0.0",
+        "timestamp": datetime.now().isoformat(),
     }
 
 
-# ──────────────────────────────────────────────
-# Endpoint 2 — Webhook Tactiq (integração automática)
-# ──────────────────────────────────────────────
-@app.post("/webhook/tactiq", response_model=RelatorioCompletoOutput, tags=["Automação"])
-async def webhook_tactiq(payload: TactiqWebhookPayload):
+@app.post("/tempo-real")
+def analisar_tempo_real(req: TempoRealRequest):
     """
-    Recebe automaticamente a transcrição do Tactiq ao fim da reunião no Google Meet.
-
-    Processa em paralelo:
-      1. Diagnóstico financeiro
-      2. Perfil DISC + objeções
-      3. Análise do agente em tempo real
-
-    Em seguida gera o relatório completo combinando todos os resultados.
-    Substitui completamente o processo manual de copiar/colar no Claude.
+    Análise em tempo real durante a reunião.
+    Chamado pela extensão Chrome a cada 60 segundos.
     """
+    if not req.transcricao_parcial and not req.historico:
+        raise HTTPException(status_code=400, detail="Transcrição vazia — ative as legendas no Meet")
+
+    conteudo_usuario = f"""
+TRANSCRIÇÃO DOS ÚLTIMOS 2 MINUTOS:
+{req.transcricao_parcial or '(sem transcrição recente)'}
+
+HISTÓRICO (últimos 5 minutos):
+{req.historico or '(início da reunião)'}
+
+PERFIL DISC JÁ IDENTIFICADO: {req.perfil_disc_atual or 'ainda não identificado'}
+"""
+
+    resultado = chamar_gpt(PROMPT_TEMPO_REAL, conteudo_usuario)
+    return resultado
+
+
+@app.post("/webhook/tactiq")
+def receber_webhook_tactiq(req: TactiqWebhookRequest, background_tasks: BackgroundTasks):
+    """
+    Recebe transcrição completa do Tactiq ao final da reunião.
+    Processa automaticamente e armazena o relatório.
+    """
+    if not req.transcript:
+        raise HTTPException(status_code=400, detail="Transcrição vazia")
+
+    # Processar em background para não bloquear a resposta
+    background_tasks.add_task(processar_transcricao_completa, req)
+
+    return {
+        "status": "recebido",
+        "mensagem": "Transcrição recebida. Processando recapitulação...",
+        "reuniao": req.meeting_title,
+    }
+
+
+def processar_transcricao_completa(req: TactiqWebhookRequest):
+    """Processa a transcrição completa e armazena o relatório."""
+    global ultimo_relatorio
     try:
-        # Executa diagnóstico financeiro e perfil DISC em paralelo para máxima velocidade
-        diagnostico, perfil = await asyncio.gather(
-            extrair_diagnostico_financeiro(payload.transcript),
-            identificar_perfil_disc(payload.transcript),
+        # Gerar recapitulação completa
+        recapitulacao = chamar_gpt(
+            PROMPT_RECAPITULACAO,
+            f"REUNIÃO: {req.meeting_title}\nTRANSCRIÇÃO:\n{req.transcript}"
         )
 
-        # Gera a recapitulação completa com base nos resultados anteriores
-        relatorio = await gerar_recapitulacao_completa(
-            transcricao=payload.transcript,
-            diagnostico_financeiro=diagnostico,
-            perfil_disc=perfil,
+        # Gerar diagnóstico financeiro
+        diagnostico = chamar_gpt(
+            PROMPT_DIAGNOSTICO_FINANCEIRO,
+            req.transcript
         )
 
-        return RelatorioCompletoOutput(
-            relatorio_formatado=relatorio,
-            diagnostico_financeiro=diagnostico,
-            perfil_disc=perfil,
-            titulo_reuniao=payload.meeting_title,
-            participantes=payload.participants,
-            data_reuniao=payload.date,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao processar webhook Tactiq: {str(e)}")
-
-
-# ──────────────────────────────────────────────
-# Endpoint 3 — Análise em Tempo Real
-# ──────────────────────────────────────────────
-@app.post("/tempo-real", tags=["Tempo Real"])
-async def analise_tempo_real(dados: TempoRealInput):
-    """
-    Recebe um fragmento da transcrição a cada ~60 segundos e retorna dicas ao vendedor.
-
-    Analisa:
-    - Sinais emocionais ocultos na fala do cliente
-    - Perfil DISC em formação
-    - Sinais financeiros (valores, cartão, salário, estoque)
-    - Nível de empolgação do cliente
-    - Janelas de fechamento detectadas
-    - Objeções silenciosas
-    - Próxima ação recomendada para os próximos 60 segundos
-    """
-    try:
-        resultado = await analisar_fragmento(
-            transcricao_parcial=dados.transcricao_parcial,
-            historico=dados.historico or "Início da conversa",
-            perfil_disc_atual=dados.perfil_disc_atual or "Ainda não identificado",
-        )
-        return resultado
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro na análise em tempo real: {str(e)}")
-
-
-# ──────────────────────────────────────────────
-# Endpoint 4 — Diagnóstico Financeiro
-# ──────────────────────────────────────────────
-@app.post("/diagnostico-financeiro", tags=["Análise"])
-async def diagnostico_financeiro(dados: TranscricaoInput):
-    """
-    Extrai automaticamente da transcrição todas as informações financeiras do cliente:
-    faturamento, salário CLT, limite de cartão, estoque e recomenda o produto ideal.
-    """
-    try:
-        resultado = await extrair_diagnostico_financeiro(dados.transcricao)
-        return resultado
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro no diagnóstico financeiro: {str(e)}")
-
-
-# ──────────────────────────────────────────────
-# Endpoint 5 — Perfil DISC + Objeções
-# ──────────────────────────────────────────────
-@app.post("/perfil-disc", tags=["Análise"])
-async def perfil_disc(dados: TranscricaoInput):
-    """
-    Identifica o perfil DISC dominante do cliente e gera as top 3 objeções previstas
-    com respostas personalizadas para o perfil identificado.
-    """
-    try:
-        resultado = await identificar_perfil_disc(dados.transcricao)
-        return resultado
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro na análise DISC: {str(e)}")
-
-
-# ──────────────────────────────────────────────
-# Endpoint 6 — Recapitulação Completa
-# ──────────────────────────────────────────────
-@app.post("/recapitulacao-completa", response_model=RelatorioCompletoOutput, tags=["Relatório"])
-async def recapitulacao_completa(dados: TranscricaoInput):
-    """
-    Gera o relatório completo da reunião.
-    Substitui completamente o processo manual de copiar a transcrição do Tactiq e jogar no Claude.
-
-    Processa em paralelo diagnóstico financeiro e perfil DISC,
-    depois gera o relatório unificado.
-    """
-    try:
-        # Processa diagnóstico financeiro e DISC em paralelo
-        diagnostico, perfil = await asyncio.gather(
-            extrair_diagnostico_financeiro(dados.transcricao),
-            identificar_perfil_disc(dados.transcricao),
+        # Gerar perfil DISC completo
+        disc = chamar_gpt(
+            PROMPT_PERFIL_DISC,
+            req.transcript
         )
 
-        # Gera o relatório completo
-        relatorio = await gerar_recapitulacao_completa(
-            transcricao=dados.transcricao,
-            diagnostico_financeiro=diagnostico,
-            perfil_disc=perfil,
-        )
-
-        return RelatorioCompletoOutput(
-            relatorio_formatado=relatorio,
-            diagnostico_financeiro=diagnostico,
-            perfil_disc=perfil,
-            titulo_reuniao=dados.titulo_reuniao,
-            participantes=dados.participantes,
-            data_reuniao=dados.data_reuniao,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao gerar recapitulação: {str(e)}")
-
-
-# ──────────────────────────────────────────────
-# Endpoint 7 — Produto Recomendado
-# ──────────────────────────────────────────────
-@app.post("/produto-recomendado", tags=["Análise"])
-async def produto_recomendado(dados: TranscricaoInput):
-    """
-    Com base no diagnóstico financeiro da transcrição, retorna o produto ideal para o cliente.
-
-    Tabela de produtos:
-      - Produto Base:          R$ 3.000 – R$ 4.000  (fatura pouco / tem estoque)
-      - Produto Intermediário: R$ 15.984,00
-      - Produto Completo:      R$ 29.892,00
-    """
-    try:
-        diagnostico = await extrair_diagnostico_financeiro(dados.transcricao)
-        return {
-            "produto_recomendado": diagnostico.get("produto_recomendado"),
-            "perfil_financeiro": diagnostico.get("perfil_financeiro"),
-            "estrategia_pagamento": diagnostico.get("estrategia_pagamento"),
-            "capacidade_investimento": diagnostico.get("capacidade_investimento"),
+        ultimo_relatorio = {
+            "titulo": req.meeting_title,
+            "data": req.date or datetime.now().isoformat(),
+            "participantes": req.participants,
+            "recapitulacao": recapitulacao,
+            "diagnostico_financeiro": diagnostico,
+            "perfil_disc": disc,
+            "gerado_em": datetime.now().isoformat(),
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao recomendar produto: {str(e)}")
+        ultimo_relatorio = {"erro": str(e), "gerado_em": datetime.now().isoformat()}
+
+
+@app.post("/diagnostico-financeiro")
+def diagnostico_financeiro(req: DiagnosticoFinanceiroRequest):
+    """
+    Extrai informações financeiras do cliente a partir da transcrição.
+    """
+    if not req.transcricao:
+        raise HTTPException(status_code=400, detail="Transcrição vazia")
+
+    resultado = chamar_gpt(PROMPT_DIAGNOSTICO_FINANCEIRO, req.transcricao)
+    return resultado
+
+
+@app.post("/perfil-disc")
+def identificar_perfil_disc(req: PerfilDiscRequest):
+    """
+    Identifica o perfil DISC do cliente e sugere estratégias.
+    """
+    if not req.transcricao:
+        raise HTTPException(status_code=400, detail="Transcrição vazia")
+
+    resultado = chamar_gpt(PROMPT_PERFIL_DISC, req.transcricao)
+    return resultado
+
+
+@app.post("/recapitulacao-completa")
+def recapitulacao_completa(req: RecapitulacaoRequest):
+    """
+    Gera recapitulação emocional e estratégica completa pós-reunião.
+    Substitui o processo manual de colar transcrição no Claude.
+    """
+    if not req.transcricao:
+        raise HTTPException(status_code=400, detail="Transcrição vazia")
+
+    conteudo = f"REUNIÃO: {req.titulo_reuniao}\nDATA: {req.data or 'não informada'}\n\nTRANSCRIÇÃO:\n{req.transcricao}"
+
+    recapitulacao = chamar_gpt(PROMPT_RECAPITULACAO, conteudo)
+    diagnostico = chamar_gpt(PROMPT_DIAGNOSTICO_FINANCEIRO, req.transcricao)
+    disc = chamar_gpt(PROMPT_PERFIL_DISC, req.transcricao)
+
+    resultado = {
+        "titulo": req.titulo_reuniao,
+        "data": req.data or datetime.now().isoformat(),
+        "recapitulacao": recapitulacao,
+        "diagnostico_financeiro": diagnostico,
+        "perfil_disc": disc,
+        "gerado_em": datetime.now().isoformat(),
+    }
+
+    # Armazenar como último relatório
+    global ultimo_relatorio
+    ultimo_relatorio = resultado
+
+    return resultado
+
+
+@app.get("/relatorio", response_class=HTMLResponse)
+def ver_relatorio():
+    """
+    Exibe o último relatório gerado em formato HTML legível.
+    """
+    if not ultimo_relatorio:
+        return HTMLResponse(content="""
+            <html><body style="font-family:Arial;background:#1a1a2e;color:#e0e0e0;padding:40px;text-align:center">
+            <h2>🤖 SALEIA</h2>
+            <p>Nenhum relatório disponível ainda.</p>
+            <p>Complete uma reunião no Google Meet com a extensão ativa.</p>
+            </body></html>
+        """)
+
+    # Escapar todos os valores dinâmicos para evitar XSS
+    relatorio_json_escaped = html_module.escape(
+        json.dumps(ultimo_relatorio, ensure_ascii=False, indent=2)
+    )
+    titulo_escaped = html_module.escape(str(ultimo_relatorio.get('titulo', 'Reunião de Vendas')))
+    data_escaped = html_module.escape(str(ultimo_relatorio.get('data', ''))[:10])
+    gerado_em_escaped = html_module.escape(str(ultimo_relatorio.get('gerado_em', '')))
+
+    html = f"""<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>SALEIA — Relatório de Reunião</title>
+  <style>
+    body {{ font-family: 'Segoe UI', Arial, sans-serif; background: #1a1a2e; color: #e0e0e0;
+            max-width: 900px; margin: 0 auto; padding: 40px 20px; }}
+    h1 {{ color: #90caf9; }}
+    h2 {{ color: #81c784; margin-top: 30px; }}
+    h3 {{ color: #ffeb3b; }}
+    pre {{ background: #16213e; padding: 16px; border-radius: 8px; overflow-x: auto;
+           white-space: pre-wrap; font-size: 13px; }}
+    .badge {{ background: #0f3460; padding: 4px 10px; border-radius: 12px; margin-right: 8px; }}
+    .header {{ display: flex; align-items: center; gap: 12px; margin-bottom: 30px; }}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span style="font-size:48px">🤖</span>
+    <div>
+      <h1>SALEIA — Relatório de Reunião</h1>
+      <p>{titulo_escaped} · {data_escaped}</p>
+    </div>
+  </div>
+
+  <h2>📋 Dados Completos</h2>
+  <pre>{relatorio_json_escaped}</pre>
+
+  <p style="color:#555577;margin-top:30px;text-align:center">
+    Gerado em: {gerado_em_escaped}
+  </p>
+</body>
+</html>"""
+
+    return HTMLResponse(content=html)
