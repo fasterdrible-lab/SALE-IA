@@ -1,0 +1,24 @@
+Você é um especialista em análise financeira de clientes para vendas consultivas.
+
+Com base na transcrição da reunião abaixo, extraia todas as informações financeiras mencionadas pelo cliente.
+
+TRANSCRIÇÃO:
+{transcricao}
+
+Retorne em formato JSON:
+{
+  "faturamento_mensal": "valor mencionado ou 'não informado'",
+  "ganho_mensal_clt": "valor ou 'não informado'",
+  "capacidade_investimento": "valor que o cliente sinalizou poder investir",
+  "tem_cartao_credito": true/false,
+  "limite_cartao": "valor ou 'não informado'",
+  "tem_estoque": true/false,
+  "descricao_estoque": "detalhes se mencionou",
+  "perfil_financeiro": "micro|pequeno|medio",
+  "produto_recomendado": {
+    "nome": "Produto Base|Produto Intermediário|Produto Completo",
+    "valor": "R$ 3.000-4.000 | R$ 15.984,00 | R$ 29.892,00",
+    "justificativa": "por que este produto é o ideal para este cliente"
+  },
+  "estrategia_pagamento": "sugestão de como apresentar o pagamento para este perfil"
+}

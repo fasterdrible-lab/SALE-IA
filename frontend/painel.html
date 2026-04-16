@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SALEIA — Painel do Vendedor em Tempo Real</title>
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0d0d;
+      --surface:   #1a1a1a;
+      --border:    #2e2e2e;
+      --primary:   #00d4aa;
+      --danger:    #ff4444;
+      --warn:      #ffaa00;
+      --text:      #f0f0f0;
+      --muted:     #888;
+      --radius:    10px;
+      --font:      'Segoe UI', system-ui, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 16px;
+      line-height: 1.6;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    /* ── Layout ── */
+    .container { max-width: 900px; margin: 0 auto; }
+
+    header {
+      text-align: center;
+      padding: 24px 0 32px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 32px;
+    }
+
+    header h1 { font-size: 2rem; color: var(--primary); letter-spacing: 2px; }
+    header p  { color: var(--muted); margin-top: 6px; font-size: 0.95rem; }
+
+    /* ── Configuração de URL ── */
+    .config-bar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .config-bar label { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
+
+    .config-bar input {
+      flex: 1;
+      min-width: 200px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 8px 12px;
+      font-size: 0.85rem;
+    }
+
+    /* ── Área de entrada ── */
+    .input-section { margin-bottom: 24px; }
+
+    label.main-label {
+      display: block;
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: var(--primary);
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 160px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 1rem;
+      padding: 14px;
+      resize: vertical;
+      transition: border-color .2s;
+    }
+
+    textarea:focus { outline: none; border-color: var(--primary); }
+
+    .historico-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    @media (max-width: 600px) { .historico-row { grid-template-columns: 1fr; } }
+
+    .historico-row textarea { min-height: 80px; font-size: 0.9rem; }
+    .historico-row label { font-size: 0.85rem; color: var(--muted); }
+
+    /* ── Botão ── */
+    .btn-analisar {
+      display: block;
+      width: 100%;
+      padding: 18px;
+      margin-top: 20px;
+      background: var(--primary);
+      color: #000;
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: opacity .2s, transform .1s;
+    }
+
+    .btn-analisar:hover  { opacity: .88; }
+    .btn-analisar:active { transform: scale(.99); }
+    .btn-analisar:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: none;
+      text-align: center;
+      padding: 20px;
+      color: var(--primary);
+      font-size: 1.1rem;
+    }
+
+    .spinner.visible { display: block; }
+
+    /* ── Cards de resultado ── */
+    #resultado { margin-top: 32px; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-body { font-size: 1rem; line-height: 1.7; }
+
+    /* Card alerta urgente — destaque vermelho */
+    .card.alerta {
+      border-color: var(--danger);
+      background: #1f0a0a;
+    }
+    .card.alerta .card-title { color: var(--danger); }
+    .card.alerta .card-body   { color: #ffaaaa; font-size: 1.1rem; font-weight: 600; }
+
+    /* Card DISC */
+    .card.disc { border-color: #6c63ff; }
+    .card.disc .card-title { color: #a09aff; }
+
+    /* Card ação */
+    .card.acao { border-color: var(--primary); }
+    .card.acao .card-title { color: var(--primary); }
+    .card.acao .card-body  { font-size: 1.05rem; font-weight: 600; }
+
+    /* Card financeiro */
+    .card.financeiro { border-color: var(--warn); }
+    .card.financeiro .card-title { color: var(--warn); }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-left: 8px;
+    }
+
+    .badge-alto    { background: #0d3d2e; color: #00d4aa; }
+    .badge-medio   { background: #3d2e0d; color: #ffaa00; }
+    .badge-baixo   { background: #3d0d0d; color: #ff6666; }
+
+    /* DISC badge */
+    .disc-tipo {
+      font-size: 2.5rem;
+      font-weight: 900;
+      color: #fff;
+      display: inline-block;
+      margin-right: 12px;
+      vertical-align: middle;
+    }
+
+    .disc-info { display: inline-block; vertical-align: middle; }
+    .disc-info .conf { color: var(--muted); font-size: 0.85rem; }
+
+    /* ── Erro ── */
+    .erro {
+      background: #1f0a0a;
+      border: 1px solid var(--danger);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      color: #ff8080;
+      margin-top: 20px;
+    }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.8rem;
+      padding-top: 40px;
+      margin-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <header>
+    <h1>⚡ SALEIA</h1>
+    <p>Painel do Vendedor — Inteligência em Tempo Real durante a Reunião</p>
+  </header>
+
+  <!-- Configuração da URL da API -->
+  <div class="config-bar">
+    <label for="apiUrl">🔗 URL da API:</label>
+    <input
+      type="text"
+      id="apiUrl"
+      value="http://localhost:8000"
+      placeholder="http://localhost:8000"
+    />
+  </div>
+
+  <!-- Área de entrada principal -->
+  <div class="input-section">
+    <label class="main-label" for="fragmento">
+      📋 Cole aqui o trecho da transcrição (Tactiq ou manual):
+    </label>
+    <textarea
+      id="fragmento"
+      placeholder="Cole aqui os últimos 1-2 minutos da conversa com o cliente...
+
+Exemplo:
+Cliente: Olha, eu faturei uns 8 mil reais esse mês, mas tenho muito produto parado no estoque...
+Vendedor: Entendo! E você tem algum cartão disponível para investir?
+Cliente: Tenho um limite de uns 5 mil, mas não sei se vale a pena..."
+    ></textarea>
+
+    <div class="historico-row">
+      <div>
+        <label for="historico">📝 Resumo do que foi discutido até agora:</label>
+        <textarea
+          id="historico"
+          placeholder="Ex: Cliente tem loja de roupas, fatura ~8k/mês, hesitante com investimento..."
+        ></textarea>
+      </div>
+      <div>
+        <label for="perfil_disc">🎯 Perfil DISC identificado até agora:</label>
+        <textarea
+          id="perfil_disc"
+          placeholder="Ex: Perfil S — cauteloso, pediu garantias, fala devagar..."
+        ></textarea>
+      </div>
+    </div>
+
+    <button class="btn-analisar" id="btnAnalisar" onclick="analisar()">
+      🔍 ANALISAR AGORA
+    </button>
+  </div>
+
+  <!-- Spinner de carregamento -->
+  <div class="spinner" id="spinner">
+    ⏳ Analisando com IA... aguarde alguns segundos...
+  </div>
+
+  <!-- Área de resultados -->
+  <div id="resultado"></div>
+
+  <footer>
+    SALEIA &copy; 2024 — Powered by GPT-4o &nbsp;|&nbsp;
+    Use o Tactiq no Google Meet para transcrição automática
+  </footer>
+
+</div>
+
+<script>
+  // ── Função principal: envia fragmento para a API e exibe resultado ──
+  async function analisar() {
+    const fragmento  = document.getElementById('fragmento').value.trim();
+    const historico  = document.getElementById('historico').value.trim();
+    const perfilDisc = document.getElementById('perfil_disc').value.trim();
+    const apiUrl     = document.getElementById('apiUrl').value.trim().replace(/\/$/, '');
+    const resultado  = document.getElementById('resultado');
+    const spinner    = document.getElementById('spinner');
+    const btn        = document.getElementById('btnAnalisar');
+
+    // Validação básica
+    if (!fragmento) {
+      resultado.innerHTML = '<div class="erro">⚠️ Cole pelo menos um trecho da transcrição antes de analisar.</div>';
+      return;
+    }
+
+    // UI: estado de carregamento
+    btn.disabled = true;
+    btn.textContent = '⏳ Analisando...';
+    spinner.classList.add('visible');
+    resultado.innerHTML = '';
+
+    try {
+      const resposta = await fetch(`${apiUrl}/tempo-real`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transcricao_parcial: fragmento,
+          historico: historico || 'Início da conversa',
+          perfil_disc_atual: perfilDisc || 'Ainda não identificado',
+        }),
+      });
+
+      if (!resposta.ok) {
+        const erro = await resposta.json().catch(() => ({ detail: resposta.statusText }));
+        throw new Error(erro.detail || `Erro HTTP ${resposta.status}`);
+      }
+
+      const dados = await resposta.json();
+      renderizarResultado(dados);
+
+    } catch (err) {
+      resultado.innerHTML = `
+        <div class="erro">
+          ❌ <strong>Erro ao conectar com a API:</strong><br>${err.message}<br><br>
+          <small>Verifique se o servidor está rodando em <code>${apiUrl}</code></small>
+        </div>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🔍 ANALISAR AGORA';
+      spinner.classList.remove('visible');
+    }
+  }
+
+  // ── Renderiza os cards de resultado ──
+  function renderizarResultado(d) {
+    const resultado = document.getElementById('resultado');
+    let html = '';
+
+    // 🚨 Alerta Urgente — só aparece se houver algo crítico
+    if (d.alerta_urgente && d.alerta_urgente !== 'null' && d.alerta_urgente !== null) {
+      html += `
+        <div class="card alerta">
+          <div class="card-title">🚨 ALERTA URGENTE</div>
+          <div class="card-body">${escapeHtml(d.alerta_urgente)}</div>
+        </div>`;
+    }
+
+    // ⚡ Próxima Ação — o que fazer AGORA
+    if (d.proxima_acao) {
+      html += `
+        <div class="card acao">
+          <div class="card-title">⚡ FAÇA NOS PRÓXIMOS 60 SEGUNDOS</div>
+          <div class="card-body">${escapeHtml(d.proxima_acao)}</div>
+        </div>`;
+    }
+
+    // 🎯 Perfil DISC
+    if (d.perfil_disc) {
+      const disc = d.perfil_disc;
+      const descricoes = {
+        D: 'Dominante — direto, quer resultados, decidido',
+        I: 'Influente — emotivo, empolgado, relacional',
+        S: 'Estável — cauteloso, precisa de segurança',
+        C: 'Consciente — analítico, quer dados',
+      };
+      html += `
+        <div class="card disc">
+          <div class="card-title">🎯 PERFIL DISC IDENTIFICADO</div>
+          <div class="card-body">
+            <span class="disc-tipo">${escapeHtml(disc.tipo || '?')}</span>
+            <span class="disc-info">
+              <strong>${escapeHtml(descricoes[disc.tipo] || disc.tipo || '')}</strong><br>
+              <span class="conf">Confiança: ${escapeHtml(disc.confianca || 'n/d')} — ${escapeHtml(disc.evidencia || '')}</span>
+            </span>
+          </div>
+        </div>`;
+    }
+
+    // 💡 Sinal Oculto
+    if (d.sinal_oculto) {
+      html += `
+        <div class="card">
+          <div class="card-title">💡 O QUE O CLIENTE NÃO DISSE MAS SINALIZOU</div>
+          <div class="card-body">${escapeHtml(d.sinal_oculto)}</div>
+        </div>`;
+    }
+
+    // 📉 Oportunidade Perdida
+    if (d.oportunidade_perdida) {
+      html += `
+        <div class="card">
+          <div class="card-title" style="color:#ff9944">📉 OPORTUNIDADE QUE PASSOU</div>
+          <div class="card-body">${escapeHtml(d.oportunidade_perdida)}</div>
+        </div>`;
+    }
+
+    // 💰 Sinal Financeiro
+    if (d.sinal_financeiro) {
+      html += `
+        <div class="card financeiro">
+          <div class="card-title">💰 SINAL FINANCEIRO DETECTADO</div>
+          <div class="card-body">${escapeHtml(d.sinal_financeiro)}</div>
+        </div>`;
+    }
+
+    // 📊 Nível de Empolgação
+    if (d.nivel_empolgacao_cliente) {
+      const nivel   = d.nivel_empolgacao_cliente.toLowerCase();
+      const classeB = nivel.startsWith('alto') ? 'badge-alto'
+                    : nivel.startsWith('medio') || nivel.startsWith('médio') ? 'badge-medio'
+                    : 'badge-baixo';
+      const emoji   = nivel.startsWith('alto') ? '🔥' : nivel.startsWith('medio') || nivel.startsWith('médio') ? '😐' : '❄️';
+      html += `
+        <div class="card">
+          <div class="card-title">
+            ${emoji} NÍVEL DE EMPOLGAÇÃO
+            <span class="badge ${classeB}">${nivel.split(' ')[0].toUpperCase()}</span>
+          </div>
+          <div class="card-body">${escapeHtml(d.nivel_empolgacao_cliente)}</div>
+        </div>`;
+    }
+
+    resultado.innerHTML = html || '<div class="card"><div class="card-body">Nenhum dado retornado pela API.</div></div>';
+
+    // Scroll suave para o resultado
+    resultado.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ── Sanitização básica para evitar XSS ──
+  function escapeHtml(text) {
+    if (typeof text !== 'string') return String(text ?? '');
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  // ── Atalho de teclado: Ctrl+Enter para analisar ──
+  document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      analisar();
+    }
+  });
+</script>
+
+</body>
+</html>

@@ -1,26 +1,66 @@
 {
-  "planos": [
+  "tabela_produtos": [
     {
-      "nome": "Consultoria Pontual",
-      "descricao": "Sessão única de diagnóstico e estratégia",
-      "valor": 0,
-      "tipo": "gratuita",
-      "duracao": "60 minutos"
+      "id": "base",
+      "nome": "Produto Base",
+      "valor_min": 3000.00,
+      "valor_max": 4000.00,
+      "descricao": "Ideal para clientes que faturam pouco, ganham pouco ou têm estoque parado",
+      "perfil_financeiro_alvo": "micro",
+      "criterios": [
+        "Faturamento mensal abaixo de R$ 10.000",
+        "Renda CLT abaixo de R$ 3.000",
+        "Tem estoque parado que pode ser usado como capital de giro",
+        "Limite de cartão baixo (até R$ 5.000)"
+      ]
     },
     {
-      "nome": "Acompanhamento Mensal",
-      "descricao": "Suporte contínuo com sessões semanais",
-      "valor": 497,
-      "tipo": "recorrente",
-      "duracao": "30 dias"
+      "id": "intermediario",
+      "nome": "Produto Intermediário",
+      "valor": 15984.00,
+      "descricao": "Ideal para clientes com capacidade de investimento moderada",
+      "perfil_financeiro_alvo": "pequeno",
+      "criterios": [
+        "Faturamento mensal entre R$ 10.000 e R$ 30.000",
+        "Renda CLT acima de R$ 3.000",
+        "Limite de cartão acima de R$ 5.000",
+        "Tem alguma reserva financeira"
+      ]
     },
     {
-      "nome": "Programa Intensivo",
-      "descricao": "Transformação completa em 90 dias",
-      "valor": 1497,
-      "tipo": "unico",
-      "duracao": "90 dias"
+      "id": "completo",
+      "nome": "Produto Completo",
+      "valor": 29892.00,
+      "descricao": "Solução completa para clientes com alta capacidade de investimento",
+      "perfil_financeiro_alvo": "medio",
+      "criterios": [
+        "Faturamento mensal acima de R$ 30.000",
+        "Alta capacidade de investimento",
+        "Múltiplos cartões ou acesso a crédito",
+        "Comprometido com crescimento acelerado"
+      ]
     }
   ],
-  "observacao": "Estes valores são exemplos — atualizar com os valores reais do Valores.xlsx"
+  "perfis_disc": {
+    "D": {
+      "nome": "Dominante",
+      "caracteristicas": ["direto", "quer resultados", "decidido", "impaciente"],
+      "abordagem": "Vá direto ao ponto, mostre ROI rápido, evite rodeios"
+    },
+    "I": {
+      "nome": "Influente",
+      "caracteristicas": ["emotivo", "empolgado", "relacional", "sociável"],
+      "abordagem": "Use histórias de sucesso, crie conexão emocional, mostre comunidade"
+    },
+    "S": {
+      "nome": "Estável",
+      "caracteristicas": ["cauteloso", "precisa de segurança", "leal", "paciente"],
+      "abordagem": "Mostre garantias, depoimentos, processo passo a passo, suporte"
+    },
+    "C": {
+      "nome": "Consciente",
+      "caracteristicas": ["analítico", "quer dados", "detalhista", "perfeccionista"],
+      "abordagem": "Apresente dados, comparativos, planilhas, prove com números"
+    }
+  }
 }

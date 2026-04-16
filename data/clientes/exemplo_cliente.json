@@ -1,11 +1,16 @@
 {
-  "id": "cliente_001",
-  "nome": "Exemplo Cliente",
-  "segmento": "Esporte / Futebol",
-  "dores": ["falta de estrutura de treino", "não sabe como evoluir"],
-  "objetivos": ["melhorar performance", "chegar ao profissional"],
-  "perfil_emocional": "ansioso, motivado, busca validação",
-  "historico_interacoes": [],
-  "status_funil": "lead_qualificado",
-  "criado_em": "2026-04-16"
+  "nome": "Andrea Silva",
+  "segmento": "Varejo de roupas femininas",
+  "cidade": "São Paulo - SP",
+  "faturamento_mensal": "R$ 8.000",
+  "ganho_clt": "não informado",
+  "tem_cartao_credito": true,
+  "limite_cartao": "R$ 5.000",
+  "tem_estoque": true,
+  "descricao_estoque": "Peças de moda paradas da última coleção",
+  "perfil_financeiro": "micro",
+  "perfil_disc": "S",
+  "produto_recomendado": "Produto Base",
+  "valor_investimento": "R$ 3.000",
+  "observacoes": "Cliente cautelosa, precisa de garantias antes de decidir"
 }
