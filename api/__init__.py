@@ -1,1 +1,1 @@
-# Pacote api — Endpoints FastAPI do SALEIA
+# api/__init__.py

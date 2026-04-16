@@ -1,0 +1,29 @@
+🤖 *SALEIA — Relatório da Reunião*
+📅 {data} | 👤 {nome_cliente}
+
+━━━━━━━━━━━━━━━━━━━━
+💰 *PRODUTO RECOMENDADO*
+{produto} — {valor}
+_{justificativa}_
+
+━━━━━━━━━━━━━━━━━━━━
+🎯 *PERFIL DISC*
+{perfil} — {como_abordar}
+
+━━━━━━━━━━━━━━━━━━━━
+⚠️ *TOP OBJEÇÕES ESPERADAS*
+1. {objecao_1} → {resposta_1}
+2. {objecao_2} → {resposta_2}
+3. {objecao_3} → {resposta_3}
+
+━━━━━━━━━━━━━━━━━━━━
+⚡ *O QUE VOCÊ NÃO PERCEBEU*
+{sinal_oculto}
+
+━━━━━━━━━━━━━━━━━━━━
+✅ *PRÓXIMOS PASSOS*
+1. {passo_1}
+2. {passo_2}
+3. {passo_3}
+
+_Ver relatório completo: {link_relatorio}_
