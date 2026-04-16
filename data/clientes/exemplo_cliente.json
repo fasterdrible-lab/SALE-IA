@@ -1,0 +1,16 @@
+{
+  "nome": "Andrea Silva",
+  "segmento": "Varejo de roupas femininas",
+  "cidade": "São Paulo - SP",
+  "faturamento_mensal": "R$ 8.000",
+  "ganho_clt": "não informado",
+  "tem_cartao_credito": true,
+  "limite_cartao": "R$ 5.000",
+  "tem_estoque": true,
+  "descricao_estoque": "Peças de moda paradas da última coleção",
+  "perfil_financeiro": "micro",
+  "perfil_disc": "S",
+  "produto_recomendado": "Produto Base",
+  "valor_investimento": "R$ 3.000",
+  "observacoes": "Cliente cautelosa, precisa de garantias antes de decidir"
+}

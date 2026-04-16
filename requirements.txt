@@ -1,0 +1,18 @@
+# Dependências do SALEIA — Agente de Vendas com IA
+# Instale com: pip install -r requirements.txt
+
+# Framework web assíncrono
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+
+# Cliente OpenAI (GPT-4o + Whisper)
+openai>=1.58.0
+
+# Validação de dados
+pydantic==2.9.2
+
+# Variáveis de ambiente
+python-dotenv==1.0.1
+
+# Suporte a multipart (upload de áudio futuro)
+python-multipart==0.0.12

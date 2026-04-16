@@ -1,0 +1,43 @@
+# Arquivos de ambiente — NUNCA commite estes arquivos
+.env
+.env.local
+.env.production
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+
+# Ambientes virtuais
+venv/
+.venv/
+env/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# Logs
+*.log
+logs/
+
+# Uploads temporários
+uploads/
+tmp/
+agent/__pycache__/
+api/__pycache__/

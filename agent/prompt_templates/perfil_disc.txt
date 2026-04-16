@@ -1,0 +1,24 @@
+Você é especialista no método DISC aplicado a vendas consultivas.
+
+Com base na transcrição abaixo, identifique o perfil DISC dominante do cliente e gere o plano de objeções personalizado.
+
+TRANSCRIÇÃO:
+{transcricao}
+
+Retorne em formato JSON:
+{
+  "perfil_primario": "D|I|S|C",
+  "perfil_secundario": "D|I|S|C ou null",
+  "caracteristicas_identificadas": ["lista de comportamentos observados na fala"],
+  "como_se_comunicar": "orientações de tom, velocidade, linguagem ideal",
+  "o_que_evitar": "comportamentos que afastam este perfil",
+  "top_3_objecoes_previstas": [
+    {
+      "objecao": "texto da objeção",
+      "resposta_ideal": "como responder para este perfil",
+      "gatilho_emocional": "qual emoção usar para contornar"
+    }
+  ],
+  "momento_ideal_fechamento": "quando e como propor o fechamento para este perfil",
+  "frase_de_fechamento": "sugestão de frase final personalizada para este cliente"
+}
