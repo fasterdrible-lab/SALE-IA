@@ -1,36 +1,19 @@
-# Arquivo de credenciais — NUNCA commitar!
-.env
-
-# Relatórios gerados automaticamente (dados sensíveis de clientes)
-data/relatorios/*.json
-
 # Python
 __pycache__/
-*.py[cod]
+*.pyc
 *.pyo
 *.pyd
 .Python
-*.egg
 *.egg-info/
 dist/
 build/
-.eggs/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-
-# Ambientes virtuais
+.env
 venv/
 .venv/
-env/
-.env/
 
-# IDEs
-.vscode/
-.idea/
-*.sublime-project
-*.sublime-workspace
+# Node
+node_modules/
 
-# Sistema operacional
+# OS
 .DS_Store
 Thumbs.db
