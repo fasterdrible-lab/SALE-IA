@@ -1,6 +1,6 @@
 """
 Módulo 1 — Agente em Tempo Real
-Recebe fragmentos da transcrição a cada 30-60 segundos e retorna dicas ao vendedor
+Recebe fragmentos da transcrição a cada 60 segundos e retorna dicas ao vendedor
 sobre o que ele ainda não percebeu durante a reunião com o cliente.
 """
 

@@ -153,7 +153,7 @@ Configure o Tactiq para enviar a transcrição automaticamente ao SALEIA:
 
 ## ⚠️ OBSERVAÇÕES IMPORTANTES
 
-- **Nunca** commite o arquivo `.env` com sua chave real
+- **Nunca** faça commit do arquivo `.env` com sua chave real
 - Sempre informe ao cliente que a reunião está sendo transcrita (LGPD)
 - A chave `OPENAI_API_KEY` cobre tanto o GPT-4o quanto o Whisper API
 - O painel HTML funciona diretamente no navegador **sem servidor** — basta abrir o arquivo
