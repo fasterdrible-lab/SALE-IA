@@ -1,0 +1,20 @@
+# Dependências do SALEIA — Pipeline Automatizado de Reuniões de Vendas
+
+# Framework web assíncrono
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+
+# Cliente OpenAI (GPT-4o)
+openai>=1.57.0
+
+# Variáveis de ambiente
+python-dotenv>=1.0.0
+
+# Cliente HTTP assíncrono (para Z-API e Tactiq API)
+httpx>=0.28.0
+
+# Validação de dados
+pydantic>=2.10.0
+
+# Formulários multipart (upload de áudio)
+python-multipart>=0.0.20
