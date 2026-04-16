@@ -1,151 +1,137 @@
 /**
- * popup.js — Lógica do popup da extensão SALEIA
- * Gerencia seleção de LLM e chaves de API por provedor
+ * SALEIA — popup.js
+ * Controles do popup da extensão Chrome.
  */
 
-/* ─────────────────────────────────────────────
-   SELEÇÃO DE MODELO DE IA
-───────────────────────────────────────────── */
+'use strict';
 
-// Ao clicar em uma opção de LLM, seleciona e mostra o campo de chave correspondente
-document.querySelectorAll('.llm-option').forEach(option => {
-  option.addEventListener('click', () => {
-    // Remove seleção anterior
-    document.querySelectorAll('.llm-option').forEach(o => o.classList.remove('selected'));
-    option.classList.add('selected');
+document.addEventListener('DOMContentLoaded', function () {
+  const toggleAtivo = document.getElementById('toggle-ativo');
+  const backendUrlInput = document.getElementById('backend-url');
+  const btnSalvarUrl = document.getElementById('btn-salvar-url');
+  const urlFeedback = document.getElementById('url-feedback');
+  const statusTexto = document.getElementById('status-texto');
+  const statusEl = document.getElementById('popup-status');
+  const ultimasDicas = document.getElementById('ultimas-dicas');
+  const btnRelatorio = document.getElementById('btn-relatorio');
 
-    const llm = option.dataset.llm;
-    const provider = option.dataset.provider;
+  // ─────────────────────────────────────────────
+  // CARREGAR CONFIGURAÇÕES SALVAS
+  // ─────────────────────────────────────────────
+  chrome.storage.local.get(
+    ['saleiaAtivo', 'saleiaBackendUrl', 'saleiaUltimasDicas', 'saleiaUltimaAtualizacao'],
+    function (result) {
+      // Toggle on/off
+      toggleAtivo.checked = result.saleiaAtivo !== false;
 
-    // Mostra apenas o campo de chave do provedor selecionado
-    document.querySelectorAll('.api-key-group').forEach(g => g.classList.add('hidden'));
-    const keyGroup = document.getElementById(`key-${provider}`);
-    if (keyGroup) keyGroup.classList.remove('hidden');
+      // URL do backend
+      if (result.saleiaBackendUrl) {
+        backendUrlInput.value = result.saleiaBackendUrl;
+      }
 
-    // Persiste a seleção no storage local da extensão
-    chrome.storage.local.set({ selectedLlm: llm, selectedProvider: provider }, () => {
-      mostrarSalvo();
+      // Últimas dicas recebidas
+      if (result.saleiaUltimasDicas) {
+        exibirUltimasDicas(result.saleiaUltimasDicas, result.saleiaUltimaAtualizacao);
+      }
+    }
+  );
+
+  // ─────────────────────────────────────────────
+  // VERIFICAR SE HÁ ABA DO MEET ATIVA
+  // ─────────────────────────────────────────────
+  chrome.tabs.query({ url: 'https://meet.google.com/*' }, function (tabs) {
+    if (tabs && tabs.length > 0) {
+      statusTexto.textContent = 'Monitorando reunião...';
+      statusEl.classList.remove('popup-status-aguardando');
+      statusEl.classList.add('popup-status-ativo');
+    } else {
+      statusTexto.textContent = 'Aguardando Google Meet...';
+    }
+  });
+
+  // ─────────────────────────────────────────────
+  // TOGGLE ATIVAR/DESATIVAR
+  // ─────────────────────────────────────────────
+  toggleAtivo.addEventListener('change', function () {
+    const novoValor = toggleAtivo.checked;
+    chrome.runtime.sendMessage({ tipo: 'setAtivo', valor: novoValor }, function () {
+      statusTexto.textContent = novoValor ? 'Monitorando reunião...' : 'Pausado pelo usuário';
     });
   });
-});
 
-/* ─────────────────────────────────────────────
-   SALVAR CHAVES DE API
-───────────────────────────────────────────── */
+  // ─────────────────────────────────────────────
+  // SALVAR URL DO BACKEND
+  // ─────────────────────────────────────────────
+  btnSalvarUrl.addEventListener('click', function () {
+    const url = backendUrlInput.value.trim().replace(/\/$/, '');
+    if (!url) return;
 
-// Salva a chave digitada ao sair do campo (evento change)
-['openai', 'anthropic', 'google'].forEach(provider => {
-  const input = document.getElementById(`input-${provider}-key`);
-  if (!input) return;
-
-  input.addEventListener('change', (e) => {
-    const value = e.target.value.trim();
-
-    // Não sobrescreve com o valor mascarado (começa com •)
-    if (value.startsWith('\u2022')) return;
-
-    const keys = {};
-    keys[`apiKey_${provider}`] = value;
-
-    chrome.storage.local.set(keys, () => {
-      const status = document.getElementById(`status-${provider}`);
-      if (status) status.textContent = value ? '✅' : '⚪';
-      mostrarSalvo();
+    chrome.runtime.sendMessage({ tipo: 'setBackendUrl', valor: url }, function () {
+      mostrarFeedback('✅ URL salva com sucesso!', 'success');
     });
   });
-});
 
-/* ─────────────────────────────────────────────
-   CONFIGURAÇÃO DO BACKEND
-───────────────────────────────────────────── */
-
-// Salva a URL do backend ao sair do campo
-const inputBackend = document.getElementById('input-backend-url');
-if (inputBackend) {
-  inputBackend.addEventListener('change', (e) => {
-    const url = e.target.value.trim();
-    chrome.storage.local.set({ saleliaBackendUrl: url }, () => {
-      mostrarSalvo();
-    });
+  // ─────────────────────────────────────────────
+  // BOTÃO VER RELATÓRIO COMPLETO
+  // ─────────────────────────────────────────────
+  btnRelatorio.addEventListener('click', function (e) {
+    e.preventDefault();
+    const url = backendUrlInput.value.trim().replace(/\/$/, '') + '/relatorio';
+    chrome.tabs.create({ url: url });
   });
-}
 
-// Testa a conexão com o backend ao clicar em "Testar"
-const btnTestar = document.getElementById('btn-test-backend');
-if (btnTestar) {
-  btnTestar.addEventListener('click', () => {
-    const url = inputBackend ? inputBackend.value.trim() || 'http://localhost:8000' : 'http://localhost:8000';
-    const statusEl = document.getElementById('backend-status');
-    if (statusEl) statusEl.textContent = '⏳ Testando...';
+  // ─────────────────────────────────────────────
+  // FUNÇÕES AUXILIARES
+  // ─────────────────────────────────────────────
+  function mostrarFeedback(mensagem, tipo) {
+    urlFeedback.textContent = mensagem;
+    urlFeedback.style.display = 'block';
+    urlFeedback.className = 'popup-feedback popup-feedback-' + tipo;
+    setTimeout(function () {
+      urlFeedback.style.display = 'none';
+    }, 3000);
+  }
 
-    fetch(`${url}/health`)
-      .then(r => r.ok ? r.json() : Promise.reject(r.status))
-      .then(() => {
-        if (statusEl) statusEl.textContent = '✅ Conectado!';
-      })
-      .catch(() => {
-        if (statusEl) statusEl.textContent = '❌ Sem conexão — verifique o servidor';
-      });
-  });
-}
+  function exibirUltimasDicas(dicas, timestamp) {
+    if (!dicas) return;
 
-/* ─────────────────────────────────────────────
-   CARREGAR CONFIGURAÇÕES SALVAS
-───────────────────────────────────────────── */
-
-chrome.storage.local.get(
-  ['selectedLlm', 'selectedProvider', 'apiKey_openai', 'apiKey_anthropic', 'apiKey_google', 'saleliaBackendUrl'],
-  (data) => {
-    // Restaura modelo selecionado
-    if (data.selectedLlm) {
-      document.querySelectorAll('.llm-option').forEach(o => {
-        o.classList.toggle('selected', o.dataset.llm === data.selectedLlm);
-      });
+    function escaparHtml(str) {
+      if (str == null) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
 
-    // Mostra o campo de chave do provedor ativo
-    const provider = data.selectedProvider || 'openai';
-    document.querySelectorAll('.api-key-group').forEach(g => g.classList.add('hidden'));
-    const keyGroup = document.getElementById(`key-${provider}`);
-    if (keyGroup) keyGroup.classList.remove('hidden');
-
-    // Exibe chaves mascaradas se já salvas
-    if (data.apiKey_openai) {
-      const el = document.getElementById('input-openai-key');
-      if (el) el.value = '••••••••' + data.apiKey_openai.slice(-4);
-      const st = document.getElementById('status-openai');
-      if (st) st.textContent = '✅';
+    let html = '';
+    if (dicas.proxima_acao) {
+      html += '<div class="popup-dica"><span class="popup-dica-icon">💬</span>' + escaparHtml(dicas.proxima_acao) + '</div>';
     }
-    if (data.apiKey_anthropic) {
-      const el = document.getElementById('input-anthropic-key');
-      if (el) el.value = '••••••••' + data.apiKey_anthropic.slice(-4);
-      const st = document.getElementById('status-anthropic');
-      if (st) st.textContent = '✅';
+    if (dicas.perfil_disc && dicas.perfil_disc.tipo) {
+      html += '<div class="popup-dica"><span class="popup-dica-icon">🎯</span>Perfil: <strong>' + escaparHtml(dicas.perfil_disc.tipo) + '</strong></div>';
     }
-    if (data.apiKey_google) {
-      const el = document.getElementById('input-google-key');
-      if (el) el.value = '••••••••' + data.apiKey_google.slice(-4);
-      const st = document.getElementById('status-google');
-      if (st) st.textContent = '✅';
+    if (dicas.sinal_financeiro) {
+      html += '<div class="popup-dica"><span class="popup-dica-icon">💰</span>' + escaparHtml(dicas.sinal_financeiro) + '</div>';
     }
-
-    // Restaura URL do backend
-    if (data.saleliaBackendUrl && inputBackend) {
-      inputBackend.value = data.saleliaBackendUrl;
+    if (timestamp) {
+      html += '<div class="popup-dica-hora">Atualizado: ' + escaparHtml(new Date(timestamp).toLocaleTimeString('pt-BR')) + '</div>';
+    }
+    if (html) {
+      ultimasDicas.innerHTML = html;
     }
   }
-);
 
-/* ─────────────────────────────────────────────
-   HELPERS
-───────────────────────────────────────────── */
-
-// Exibe brevemente a mensagem de confirmação de salvamento
-function mostrarSalvo() {
-  const el = document.getElementById('save-status');
-  if (!el) return;
-  el.textContent = '✅ Salvo!';
-  setTimeout(() => {
-    el.textContent = '✅ Configurações salvas automaticamente';
-  }, 1500);
-}
+  // ─────────────────────────────────────────────
+  // OUVIR ATUALIZAÇÕES DO STORAGE (novas dicas)
+  // ─────────────────────────────────────────────
+  chrome.storage.onChanged.addListener(function (changes) {
+    if (changes.saleiaUltimasDicas) {
+      exibirUltimasDicas(
+        changes.saleiaUltimasDicas.newValue,
+        changes.saleiaUltimaAtualizacao ? changes.saleiaUltimaAtualizacao.newValue : null
+      );
+    }
+  });
+});
