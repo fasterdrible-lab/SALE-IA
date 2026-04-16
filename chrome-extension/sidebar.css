@@ -1,0 +1,249 @@
+/* =====================================================
+   SALEIA — sidebar.css
+   Estilos do painel lateral dentro do Google Meet
+   Tema escuro, legível, sem interferir nos controles
+   ===================================================== */
+
+/* ── Sidebar principal ── */
+#saleia-sidebar {
+  position: fixed;
+  right: 0;
+  top: 60px;
+  width: 280px;
+  max-height: calc(100vh - 80px);
+  background: #1a1a2e;
+  color: #e0e0e0;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: 13px;
+  border-radius: 8px 0 0 8px;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.6);
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: width 0.2s ease;
+  user-select: none;
+}
+
+/* ── Header ── */
+#saleia-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #16213e;
+  padding: 10px 12px;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  color: #ffffff;
+  flex-shrink: 0;
+  border-bottom: 1px solid #0f3460;
+}
+
+#saleia-toggle-btn {
+  background: none;
+  border: none;
+  color: #90caf9;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+#saleia-toggle-btn:hover {
+  color: #ffffff;
+}
+
+/* ── Corpo com scroll ── */
+#saleia-body {
+  overflow-y: auto;
+  padding: 8px;
+  flex: 1;
+}
+
+/* Scrollbar fina e escura */
+#saleia-body::-webkit-scrollbar {
+  width: 4px;
+}
+#saleia-body::-webkit-scrollbar-track {
+  background: #1a1a2e;
+}
+#saleia-body::-webkit-scrollbar-thumb {
+  background: #3a3a5c;
+  border-radius: 2px;
+}
+
+/* ── Status ── */
+#saleia-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 4px;
+  font-size: 12px;
+  color: #aaaacc;
+  border-bottom: 1px solid #2a2a4e;
+  margin-bottom: 6px;
+}
+
+/* Ponto pulsante verde */
+.saleia-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4caf50;
+  display: inline-block;
+  animation: saleia-blink 1.5s infinite;
+}
+
+.saleia-dot-vermelho {
+  background: #ff4444;
+  animation: saleia-blink 0.8s infinite;
+}
+
+.saleia-dot-cinza {
+  background: #888;
+  animation: none;
+}
+
+@keyframes saleia-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+/* ── Seções genéricas ── */
+.saleia-secao {
+  background: #16213e;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+}
+
+.saleia-secao-titulo {
+  font-size: 11px;
+  font-weight: 700;
+  color: #90caf9;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 6px;
+}
+
+/* ── Alerta urgente ── */
+.saleia-alerta-box {
+  background: #ff4444 !important;
+  color: #ffffff;
+}
+
+.saleia-alerta-box .saleia-secao-titulo {
+  color: #ffe0e0;
+}
+
+.saleia-pulse {
+  animation: saleia-pulse-anim 1s infinite;
+}
+
+@keyframes saleia-pulse-anim {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.7); }
+  70%  { box-shadow: 0 0 0 10px rgba(255, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0); }
+}
+
+/* ── Badges DISC ── */
+.saleia-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 13px;
+  color: #111;
+  margin-right: 4px;
+}
+
+/* ── Próxima fala ── */
+#saleia-proxima-fala {
+  background: #0f3460;
+  border-left: 3px solid #4caf50;
+}
+
+.saleia-verde {
+  color: #81c784;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* ── Sinal financeiro ── */
+#saleia-sinal-financeiro {
+  background: #1a472a;
+}
+
+/* ── Oportunidade perdida ── */
+#saleia-oportunidade {
+  background: #7b2d00;
+}
+
+/* ── Produto indicado ── */
+#saleia-produto {
+  background: #1b3a1b;
+  border-left: 3px solid #66bb6a;
+}
+
+/* ── Objeções ── */
+.saleia-objecao {
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #2a2a4e;
+  line-height: 1.4;
+}
+
+.saleia-objecao:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.saleia-resposta {
+  color: #aed6f1;
+  font-size: 12px;
+}
+
+.saleia-acao {
+  display: block;
+  margin-top: 4px;
+  color: #ffeb3b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ── Aviso de legenda desativada ── */
+.saleia-aviso {
+  background: #3e2700;
+  border: 1px dashed #ff9800;
+  color: #ffcc02;
+  line-height: 1.5;
+  font-size: 12px;
+}
+
+/* ── Contador regressivo ── */
+#saleia-contador {
+  text-align: center;
+  font-size: 11px;
+  color: #666699;
+  padding: 6px 4px 4px;
+  border-top: 1px solid #2a2a4e;
+  margin-top: 4px;
+}
+
+/* ── Animação de atualização ── */
+.saleia-fade-in {
+  animation: saleia-fade 0.4s ease;
+}
+
+@keyframes saleia-fade {
+  from { opacity: 0.4; transform: translateY(-4px); }
+  to   { opacity: 1;   transform: translateY(0);    }
+}
+
+/* ── Garante que a sidebar não cobre controles críticos do Meet ── */
+/* O Meet coloca botões de controle na parte inferior; a sidebar começa em top:60px */
+#saleia-sidebar * {
+  box-sizing: border-box;
+}
