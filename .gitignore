@@ -1,27 +1,19 @@
-# Variáveis de ambiente (nunca commitar)
-.env
-
 # Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
-.venv/
-venv/
-env/
 *.egg-info/
 dist/
 build/
+.env
+venv/
+.venv/
 
-# Node.js
+# Node
 node_modules/
 
-# macOS
+# OS
 .DS_Store
-
-# IDEs
-.vscode/
-.idea/
-*.swp
-*.swo
+Thumbs.db
