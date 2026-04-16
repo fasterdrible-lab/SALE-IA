@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SALEIA — Assistente de Vendas</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="popup-container">
+
+    <!-- Header -->
+    <div class="popup-header">
+      <span class="popup-logo">🤖</span>
+      <div>
+        <div class="popup-title">SALEIA</div>
+        <div class="popup-subtitle">Assistente de Vendas IA</div>
+      </div>
+      <label class="popup-toggle" title="Ativar/Desativar">
+        <input type="checkbox" id="toggle-ativo" checked />
+        <span class="popup-toggle-slider"></span>
+      </label>
+    </div>
+
+    <!-- Status da reunião -->
+    <div id="popup-status" class="popup-status popup-status-aguardando">
+      <span class="status-dot"></span>
+      <span id="status-texto">Aguardando Google Meet...</span>
+    </div>
+
+    <!-- Últimas dicas -->
+    <div class="popup-secao">
+      <div class="popup-secao-titulo">📋 Últimas dicas recebidas</div>
+      <div id="ultimas-dicas" class="popup-dicas-vazio">
+        Nenhuma dica ainda. Entre em uma reunião no Google Meet e ative as legendas (CC).
+      </div>
+    </div>
+
+    <!-- Configurações do backend -->
+    <div class="popup-secao">
+      <div class="popup-secao-titulo">⚙️ URL do Backend SALEIA</div>
+      <input
+        type="text"
+        id="backend-url"
+        class="popup-input"
+        placeholder="http://localhost:8000"
+        value="http://localhost:8000"
+      />
+      <button id="btn-salvar-url" class="popup-btn popup-btn-primario">Salvar URL</button>
+      <div id="url-feedback" class="popup-feedback" style="display:none"></div>
+    </div>
+
+    <!-- Rodapé -->
+    <div class="popup-footer">
+      <span id="versao">v1.0.0</span>
+      <span>·</span>
+      <a id="btn-relatorio" href="#" class="popup-link">Ver relatório completo</a>
+    </div>
+
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
