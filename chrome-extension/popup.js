@@ -19,19 +19,19 @@ document.addEventListener('DOMContentLoaded', function () {
   // CARREGAR CONFIGURAÇÕES SALVAS
   // ─────────────────────────────────────────────
   chrome.storage.local.get(
-    ['saleliaAtivo', 'saleliaBackendUrl', 'saleliaUltimasDicas', 'saleliaUltimaAtualizacao'],
+    ['saleiaAtivo', 'saleiaBackendUrl', 'saleiaUltimasDicas', 'saleiaUltimaAtualizacao'],
     function (result) {
       // Toggle on/off
-      toggleAtivo.checked = result.saleliaAtivo !== false;
+      toggleAtivo.checked = result.saleiaAtivo !== false;
 
       // URL do backend
-      if (result.saleliaBackendUrl) {
-        backendUrlInput.value = result.saleliaBackendUrl;
+      if (result.saleiaBackendUrl) {
+        backendUrlInput.value = result.saleiaBackendUrl;
       }
 
       // Últimas dicas recebidas
-      if (result.saleliaUltimasDicas) {
-        exibirUltimasDicas(result.saleliaUltimasDicas, result.saleliaUltimaAtualizacao);
+      if (result.saleiaUltimasDicas) {
+        exibirUltimasDicas(result.saleiaUltimasDicas, result.saleiaUltimaAtualizacao);
       }
     }
   );
@@ -116,10 +116,10 @@ document.addEventListener('DOMContentLoaded', function () {
   // OUVIR ATUALIZAÇÕES DO STORAGE (novas dicas)
   // ─────────────────────────────────────────────
   chrome.storage.onChanged.addListener(function (changes) {
-    if (changes.saleliaUltimasDicas) {
+    if (changes.saleiaUltimasDicas) {
       exibirUltimasDicas(
-        changes.saleliaUltimasDicas.newValue,
-        changes.saleliaUltimaAtualizacao ? changes.saleliaUltimaAtualizacao.newValue : null
+        changes.saleiaUltimasDicas.newValue,
+        changes.saleiaUltimaAtualizacao ? changes.saleiaUltimaAtualizacao.newValue : null
       );
     }
   });

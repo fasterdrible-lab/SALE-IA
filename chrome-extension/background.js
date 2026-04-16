@@ -18,12 +18,12 @@ let estadoExtensao = {
 // INICIALIZAÇÃO — carregar configurações salvas
 // ─────────────────────────────────────────────
 chrome.runtime.onInstalled.addListener(function () {
-  chrome.storage.local.get(['saleliaBackendUrl', 'saleliaAtivo'], function (result) {
-    if (!result.saleliaBackendUrl) {
-      chrome.storage.local.set({ saleliaBackendUrl: 'http://localhost:8000' });
+  chrome.storage.local.get(['saleiaBackendUrl', 'saleiaAtivo'], function (result) {
+    if (!result.saleiaBackendUrl) {
+      chrome.storage.local.set({ saleiaBackendUrl: 'http://localhost:8000' });
     }
-    if (result.saleliaAtivo === undefined) {
-      chrome.storage.local.set({ saleliaAtivo: true });
+    if (result.saleiaAtivo === undefined) {
+      chrome.storage.local.set({ saleiaAtivo: true });
     }
   });
   console.log('[SALEIA] Extensão instalada/atualizada.');
@@ -36,7 +36,7 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   // Popup → ativar/desativar extensão
   if (msg.tipo === 'setAtivo') {
     estadoExtensao.ativo = msg.valor;
-    chrome.storage.local.set({ saleliaAtivo: msg.valor });
+    chrome.storage.local.set({ saleiaAtivo: msg.valor });
 
     // Propagar para a aba ativa do Meet
     propagarParaMeet({ tipo: 'toggle', valor: msg.valor });
@@ -46,7 +46,7 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   // Popup → mudar URL do backend
   if (msg.tipo === 'setBackendUrl') {
     estadoExtensao.backendUrl = msg.valor;
-    chrome.storage.local.set({ saleliaBackendUrl: msg.valor });
+    chrome.storage.local.set({ saleiaBackendUrl: msg.valor });
 
     // Propagar para a aba ativa do Meet
     propagarParaMeet({ tipo: 'backendUrl', valor: msg.valor });
@@ -80,9 +80,23 @@ function propagarParaMeet(mensagem) {
 // ─────────────────────────────────────────────
 // ÍCONE DINÂMICO — verde quando no Meet, cinza fora
 // ─────────────────────────────────────────────
+
+/**
+ * Verifica se a URL pertence ao Google Meet de forma segura,
+ * comparando o hostname exato para evitar falsos positivos.
+ */
+function ehUrlDoMeet(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname === 'meet.google.com';
+  } catch (_) {
+    return false;
+  }
+}
+
 chrome.tabs.onActivated.addListener(function (activeInfo) {
   chrome.tabs.get(activeInfo.tabId, function (tab) {
-    if (tab && tab.url && tab.url.includes('meet.google.com')) {
+    if (tab && tab.url && ehUrlDoMeet(tab.url)) {
       // Aba é do Meet — ícone normal (colorido)
       chrome.action.setBadgeText({ text: '●', tabId: tab.id });
       chrome.action.setBadgeBackgroundColor({ color: '#4caf50', tabId: tab.id });
@@ -93,7 +107,7 @@ chrome.tabs.onActivated.addListener(function (activeInfo) {
 });
 
 chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
-  if (changeInfo.status === 'complete' && tab.url && tab.url.includes('meet.google.com')) {
+  if (changeInfo.status === 'complete' && tab.url && ehUrlDoMeet(tab.url)) {
     chrome.action.setBadgeText({ text: '●', tabId: tabId });
     chrome.action.setBadgeBackgroundColor({ color: '#4caf50', tabId: tabId });
   }

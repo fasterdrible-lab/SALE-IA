@@ -37,11 +37,11 @@
   // ─────────────────────────────────────────────
   // CARREGAR CONFIGURAÇÕES DO STORAGE
   // ─────────────────────────────────────────────
-  chrome.storage.local.get(['saleliaBackendUrl', 'saleliaAtivo'], function (result) {
-    if (result.saleliaBackendUrl) {
-      CONFIG.backendUrl = result.saleliaBackendUrl;
+  chrome.storage.local.get(['saleiaBackendUrl', 'saleiaAtivo'], function (result) {
+    if (result.saleiaBackendUrl) {
+      CONFIG.backendUrl = result.saleiaBackendUrl;
     }
-    if (result.saleliaAtivo === false) {
+    if (result.saleiaAtivo === false) {
       estado.ativo = false;
     }
     iniciar();

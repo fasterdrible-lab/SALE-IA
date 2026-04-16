@@ -14,6 +14,8 @@ Endpoints:
 
 import os
 import json
+import html as html_module
+import logging
 from datetime import datetime
 from typing import Optional, List
 
@@ -22,6 +24,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from openai import OpenAI
+
+logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────
 # CONFIGURAÇÃO
@@ -271,9 +275,11 @@ def chamar_gpt(system_prompt: str, user_content: str, modelo: str = "gpt-4o") ->
         conteudo = resposta.choices[0].message.content
         return json.loads(conteudo)
     except json.JSONDecodeError as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao parsear resposta da IA: {str(e)}")
+        logger.error("Erro ao parsear resposta da IA: %s", e)
+        raise HTTPException(status_code=500, detail="Erro ao processar resposta da IA. Tente novamente.")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao chamar GPT-4o: {str(e)}")
+        logger.error("Erro ao chamar GPT-4o: %s", e)
+        raise HTTPException(status_code=500, detail="Erro ao conectar com a IA. Verifique a chave OPENAI_API_KEY.")
 
 
 # ─────────────────────────────────────────────
@@ -437,7 +443,13 @@ def ver_relatorio():
             </body></html>
         """)
 
-    relatorio_json = json.dumps(ultimo_relatorio, ensure_ascii=False, indent=2)
+    # Escapar todos os valores dinâmicos para evitar XSS
+    relatorio_json_escaped = html_module.escape(
+        json.dumps(ultimo_relatorio, ensure_ascii=False, indent=2)
+    )
+    titulo_escaped = html_module.escape(str(ultimo_relatorio.get('titulo', 'Reunião de Vendas')))
+    data_escaped = html_module.escape(str(ultimo_relatorio.get('data', ''))[:10])
+    gerado_em_escaped = html_module.escape(str(ultimo_relatorio.get('gerado_em', '')))
 
     html = f"""<!DOCTYPE html>
 <html lang="pt-BR">
@@ -461,15 +473,15 @@ def ver_relatorio():
     <span style="font-size:48px">🤖</span>
     <div>
       <h1>SALEIA — Relatório de Reunião</h1>
-      <p>{ultimo_relatorio.get('titulo', 'Reunião de Vendas')} · {ultimo_relatorio.get('data', '')[:10]}</p>
+      <p>{titulo_escaped} · {data_escaped}</p>
     </div>
   </div>
 
   <h2>📋 Dados Completos</h2>
-  <pre>{relatorio_json}</pre>
+  <pre>{relatorio_json_escaped}</pre>
 
   <p style="color:#555577;margin-top:30px;text-align:center">
-    Gerado em: {ultimo_relatorio.get('gerado_em', '')}
+    Gerado em: {gerado_em_escaped}
   </p>
 </body>
 </html>"""
