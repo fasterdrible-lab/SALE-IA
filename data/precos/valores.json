@@ -1,0 +1,26 @@
+{
+  "planos": [
+    {
+      "nome": "Consultoria Pontual",
+      "descricao": "Sessão única de diagnóstico e estratégia",
+      "valor": 0,
+      "tipo": "gratuita",
+      "duracao": "60 minutos"
+    },
+    {
+      "nome": "Acompanhamento Mensal",
+      "descricao": "Suporte contínuo com sessões semanais",
+      "valor": 497,
+      "tipo": "recorrente",
+      "duracao": "30 dias"
+    },
+    {
+      "nome": "Programa Intensivo",
+      "descricao": "Transformação completa em 90 dias",
+      "valor": 1497,
+      "tipo": "unico",
+      "duracao": "90 dias"
+    }
+  ],
+  "observacao": "Estes valores são exemplos — atualizar com os valores reais do Valores.xlsx"
+}
