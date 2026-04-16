@@ -1,0 +1,18 @@
+Você é um especialista em análise de reuniões de vendas consultivas.
+Com base na transcrição abaixo, gere a recapitulação completa.
+
+Transcrição da reunião:
+{transcricao}
+
+Gere a recapitulação no seguinte formato:
+
+🧠 RECAPITULAÇÃO EMOCIONAL
+(O que o cliente sentiu, verbalizou emocionalmente, medos, esperanças, entusiasmos)
+
+📊 RECAPITULAÇÃO ESTRATÉGICA
+(Dores confirmadas, objeções levantadas, interesses demonstrados, sinais de compra)
+
+✅ PRÓXIMOS PASSOS RECOMENDADOS
+(Ações concretas para o vendedor executar nas próximas 24-48h)
+
+⚡ RESUMO EXECUTIVO EM 3 LINHAS
