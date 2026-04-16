@@ -41,8 +41,8 @@ document.querySelectorAll('.llm-option').forEach(option => {
   input.addEventListener('change', (e) => {
     const value = e.target.value.trim();
 
-    // Não sobrescreve com o valor mascarado (••••)
-    if (value.startsWith('••••••••')) return;
+    // Não sobrescreve com o valor mascarado (começa com •)
+    if (value.startsWith('\u2022')) return;
 
     const keys = {};
     keys[`apiKey_${provider}`] = value;

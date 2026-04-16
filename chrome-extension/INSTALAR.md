@@ -23,6 +23,9 @@
 2. Em **"Backend SALEIA"**, insira a URL do servidor:
    - Desenvolvimento local: `http://localhost:8000`
    - Servidor em produção: `https://seu-servidor.com`
+
+> ⚠️ **Servidor remoto?** Se usar um URL de produção diferente de `localhost`,
+> adicione o domínio em `host_permissions` no `manifest.json` e recarregue a extensão.
 3. Clique em **"Testar"** para confirmar a conexão
 
 ---
