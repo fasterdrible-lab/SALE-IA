@@ -2,6 +2,11 @@
  * SALEIA — background.js
  * Service Worker da extensão Chrome.
  * Gerencia alarmes, configurações e estado por aba.
+ *
+ * NOTA TÉCNICA: Este arquivo também atua como proxy de fetch para o content.js.
+ * O Service Worker do Google Meet (meetsw.js) bloqueia requisições fetch feitas
+ * diretamente por content scripts. A solução é delegar o fetch ao background.js
+ * via chrome.runtime.sendMessage({ tipo: 'fetchBackend', url, payload }).
  */
 
 'use strict';
@@ -11,7 +16,7 @@
 // ─────────────────────────────────────────────
 let estadoExtensao = {
   ativo: true,
-  backendUrl: 'http://204.168.180.25:8000',
+  backendUrl: 'https://dime-flip-protector.ngrok-free.dev',
 };
 
 // ─────────────────────────────────────────────
@@ -20,7 +25,7 @@ let estadoExtensao = {
 chrome.runtime.onInstalled.addListener(function () {
   chrome.storage.local.get(['saleiaBackendUrl', 'saleiaAtivo'], function (result) {
     if (!result.saleiaBackendUrl) {
-      chrome.storage.local.set({ saleiaBackendUrl: 'http://204.168.180.25:8000' });
+      chrome.storage.local.set({ saleiaBackendUrl: 'https://dime-flip-protector.ngrok-free.dev' });
     }
     if (result.saleiaAtivo === undefined) {
       chrome.storage.local.set({ saleiaAtivo: true });
@@ -31,14 +36,14 @@ chrome.runtime.onInstalled.addListener(function () {
 
 // ─────────────────────────────────────────────
 // OUVIR MENSAGENS DO POPUP E CONTENT SCRIPT
+// (handler único consolidado para evitar conflitos)
 // ─────────────────────────────────────────────
 chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
+
   // Popup → ativar/desativar extensão
   if (msg.tipo === 'setAtivo') {
     estadoExtensao.ativo = msg.valor;
     chrome.storage.local.set({ saleiaAtivo: msg.valor });
-
-    // Propagar para a aba ativa do Meet
     propagarParaMeet({ tipo: 'toggle', valor: msg.valor });
     sendResponse({ ok: true });
   }
@@ -47,8 +52,6 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   if (msg.tipo === 'setBackendUrl') {
     estadoExtensao.backendUrl = msg.valor;
     chrome.storage.local.set({ saleiaBackendUrl: msg.valor });
-
-    // Propagar para a aba ativa do Meet
     propagarParaMeet({ tipo: 'backendUrl', valor: msg.valor });
     sendResponse({ ok: true });
   }
@@ -58,7 +61,28 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     sendResponse({ ativo: estadoExtensao.ativo, backendUrl: estadoExtensao.backendUrl });
   }
 
-  return true; // manter canal aberto para sendResponse assíncrono
+  // ─────────────────────────────────────────────
+  // PROXY DE FETCH — contorna bloqueio do meetsw.js
+  // O content.js delega o fetch aqui para evitar que o
+  // Service Worker do Google Meet intercepte e bloqueie
+  // as requisições para o backend SALEIA.
+  // ─────────────────────────────────────────────
+  if (msg.tipo === 'fetchBackend') {
+    fetch(msg.url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+      },
+      body: JSON.stringify(msg.payload),
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) { sendResponse({ ok: true, data: data }); })
+      .catch(function (err) { sendResponse({ ok: false, error: err.message }); });
+    return true;
+  }
+
+  return true;
 });
 
 // ─────────────────────────────────────────────
@@ -68,7 +92,6 @@ function propagarParaMeet(mensagem) {
   chrome.tabs.query({ url: 'https://meet.google.com/*' }, function (tabs) {
     tabs.forEach(function (tab) {
       chrome.tabs.sendMessage(tab.id, mensagem, function () {
-        // Ignora erro se a aba não tiver content script ativo
         if (chrome.runtime.lastError) {
           console.warn('[SALEIA] Não foi possível enviar para aba:', tab.id);
         }
@@ -97,7 +120,6 @@ function ehUrlDoMeet(url) {
 chrome.tabs.onActivated.addListener(function (activeInfo) {
   chrome.tabs.get(activeInfo.tabId, function (tab) {
     if (tab && tab.url && ehUrlDoMeet(tab.url)) {
-      // Aba é do Meet — ícone normal (colorido)
       chrome.action.setBadgeText({ text: '●', tabId: tab.id });
       chrome.action.setBadgeBackgroundColor({ color: '#4caf50', tabId: tab.id });
     } else {
