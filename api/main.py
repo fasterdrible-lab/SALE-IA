@@ -93,6 +93,8 @@ class TempoRealRequest(BaseModel):
     transcricao_parcial: str
     historico: Optional[str] = ""
     perfil_disc_atual: Optional[str] = None
+    mapa_financeiro: Optional[dict] = None
+    meeting_id: Optional[str] = "default"
 
 
 class TactiqWebhookRequest(BaseModel):
@@ -298,7 +300,7 @@ def health_check():
 
 
 @app.post("/tempo-real")
-def analisar_tempo_real(req: TempoRealRequest):
+async def analisar_tempo_real(req: TempoRealRequest):
     """
     Análise em tempo real durante a reunião.
     Chamado pela extensão Chrome a cada 60 segundos.
@@ -306,17 +308,20 @@ def analisar_tempo_real(req: TempoRealRequest):
     if not req.transcricao_parcial and not req.historico:
         raise HTTPException(status_code=400, detail="Transcrição vazia — ative as legendas no Meet")
 
-    conteudo_usuario = f"""
-TRANSCRIÇÃO DOS ÚLTIMOS 2 MINUTOS:
-{req.transcricao_parcial or '(sem transcrição recente)'}
+    from api.processador_tempo_real import processar_fragmento_tempo_real
 
-HISTÓRICO (últimos 5 minutos):
-{req.historico or '(início da reunião)'}
+    try:
+        resultado = await processar_fragmento_tempo_real(
+            transcricao_parcial=req.transcricao_parcial or "",
+            historico=req.historico or "",
+            perfil_disc_atual=req.perfil_disc_atual or "",
+            mapa_financeiro=req.mapa_financeiro,
+            meeting_id=req.meeting_id or "default",
+        )
+    except Exception as e:
+        logger.error("Erro ao processar fragmento tempo real: %s", e)
+        raise HTTPException(status_code=500, detail="Erro ao processar transcrição. Verifique a chave OPENAI_API_KEY.")
 
-PERFIL DISC JÁ IDENTIFICADO: {req.perfil_disc_atual or 'ainda não identificado'}
-"""
-
-    resultado = chamar_gpt(PROMPT_TEMPO_REAL, conteudo_usuario)
     return resultado
 
 
