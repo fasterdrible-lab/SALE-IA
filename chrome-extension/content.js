@@ -37,6 +37,7 @@
     transcricao: [],
     historicoResumo: '',
     perfilDiscAtual: null,
+    mapaFinanceiro: {},
     contador: CONFIG.intervaloAnalise,
     sidebarMinimizada: false,
     timerContador: null,
@@ -72,34 +73,42 @@
       </div>
       <div id="saleia-body">
         <div id="saleia-status"><span class="saleia-dot"></span> Monitorando...</div>
+
         <div id="saleia-alerta" class="saleia-secao saleia-alerta-box" style="display:none">
           <div class="saleia-secao-titulo">⚠️ ALERTA URGENTE</div>
           <div id="saleia-alerta-texto"></div>
         </div>
+
         <div id="saleia-disc" class="saleia-secao">
           <div class="saleia-secao-titulo">🎯 PERFIL DISC</div>
           <div id="saleia-disc-texto">Aguardando análise...</div>
         </div>
+
+        <div id="saleia-mapa-financeiro" class="saleia-secao saleia-mapa-financeiro">
+          <div class="saleia-secao-titulo">💰 MAPA FINANCEIRO</div>
+          <div id="saleia-mapa-financeiro-texto">Aguardando dados financeiros...</div>
+        </div>
+
+        <div id="saleia-temperatura" class="saleia-secao saleia-temperatura">
+          <div class="saleia-secao-titulo">🌡️ TEMPERATURA</div>
+          <div id="saleia-temperatura-texto">Aguardando análise...</div>
+        </div>
+
         <div id="saleia-proxima-fala" class="saleia-secao">
           <div class="saleia-secao-titulo">💬 PRÓXIMA FALA</div>
           <div id="saleia-proxima-fala-texto">Aguardando...</div>
         </div>
-        <div id="saleia-sinal-financeiro" class="saleia-secao" style="display:none">
-          <div class="saleia-secao-titulo">💰 SINAL FINANCEIRO</div>
-          <div id="saleia-sinal-financeiro-texto"></div>
+
+        <div id="saleia-objecao" class="saleia-secao" style="display:none">
+          <div class="saleia-secao-titulo">🛡️ OBJEÇÃO DETECTADA</div>
+          <div id="saleia-objecao-texto"></div>
         </div>
-        <div id="saleia-produto" class="saleia-secao" style="display:none">
-          <div class="saleia-secao-titulo">📦 PRODUTO INDICADO</div>
-          <div id="saleia-produto-texto"></div>
+
+        <div id="saleia-dado-esquecido" class="saleia-secao saleia-dado-esquecido" style="display:none">
+          <div class="saleia-secao-titulo">🔔 DADO ESQUECIDO</div>
+          <div id="saleia-dado-esquecido-texto"></div>
         </div>
-        <div id="saleia-oportunidade" class="saleia-secao" style="display:none">
-          <div class="saleia-secao-titulo">⚡ OPORTUNIDADE</div>
-          <div id="saleia-oportunidade-texto"></div>
-        </div>
-        <div id="saleia-objecoes" class="saleia-secao" style="display:none">
-          <div class="saleia-secao-titulo">🛡️ OBJEÇÕES</div>
-          <div id="saleia-objecoes-texto"></div>
-        </div>
+
         <div id="saleia-legenda-aviso" class="saleia-secao saleia-aviso" style="display:none">
           ⚠️ Ative as legendas no Meet:<br>
           Clique em "CC" na barra inferior do Meet
@@ -228,6 +237,7 @@
       transcricao_parcial: transcricaoParcial,
       historico: montarHistorico(),
       perfil_disc_atual: estado.perfilDiscAtual,
+      mapa_financeiro: estado.mapaFinanceiro,
     };
 
     const url = CONFIG.backendUrl + '/tempo-real';
@@ -242,9 +252,26 @@
         if (resp && resp.ok) {
           var dados = resp.data;
           estado.backendOnline = true;
+          // Merge mapa_financeiro retornado com o estado local
+          if (dados.mapa_financeiro && typeof dados.mapa_financeiro === 'object') {
+            Object.keys(dados.mapa_financeiro).forEach(function (campo) {
+              var valor = dados.mapa_financeiro[campo];
+              if (campo === 'produto_indicado') {
+                if (valor && typeof valor === 'object') {
+                  estado.mapaFinanceiro.produto_indicado = estado.mapaFinanceiro.produto_indicado || {};
+                  Object.keys(valor).forEach(function (k) {
+                    if (valor[k] !== null && valor[k] !== '') {
+                      estado.mapaFinanceiro.produto_indicado[k] = valor[k];
+                    }
+                  });
+                }
+              } else if (valor !== null && valor !== '') {
+                estado.mapaFinanceiro[campo] = valor;
+              }
+            });
+          }
           atualizarSidebarComResposta(dados);
           if (dados.perfil_disc && dados.perfil_disc.tipo) estado.perfilDiscAtual = dados.perfil_disc.tipo;
-          if (dados.historico_resumido) estado.historicoResumo = dados.historico_resumido;
           estado.contador = CONFIG.intervaloAnalise;
         } else {
           console.warn('[SALEIA] Backend offline:', resp ? resp.error : 'sem resposta');
@@ -256,6 +283,7 @@
   }
 
   function atualizarSidebarComResposta(dados) {
+    // ⚠️ ALERTA URGENTE
     const alertaBox = document.getElementById('saleia-alerta');
     const alertaTexto = document.getElementById('saleia-alerta-texto');
     if (dados.alerta_urgente) {
@@ -267,6 +295,7 @@
       alertaBox.classList.remove('saleia-pulse');
     }
 
+    // 🎯 PERFIL DISC
     if (dados.perfil_disc) {
       const disc = dados.perfil_disc;
       const corDisc = { D: '#ff4444', I: '#f0c040', S: '#4caf50', C: '#42a5f5' };
@@ -275,45 +304,61 @@
         '<span class="saleia-badge" style="background:' + cor + '">' + escaparHtml(disc.tipo) + '</span> ' +
         '<strong>' + escaparHtml(disc.confianca) + '</strong><br>' +
         '<em>' + escaparHtml(disc.evidencia) + '</em>' +
-        (disc.acao_sugerida ? '<br><span class="saleia-acao">' + escaparHtml(disc.acao_sugerida) + '</span>' : '');
+        (disc.como_tratar ? '<br><span class="saleia-como-tratar">' + escaparHtml(disc.como_tratar) + '</span>' : '');
     }
 
-    if (dados.proxima_acao) {
+    // 💰 MAPA FINANCEIRO
+    var mapa = estado.mapaFinanceiro;
+    var mapaLinhas = [];
+    if (mapa.faturamento_mensal) mapaLinhas.push('<div class="saleia-mapa-linha"><span class="saleia-mapa-label">Faturamento:</span> ' + escaparHtml(mapa.faturamento_mensal) + '</div>');
+    if (mapa.renda_clt) mapaLinhas.push('<div class="saleia-mapa-linha"><span class="saleia-mapa-label">Renda CLT:</span> ' + escaparHtml(mapa.renda_clt) + '</div>');
+    if (mapa.capacidade_investimento) mapaLinhas.push('<div class="saleia-mapa-linha"><span class="saleia-mapa-label">Capacidade:</span> ' + escaparHtml(mapa.capacidade_investimento) + '</div>');
+    if (mapa.cartao_credito_limite) mapaLinhas.push('<div class="saleia-mapa-linha"><span class="saleia-mapa-label">Cartão:</span> ' + escaparHtml(mapa.cartao_credito_limite) + '</div>');
+    if (mapa.produto_indicado && mapa.produto_indicado.nome) {
+      mapaLinhas.push('<div class="saleia-mapa-linha saleia-mapa-produto"><span class="saleia-mapa-label">Produto:</span> <strong>' + escaparHtml(mapa.produto_indicado.nome) + '</strong>' +
+        (mapa.produto_indicado.justificativa ? '<br><em>' + escaparHtml(mapa.produto_indicado.justificativa) + '</em>' : '') + '</div>');
+    }
+    document.getElementById('saleia-mapa-financeiro-texto').innerHTML =
+      mapaLinhas.length > 0 ? mapaLinhas.join('') : 'Aguardando dados financeiros...';
+
+    // 🌡️ TEMPERATURA
+    if (dados.temperatura) {
+      var temp = dados.temperatura;
+      var tempEl = document.getElementById('saleia-temperatura');
+      var nivelClasse = { alta: 'saleia-temperatura-alta', media: 'saleia-temperatura-media', baixa: 'saleia-temperatura-baixa' };
+      tempEl.className = 'saleia-secao saleia-temperatura ' + (nivelClasse[temp.nivel] || '');
+      document.getElementById('saleia-temperatura-texto').innerHTML =
+        '<strong>' + escaparHtml(temp.nivel) + '</strong> · ' + escaparHtml(temp.entonacao) + '<br>' +
+        '<em>' + escaparHtml(temp.sinal) + '</em><br>' +
+        '<span class="saleia-acao">' + escaparHtml(temp.acao) + '</span>';
+    }
+
+    // 💬 PRÓXIMA FALA
+    if (dados.proxima_fala) {
       document.getElementById('saleia-proxima-fala-texto').innerHTML =
-        '<span class="saleia-verde">' + escaparHtml(dados.proxima_acao) + '</span>';
+        '<span class="saleia-verde">' + escaparHtml(dados.proxima_fala) + '</span>';
     }
 
-    const sinalEl = document.getElementById('saleia-sinal-financeiro');
-    if (dados.sinal_financeiro) {
-      document.getElementById('saleia-sinal-financeiro-texto').textContent = dados.sinal_financeiro;
-      sinalEl.style.display = 'block';
-    } else { sinalEl.style.display = 'none'; }
+    // 🛡️ OBJEÇÃO DETECTADA
+    const objecaoEl = document.getElementById('saleia-objecao');
+    if (dados.objecao_detectada && dados.objecao_detectada.objecao) {
+      var obj = dados.objecao_detectada;
+      document.getElementById('saleia-objecao-texto').innerHTML =
+        '<strong>' + escaparHtml(obj.objecao) + '</strong>' +
+        (obj.resposta_pronta ? '<br><span class="saleia-resposta">↳ ' + escaparHtml(obj.resposta_pronta) + '</span>' : '');
+      objecaoEl.style.display = 'block';
+    } else {
+      objecaoEl.style.display = 'none';
+    }
 
-    const produtoEl = document.getElementById('saleia-produto');
-    if (dados.produto_indicado) {
-      document.getElementById('saleia-produto-texto').innerHTML =
-        '<strong>' + escaparHtml(dados.produto_indicado.nome) + '</strong><br>' +
-        'R$ ' + escaparHtml(dados.produto_indicado.valor) + '<br>' +
-        '<em>' + escaparHtml(dados.produto_indicado.justificativa) + '</em>';
-      produtoEl.style.display = 'block';
-    } else { produtoEl.style.display = 'none'; }
-
-    const oportunidadeEl = document.getElementById('saleia-oportunidade');
-    if (dados.oportunidade_perdida) {
-      document.getElementById('saleia-oportunidade-texto').textContent = dados.oportunidade_perdida;
-      oportunidadeEl.style.display = 'block';
-    } else { oportunidadeEl.style.display = 'none'; }
-
-    const objecoesEl = document.getElementById('saleia-objecoes');
-    if (dados.objecoes && dados.objecoes.length > 0) {
-      const html = dados.objecoes.map(function (obj) {
-        return '<div class="saleia-objecao"><strong>' + escaparHtml(obj.objecao) + '</strong>' +
-               (obj.resposta ? '<br><span class="saleia-resposta">↳ ' + escaparHtml(obj.resposta) + '</span>' : '') +
-               '</div>';
-      }).join('');
-      document.getElementById('saleia-objecoes-texto').innerHTML = html;
-      objecoesEl.style.display = 'block';
-    } else { objecoesEl.style.display = 'none'; }
+    // 🔔 DADO ESQUECIDO
+    const dadoEsquecidoEl = document.getElementById('saleia-dado-esquecido');
+    if (dados.dado_esquecido) {
+      document.getElementById('saleia-dado-esquecido-texto').textContent = dados.dado_esquecido;
+      dadoEsquecidoEl.style.display = 'block';
+    } else {
+      dadoEsquecidoEl.style.display = 'none';
+    }
 
     animarAtualizacao();
   }

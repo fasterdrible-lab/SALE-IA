@@ -26,6 +26,7 @@ def _get_cache_reuniao(meeting_id: str) -> dict:
             "transcript": "",
             "ultima_atualizacao": None,
             "dicas": None,
+            "mapa_financeiro": {},
         }
     return _cache_transcricoes[meeting_id]
 
@@ -93,6 +94,71 @@ async def buscar_transcript_tactiq(meeting_id: str) -> Optional[str]:
     except Exception as e:
         logger.error(f"Erro inesperado ao acessar API do Tactiq: {e}")
         return None
+
+
+async def processar_fragmento_tempo_real(
+    transcricao_parcial: str,
+    historico: str = "",
+    perfil_disc_atual: str = "",
+    mapa_financeiro: dict = None,
+    meeting_id: str = "default",
+) -> dict:
+    """
+    Processa um fragmento de transcrição em tempo real usando o agente dedicado.
+
+    Persiste o mapa financeiro entre ciclos: campos não-null retornados pela IA
+    são mergeados ao cache da reunião. Campos já coletados nunca são sobrescritos
+    por valores null.
+
+    Args:
+        transcricao_parcial: Trecho mais recente capturado pela extensão.
+        historico: Histórico acumulado da conversa.
+        perfil_disc_atual: Perfil DISC identificado até o momento.
+        mapa_financeiro: Mapa financeiro vindo do estado do cliente (content.js).
+        meeting_id: Identificador da reunião para persistência do cache.
+
+    Returns:
+        Dicionário com análise da IA e mapa_financeiro atualizado.
+    """
+    from agent.agente_tempo_real import analisar_fragmento
+
+    cache = _get_cache_reuniao(meeting_id)
+
+    # Merge do mapa_financeiro recebido com o cache da reunião
+    if mapa_financeiro:
+        for campo, valor in mapa_financeiro.items():
+            if valor is not None and valor != "" and campo != "produto_indicado":
+                cache["mapa_financeiro"][campo] = valor
+        if isinstance(mapa_financeiro.get("produto_indicado"), dict):
+            prod = mapa_financeiro["produto_indicado"]
+            cache["mapa_financeiro"].setdefault("produto_indicado", {})
+            for k, v in prod.items():
+                if v is not None and v != "":
+                    cache["mapa_financeiro"]["produto_indicado"][k] = v
+
+    resultado = await analisar_fragmento(
+        transcricao_parcial=transcricao_parcial,
+        historico=historico or "Início da conversa",
+        perfil_disc_atual=perfil_disc_atual or "Ainda não identificado",
+        mapa_financeiro=cache["mapa_financeiro"] if cache["mapa_financeiro"] else None,
+    )
+
+    # Merge do mapa_financeiro retornado pela IA de volta ao cache
+    novo_mapa = resultado.get("mapa_financeiro") or {}
+    for campo, valor in novo_mapa.items():
+        if campo == "produto_indicado":
+            continue
+        if valor is not None and valor != "":
+            cache["mapa_financeiro"][campo] = valor
+    if isinstance(novo_mapa.get("produto_indicado"), dict):
+        prod = novo_mapa["produto_indicado"]
+        cache["mapa_financeiro"].setdefault("produto_indicado", {})
+        for k, v in prod.items():
+            if v is not None and v != "":
+                cache["mapa_financeiro"]["produto_indicado"][k] = v
+
+    resultado["mapa_financeiro"] = dict(cache["mapa_financeiro"])
+    return resultado
 
 
 async def processar_status_reuniao(meeting_id: str) -> dict:

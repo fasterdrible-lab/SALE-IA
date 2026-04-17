@@ -28,6 +28,7 @@ async def analisar_fragmento(
     transcricao_parcial: str,
     historico: str = "Início da conversa",
     perfil_disc_atual: str = "Ainda não identificado",
+    mapa_financeiro: dict = None,
 ) -> dict:
     """
     Analisa um fragmento da transcrição em tempo real e retorna insights para o vendedor.
@@ -36,17 +37,25 @@ async def analisar_fragmento(
         transcricao_parcial: Trecho mais recente da conversa (últimos 30-60 segundos)
         historico: Resumo do que foi discutido até agora
         perfil_disc_atual: Perfil DISC identificado nas análises anteriores
+        mapa_financeiro: Mapa financeiro acumulado das análises anteriores
 
     Retorno:
-        Dicionário com alertas, perfil DISC, sinais ocultos e próxima ação recomendada
+        Dicionário com alertas, perfil DISC, mapa financeiro, temperatura e próxima fala
     """
     template = _carregar_prompt()
+
+    mapa_financeiro_str = (
+        json.dumps(mapa_financeiro, ensure_ascii=False, indent=2)
+        if mapa_financeiro
+        else "Nenhum dado financeiro coletado ainda"
+    )
 
     # Preenche o template com os dados da conversa atual
     prompt = template.format(
         transcricao_parcial=transcricao_parcial,
         historico=historico,
         perfil_disc_atual=perfil_disc_atual,
+        mapa_financeiro=mapa_financeiro_str,
     )
 
     resposta = await _get_client().chat.completions.create(

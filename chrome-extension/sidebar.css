@@ -247,3 +247,75 @@
 #saleia-sidebar * {
   box-sizing: border-box;
 }
+
+/* ── Mapa Financeiro ── */
+.saleia-mapa-financeiro {
+  background: #0d2137;
+  border-left: 3px solid #ffd700;
+}
+
+.saleia-mapa-linha {
+  padding: 3px 0;
+  font-size: 12px;
+  line-height: 1.5;
+  border-bottom: 1px solid #1a3a5c;
+}
+
+.saleia-mapa-linha:last-child {
+  border-bottom: none;
+}
+
+.saleia-mapa-label {
+  color: #90caf9;
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.saleia-mapa-produto {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid #2a4a6c;
+  border-bottom: none;
+}
+
+/* ── Temperatura ── */
+.saleia-temperatura {
+  background: #1a1a2e;
+  border-left: 3px solid #888;
+  transition: border-color 0.3s, background 0.3s;
+}
+
+.saleia-temperatura-alta {
+  background: #0d2a0d;
+  border-left-color: #4caf50;
+}
+
+.saleia-temperatura-media {
+  background: #2a2000;
+  border-left-color: #f0c040;
+}
+
+.saleia-temperatura-baixa {
+  background: #1e1e2e;
+  border-left-color: #888;
+}
+
+/* ── Dado Esquecido ── */
+.saleia-dado-esquecido {
+  background: #2a1800;
+  border-left: 3px solid #ff9800;
+}
+
+.saleia-dado-esquecido .saleia-secao-titulo {
+  color: #ffb74d;
+}
+
+/* ── Como Tratar (DISC) ── */
+.saleia-como-tratar {
+  display: block;
+  margin-top: 4px;
+  color: #ce93d8;
+  font-style: italic;
+  font-size: 12px;
+  line-height: 1.4;
+}
