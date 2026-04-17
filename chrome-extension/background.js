@@ -11,7 +11,7 @@
 // ─────────────────────────────────────────────
 let estadoExtensao = {
   ativo: true,
-  backendUrl: 'http://localhost:8000',
+  backendUrl: 'http://204.168.180.25:8000',
 };
 
 // ─────────────────────────────────────────────
@@ -20,7 +20,7 @@ let estadoExtensao = {
 chrome.runtime.onInstalled.addListener(function () {
   chrome.storage.local.get(['saleiaBackendUrl', 'saleiaAtivo'], function (result) {
     if (!result.saleiaBackendUrl) {
-      chrome.storage.local.set({ saleiaBackendUrl: 'http://localhost:8000' });
+      chrome.storage.local.set({ saleiaBackendUrl: 'http://204.168.180.25:8000' });
     }
     if (result.saleiaAtivo === undefined) {
       chrome.storage.local.set({ saleiaAtivo: true });
