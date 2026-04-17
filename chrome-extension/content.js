@@ -28,7 +28,7 @@
   // CONFIGURAÇÕES PADRÃO
   // ─────────────────────────────────────────────
   const CONFIG = {
-    backendUrl: 'http://localhost:8000',
+    backendUrl: 'http://204.168.180.25:8000',
     intervaloAnalise: 60, // segundos
     maxTranscricaoRecente: 2 * 60,  // 2 minutos em chars ~
     maxHistorico: 5 * 60,           // 5 minutos
