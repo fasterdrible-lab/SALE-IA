@@ -6,6 +6,10 @@
  *  2. Capturar legendas/captions via MutationObserver
  *  3. Enviar transcrição ao backend a cada 60 segundos
  *  4. Exibir respostas da IA na sidebar
+ *
+ * NOTA TÉCNICA: O fetch ao backend é feito via chrome.runtime.sendMessage
+ * para o background.js, pois o Service Worker do Google Meet (meetsw.js)
+ * intercepta e bloqueia requisições fetch feitas diretamente pelo content script.
  */
 
 (function () {
@@ -28,7 +32,7 @@
   // CONFIGURAÇÕES PADRÃO
   // ─────────────────────────────────────────────
   const CONFIG = {
-    backendUrl: 'http://204.168.180.25:8000',
+    backendUrl: 'https://dime-flip-protector.ngrok-free.dev',
     intervaloAnalise: 60, // segundos
     maxTranscricaoRecente: 2 * 60,  // 2 minutos em chars ~
     maxHistorico: 5 * 60,           // 5 minutos
@@ -331,37 +335,31 @@
 
     const url = CONFIG.backendUrl + '/tempo-real';
 
-    fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-      .then(function (res) {
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        return res.json();
-      })
-      .then(function (dados) {
-        estado.backendOnline = true;
-        atualizarSidebarComResposta(dados);
-
-        // Salvar perfil DISC para enviar na próxima chamada
-        if (dados.perfil_disc && dados.perfil_disc.tipo) {
-          estado.perfilDiscAtual = dados.perfil_disc.tipo;
+    // PROXY VIA BACKGROUND.JS
+    // O fetch é delegado ao background.js para contornar o bloqueio do
+    // Service Worker do Google Meet (meetsw.js) que intercepta requisições
+    // externas feitas diretamente por content scripts.
+    chrome.runtime.sendMessage(
+      { tipo: 'fetchBackend', url: url, payload: payload },
+      function (resp) {
+        if (resp && resp.ok) {
+          var dados = resp.data;
+          estado.backendOnline = true;
+          atualizarSidebarComResposta(dados);
+          if (dados.perfil_disc && dados.perfil_disc.tipo) {
+            estado.perfilDiscAtual = dados.perfil_disc.tipo;
+          }
+          if (dados.historico_resumido) {
+            estado.historicoResumo = dados.historico_resumido;
+          }
+          estado.contador = CONFIG.intervaloAnalise;
+        } else {
+          console.warn('[SALEIA] Backend offline:', resp ? resp.error : 'sem resposta');
+          estado.backendOnline = false;
+          exibirErroBackend();
         }
-
-        // Atualizar histórico resumido se veio do backend
-        if (dados.historico_resumido) {
-          estado.historicoResumo = dados.historico_resumido;
-        }
-
-        // Reiniciar contador
-        estado.contador = CONFIG.intervaloAnalise;
-      })
-      .catch(function (err) {
-        console.warn('[SALEIA] Backend offline:', err.message);
-        estado.backendOnline = false;
-        exibirErroBackend();
-      });
+      }
+    );
   }
 
   // ─────────────────────────────────────────────
