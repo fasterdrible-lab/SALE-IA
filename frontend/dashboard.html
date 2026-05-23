@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SALEIA — Dashboard de Reuniões</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0d0d0d;
+      --surface: #141414;
+      --card:    #1a1a1a;
+      --border:  #2a2a2a;
+      --primary: #00d4aa;
+      --danger:  #ff4444;
+      --warn:    #ffaa00;
+      --text:    #f0f0f0;
+      --muted:   #777;
+      --radius:  10px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 15px;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar nav ── */
+    .layout { display: flex; min-height: 100vh; }
+
+    nav {
+      width: 220px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 28px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .nav-logo {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--primary);
+      letter-spacing: 1px;
+      margin-bottom: 24px;
+    }
+
+    .nav-item {
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: .9rem;
+      transition: background .15s, color .15s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+    .nav-item:hover { background: #222; color: var(--text); }
+    .nav-item.active { background: #002e25; color: var(--primary); }
+
+    /* ── Main ── */
+    main {
+      flex: 1;
+      padding: 32px;
+      overflow-y: auto;
+    }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    h2 { font-size: 1.4rem; margin-bottom: 20px; color: var(--text); }
+    h3 { font-size: 1rem; color: var(--primary); margin-bottom: 10px; }
+
+    /* ── Status bar ── */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: .82rem;
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--danger);
+    }
+    .dot.online { background: var(--primary); }
+
+    /* ── Metrics ── */
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+
+    .metric {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+    }
+    .metric-val { font-size: 2rem; font-weight: 700; color: var(--primary); }
+    .metric-lbl { color: var(--muted); font-size: .82rem; margin-top: 4px; }
+
+    /* ── Cards de reunião ── */
+    .reunioes { display: flex; flex-direction: column; gap: 12px; }
+
+    .reuniao-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      cursor: pointer;
+      transition: border-color .15s;
+    }
+    .reuniao-card:hover { border-color: var(--primary); }
+
+    .score-circle {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1rem;
+      flex-shrink: 0;
+      border: 3px solid;
+    }
+
+    .reuniao-info { flex: 1; }
+    .reuniao-titulo { font-weight: 600; margin-bottom: 4px; }
+    .reuniao-meta { color: var(--muted); font-size: .82rem; }
+
+    .badge {
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: .78rem;
+      font-weight: 600;
+    }
+    .badge-alta { background: #00d4aa22; color: #00d4aa; }
+    .badge-media { background: #ffaa0022; color: #ffaa00; }
+    .badge-baixa { background: #ff444422; color: #ff4444; }
+
+    /* ── Detalhe reunião ── */
+    .detalhe-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .back-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: .85rem;
+    }
+    .back-btn:hover { border-color: var(--primary); }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    .info-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+    }
+
+    ul { padding-left: 18px; }
+    li { margin-bottom: 6px; color: #ccc; line-height: 1.5; }
+
+    /* ── Score barra ── */
+    .score-barra-wrap {
+      background: #222;
+      border-radius: 6px;
+      height: 10px;
+      overflow: hidden;
+      margin: 8px 0;
+    }
+    .score-barra-fill {
+      height: 100%;
+      border-radius: 6px;
+      transition: width .6s ease;
+    }
+
+    /* ── Filtro e busca ── */
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    input[type=text], select {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: .9rem;
+      outline: none;
+    }
+    input[type=text]:focus, select:focus { border-color: var(--primary); }
+    input[type=text] { flex: 1; min-width: 180px; }
+
+    button.btn {
+      background: var(--primary);
+      color: #000;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: .9rem;
+    }
+    button.btn:hover { opacity: .85; }
+
+    button.btn-secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    button.btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
+
+    .config-panel { max-width: 860px; display: grid; gap: 16px; }
+    .config-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+    }
+    .api-options {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin: 14px 0;
+    }
+    .api-option {
+      background: #101010;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      cursor: pointer;
+      text-align: left;
+      color: var(--text);
+    }
+    .api-option.active { border-color: var(--primary); background: #002e25; }
+    .api-option strong { display: block; margin-bottom: 6px; }
+    .api-option span { display: block; color: var(--muted); font-size: .82rem; word-break: break-all; }
+    .api-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .api-current { color: var(--muted); font-size: .85rem; margin-top: 10px; word-break: break-all; }
+
+    /* ── Analisador ── */
+    textarea {
+      width: 100%;
+      min-height: 160px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 12px;
+      border-radius: var(--radius);
+      font-size: .9rem;
+      resize: vertical;
+      outline: none;
+      font-family: inherit;
+      margin-bottom: 10px;
+    }
+    textarea:focus { border-color: var(--primary); }
+
+    .erro { color: var(--danger); background: #ff444411; padding: 12px 16px; border-radius: 8px; border: 1px solid #ff444422; }
+
+    .loading {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      padding: 16px;
+    }
+    .loading.visible { display: flex; }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #333;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Proximos passos ── */
+    .passo {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .passo:last-child { border-bottom: none; }
+    .passo-icon { color: var(--primary); font-size: 1.1rem; }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ── Navegação lateral ── -->
+  <nav>
+    <div class="nav-logo">🤖 SALEIA</div>
+
+    <button class="nav-item active" onclick="mostrarPagina('dashboard', this)">
+      📊 Dashboard
+    </button>
+    <button class="nav-item" onclick="mostrarPagina('reunioes', this)">
+      📋 Reuniões
+    </button>
+    <button class="nav-item" onclick="mostrarPagina('sessoes', this)">
+      🔴 Sessões ao Vivo
+    </button>
+    <button class="nav-item" onclick="mostrarPagina('analisar', this)">
+      🔍 Analisar
+    </button>
+    <a class="nav-item" href="/manual" target="_blank" style="text-decoration:none">
+      📖 Manual
+    </a>
+    <button class="nav-item" onclick="mostrarPagina('configuracoes', this)">
+      ⚙ Configuracoes
+    </button>
+
+    <div style="margin-top:auto">
+      <div class="status-bar">
+        <div class="dot" id="nav-dot"></div>
+        <span id="nav-status">verificando...</span>
+      </div>
+      <div style="color:var(--muted);font-size:.75rem">v1.2.0</div>
+    </div>
+  </nav>
+
+  <!-- ── Conteúdo principal ── -->
+  <main>
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <h2>Dashboard</h2>
+
+      <div class="status-bar" style="margin-bottom:20px">
+        <div class="dot" id="dash-dot"></div>
+        <span id="dash-status">Verificando backend...</span>
+      </div>
+
+      <div class="metrics" id="dash-metrics">
+        <div class="metric">
+          <div class="metric-val" id="m-total">–</div>
+          <div class="metric-lbl">Reuniões registradas</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val" id="m-alta">–</div>
+          <div class="metric-lbl">Alta propensão</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val" id="m-media">–</div>
+          <div class="metric-lbl">Propensão média</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val" id="m-baixa">–</div>
+          <div class="metric-lbl">Baixa propensão</div>
+        </div>
+      </div>
+
+      <h3>Últimas reuniões</h3>
+      <div class="reunioes" id="dash-reunioes">
+        <div style="color:var(--muted)">Carregando...</div>
+      </div>
+    </div>
+
+    <!-- REUNIÕES -->
+    <div class="page" id="page-reunioes">
+      <h2>Reuniões</h2>
+
+      <div class="toolbar">
+        <input type="text" id="filtro-busca" placeholder="Buscar por título..." oninput="filtrarReunioes()" />
+        <select id="filtro-prop" onchange="filtrarReunioes()">
+          <option value="">Todas as propensões</option>
+          <option value="alta">Alta</option>
+          <option value="media">Média</option>
+          <option value="baixa">Baixa</option>
+        </select>
+        <button class="btn" onclick="carregarReunioes()">↻ Atualizar</button>
+      </div>
+
+      <div class="reunioes" id="lista-reunioes">
+        <div style="color:var(--muted)">Carregando...</div>
+      </div>
+    </div>
+
+    <!-- DETALHE (inline) -->
+    <div class="page" id="page-detalhe">
+      <div class="detalhe-header">
+        <button class="back-btn" onclick="voltarParaReunioes()">← Voltar</button>
+        <h2 id="det-titulo" style="margin:0">Reunião</h2>
+      </div>
+      <div id="det-conteudo"></div>
+    </div>
+
+    <!-- SESSÕES AO VIVO -->
+    <div class="page" id="page-sessoes">
+      <h2>Sessões ao Vivo</h2>
+      <p style="color:var(--muted);margin-bottom:16px">Reuniões capturadas em tempo real pela extensão Chrome. Clique para ver a transcrição e a análise da IA.</p>
+
+      <div class="toolbar">
+        <button class="btn" onclick="carregarSessoes()">↻ Atualizar</button>
+        <span id="sessoes-info" style="color:var(--muted);font-size:.85rem;align-self:center"></span>
+      </div>
+
+      <div class="reunioes" id="lista-sessoes">
+        <div style="color:var(--muted)">Carregando...</div>
+      </div>
+    </div>
+
+    <!-- DETALHE SESSÃO -->
+    <div class="page" id="page-sessao-detalhe">
+      <div class="detalhe-header">
+        <button class="back-btn" onclick="voltarParaSessoes()">← Voltar</button>
+        <h2 id="sd-titulo" style="margin:0">Sessão</h2>
+      </div>
+      <div id="sd-conteudo"></div>
+    </div>
+
+    <!-- ANALISAR -->
+    <div class="page" id="page-analisar">
+      <h2>Analisar Transcrição</h2>
+      <p style="color:var(--muted);margin-bottom:16px">Cole a transcrição completa e gere análise + recapitulação sem precisar da extensão Chrome.</p>
+
+      <label style="display:block;margin-bottom:6px;color:var(--muted);font-size:.85rem">Título da Reunião</label>
+      <input type="text" id="an-titulo" placeholder="Ex: João Silva — Consultoria" style="width:100%;margin-bottom:14px" />
+
+      <label style="display:block;margin-bottom:6px;color:var(--muted);font-size:.85rem">Transcrição</label>
+      <textarea id="an-transcricao" placeholder="Cole aqui a transcrição da reunião..."></textarea>
+
+      <div style="display:flex;gap:10px;align-items:center">
+        <button class="btn" onclick="analisar()">🔍 Analisar</button>
+        <div class="loading" id="an-loading">
+          <div class="spinner"></div>
+          <span>Processando com GPT-4o...</span>
+        </div>
+      </div>
+
+      <div id="an-resultado" style="margin-top:24px"></div>
+    </div>
+
+    <!-- CONFIGURACOES -->
+    <div class="page" id="page-configuracoes">
+      <h2>Configuracoes</h2>
+      <div class="config-panel">
+        <div class="config-card">
+          <h3>API do painel</h3>
+          <p style="color:var(--muted);margin-bottom:12px">
+            Escolha manualmente qual backend o dashboard deve usar neste navegador.
+          </p>
+
+          <div class="api-options" id="api-options"></div>
+
+          <div class="api-actions">
+            <button class="btn" onclick="trocarApiManualmente()">Trocar API manualmente</button>
+            <button class="btn btn-secondary" onclick="testarApiAtual()">Testar API</button>
+            <span id="api-test-status" style="color:var(--muted);font-size:.85rem"></span>
+          </div>
+
+          <div class="api-current" id="api-current"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  const _host = window.location.hostname;
+  const API_OPTIONS = [
+    { id: 'local', label: 'Local', url: 'http://localhost:8000' },
+    { id: 'producao', label: 'Producao', url: window.location.origin }
+  ];
+  const API_STORAGE_KEY = 'saleia_dashboard_api_url';
+  let API = obterApiSalva();
+  let _reunioesCache = [];
+  let _paginaAnterior = 'reunioes';
+
+  function obterApiSalva() {
+    const fallback = (_host === 'localhost' || _host === '127.0.0.1')
+      ? 'http://localhost:8000'
+      : '';
+    return localStorage.getItem(API_STORAGE_KEY) || fallback;
+  }
+
+  function nomeApiAtual() {
+    const atual = API_OPTIONS.find(opt => opt.url === API || (!opt.url && !API));
+    return atual ? atual.label : 'Personalizada';
+  }
+
+  function selecionarApi(url) {
+    API = url;
+    localStorage.setItem(API_STORAGE_KEY, url);
+    renderizarConfiguracoesApi();
+    verificarBackend();
+  }
+
+  function trocarApiManualmente() {
+    const currentIndex = API_OPTIONS.findIndex(opt => opt.url === API);
+    const next = API_OPTIONS[(currentIndex + 1) % API_OPTIONS.length] || API_OPTIONS[0];
+    selecionarApi(next.url);
+  }
+
+  async function testarApiAtual() {
+    const status = document.getElementById('api-test-status');
+    if (status) status.textContent = 'Testando...';
+
+    try {
+      const r = await fetch(API + '/health', { signal: AbortSignal.timeout(3000) });
+      if (status) status.textContent = r.ok ? 'API online' : 'API respondeu com erro';
+    } catch {
+      if (status) status.textContent = 'API offline';
+    }
+  }
+
+  function renderizarConfiguracoesApi() {
+    const options = document.getElementById('api-options');
+    const current = document.getElementById('api-current');
+    if (!options || !current) return;
+
+    options.innerHTML = API_OPTIONS.map(opt => {
+      const active = opt.url === API || (!opt.url && !API);
+      const urlLabel = opt.url || window.location.origin;
+      return '<button class="api-option' + (active ? ' active' : '') + '" onclick="selecionarApi(\'' + opt.url + '\')">' +
+        '<strong>' + opt.label + '</strong>' +
+        '<span>' + urlLabel + '</span>' +
+        '</button>';
+    }).join('');
+
+    current.textContent = 'API atual: ' + nomeApiAtual() + ' - ' + (API || window.location.origin);
+  }
+
+  // ── Navegação ──────────────────────────────────────
+  function mostrarPagina(nome, btn) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+    document.getElementById('page-' + nome).classList.add('active');
+    if (btn) btn.classList.add('active');
+    if (nome === 'dashboard') carregarDashboard();
+    if (nome === 'reunioes') carregarReunioes();
+    if (nome === 'sessoes') carregarSessoes();
+    if (nome === 'configuracoes') renderizarConfiguracoesApi();
+  }
+
+  // ── Status backend ─────────────────────────────────
+  async function verificarBackend() {
+    try {
+      const r = await fetch(API + '/health', { signal: AbortSignal.timeout(3000) });
+      const ok = r.ok;
+      ['dash-dot', 'nav-dot'].forEach(id => {
+        document.getElementById(id).className = 'dot' + (ok ? ' online' : '');
+      });
+      document.getElementById('dash-status').textContent = ok ? ('Backend online — ' + (API || window.location.origin)) : 'Backend offline';
+      document.getElementById('nav-status').textContent = ok ? 'online' : 'offline';
+    } catch {
+      ['dash-dot', 'nav-dot'].forEach(id => document.getElementById(id).className = 'dot');
+      document.getElementById('dash-status').textContent = 'Backend offline — rode iniciar.bat';
+      document.getElementById('nav-status').textContent = 'offline';
+    }
+  }
+
+  // ── Dashboard ──────────────────────────────────────
+  async function carregarDashboard() {
+    await verificarBackend();
+    try {
+      const r = await fetch(API + '/relatorios');
+      if (!r.ok) throw new Error();
+      const d = await r.json();
+      const lista = d.relatorios || [];
+      _reunioesCache = lista;
+
+      document.getElementById('m-total').textContent = lista.length;
+      document.getElementById('m-alta').textContent  = lista.filter(x => norm(x.probabilidade_fechamento) === 'alta').length;
+      document.getElementById('m-media').textContent = lista.filter(x => norm(x.probabilidade_fechamento) === 'media').length;
+      document.getElementById('m-baixa').textContent = lista.filter(x => norm(x.probabilidade_fechamento) === 'baixa').length;
+
+      const container = document.getElementById('dash-reunioes');
+      container.innerHTML = lista.slice(0, 5).map(r => cardReuniaoHTML(r)).join('') || '<div style="color:var(--muted)">Nenhuma reunião registrada ainda.</div>';
+    } catch {
+      document.getElementById('dash-reunioes').innerHTML = '<div class="erro">Erro ao carregar reuniões. Backend está rodando?</div>';
+    }
+  }
+
+  // ── Reuniões ───────────────────────────────────────
+  async function carregarReunioes() {
+    const container = document.getElementById('lista-reunioes');
+    container.innerHTML = '<div style="color:var(--muted)">Carregando...</div>';
+    try {
+      const r = await fetch(API + '/relatorios');
+      if (!r.ok) throw new Error();
+      const d = await r.json();
+      _reunioesCache = d.relatorios || [];
+      renderizarReunioes(_reunioesCache);
+    } catch {
+      container.innerHTML = '<div class="erro">Erro ao carregar. Backend está rodando?</div>';
+    }
+  }
+
+  function filtrarReunioes() {
+    const busca = document.getElementById('filtro-busca').value.toLowerCase();
+    const prop  = document.getElementById('filtro-prop').value.toLowerCase();
+    const filtradas = _reunioesCache.filter(r => {
+      const titulo = (r.titulo || r.nome_reuniao || '').toLowerCase();
+      const p = norm(r.probabilidade_fechamento);
+      return titulo.includes(busca) && (!prop || p === prop);
+    });
+    renderizarReunioes(filtradas);
+  }
+
+  function renderizarReunioes(lista) {
+    const container = document.getElementById('lista-reunioes');
+    container.innerHTML = lista.map(r => cardReuniaoHTML(r)).join('') ||
+      '<div style="color:var(--muted)">Nenhuma reunião encontrada.</div>';
+  }
+
+  function cardReuniaoHTML(r) {
+    const titulo = escHtml(r.titulo || r.nome_reuniao || 'Reunião');
+    const data   = escHtml((r.data || r.criado_em || '').slice(0, 10));
+    const prop   = norm(r.probabilidade_fechamento);
+    const cor    = prop === 'alta' ? '#00d4aa' : prop === 'media' ? '#ffaa00' : prop === 'baixa' ? '#ff4444' : '#555';
+    const badge  = prop ? `<span class="badge badge-${prop}">${prop.charAt(0).toUpperCase() + prop.slice(1)}</span>` : '';
+    const scoreVal = r.dados?.score_compra?.valor;
+    const score  = scoreVal !== undefined ? Math.min(98, Math.max(5, Number(scoreVal))) : null;
+    const scoreHTML = score !== null
+      ? `<span style="color:${cor};font-weight:700;font-size:.85rem">${score}/100</span>`
+      : '';
+    const id = escHtml(r.id || r.arquivo || titulo);
+    return `<div class="reuniao-card" onclick="verDetalhe(${JSON.stringify(r)})">
+      <div class="score-circle" style="border-color:${cor};color:${cor}">
+        ${score !== null ? score : '?'}
+      </div>
+      <div class="reuniao-info">
+        <div class="reuniao-titulo">${titulo}</div>
+        <div class="reuniao-meta">${data} ${scoreHTML}</div>
+      </div>
+      ${badge}
+    </div>`;
+  }
+
+  // ── Detalhe ────────────────────────────────────────
+  function verDetalhe(r) {
+    _paginaAnterior = document.querySelector('.page.active')?.id?.replace('page-', '') || 'reunioes';
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+    document.getElementById('page-detalhe').classList.add('active');
+
+    const dados = r.dados || r;
+    const recap = dados.recapitulacao || {};
+    const disc  = dados.perfil_disc || recap.perfil_disc || {};
+    const fin   = dados.diagnostico_financeiro || {};
+    const passos = recap.proximos_passos || [];
+    const prop   = norm(recap.probabilidade_fechamento);
+    const cor    = prop === 'alta' ? '#00d4aa' : prop === 'media' ? '#ffaa00' : '#ff4444';
+
+    document.getElementById('det-titulo').textContent = r.titulo || r.nome_reuniao || 'Reunião';
+
+    let html = '';
+
+    // Score
+    const scoreVal = dados.score_compra?.valor;
+    if (scoreVal !== undefined) {
+      const val = Math.min(98, Math.max(5, Number(scoreVal)));
+      const corS = val >= 70 ? '#00d4aa' : val >= 45 ? '#ffaa00' : '#ff4444';
+      html += `<div class="info-card" style="margin-bottom:16px;border-color:${corS}22">
+        <h3 style="color:${corS}">📊 Score de Compra</h3>
+        <div style="font-size:2rem;font-weight:700;color:${corS}">${val}<span style="font-size:1rem;color:var(--muted)">/100</span></div>
+        <div class="score-barra-wrap"><div class="score-barra-fill" style="width:${val}%;background:${corS}"></div></div>
+        <div style="color:var(--muted);font-size:.85rem">${escHtml(dados.score_compra?.justificativa || '')}</div>
+      </div>`;
+    }
+
+    // Resumo + probabilidade
+    html += `<div class="grid-2">`;
+    if (recap.resumo_executivo) {
+      html += `<div class="info-card">
+        <h3>📋 Resumo Executivo</h3>
+        <p style="line-height:1.7;color:#ccc">${escHtml(recap.resumo_executivo)}</p>
+      </div>`;
+    }
+    if (prop) {
+      html += `<div class="info-card" style="border-color:${cor}44">
+        <h3 style="color:${cor}">🎯 Probabilidade de Fechamento</h3>
+        <div style="font-size:1.6rem;font-weight:700;color:${cor};text-transform:capitalize">${prop}</div>
+        <p style="color:var(--muted);font-size:.85rem;margin-top:8px">${escHtml(recap.justificativa_probabilidade || '')}</p>
+      </div>`;
+    }
+    html += `</div>`;
+
+    // DISC + Emocional
+    html += `<div class="grid-2">`;
+    if (disc.tipo || disc.perfil_primario) {
+      const tipo = disc.tipo || disc.perfil_primario;
+      html += `<div class="info-card">
+        <h3>🎯 Perfil DISC</h3>
+        <div style="font-size:2rem;font-weight:700;color:var(--primary)">${escHtml(tipo)}</div>
+        <p style="color:#ccc;margin-top:6px">${escHtml(disc.descricao || disc.como_abordar || '')}</p>
+        ${disc.estrategia_fechamento ? `<p style="color:var(--warn);font-size:.85rem;margin-top:8px">🎯 ${escHtml(disc.estrategia_fechamento)}</p>` : ''}
+      </div>`;
+    }
+    const emoc = recap.recapitulacao_emocional || {};
+    if (emoc.estado_emocional_cliente) {
+      html += `<div class="info-card">
+        <h3>💭 Estado Emocional</h3>
+        <p style="color:#ccc">${escHtml(emoc.estado_emocional_cliente)}</p>
+        ${emoc.nivel_interesse ? `<span class="badge badge-${norm(emoc.nivel_interesse)}" style="margin-top:8px;display:inline-block">Interesse: ${emoc.nivel_interesse}</span>` : ''}
+      </div>`;
+    }
+    html += `</div>`;
+
+    // Financeiro
+    if (fin.produto_recomendado || fin.capacidade_investimento) {
+      html += `<div class="info-card" style="margin-bottom:16px">
+        <h3>💰 Diagnóstico Financeiro</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-top:10px">
+          ${fin.faturamento_mensal ? `<div><div style="color:var(--muted);font-size:.8rem">Faturamento</div><div style="font-weight:600">${escHtml(fin.faturamento_mensal)}</div></div>` : ''}
+          ${fin.capacidade_investimento ? `<div><div style="color:var(--muted);font-size:.8rem">Cap. Investimento</div><div style="font-weight:600">${escHtml(fin.capacidade_investimento)}</div></div>` : ''}
+          ${fin.produto_recomendado ? `<div><div style="color:var(--muted);font-size:.8rem">Produto Indicado</div><div style="font-weight:600;color:var(--primary)">${escHtml(fin.produto_recomendado)}</div></div>` : ''}
+        </div>
+      </div>`;
+    }
+
+    // Próximos passos
+    if (passos.length > 0) {
+      html += `<div class="info-card" style="margin-bottom:16px">
+        <h3>📌 Próximos Passos</h3>
+        ${passos.map(p => `<div class="passo">
+          <div class="passo-icon">${p.responsavel === 'cliente' ? '👤' : '📞'}</div>
+          <div>
+            <div style="font-weight:600">${escHtml(p.acao || '')}</div>
+            <div style="color:var(--muted);font-size:.82rem">${escHtml(p.prazo || '')} · ${escHtml(p.responsavel || '')}</div>
+          </div>
+        </div>`).join('')}
+      </div>`;
+    }
+
+    // Dores e Objeções
+    const estrateg = recap.recapitulacao_estrategica || {};
+    html += `<div class="grid-2">`;
+    if (estrateg.dores_identificadas?.length) {
+      html += `<div class="info-card">
+        <h3>🩹 Dores Identificadas</h3>
+        <ul>${estrateg.dores_identificadas.map(d => `<li>${escHtml(d)}</li>`).join('')}</ul>
+      </div>`;
+    }
+    if (estrateg.objecoes_levantadas?.length) {
+      html += `<div class="info-card">
+        <h3>🛡️ Objeções</h3>
+        <ul>${estrateg.objecoes_levantadas.map(o => `<li>${escHtml(o)}</li>`).join('')}</ul>
+      </div>`;
+    }
+    html += `</div>`;
+
+    document.getElementById('det-conteudo').innerHTML = html;
+  }
+
+  function voltarParaReunioes() {
+    mostrarPagina(_paginaAnterior, null);
+    const btns = document.querySelectorAll('.nav-item');
+    if (_paginaAnterior === 'dashboard') btns[0].classList.add('active');
+    else if (_paginaAnterior === 'reunioes') btns[1].classList.add('active');
+  }
+
+  // ── Analisar ───────────────────────────────────────
+  async function analisar() {
+    const transcricao = document.getElementById('an-transcricao').value.trim();
+    const titulo      = document.getElementById('an-titulo').value.trim() || 'Reunião Manual';
+    const resultado   = document.getElementById('an-resultado');
+    const loading     = document.getElementById('an-loading');
+
+    if (!transcricao) {
+      resultado.innerHTML = '<div class="erro">Cole a transcrição antes de analisar.</div>';
+      return;
+    }
+
+    loading.classList.add('visible');
+    resultado.innerHTML = '';
+
+    try {
+      const r = await fetch(API + '/recapitulacao-manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcricao, titulo_reuniao: titulo }),
+      });
+
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({ detail: r.statusText }));
+        throw new Error(err.detail || `Erro ${r.status}`);
+      }
+
+      const dados = await r.json();
+      verDetalhe(dados);
+      mostrarPagina('detalhe', null);
+
+    } catch (err) {
+      resultado.innerHTML = `<div class="erro">❌ ${escHtml(err.message)}</div>`;
+    } finally {
+      loading.classList.remove('visible');
+    }
+  }
+
+  // ── Sessões ao Vivo ───────────────────────────────
+  async function carregarSessoes() {
+    const container = document.getElementById('lista-sessoes');
+    const info = document.getElementById('sessoes-info');
+    container.innerHTML = '<div style="color:var(--muted)">Carregando...</div>';
+    try {
+      const r = await fetch(API + '/sessoes');
+      if (!r.ok) throw new Error('Erro ' + r.status);
+      const d = await r.json();
+      const lista = d.sessoes || [];
+      info.textContent = lista.length + ' sessão(ões) registrada(s)';
+      if (!lista.length) {
+        container.innerHTML = '<div style="color:var(--muted)">Nenhuma sessão registrada ainda. Inicie uma reunião com a extensão Chrome ativa.</div>';
+        return;
+      }
+      container.innerHTML = lista.map(s => cardSessaoHTML(s)).join('');
+    } catch (e) {
+      container.innerHTML = '<div class="erro">Erro ao carregar sessões: ' + escHtml(e.message) + '</div>';
+    }
+  }
+
+  function cardSessaoHTML(s) {
+    const meetId = escHtml(s.meeting_id || 'default');
+    const disc   = escHtml(s.disc_identificado || '?');
+    const num    = s.num_analises || 0;
+    const criado = escHtml((s.created_at || '').replace('T', ' ').slice(0, 16));
+    const atualizado = escHtml((s.updated_at || '').replace('T', ' ').slice(0, 16));
+    const preview = escHtml((s.preview || '').slice(0, 120));
+    const discCor = disc === 'D' ? '#ff4444' : disc === 'I' ? '#ffaa00' : disc === 'S' ? '#00d4aa' : disc === 'C' ? '#90caf9' : '#555';
+    return `<div class="reuniao-card" onclick="verSessaoDetalhe(${s.id})" style="position:relative">
+      <div class="score-circle" style="border-color:${discCor};color:${discCor};font-size:.85rem">
+        ${disc}
+      </div>
+      <div class="reuniao-info">
+        <div class="reuniao-titulo">${meetId}</div>
+        <div class="reuniao-meta">${criado} · ${num} análise(s) · atualizado ${atualizado}</div>
+        <div style="color:var(--muted);font-size:.8rem;margin-top:4px">${preview}...</div>
+      </div>
+      <button onclick="excluirSessao(${s.id}, event)" title="Excluir sessão"
+        style="background:none;border:1px solid #ff444466;color:#ff4444;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.8rem;flex-shrink:0">
+        🗑️
+      </button>
+    </div>`;
+  }
+
+  async function excluirSessao(id, event) {
+    event.stopPropagation();
+    if (!confirm('Excluir sessão #' + id + '? Esta ação não pode ser desfeita.')) return;
+    try {
+      const r = await fetch(API + '/sessoes/' + id, { method: 'DELETE' });
+      if (!r.ok) throw new Error('Erro ' + r.status);
+      carregarSessoes();
+    } catch (e) {
+      alert('Erro ao excluir: ' + e.message);
+    }
+  }
+
+  async function verSessaoDetalhe(id) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+    document.getElementById('page-sessao-detalhe').classList.add('active');
+    document.getElementById('sd-titulo').textContent = 'Sessão #' + id;
+    document.getElementById('sd-conteudo').innerHTML = '<div style="color:var(--muted)">Carregando...</div>';
+
+    try {
+      const r = await fetch(API + '/sessoes/' + id);
+      if (!r.ok) throw new Error('Erro ' + r.status);
+      const s = await r.json();
+      renderizarSessaoDetalhe(s);
+    } catch (e) {
+      document.getElementById('sd-conteudo').innerHTML = '<div class="erro">Erro: ' + escHtml(e.message) + '</div>';
+    }
+  }
+
+  function renderizarSessaoDetalhe(s) {
+    const analise = s.ultima_analise || {};
+    const disc    = analise.perfil_disc || {};
+    const discTipo = disc.tipo || s.disc_identificado || '?';
+    const discCor  = discTipo === 'D' ? '#ff4444' : discTipo === 'I' ? '#ffaa00' : discTipo === 'S' ? '#00d4aa' : '#90caf9';
+    const criado   = (s.created_at || '').replace('T', ' ').slice(0, 16);
+    const num      = s.num_analises || 0;
+
+    let html = `<div class="info-card" style="margin-bottom:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">
+      <div><div style="color:var(--muted);font-size:.8rem">Meeting ID</div><div style="font-weight:600">${escHtml(s.meeting_id || '')}</div></div>
+      <div><div style="color:var(--muted);font-size:.8rem">Início</div><div style="font-weight:600">${escHtml(criado)}</div></div>
+      <div><div style="color:var(--muted);font-size:.8rem">Análises IA</div><div style="font-weight:600;color:var(--primary)">${num}</div></div>
+      <div><div style="color:var(--muted);font-size:.8rem">DISC</div><div style="font-weight:700;font-size:1.4rem;color:${discCor}">${escHtml(discTipo)}</div></div>
+    </div>`;
+
+    // Última análise
+    if (analise.alerta_urgente) {
+      html += `<div class="info-card" style="margin-bottom:16px;border-color:#ff444444">
+        <h3 style="color:var(--danger)">⚠️ Alerta Urgente</h3>
+        <p style="color:#ccc">${escHtml(analise.alerta_urgente)}</p>
+      </div>`;
+    }
+
+    html += `<div class="grid-2">`;
+    if (disc.tipo) {
+      html += `<div class="info-card">
+        <h3>🎯 Perfil DISC</h3>
+        <div style="font-size:2rem;font-weight:700;color:${discCor}">${escHtml(disc.tipo)}</div>
+        <div style="color:var(--muted);font-size:.82rem;margin-top:4px">Confiança: ${escHtml(disc.confianca || '')}</div>
+        <p style="color:#ccc;margin-top:6px">${escHtml(disc.acao_sugerida || '')}</p>
+      </div>`;
+    }
+    if (analise.proxima_acao) {
+      html += `<div class="info-card">
+        <h3>💬 Próxima Ação Sugerida</h3>
+        <p style="color:#ccc;font-style:italic">"${escHtml(analise.proxima_acao)}"</p>
+      </div>`;
+    }
+    html += `</div>`;
+
+    if (analise.oportunidade_perdida) {
+      html += `<div class="info-card" style="margin-bottom:16px;border-color:#ffaa0044">
+        <h3 style="color:var(--warn)">💡 Oportunidade</h3>
+        <p style="color:#ccc">${escHtml(analise.oportunidade_perdida)}</p>
+      </div>`;
+    }
+
+    const objecoes = analise.objecoes || [];
+    if (objecoes.length) {
+      html += `<div class="info-card" style="margin-bottom:16px">
+        <h3>🛡️ Objeções Detectadas</h3>
+        ${objecoes.map(o => `<div class="passo"><div class="passo-icon">❗</div><div><div style="font-weight:600">${escHtml(o.objecao || '')}</div><div style="color:var(--muted);font-size:.82rem;margin-top:2px">${escHtml(o.resposta || '')}</div></div></div>`).join('')}
+      </div>`;
+    }
+
+    // Transcrição acumulada
+    const transcricao = s.transcricao_acumulada || '';
+    html += `<div class="info-card" style="margin-bottom:16px">
+      <h3>📝 Transcrição Acumulada</h3>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <span style="color:var(--muted);font-size:.82rem">${transcricao.length.toLocaleString()} caracteres</span>
+        <button onclick="copiarTranscricao()" style="background:none;border:1px solid var(--border);color:var(--text);padding:2px 10px;border-radius:4px;cursor:pointer;font-size:.8rem">📋 Copiar</button>
+        <button onclick="analisarEstaTranscricao()" style="background:var(--primary);border:none;color:#000;padding:2px 10px;border-radius:4px;cursor:pointer;font-size:.8rem;font-weight:600">🔍 Analisar completo</button>
+      </div>
+      <textarea id="transcricao-sessao" style="min-height:280px;font-size:.82rem;line-height:1.6">${escHtml(transcricao)}</textarea>
+    </div>`;
+
+    document.getElementById('sd-titulo').textContent = 'Sessão #' + s.id + ' — ' + (s.meeting_id || '');
+    html = `<div style="display:flex;justify-content:flex-end;gap:8px;align-items:center;margin-bottom:12px">
+      <button onclick="exportarParaBase(${s.id})" style="background:var(--primary);border:none;color:#000;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:.85rem;font-weight:600">📚 Adicionar à Base de IA</button>
+      <span id="exportar-feedback" style="font-size:.8rem;color:var(--muted)"></span>
+      <button onclick="excluirSessaoDetalhe(${s.id})" style="background:none;border:1px solid var(--danger);color:var(--danger);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:.85rem">🗑️ Excluir sessão</button>
+    </div>` + html;
+    document.getElementById('sd-conteudo').innerHTML = html;
+
+    // Guardar transcrição para usar nas funções de ação
+    window._sessaoTranscricao = transcricao;
+  }
+
+  function copiarTranscricao() {
+    const txt = document.getElementById('transcricao-sessao')?.value || '';
+    navigator.clipboard.writeText(txt).then(() => alert('Transcrição copiada!')).catch(() => {});
+  }
+
+  function analisarEstaTranscricao() {
+    const txt = window._sessaoTranscricao || '';
+    document.getElementById('an-transcricao').value = txt;
+    document.getElementById('an-titulo').value = 'Análise de Sessão';
+    mostrarPagina('analisar', null);
+    document.querySelectorAll('.nav-item')[3].classList.add('active');
+  }
+
+  function voltarParaSessoes() {
+    mostrarPagina('sessoes', null);
+    document.querySelectorAll('.nav-item')[2].classList.add('active');
+  }
+
+  async function exportarParaBase(id) {
+    const fb = document.getElementById('exportar-feedback');
+    if (fb) fb.textContent = 'Exportando...';
+    try {
+      const r = await fetch(API + '/sessoes/' + id + '/exportar-base', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ titulo: '', tipo: 'reuniao' }),
+      });
+      const txt = await r.text();
+      let d;
+      try { d = JSON.parse(txt); } catch { d = {}; }
+      if (!r.ok) {
+        const det = d.detail;
+        const msg = typeof det === 'string' ? det
+                  : Array.isArray(det) ? det.map(function(x) { return x.msg || JSON.stringify(x); }).join('; ')
+                  : (d.erro || d.error || 'Erro ' + r.status);
+        if (fb) fb.textContent = '❌ ' + msg;
+        return;
+      }
+      if (fb) fb.textContent = '✅ Exportado! (id ' + d.id + ', ' + (d.chars || 0).toLocaleString() + ' chars)';
+    } catch (e) {
+      if (fb) fb.textContent = '❌ ' + e.message;
+    }
+  }
+
+  async function excluirSessaoDetalhe(id) {
+    if (!confirm('Excluir sessão #' + id + '? Esta ação não pode ser desfeita.')) return;
+    try {
+      const r = await fetch(API + '/sessoes/' + id, { method: 'DELETE' });
+      if (!r.ok) throw new Error('Erro ' + r.status);
+      voltarParaSessoes();
+    } catch (e) {
+      alert('Erro ao excluir: ' + e.message);
+    }
+  }
+
+  // ── Utilitários ────────────────────────────────────
+  function escHtml(t) {
+    if (typeof t !== 'string') return String(t ?? '');
+    return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function norm(s) {
+    if (!s) return '';
+    return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[éê]/g,'e');
+  }
+
+  // ── Init ───────────────────────────────────────────
+  carregarDashboard();
+  setInterval(verificarBackend, 10000);
+
+  // Atalho: Enter no campo de busca
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') analisar();
+  });
+</script>
+</body>
+</html>
