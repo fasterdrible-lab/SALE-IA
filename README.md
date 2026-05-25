@@ -92,7 +92,7 @@ SALEIA/
 ### 1. Clonar o repositório
 
 ```bash
-git clone https://github.com/fasterdrible-lab/SALEIA.git
+git clone https://github.com/fasterdrible-lab/SALE-IA.git
 cd SALEIA
 ```
 
