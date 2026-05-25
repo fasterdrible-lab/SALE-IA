@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SALEIA — Acesso</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #2D2B3D;
+      --card:    #252338;
+      --field:   #1E1C2E;
+      --border:  #3D3B52;
+      --primary: #14B8A6;
+      --secondary:#38BDF8;
+      --text:    #F8FAFC;
+      --muted:   #9D9BB8;
+      --alert:   #F97316;
+      --danger:  #EF4444;
+      --radius:  12px;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 15px;
+      color: var(--text);
+      padding: 48px 16px 40px;
+    }
+
+    /* ── Logo ── */
+    .logo-wrap {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .logo {
+      font-size: 2.2rem;
+      font-weight: 900;
+      letter-spacing: 2px;
+      color: var(--text);
+    }
+    .logo span { color: var(--primary); }
+    .logo-sub {
+      font-size: .82rem;
+      color: var(--muted);
+      margin-top: 4px;
+      letter-spacing: .5px;
+    }
+    .version-badge {
+      display: inline-block;
+      margin-top: 10px;
+      background: rgba(20,184,166,.12);
+      border: 1px solid rgba(20,184,166,.3);
+      color: var(--primary);
+      padding: 3px 12px;
+      border-radius: 20px;
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .5px;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.35);
+      overflow: hidden;
+    }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      border-bottom: 1px solid var(--border);
+    }
+    .tab-btn {
+      padding: 14px 8px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: .82rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      transition: color .15s;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    /* ── Form panels ── */
+    .tab-panel { display: none; padding: 28px; }
+    .tab-panel.active { display: block; }
+
+    .panel-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .panel-sub {
+      font-size: .82rem;
+      color: var(--muted);
+      margin-bottom: 22px;
+      line-height: 1.5;
+    }
+
+    /* ── Fields ── */
+    .field-group { margin-bottom: 16px; }
+    .field-label {
+      display: block;
+      font-size: .75rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 7px;
+    }
+    .field-wrap { position: relative; }
+    .field-input {
+      width: 100%;
+      background: var(--field);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 11px 14px;
+      border-radius: 9px;
+      font-size: .95rem;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+      font-family: inherit;
+    }
+    .field-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(20,184,166,.12);
+    }
+    .field-input::placeholder { color: #4a4860; }
+    .field-input.error { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(239,68,68,.1); }
+    .field-input.has-action { padding-right: 46px; }
+
+    /* Show/hide password button */
+    .btn-eye {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 4px;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      transition: color .15s;
+    }
+    .btn-eye:hover { color: var(--primary); }
+
+    /* ── Action button ── */
+    .btn-main {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, var(--primary), #0d9488);
+      color: #022c22;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-main:hover:not(:disabled) { opacity: .88; transform: translateY(-1px); }
+    .btn-main:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    /* ── Message boxes ── */
+    .msg {
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: .88rem;
+      margin-top: 14px;
+      display: none;
+      line-height: 1.5;
+    }
+    .msg.visible { display: block; }
+    .msg-error   { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); color: #fca5a5; }
+    .msg-success { background: rgba(20,184,166,.08); border: 1px solid rgba(20,184,166,.2); color: #5eead4; }
+    .msg-info    { background: rgba(249,115,22,.08); border: 1px solid rgba(249,115,22,.2); color: #fdba74; }
+
+    /* ── Loading spinner inline ── */
+    .btn-spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(2,44,34,.3);
+      border-top-color: #022c22;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: none;
+    }
+    .btn-main.loading .btn-spinner { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Divider link ── */
+    .panel-link {
+      display: block;
+      text-align: center;
+      margin-top: 18px;
+      font-size: .82rem;
+      color: var(--muted);
+    }
+    .panel-link a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .panel-link a:hover { text-decoration: underline; }
+
+    /* ── Aprovação pendente ── */
+    .pendente-box {
+      text-align: center;
+      padding: 8px 0 4px;
+    }
+    .pendente-icon { font-size: 3rem; margin-bottom: 12px; }
+    .pendente-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; color: var(--primary); }
+    .pendente-text { font-size: .88rem; color: var(--muted); line-height: 1.6; }
+
+    /* ── Footer ── */
+    .page-footer {
+      margin-top: 24px;
+      font-size: .75rem;
+      color: var(--muted);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="logo-wrap">
+    <div class="logo">SALE<span>IA</span></div>
+    <div class="logo-sub">Assistente de Vendas com Inteligência Artificial</div>
+    <span class="version-badge">V.1.3.3</span>
+  </div>
+
+  <div class="card">
+
+    <!-- Tabs -->
+    <div class="tabs" role="tablist">
+      <button class="tab-btn active" id="tab-login"     role="tab" aria-selected="true"  onclick="mudarTab('login')">Entrar</button>
+      <button class="tab-btn"        id="tab-cadastro"  role="tab" aria-selected="false" onclick="mudarTab('cadastro')">Cadastrar</button>
+      <button class="tab-btn"        id="tab-recuperar" role="tab" aria-selected="false" onclick="mudarTab('recuperar')">Recuperar</button>
+    </div>
+
+    <!-- ── PAINEL LOGIN ── -->
+    <div class="tab-panel active" id="panel-login" role="tabpanel">
+      <div class="panel-title">Bem-vindo de volta</div>
+      <div class="panel-sub">Entre com seu e-mail e senha para acessar o sistema.</div>
+
+      <div class="field-group">
+        <label class="field-label" for="login-email">E-mail</label>
+        <input type="email" id="login-email" class="field-input" placeholder="seu@email.com" autocomplete="email" />
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="login-senha">Senha</label>
+        <div class="field-wrap">
+          <input type="password" id="login-senha" class="field-input has-action" placeholder="Sua senha" autocomplete="current-password" />
+          <button type="button" class="btn-eye" onclick="toggleSenha('login-senha', this)" aria-label="Mostrar senha">
+            <span>👁</span>
+          </button>
+        </div>
+      </div>
+
+      <button class="btn-main" id="btn-login" onclick="fazerLogin()">
+        <span id="btn-login-txt">Entrar</span>
+        <div class="btn-spinner"></div>
+      </button>
+
+      <div class="msg msg-error" id="login-erro" role="alert"></div>
+
+      <div class="panel-link">
+        Esqueceu a senha? <a href="#" onclick="mudarTab('recuperar');return false">Recuperar acesso</a>
+      </div>
+    </div>
+
+    <!-- ── PAINEL CADASTRO ── -->
+    <div class="tab-panel" id="panel-cadastro" role="tabpanel">
+      <div id="cadastro-form-wrap">
+        <div class="panel-title">Criar conta</div>
+        <div class="panel-sub">Após o cadastro, seu acesso ficará pendente de aprovação pelo administrador.</div>
+
+        <div class="field-group">
+          <label class="field-label" for="cad-nome">Nome completo</label>
+          <input type="text" id="cad-nome" class="field-input" placeholder="Seu nome completo" autocomplete="name" />
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="cad-email">E-mail</label>
+          <input type="email" id="cad-email" class="field-input" placeholder="seu@email.com" autocomplete="email" />
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="cad-senha">Senha</label>
+          <div class="field-wrap">
+            <input type="password" id="cad-senha" class="field-input has-action" placeholder="Mínimo 8 caracteres" autocomplete="new-password" />
+            <button type="button" class="btn-eye" onclick="toggleSenha('cad-senha', this)" aria-label="Mostrar senha">
+              <span>👁</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="cad-confirmar">Confirmar senha</label>
+          <div class="field-wrap">
+            <input type="password" id="cad-confirmar" class="field-input has-action" placeholder="Repita a senha" autocomplete="new-password" />
+            <button type="button" class="btn-eye" onclick="toggleSenha('cad-confirmar', this)" aria-label="Mostrar confirmação">
+              <span>👁</span>
+            </button>
+          </div>
+        </div>
+
+        <button class="btn-main" id="btn-cadastro" onclick="fazerCadastro()">
+          <span id="btn-cad-txt">Criar conta</span>
+          <div class="btn-spinner"></div>
+        </button>
+
+        <div class="msg msg-error" id="cadastro-erro" role="alert"></div>
+      </div>
+
+      <!-- Estado: aguardando aprovação -->
+      <div id="cadastro-pendente" style="display:none" class="pendente-box">
+        <div class="pendente-icon">⏳</div>
+        <div class="pendente-title">Cadastro enviado!</div>
+        <div class="pendente-text">
+          Seu cadastro foi recebido com sucesso.<br>
+          Aguarde a <strong>aprovação do administrador</strong> para acessar o sistema.<br><br>
+          Você será notificado por e-mail quando o acesso for liberado.
+        </div>
+        <div class="panel-link" style="margin-top:20px">
+          <a href="#" onclick="mudarTab('login');return false">Voltar ao login</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PAINEL RECUPERAR SENHA ── -->
+    <div class="tab-panel" id="panel-recuperar" role="tabpanel">
+      <div id="recuperar-form-wrap">
+        <div class="panel-title">Recuperar acesso</div>
+        <div class="panel-sub">Digite seu e-mail e enviaremos um link para redefinir sua senha.</div>
+
+        <div class="field-group">
+          <label class="field-label" for="rec-email">E-mail cadastrado</label>
+          <input type="email" id="rec-email" class="field-input" placeholder="seu@email.com" autocomplete="email" />
+        </div>
+
+        <button class="btn-main" id="btn-recuperar" onclick="fazerRecuperacao()">
+          <span id="btn-rec-txt">Enviar link de recuperação</span>
+          <div class="btn-spinner"></div>
+        </button>
+
+        <div class="msg msg-error" id="recuperar-erro" role="alert"></div>
+      </div>
+
+      <!-- Estado: e-mail enviado -->
+      <div id="recuperar-enviado" style="display:none" class="pendente-box">
+        <div class="pendente-icon">📧</div>
+        <div class="pendente-title">E-mail enviado!</div>
+        <div class="pendente-text">
+          Verifique sua caixa de entrada e siga as instruções para redefinir sua senha.<br><br>
+          Se não aparecer em alguns minutos, confira a pasta de spam.
+        </div>
+        <div class="panel-link" style="margin-top:20px">
+          <a href="#" onclick="mudarTab('login');return false">Voltar ao login</a>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /card -->
+
+  <div class="page-footer">SALEIA V.1.3.3 · Copyright © 2026 HEXAGON TECNOLOGIA. Todos os direitos reservados.</div>
+
+<script>
+  const API_BASE = (() => {
+    const h = window.location.hostname;
+    return (h === 'localhost' || h === '127.0.0.1') ? 'http://localhost:8000' : 'https://api.saleia.com.br';
+  })();
+
+  /* ── Tabs ── */
+  function mudarTab(nome) {
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.classList.toggle('active', b.id === 'tab-' + nome);
+      b.setAttribute('aria-selected', b.id === 'tab-' + nome);
+    });
+    document.querySelectorAll('.tab-panel').forEach(p => {
+      p.classList.toggle('active', p.id === 'panel-' + nome);
+    });
+  }
+
+  /* ── Show/hide password ── */
+  function toggleSenha(inputId, btn) {
+    const input = document.getElementById(inputId);
+    const isPass = input.type === 'password';
+    input.type = isPass ? 'text' : 'password';
+    btn.querySelector('span').textContent = isPass ? '🙈' : '👁';
+    btn.setAttribute('aria-label', isPass ? 'Ocultar senha' : 'Mostrar senha');
+  }
+
+  /* ── Helpers de UI ── */
+  function setLoading(btnId, txtId, loading) {
+    const btn = document.getElementById(btnId);
+    btn.disabled = loading;
+    btn.classList.toggle('loading', loading);
+  }
+
+  function mostrarMensagem(id, texto, tipo) {
+    const el = document.getElementById(id);
+    el.textContent = texto;
+    el.className = 'msg msg-' + tipo + ' visible';
+  }
+
+  function limparMensagem(id) {
+    const el = document.getElementById(id);
+    el.className = 'msg msg-error';
+    el.textContent = '';
+  }
+
+  function limparErros(campos) {
+    campos.forEach(id => document.getElementById(id)?.classList.remove('error'));
+  }
+
+  function marcarErro(id) {
+    document.getElementById(id)?.classList.add('error');
+    document.getElementById(id)?.focus();
+  }
+
+  /* ── Login ── */
+  async function fazerLogin() {
+    const email = document.getElementById('login-email').value.trim();
+    const senha  = document.getElementById('login-senha').value;
+    limparMensagem('login-erro');
+    limparErros(['login-email', 'login-senha']);
+
+    if (!email) { marcarErro('login-email'); mostrarMensagem('login-erro', '⚠️ Informe seu e-mail.', 'error'); return; }
+    if (!senha)  { marcarErro('login-senha'); mostrarMensagem('login-erro', '⚠️ Informe sua senha.', 'error'); return; }
+
+    setLoading('btn-login', 'btn-login-txt', true);
+    document.getElementById('btn-login-txt').textContent = 'Entrando...';
+
+    try {
+      const r = await fetch(API_BASE + '/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, senha }),
+        signal: AbortSignal.timeout(10000),
+      });
+      const d = await r.json().catch(() => ({}));
+
+      if (r.ok && d.token) {
+        localStorage.setItem('saleia_token', d.token);
+        localStorage.setItem('saleia_user', JSON.stringify(d.usuario || {}));
+        window.location.href = '/dashboard';
+      } else {
+        const msg = d.detail || d.erro || d.message || 'E-mail ou senha incorretos.';
+        mostrarMensagem('login-erro', '❌ ' + msg, 'error');
+      }
+    } catch (e) {
+      mostrarMensagem('login-erro', '❌ Não foi possível conectar ao servidor. Tente novamente.', 'error');
+    } finally {
+      setLoading('btn-login', 'btn-login-txt', false);
+      document.getElementById('btn-login-txt').textContent = 'Entrar';
+    }
+  }
+
+  /* ── Cadastro ── */
+  async function fazerCadastro() {
+    const nome     = document.getElementById('cad-nome').value.trim();
+    const email    = document.getElementById('cad-email').value.trim();
+    const senha    = document.getElementById('cad-senha').value;
+    const confirmar= document.getElementById('cad-confirmar').value;
+    limparMensagem('cadastro-erro');
+    limparErros(['cad-nome','cad-email','cad-senha','cad-confirmar']);
+
+    if (!nome)   { marcarErro('cad-nome');     mostrarMensagem('cadastro-erro', '⚠️ Informe seu nome completo.', 'error'); return; }
+    if (!email)  { marcarErro('cad-email');    mostrarMensagem('cadastro-erro', '⚠️ Informe um e-mail válido.', 'error'); return; }
+    if (senha.length < 8) { marcarErro('cad-senha'); mostrarMensagem('cadastro-erro', '⚠️ A senha deve ter no mínimo 8 caracteres.', 'error'); return; }
+    if (senha !== confirmar) { marcarErro('cad-confirmar'); mostrarMensagem('cadastro-erro', '⚠️ As senhas não coincidem.', 'error'); return; }
+
+    setLoading('btn-cadastro', 'btn-cad-txt', true);
+    document.getElementById('btn-cad-txt').textContent = 'Enviando...';
+
+    try {
+      const r = await fetch(API_BASE + '/auth/cadastro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome, email, senha }),
+        signal: AbortSignal.timeout(10000),
+      });
+      const d = await r.json().catch(() => ({}));
+
+      if (r.ok) {
+        document.getElementById('cadastro-form-wrap').style.display = 'none';
+        document.getElementById('cadastro-pendente').style.display = 'block';
+      } else {
+        const msg = d.detail || d.erro || d.message || 'Erro ao realizar cadastro.';
+        mostrarMensagem('cadastro-erro', '❌ ' + msg, 'error');
+      }
+    } catch (e) {
+      mostrarMensagem('cadastro-erro', '❌ Não foi possível conectar ao servidor. Tente novamente.', 'error');
+    } finally {
+      setLoading('btn-cadastro', 'btn-cad-txt', false);
+      document.getElementById('btn-cad-txt').textContent = 'Criar conta';
+    }
+  }
+
+  /* ── Recuperar senha ── */
+  async function fazerRecuperacao() {
+    const email = document.getElementById('rec-email').value.trim();
+    limparMensagem('recuperar-erro');
+    limparErros(['rec-email']);
+
+    if (!email) { marcarErro('rec-email'); mostrarMensagem('recuperar-erro', '⚠️ Informe seu e-mail.', 'error'); return; }
+
+    setLoading('btn-recuperar', 'btn-rec-txt', true);
+    document.getElementById('btn-rec-txt').textContent = 'Enviando...';
+
+    try {
+      const r = await fetch(API_BASE + '/auth/recuperar-senha', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+        signal: AbortSignal.timeout(10000),
+      });
+      const d = await r.json().catch(() => ({}));
+
+      if (r.ok) {
+        document.getElementById('recuperar-form-wrap').style.display = 'none';
+        document.getElementById('recuperar-enviado').style.display = 'block';
+      } else {
+        const msg = d.detail || d.erro || d.message || 'Não foi possível enviar o e-mail.';
+        mostrarMensagem('recuperar-erro', '❌ ' + msg, 'error');
+      }
+    } catch (e) {
+      mostrarMensagem('recuperar-erro', '❌ Não foi possível conectar ao servidor.', 'error');
+    } finally {
+      setLoading('btn-recuperar', 'btn-rec-txt', false);
+      document.getElementById('btn-rec-txt').textContent = 'Enviar link de recuperação';
+    }
+  }
+
+  /* ── Atalho Enter ── */
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const panel = document.querySelector('.tab-panel.active')?.id;
+    if (panel === 'panel-login')     fazerLogin();
+    if (panel === 'panel-cadastro')  fazerCadastro();
+    if (panel === 'panel-recuperar') fazerRecuperacao();
+  });
+</script>
+</body>
+</html>

@@ -17,7 +17,7 @@
 
   function escaparHtml(str) {
     if (str == null) return '';
-    return String(str)
+    return limparFrasesGatilho(String(str))
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
@@ -25,12 +25,36 @@
       .replace(/'/g, '&#39;');
   }
 
+  function limparFrasesGatilho(str) {
+    var texto = String(str || '');
+    [
+      /deixa\s+eu\s+ver\s+se\s+entendi/gi,
+      /pelo\s+que\s+voc[eé?]\s+me\s+falou/gi,
+      /foi\s+isso\s+que\s+eu\s+colhi/gi,
+      /s[oó?]\s+para\s+confirmar/gi
+    ].forEach(function (pattern) {
+      texto = texto.replace(pattern, '');
+    });
+    return texto.replace(/\s{2,}/g, ' ').replace(/\s+([,.;:!?])/g, '$1').trim();
+  }
+
   const CONFIG = {
-    backendUrl: 'https://dime-flip-protector.ngrok-free.dev',
+    backendUrl: 'https://api.saleia.com.br',
     intervaloAnalise: 60,
     maxTranscricaoRecente: 2 * 60,
     maxHistorico: 5 * 60,
   };
+
+  // Extrai o código da reunião do Google Meet da URL (ex: abc-defg-hij)
+  // Retorna null se a URL não for de uma reunião real (página inicial, /landing, etc.)
+  function obterMeetingId() {
+    var m = window.location.pathname.match(/\/([a-z]{3}-[a-z]{4}-[a-z]{3})/i);
+    return m ? m[1] : null;
+  }
+  var MEETING_ID = obterMeetingId();
+
+  // Não ativar fora de uma reunião real
+  if (!MEETING_ID) return;
 
   const estado = {
     ativo: true,
@@ -38,17 +62,30 @@
     historicoResumo: '',
     perfilDiscAtual: null,
     mapaFinanceiro: {},
+    recapitulacaoViva: null,
+    recapitulacaoVivaOculta: false,
+    recapitulacaoVivaUsada: false,
     contador: CONFIG.intervaloAnalise,
     sidebarMinimizada: false,
     timerContador: null,
     timerEnvio: null,
     backendOnline: true,
+    ultimoIndexEnviado: 0,  // tracks last committed entry sent to DB
+    participantes: {
+      vendedor: 'Vendedor',
+      cliente: 'Cliente',
+    },
   };
 
   chrome.storage.local.get(['saleiaBackendUrl', 'saleiaAtivo'], function (result) {
     if (result.saleiaBackendUrl) CONFIG.backendUrl = result.saleiaBackendUrl;
     if (result.saleiaAtivo === false) estado.ativo = false;
-    iniciar();
+    chrome.storage.local.get(['saleiaParticipantes'], function (dadosParticipantes) {
+      if (dadosParticipantes.saleiaParticipantes) {
+        estado.participantes = Object.assign({}, estado.participantes, dadosParticipantes.saleiaParticipantes);
+      }
+      iniciar();
+    });
   });
 
   function iniciar() {
@@ -57,9 +94,141 @@
     iniciarObservadorLegendas();
     iniciarContadorRegressivo();
     iniciarEnvioPeriodico();
+    registrarSessao();
+
+    // Botão de captura de áudio (Whisper) — MediaRecorder direto no content.js
+    // O prompt de microfone aparece na barra da aba do Meet (contexto visível)
+    var capturaAudioAtiva = false;
+    var whisperRecorder = null;
+    var whisperStream = null;
+    var whisperMimeType = 'audio/webm';
+    var whisperCicloTimer = null;
+    var btnAudio = document.getElementById('saleia-btn-audio-capture');
+    var statusAudio = document.getElementById('saleia-audio-status');
+    function setAudioStatus(txt, cor) {
+      if (statusAudio) { statusAudio.textContent = txt; statusAudio.style.color = cor || '#888'; }
+    }
+    function pararWhisper() {
+      capturaAudioAtiva = false;
+      if (whisperCicloTimer) { clearTimeout(whisperCicloTimer); whisperCicloTimer = null; }
+      if (whisperRecorder && whisperRecorder.state !== 'inactive') {
+        whisperRecorder.stop();
+      }
+      if (whisperStream) {
+        whisperStream.getTracks().forEach(function (t) { t.stop(); });
+        whisperStream = null;
+      }
+      whisperRecorder = null;
+    }
+    // Cada ciclo: start() → 15s → stop() → ondataavailable com WebM completo (com header)
+    // Isso garante que cada chunk enviado ao Whisper é um arquivo WebM válido e independente.
+    function iniciarCicloWhisper() {
+      if (!capturaAudioAtiva || !whisperStream || !whisperStream.active) return;
+      whisperRecorder = new MediaRecorder(whisperStream, { mimeType: whisperMimeType });
+      whisperRecorder.ondataavailable = function (e) {
+        // Áudio silencioso em WebM/opus gera ~2-4KB; exigir >10KB garante fala real
+        if (e.data && e.data.size > 10240) enviarChunkWhisper(e.data);
+      };
+      whisperRecorder.onerror = function (e) {
+        console.error('[SALEIA] MediaRecorder erro:', e);
+        pararWhisper();
+        if (btnAudio) {
+          btnAudio.textContent = '🎤 Capturar áudio (Whisper)';
+          btnAudio.style.background = '#1a1a2e'; btnAudio.style.borderColor = '#00d4aa'; btnAudio.style.color = '#00d4aa';
+        }
+        setAudioStatus('⚠️ Erro na gravação', '#ff4444');
+      };
+      whisperRecorder.onstop = function () {
+        // Reinicia novo ciclo se ainda ativo (garante novo header WebM a cada chunk)
+        if (capturaAudioAtiva) setTimeout(iniciarCicloWhisper, 100);
+      };
+      whisperRecorder.start(); // sem timeslice → chunk completo no stop()
+      // Para automaticamente após 15s para disparar ondataavailable
+      whisperCicloTimer = setTimeout(function () {
+        if (whisperRecorder && whisperRecorder.state === 'recording') {
+          whisperRecorder.stop();
+        }
+      }, 15000);
+    }
+    function enviarChunkWhisper(blob) {
+      var reader = new FileReader();
+      reader.onloadend = function () {
+        var base64 = reader.result;
+        if (!base64 || base64.length < 600) return; // chunk muito pequeno
+        // Rota via background.js — fetch direto é interceptado pelo SW do Meet e duplicado
+        if (!chrome.runtime || !chrome.runtime.id) return;
+        chrome.runtime.sendMessage({
+          tipo: 'whisperChunk',
+          audio_base64: base64,
+          mime_type: blob.type,
+          meeting_id: MEETING_ID,
+          backendUrl: CONFIG.backendUrl,
+        }, function (data) {
+          if (data && data.texto && data.texto.trim()) {
+            var texto = data.texto.trim();
+            // Filtro de ruído: rejeita texto com < 3 palavras únicas (ruído de fundo / eco)
+            var palavras = texto.toLowerCase().replace(/[^a-záéíóúãõâêîôûàçü\s]/g, '').split(/\s+/).filter(Boolean);
+            var unicas = new Set(palavras);
+            if (unicas.size < 3 && palavras.length < 6) {
+              console.log('[SALEIA] Whisper chunk descartado (ruído/repetição):', texto);
+              return;
+            }
+            commitarFrase('Audio', texto);
+            setAudioStatus('🎤 ' + texto.slice(0, 50) + '…', '#00d4aa');
+            enviarParaBackend();
+          } else if (data && data.error) {
+            console.warn('[SALEIA] Whisper erro:', data.error);
+          }
+        });
+      };
+      reader.readAsDataURL(blob);
+    }
+    if (btnAudio) btnAudio.addEventListener('click', function () {
+      var btn = this;
+      if (!capturaAudioAtiva) {
+        btn.textContent = '⏳ Aguardando microfone...';
+        btn.disabled = true;
+        setAudioStatus('Aguardando permissão do Chrome...', '#aaa');
+        navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+          .then(function (stream) {
+            whisperStream = stream;
+            whisperMimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+              ? 'audio/webm;codecs=opus' : 'audio/webm';
+            capturaAudioAtiva = true;
+            btn.disabled = false;
+            btn.textContent = '⏹ Parar captura de áudio';
+            btn.style.background = '#2d0a0a'; btn.style.borderColor = '#ff4444'; btn.style.color = '#ff4444';
+            setAudioStatus('🎤 Whisper ativo — gravando...', '#00d4aa');
+            iniciarCicloWhisper(); // ciclos de 15s com WebM completo a cada ciclo
+          })
+          .catch(function (err) {
+            btn.disabled = false;
+            btn.textContent = '🎤 Capturar áudio (Whisper)';
+            var msg = err.name === 'NotAllowedError'
+              ? '🔒 Permissão negada — clique no cadeado na barra de endereço → Microfone → Permitir → recarregue'
+              : '⚠️ ' + err.message;
+            setAudioStatus(msg, '#ff9900');
+            console.error('[SALEIA] getUserMedia erro:', err.name, err.message);
+          });
+      } else {
+        pararWhisper();
+        btn.textContent = '🎤 Capturar áudio (Whisper)';
+        btn.style.background = '#1a1a2e'; btn.style.borderColor = '#00d4aa'; btn.style.color = '#00d4aa';
+        setAudioStatus('', '');
+      }
+    });
+
     chrome.runtime.onMessage.addListener(function (msg) {
       if (msg.tipo === 'toggle') { estado.ativo = msg.valor; atualizarStatusSidebar(); }
       if (msg.tipo === 'backendUrl') { CONFIG.backendUrl = msg.valor; }
+      if (msg.tipo === 'backendStatus') {
+        const dot = document.querySelector('#saleia-status .saleia-dot');
+        const txt = document.getElementById('saleia-status');
+        if (dot && txt) {
+          dot.style.background = msg.online ? '#00d4aa' : '#ff4444';
+          txt.childNodes[1].textContent = msg.online ? ' Monitorando...' : ' Backend offline — reconectando...';
+        }
+      }
     });
   }
 
@@ -68,15 +237,35 @@
     sidebar.id = 'saleia-sidebar';
     sidebar.innerHTML = `
       <div id="saleia-header">
-        <span>🤖 SALEIA AO VIVO</span>
         <button id="saleia-toggle-btn" title="Minimizar/Expandir">≡</button>
+        <span>🤖 SALEIA AO VIVO</span>
       </div>
       <div id="saleia-body">
         <div id="saleia-status"><span class="saleia-dot"></span> Monitorando...</div>
+        <button id="saleia-btn-participantes" class="saleia-discreto-btn" type="button">Editar participantes</button>
+        <div id="saleia-participantes-resumo" class="saleia-participantes-resumo"></div>
 
         <div id="saleia-alerta" class="saleia-secao saleia-alerta-box" style="display:none">
           <div class="saleia-secao-titulo">⚠️ ALERTA URGENTE</div>
           <div id="saleia-alerta-texto"></div>
+        </div>
+
+        <div id="saleia-recapitulacao" class="saleia-secao saleia-recap-viva" style="display:none">
+          <div class="saleia-recap-topo">
+            <div class="saleia-secao-titulo">🧠 RECAPITULAÇÃO GUIADA</div>
+            <span id="saleia-recap-status" class="saleia-recap-badge">nova</span>
+          </div>
+          <div id="saleia-recapitulacao-texto" class="saleia-recap-texto"></div>
+          <div id="saleia-recap-mapa" class="saleia-recap-mapa"></div>
+          <div id="saleia-recap-pergunta" class="saleia-recap-bloco"></div>
+          <div id="saleia-recap-dica" class="saleia-recap-dica"></div>
+          <div id="saleia-recap-faltantes" class="saleia-recap-faltantes"></div>
+          <div class="saleia-recap-acoes">
+            <button id="saleia-btn-copiar-fala" class="saleia-recap-btn">Copiar fala</button>
+            <button id="saleia-btn-regenerar-recap" class="saleia-recap-btn">Regenerar</button>
+            <button id="saleia-btn-marcar-usado" class="saleia-recap-btn">Marcar como usado</button>
+            <button id="saleia-btn-fechar-recap" class="saleia-recap-btn">Fechar</button>
+          </div>
         </div>
 
         <div id="saleia-disc" class="saleia-secao">
@@ -109,11 +298,45 @@
           <div id="saleia-dado-esquecido-texto"></div>
         </div>
 
+        <div id="saleia-score" class="saleia-secao" style="display:none">
+          <div class="saleia-secao-titulo">📊 SCORE DE COMPRA</div>
+          <div id="saleia-score-valor" style="font-size:1.6rem;font-weight:700;color:#00d4aa">--</div>
+          <div id="saleia-score-barra" style="background:#333;border-radius:4px;height:8px;margin:6px 0">
+            <div id="saleia-score-fill" style="height:100%;border-radius:4px;transition:width .6s ease;background:#00d4aa"></div>
+          </div>
+          <div id="saleia-score-texto" style="font-size:.8rem;color:#aaa"></div>
+          <button id="saleia-btn-cenario"
+            style="margin-top:10px;width:100%;padding:8px;background:linear-gradient(135deg,#00d4aa,#0099cc);
+                   color:#fff;border:none;border-radius:6px;font-size:.85rem;font-weight:600;cursor:pointer">
+            📊 Abrir cenário do cliente
+          </button>
+        </div>
+
         <div id="saleia-legenda-aviso" class="saleia-secao saleia-aviso" style="display:none">
           ⚠️ Ative as legendas no Meet:<br>
           Clique em "CC" na barra inferior do Meet
         </div>
+        <div id="saleia-debug-count" style="font-size:.75rem;color:#666;margin-top:4px"></div>
+        <button id="saleia-btn-audio-capture"
+          style="margin:6px 0 2px;width:100%;padding:7px;background:#1a1a2e;border:1px solid #00d4aa;
+                 color:#00d4aa;border-radius:6px;font-size:.8rem;font-weight:600;cursor:pointer">
+          🎤 Capturar áudio (Whisper)
+        </button>
+        <div id="saleia-audio-status" style="font-size:.73rem;min-height:1.1em;margin-bottom:2px;padding:0 2px"></div>
         <div id="saleia-contador">Próxima análise em: 60s</div>
+      </div>
+      <div id="saleia-participantes-modal" class="saleia-modal" style="display:none">
+        <div class="saleia-modal-card">
+          <div class="saleia-modal-title">Participantes</div>
+          <label>Nome do vendedor</label>
+          <input id="saleia-input-vendedor" type="text" placeholder="Vendedor" />
+          <label>Nome do cliente</label>
+          <input id="saleia-input-cliente" type="text" placeholder="Cliente" />
+          <div class="saleia-modal-actions">
+            <button id="saleia-btn-salvar-participantes" class="saleia-recap-btn">Salvar</button>
+            <button id="saleia-btn-cancelar-participantes" class="saleia-recap-btn">Cancelar</button>
+          </div>
+        </div>
       </div>
     `;
     document.body.appendChild(sidebar);
@@ -124,70 +347,366 @@
       this.textContent = estado.sidebarMinimizada ? '▶' : '≡';
       sidebar.style.width = estado.sidebarMinimizada ? '44px' : '280px';
     });
+    document.getElementById('saleia-btn-cenario').addEventListener('click', function () {
+      if (!chrome.runtime || !chrome.runtime.id) return;
+      chrome.runtime.sendMessage({ tipo: 'abrirCenario', url: CONFIG.backendUrl + '/cenario/' + MEETING_ID });
+    });
+    atualizarResumoParticipantes();
+    var btnParticipantes = document.getElementById('saleia-btn-participantes');
+    if (btnParticipantes) btnParticipantes.addEventListener('click', abrirModalParticipantes);
+    var btnSalvarParticipantes = document.getElementById('saleia-btn-salvar-participantes');
+    if (btnSalvarParticipantes) btnSalvarParticipantes.addEventListener('click', salvarParticipantes);
+    var btnCancelarParticipantes = document.getElementById('saleia-btn-cancelar-participantes');
+    if (btnCancelarParticipantes) btnCancelarParticipantes.addEventListener('click', fecharModalParticipantes);
+    var btnCopiarFala = document.getElementById('saleia-btn-copiar-fala');
+    if (btnCopiarFala) {
+      btnCopiarFala.addEventListener('click', function () {
+        var fala = '';
+        if (estado.recapitulacaoViva && estado.recapitulacaoViva.texto_falavel) {
+          fala = estado.recapitulacaoViva.texto_falavel;
+        } else {
+          fala = document.getElementById('saleia-proxima-fala-texto') ? document.getElementById('saleia-proxima-fala-texto').innerText : '';
+        }
+        copiarTextoParaAreaTransferencia(fala);
+      });
+    }
+    var btnRegenerarRecap = document.getElementById('saleia-btn-regenerar-recap');
+    if (btnRegenerarRecap) {
+      btnRegenerarRecap.addEventListener('click', solicitarRegeneracaoRecapitulacao);
+    }
+    var btnMarcarUsado = document.getElementById('saleia-btn-marcar-usado');
+    if (btnMarcarUsado) {
+      btnMarcarUsado.addEventListener('click', function () {
+        marcarRecapitulacaoComoUsada();
+      });
+    }
+    var btnFecharRecap = document.getElementById('saleia-btn-fechar-recap');
+    if (btnFecharRecap) {
+      btnFecharRecap.addEventListener('click', function () {
+        fecharRecapitulacaoViva();
+      });
+    }
   }
 
+  function normalizarNomeParticipante(valor) {
+    return String(valor || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase();
+  }
+
+  function rotuloParticipante(speaker) {
+    var nome = String(speaker || '').trim();
+    var normalizado = normalizarNomeParticipante(nome);
+    var vendedor = estado.participantes.vendedor || 'Vendedor';
+    var cliente = estado.participantes.cliente || 'Cliente';
+
+    if (!normalizado || normalizado === 'participante' || normalizado === 'cliente') return cliente;
+    if (normalizado === 'voce' || normalizado === 'vendedor' || normalizado === normalizarNomeParticipante(vendedor)) return vendedor;
+    if (normalizado === normalizarNomeParticipante(cliente)) return cliente;
+    return nome;
+  }
+
+  function atualizarResumoParticipantes() {
+    var el = document.getElementById('saleia-participantes-resumo');
+    if (!el) return;
+    el.textContent = (estado.participantes.vendedor || 'Vendedor') + ' -> ' + (estado.participantes.cliente || 'Cliente');
+  }
+
+  function abrirModalParticipantes() {
+    var modal = document.getElementById('saleia-participantes-modal');
+    if (!modal) return;
+    document.getElementById('saleia-input-vendedor').value = estado.participantes.vendedor || '';
+    document.getElementById('saleia-input-cliente').value = estado.participantes.cliente || '';
+    modal.style.display = 'flex';
+  }
+
+  function fecharModalParticipantes() {
+    var modal = document.getElementById('saleia-participantes-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function salvarParticipantes() {
+    estado.participantes = {
+      vendedor: document.getElementById('saleia-input-vendedor').value.trim() || 'Vendedor',
+      cliente: document.getElementById('saleia-input-cliente').value.trim() || 'Cliente',
+    };
+    chrome.storage.local.set({ saleiaParticipantes: estado.participantes });
+    atualizarResumoParticipantes();
+    fecharModalParticipantes();
+  }
+
+  // Seletores de legenda do Google Meet.
+  // Lista ampla — o Meet atualiza DOM frequentemente.
   const CAPTION_SELECTORS = [
-    '[class*="caption"]',
+    // jsnames historicamente usados para legendas
     '[jsname="tgaKEf"]',
-    '[class*="CNusmb"]',
-    'div[class*="iOzk7"]',
-    '[data-message-text]',
+    '[jsname="bVMM9c"]',
+    '[jsname="YSxPC"]',
+    '[jsname="r4nke"]',
+    '[jsname="r8qfJe"]',
+    '[jsname="YPqjbf"]',
+    '[jsname="dsyhDe"]',
+    '[jsname="K4EGdf"]',
+    // classes conhecidas
     'span[class*="bj56rb"]',
+    '[class*="CNusmb"]',
     '[class*="a4cQT"]',
+    '[class*="iOzk7"]',
+    '[class*="KcIKyf"]',
     '[class*="TBMuR"]',
-    '[class*="Mz6pEf"]',
+    '[class*="VfPpkd-WsjYwc"]',
+    // role=region para legendas (Meet 2025+)
+    '[role="region"][aria-label*="legenda" i]',
+    '[role="region"][aria-label*="caption" i]',
+    '[role="region"][aria-label*="transcript" i]',
+    // contenedor genérico de captions ao vivo
+    '[aria-live="polite"]',
+    '[aria-live="assertive"]',
   ];
 
-  const textoCapturado = new Set();
+  // Buffer por speaker: guarda a frase ativa enquanto o speaker ainda está falando.
+  // Só commita ao array de transcrição quando o speaker para (2.5s sem atualização).
+  // Isso evita acumular fragmentos parciais ("Você", "de multi", "de multiplicar...").
+  const captionBuffer = {};
+  // Rastreia prefixos de frases já commitadas para evitar re-commit pelo scan periódico
+  const jaCommitado = new Set();
+  setInterval(function() { jaCommitado.clear(); }, 60000);
   let legendasDetectadas = false;
   let verificacaoLegendaTimer = null;
+
+  function commitarFrase(speaker, texto) {
+    if (!texto || texto.trim().length < 10) return;
+    if (eRuidoUI(texto.trim())) return;
+    speaker = rotuloParticipante(speaker);
+    var t = texto.trim();
+    var chave = t.substring(0, 50).toLowerCase();
+    // Evita duplicata: texto igual ou já commitado recentemente
+    if (jaCommitado.has(chave)) return;
+    var ultimas = estado.transcricao.slice(-10);
+    if (ultimas.some(function(e) {
+      return e.text === t || e.text.startsWith(t) || t.startsWith(e.text);
+    })) return;
+    jaCommitado.add(chave);
+    estado.transcricao.push({ speaker: speaker, text: t, timestamp: new Date().toISOString() });
+    legendasDetectadas = true;
+    ocultarAvisoLegenda();
+    // Debug: mostra contagem de frases capturadas na sidebar
+    var dbg = document.getElementById('saleia-debug-count');
+    if (dbg) dbg.textContent = '📝 ' + estado.transcricao.length + ' frase(s) capturada(s)';
+  }
+
+  // A cada 800ms commita frases "silenciadas" (speaker parou há >2.5s)
+  setInterval(function () {
+    var agora = Date.now();
+    Object.keys(captionBuffer).forEach(function (speaker) {
+      var buf = captionBuffer[speaker];
+      if (buf && agora - buf.lastSeen > 3500) {
+        commitarFrase(speaker, buf.texto);
+        delete captionBuffer[speaker];
+      }
+    });
+  }, 800);
+
+  // Extrai elementos folha de texto (sem filhos elemento) dentro de um container
+  function processarFolhas(container) {
+    if (!container || container.closest('#saleia-sidebar')) return;
+    // Se não tem filhos elemento, é folha — processa diretamente
+    var temFilhoElemento = false;
+    for (var i = 0; i < container.childNodes.length; i++) {
+      if (container.childNodes[i].nodeType === Node.ELEMENT_NODE) { temFilhoElemento = true; break; }
+    }
+    if (!temFilhoElemento) {
+      processarElementoLegenda(container);
+    } else {
+      // Percorre filhos recursivamente até chegar nas folhas
+      container.querySelectorAll('*').forEach(function(child) {
+        if (child.closest('#saleia-sidebar')) return;
+        var temFilho = false;
+        for (var j = 0; j < child.childNodes.length; j++) {
+          if (child.childNodes[j].nodeType === Node.ELEMENT_NODE) { temFilho = true; break; }
+        }
+        if (!temFilho && child.textContent.trim()) processarElementoLegenda(child);
+      });
+    }
+  }
 
   function iniciarObservadorLegendas() {
     const observer = new MutationObserver(function (mutations) {
       mutations.forEach(function (mutation) {
-        mutation.addedNodes.forEach(function (node) {
-          if (node.nodeType !== Node.ELEMENT_NODE) return;
-          CAPTION_SELECTORS.forEach(function (sel) {
-            try {
-              if (node.matches && node.matches(sel)) processarElementoLegenda(node);
-              const filhos = node.querySelectorAll ? node.querySelectorAll(sel) : [];
-              filhos.forEach(processarElementoLegenda);
-            } catch (e) {}
+        if (mutation.type === 'characterData' && mutation.target.parentElement) {
+          var el = mutation.target.parentElement;
+          if (!el.closest('#saleia-sidebar')) processarElementoLegenda(el);
+        }
+        if (mutation.type === 'childList') {
+          mutation.addedNodes.forEach(function (node) {
+            if (node.nodeType === Node.ELEMENT_NODE) processarFolhas(node);
+            else if (node.nodeType === Node.TEXT_NODE && node.parentElement) {
+              if (!node.parentElement.closest('#saleia-sidebar')) processarElementoLegenda(node.parentElement);
+            }
           });
-        });
+        }
       });
     });
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+
+    // Scan periódico: SOMENTE seletores de área de legenda CC do Meet.
+    // NÃO usar [aria-live] aqui pois captura tooltips de botões.
+    setInterval(function () {
+      try {
+        var CAPTION_SCAN = [
+          // jsnames do painel de legenda CC overlay (confirmados no Meet)
+          '[jsname="tgaKEf"]', '[jsname="bVMM9c"]', '[jsname="r8qfJe"]',
+          '[jsname="YPqjbf"]', '[jsname="dsyhDe"]', '[jsname="K4EGdf"]',
+          // classes de texto de legenda
+          'span[class*="bj56rb"]',
+          // painel lateral de transcrição ao vivo
+          '[class*="a4cQT"]', '[class*="iOzk7"]', '[class*="NMTbpc"]'
+        ];
+        CAPTION_SCAN.forEach(function (sel) {
+          document.querySelectorAll(sel).forEach(function (el) {
+            if (!el.closest('#saleia-sidebar')) processarFolhas(el);
+          });
+        });
+      } catch (e) {}
+    }, 2000);
+
     verificacaoLegendaTimer = setInterval(verificarLegendas, 10000);
+  }
+
+  // Padrões de ruído do Google Meet (ícones Material + botões de UI)
+  const RUIDO_REGEX = /^(arrow_downward|arrow_upward|expand_more|expand_less|close|mic|mic_off|videocam|videocam_off|more_vert|chat|people|settings|call_end|thumb_up|check|keyboard_arrow)[a-z_]*(\s.*)?$/i;
+  // Ícones que podem aparecer concatenados com outro texto (ex: "arrow_downwardIr para o fim")
+  const RUIDO_PREFIXO_RE = /^(arrow_downward|arrow_upward|expand_more|expand_less|keyboard_arrow_\w+|close|mic_off|videocam_off)/i;
+
+  // Filtro abrangente de ruído da interface do Google Meet
+  function eRuidoUI(texto) {
+    // Nomes de idiomas do painel de configuração de legendas (incluindo compostos com vírgula)
+    if (/^(Africâner|Albanês|Alemão|Amárico|Árabe|Armênio|Azerbaijano|Azerbaijanês|Basco|Bengali|Bielorrusso|Birmanês|Bósnio|Búlgaro|Canarês|Catalão|Cazaque|Cingalês|Coreano|Crioulo|Croata|Curdo|Dinamarquês|Eslovaco|Esloveno|Espanhol|Estoniano|Filipino|Finlandês|Francês|Galego|Galês|Georgiano|Grego|Gujarati|Guzerate|Hauçá|Hebraico|Hindi|Holandês|Húngaro|Igbo|Indonésio|Inglês|Irlandês|Islandês|Italiano|Japonês|Javanês|Khmer|Kinyarwanda|Laosiano|Letão|Lituano|Macedônio|Malaiala|Malaio|Marati|Mongol|Nepalês|Norueguês|Persa|Polonês|Português|Romeno|Russo|Sepedi|Sérvio|Sesoto|Suaíli|Sudanês|Sueco|Swati|Tailandês|Tâmil|Tcheco|Télugo|Tshivenda|Tswana|Turco|Ucraniano|Urdu|Uzbeque|Vietnamita|Xhosa|Xitsonga|Yorubá|Zulu)(\s*,\s*[^(]+)?(\s*\([^)]+\))?$/i.test(texto)) return true;
+    // Padrão genérico: "Idioma (País/descritor)" com ≤5 palavras (apanha novos idiomas não listados)
+    if (texto.split(/\s+/).length <= 5 && /^[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÀÈÌÒÙÇ][a-záéíóúâêîôûãõàèìòùç,\s]{1,35}\([^)]{2,40}\)$/.test(texto)) return true;
+    // Opções de estilo de legenda + rótulo BETA
+    if (/^(BETA|Tamanho da fonte|Padrão|Muito pequena|Pequena|Moderado|Grande|Enorme|Gigante|Cor da fonte|Branco|Preto|Azul|Verde|Vermelho|Amarelo|Ciano|Magenta)$/i.test(texto)) return true;
+    // Botões e controles da UI do Meet
+    if (/^(Abrir configurações de legenda|A legenda instantânea foi desativada|Ativar câmera|Desativar câmera|Ativar microfone|Desativar microfone|Compartilhar tela|Sair da chamada|Levantar a mão|Abaixar a mão|Enviar uma reação|Ferramentas da reunião|Controles do organizador|Detalhes da reunião|Planos de fundo e efeitos|Reenquadrar|Cronômetro da reunião|Pessoas|Mãos levantadas|mood|apps|info)$/i.test(texto)) return true;
+    // Mensagens de sistema do Meet (prefixo — cobre versões curtas e longas)
+    if (/^(Pronto para participar|Procurando outras pessoas|Só você está aqui|A câmera está iniciando|Sua câmera está (ativada|desativada)|Seu microfone está (ativado|desativado)|Sua mão está (levantada|abaixada)|Você está participando da chamada|Você foi a primeira pessoa|Sua chamada do Meet|O recurso picture-in-picture|Transferir a chamada para cá|A chamada vai terminar|Esta chamada é aberta|Acesse mais recursos|Saiba mais sobre o plano|Configurações de (áudio|vídeo)|Grupo de microfones|Padrão do sistema|Fazer um teste de gravação|Alto-falantes|Testar alto-falantes|Pressione a seta|Está desenvolvendo uma extensão|As pessoas ainda podem ver|Mais opções para|Aproveite videochamadas)/i.test(texto)) return true;
+    // Diálogo "Sua reunião está pronta" (aparece ao entrar na reunião)
+    if (/Sua reunião está pronta/i.test(texto)) return true;
+    if (/Adicionar outras pessoas/i.test(texto)) return true;
+    if (/Ou compartilhe este link/i.test(texto)) return true;
+    if (/precisarão receber sua permissão/i.test(texto)) return true;
+    if (/Participando como /i.test(texto)) return true;
+    if (/content_copy|Copiar link/i.test(texto)) return true;
+    // Avisos de privacidade / denúncia de abuso do Meet
+    if (/denunciar abus|privacy_tip|clipe curto|enviado ao Google para verifica/i.test(texto)) return true;
+    if (/^Saiba como denunciar/i.test(texto)) return true;
+    if (/Se algu[eé]m.*denunciar abuso/i.test(texto)) return true;
+    // Notificações de modo tela cheia
+    if (/modo tela cheia|Pressione Escape para sair/i.test(texto)) return true;
+    // Qualquer texto que contenha URL do Meet embutida
+    if (/meet\.google\.com/i.test(texto)) return true;
+    // Avisos do Chrome sobre extensões modificando a página
+    if (/extensões que modificam|modifying the page|modificar a p[aá]gina/i.test(texto)) return true;
+    if (/estabilidade|experi[eê]ncia do usu[aá]rio|desenvolvedores|cuidado com as extens/i.test(texto)) return true;
+    // Ícones Material concatenados com texto de UI (ex: "closeFecharperson_add")
+    if (/closeFech|person_add|close[A-Z]/i.test(texto)) return true;
+    // Atalhos de teclado (ex: "Desativar microfone (ctrl + d)", "Ativar legendas (c ou shift + c)")
+    if (/\(ctrl\s*\+/i.test(texto)) return true;
+    if (/\([a-z]\s+ou\s+shift\s*\+|shift\s*\+\s*[a-z]\)/i.test(texto)) return true;
+    // Textos de botão com atalho concatenado
+    if (/ativar legendas|desativar legendas/i.test(texto)) return true;
+    if (/^mais opções$/i.test(texto)) return true;
+    if (/^opções de legenda/i.test(texto)) return true;
+    // Código de reunião (ex: "zpr-bcqe-bub")
+    if (/^[a-z]{3}-[a-z]{4}-[a-z]{3}$/i.test(texto)) return true;
+    // URLs sozinhas
+    if (/^https?:\/\//.test(texto) && texto.split(' ').length < 5) return true;
+    // Nomes de dispositivos/câmeras: 2-4 palavras, todas capitalizadas, sem verbos/conjunções PT
+    // Ex: "Positivo Theia Camera", "Logitech HD Webcam C920"
+    var palavrasDevice = texto.split(/\s+/);
+    if (palavrasDevice.length >= 2 && palavrasDevice.length <= 4 &&
+        palavrasDevice.every(function(p) { return /^[A-Z0-9]/.test(p); }) &&
+        !/\b(o|a|os|as|um|uma|de|da|do|das|dos|em|na|no|por|para|com|que|se|não|eu|você|ele|ela|nós|eles|isso|como|mais|mas|ou|é|são|está|tem|foi|ser|ter|vai|aqui|já|então|agora|muito|bem|sim|não)\b/i.test(texto) &&
+        !/[.,!?;:]/.test(texto)) {
+      return true;
+    }
+    return false;
   }
 
   function processarElementoLegenda(el) {
     if (!el || !el.textContent) return;
-    const texto = el.textContent.trim();
-    if (!texto || texto.length < 3) return;
     if (el.closest && el.closest('#saleia-sidebar')) return;
-    const chave = texto.substring(0, 80);
-    if (textoCapturado.has(chave)) return;
-    textoCapturado.add(chave);
-    if (textoCapturado.size > 500) {
-      const primeiro = textoCapturado.values().next().value;
-      textoCapturado.delete(primeiro);
-    }
-    legendasDetectadas = true;
-    let speaker = 'Participante';
-    const speakerEl = el.closest('[class*="caption"]');
+    var texto = el.textContent.trim();
+    // Mínimo: 2 palavras e 10 chars para ser fala real
+    if (!texto || texto.length < 10) return;
+    if (texto.split(/\s+/).length < 2) return;
+    if (RUIDO_REGEX.test(texto)) return;
+    if (RUIDO_PREFIXO_RE.test(texto)) return;
+    if (eRuidoUI(texto)) return;
+    if (texto.includes('Ir para o fim') || texto.includes('Go to the end')) return;
+    // Debug: loga o que passa pelo filtro para identificar elementos reais de CC
+    console.log('[SALEIA-DBG] tag=' + el.tagName + ' class="' + (el.className||'') + '" jsname="' + (el.getAttribute&&el.getAttribute('jsname')||'') + '" aria-live="' + (el.getAttribute&&el.getAttribute('aria-live')||'') + '" texto="' + texto.substring(0,80) + '"');
+
+    // Detectar speaker
+    var speaker = 'Participante';
+    var speakerEl = el.closest('[class*="a4cQT"]') || el.closest('[class*="caption"]');
     if (speakerEl) {
-      const nomeEl = speakerEl.querySelector('[class*="zs7s8d"]') ||
-                     speakerEl.querySelector('[class*="NWpY1"]') ||
-                     speakerEl.querySelector('strong') ||
-                     speakerEl.querySelector('b');
+      var nomeEl = speakerEl.querySelector('[class*="zs7s8d"]') ||
+                   speakerEl.querySelector('[class*="NWpY1"]') ||
+                   speakerEl.querySelector('strong') ||
+                   speakerEl.querySelector('b');
       if (nomeEl && nomeEl.textContent.trim()) speaker = nomeEl.textContent.trim();
     }
-    estado.transcricao.push({ speaker: speaker, text: texto, timestamp: new Date().toISOString() });
-    ocultarAvisoLegenda();
+
+    // Remove o nome do speaker do início do texto se estiver concatenado (ex: "VocêQue nos ajudou")
+    if (speaker !== 'Participante' && texto.toLowerCase().startsWith(speaker.toLowerCase())) {
+      texto = texto.substring(speaker.length).trim();
+      if (!texto || texto.length < 15 || texto.split(/\s+/).length < 3) return;
+    }
+
+    // Ignora se já foi commitado recentemente (evita re-commit pelo scan periódico)
+    speaker = rotuloParticipante(speaker);
+    var chaveTexto = texto.substring(0, 50).toLowerCase();
+    if (jaCommitado.has(chaveTexto)) return;
+
+    var agora = Date.now();
+    var buf = captionBuffer[speaker];
+
+    if (!buf) {
+      captionBuffer[speaker] = { texto: texto, lastSeen: agora };
+      return;
+    }
+
+    // Calcula prefixo comum para detectar se é a mesma frase evoluindo
+    var prefLen = Math.min(20, Math.max(6, Math.floor(Math.min(buf.texto.length, texto.length) * 0.5)));
+    var mesmaPrefixo = texto.toLowerCase().substring(0, prefLen) === buf.texto.toLowerCase().substring(0, prefLen);
+    var velhoContemNovo = buf.texto.toLowerCase().indexOf(texto.toLowerCase().substring(0, prefLen)) >= 0;
+
+    if (mesmaPrefixo || velhoContemNovo) {
+      // Mesma frase evoluindo — mantém a versão mais longa
+      if (texto.length > buf.texto.length) buf.texto = texto;
+      buf.lastSeen = agora;
+    } else {
+      // Nova frase diferente — commita a anterior e inicia nova
+      commitarFrase(speaker, buf.texto);
+      captionBuffer[speaker] = { texto: texto, lastSeen: agora };
+    }
   }
 
-  function verificarLegendas() { if (!legendasDetectadas) exibirAvisoLegenda(); }
+  function verificarLegendas() {
+    if (legendasDetectadas) { ocultarAvisoLegenda(); return; }
+    // Detecta CC ligado pelo aria-label do botão (muda de "Ativar" para "Desativar")
+    var ccAtivo = document.querySelector(
+      '[aria-label*="esativar legenda" i],[aria-label*="urn off caption" i],' +
+      '[data-tooltip*="esativar legenda" i],[data-tooltip*="urn off caption" i],' +
+      'button[aria-pressed="true"][aria-label*="legenda" i],' +
+      'button[aria-pressed="true"][aria-label*="caption" i]'
+    );
+    if (ccAtivo) { ocultarAvisoLegenda(); return; }
+    exibirAvisoLegenda();
+  }
   function exibirAvisoLegenda() { const a = document.getElementById('saleia-legenda-aviso'); if (a) a.style.display = 'block'; }
   function ocultarAvisoLegenda() { const a = document.getElementById('saleia-legenda-aviso'); if (a) a.style.display = 'none'; }
 
@@ -208,7 +727,10 @@
 
   function iniciarEnvioPeriodico() {
     estado.timerEnvio = setInterval(function () {
-      if (estado.ativo) enviarParaBackend();
+      if (!estado.ativo) return;
+      // Só analisa se houver entradas novas desde o último envio — evita análise de silêncio
+      if (estado.transcricao.length <= estado.ultimoIndexEnviado) return;
+      enviarParaBackend();
     }, CONFIG.intervaloAnalise * 1000);
   }
 
@@ -217,10 +739,170 @@
     return recentes.map(function (item) { return item.speaker + ': ' + item.text; }).join('\n');
   }
 
+  // Retorna apenas entradas novas desde o último envio (delta para o DB)
+  function montarTranscricaoDelta() {
+    const novos = estado.transcricao.slice(estado.ultimoIndexEnviado);
+    return novos.map(function (item) { return item.speaker + ': ' + item.text; }).join('\n');
+  }
+
   function montarHistorico() {
     if (estado.historicoResumo) return estado.historicoResumo;
     const historico = estado.transcricao.slice(-150);
     return historico.map(function (item) { return item.speaker + ': ' + item.text; }).join('\n');
+  }
+
+  function registrarSessao() {
+    const url = CONFIG.backendUrl + '/iniciar-sessao';
+    if (!chrome.runtime || !chrome.runtime.id) return;
+    chrome.runtime.sendMessage(
+      { tipo: 'fetchBackend', url: url, payload: { meeting_id: MEETING_ID } },
+      function (resp) {
+        if (resp && resp.ok) {
+          console.log('[SALEIA] Sessão registrada id=' + (resp.data && resp.data.sessao_id));
+        }
+      }
+    );
+  }
+
+  function textoOuVazio(valor) {
+    if (valor == null) return '';
+    return String(valor).trim();
+  }
+
+  function copiarTextoParaAreaTransferencia(texto) {
+    const valor = textoOuVazio(texto);
+    if (!valor) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(valor).catch(function (err) {
+        console.warn('[SALEIA] Falha ao copiar texto:', err);
+      });
+      return;
+    }
+    var area = document.createElement('textarea');
+    area.value = valor;
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    try {
+      document.execCommand('copy');
+    } catch (err) {
+      console.warn('[SALEIA] Falha ao copiar texto:', err);
+    }
+    document.body.removeChild(area);
+  }
+
+  function renderizarListaHtml(lista) {
+    if (!Array.isArray(lista) || lista.length === 0) return '';
+    return '<ul class="saleia-recap-lista">' + lista.map(function (item) {
+      return '<li>' + escaparHtml(textoOuVazio(item)) + '</li>';
+    }).join('') + '</ul>';
+  }
+
+  function renderizarRecapitulacaoViva(recap, resumoFallback) {
+    const recapEl = document.getElementById('saleia-recapitulacao');
+    const recapTexto = document.getElementById('saleia-recapitulacao-texto');
+    const recapMapa = document.getElementById('saleia-recap-mapa');
+    const recapPergunta = document.getElementById('saleia-recap-pergunta');
+    const recapDica = document.getElementById('saleia-recap-dica');
+    const recapFaltantes = document.getElementById('saleia-recap-faltantes');
+    const recapStatus = document.getElementById('saleia-recap-status');
+
+    const resumo = textoOuVazio(
+      (recap && (recap.resumo_curto || recap.resumo_executivo || recap.resumo_vivo)) ||
+      resumoFallback ||
+      estado.historicoResumo
+    );
+
+    if (!recapEl || !recapTexto) return;
+    if (estado.recapitulacaoVivaOculta && !recap) {
+      recapEl.style.display = 'none';
+      return;
+    }
+    if (!resumo) {
+      if (!estado.recapitulacaoVivaOculta) recapEl.style.display = 'none';
+      return;
+    }
+
+    if (recap) estado.recapitulacaoVivaOculta = false;
+    recapEl.style.display = 'block';
+    recapEl.classList.toggle('saleia-recap-usada', !!estado.recapitulacaoVivaUsada);
+    recapTexto.textContent = resumo;
+
+    if (recapStatus) {
+      recapStatus.textContent = estado.recapitulacaoVivaUsada ? 'usada' : (recap && recap.trigger && recap.trigger.trigger_phrase ? 'ativa' : 'nova');
+    }
+
+    if (recap && recap.mapa_mental) {
+      var mapa = recap.mapa_mental;
+      var mapaHtml = [];
+      if (mapa.dor_principal) mapaHtml.push('<div class="saleia-recap-linha"><span>Dor principal:</span> ' + escaparHtml(textoOuVazio(mapa.dor_principal)) + '</div>');
+      if (mapa.impacto) mapaHtml.push('<div class="saleia-recap-linha"><span>Impacto:</span> ' + escaparHtml(textoOuVazio(mapa.impacto)) + '</div>');
+      if (mapa.objetivo) mapaHtml.push('<div class="saleia-recap-linha"><span>Objetivo:</span> ' + escaparHtml(textoOuVazio(mapa.objetivo)) + '</div>');
+      if (mapa.objecoes) mapaHtml.push('<div class="saleia-recap-linha"><span>Objeções:</span>' + renderizarListaHtml(Array.isArray(mapa.objecoes) ? mapa.objecoes : [mapa.objecoes]) + '</div>');
+      if (mapa.oportunidades) mapaHtml.push('<div class="saleia-recap-linha"><span>Oportunidades:</span>' + renderizarListaHtml(Array.isArray(mapa.oportunidades) ? mapa.oportunidades : [mapa.oportunidades]) + '</div>');
+      if (mapa.proximo_passo) mapaHtml.push('<div class="saleia-recap-linha"><span>Próximo passo:</span> ' + escaparHtml(textoOuVazio(mapa.proximo_passo)) + '</div>');
+      recapMapa.innerHTML = mapaHtml.length ? mapaHtml.join('') : '';
+      recapMapa.style.display = mapaHtml.length ? 'block' : 'none';
+    } else {
+      recapMapa.innerHTML = '';
+      recapMapa.style.display = 'none';
+    }
+
+    const pergunta = textoOuVazio((recap && (recap.pergunta_confirmacao || recap.pergunta_sugerida || recap.pergunta)) || '');
+    if (recapPergunta) {
+      recapPergunta.innerHTML = pergunta ? '<strong>Pergunta de confirmação:</strong> ' + escaparHtml(pergunta) : '';
+      recapPergunta.style.display = pergunta ? 'block' : 'none';
+    }
+
+    const dica = textoOuVazio((recap && recap.dica_vendedor) || '');
+    if (recapDica) {
+      recapDica.innerHTML = dica ? '<strong>Dica:</strong> ' + escaparHtml(dica) : '';
+      recapDica.style.display = dica ? 'block' : 'none';
+    }
+
+    const faltantes = (recap && Array.isArray(recap.perguntas_faltantes)) ? recap.perguntas_faltantes.filter(Boolean) : [];
+    if (recapFaltantes) {
+      recapFaltantes.innerHTML = faltantes.length ? '<strong>Perguntas faltantes:</strong>' + renderizarListaHtml(faltantes) : '';
+      recapFaltantes.style.display = faltantes.length ? 'block' : 'none';
+    }
+  }
+
+  function solicitarRegeneracaoRecapitulacao() {
+    const url = CONFIG.backendUrl + '/recapitulacao-viva';
+    if (!chrome.runtime || !chrome.runtime.id) return;
+    const botao = document.getElementById('saleia-btn-regenerar-recap');
+    if (botao) botao.disabled = true;
+    chrome.runtime.sendMessage(
+      { tipo: 'fetchBackend', url: url, payload: { meeting_id: MEETING_ID } },
+      function (resp) {
+        if (botao) botao.disabled = false;
+        if (resp && resp.ok) {
+          var dados = resp.data || {};
+          var recap = dados.recapitulacao_viva || dados.live_recap || dados;
+          estado.recapitulacaoVivaOculta = false;
+          estado.recapitulacaoVivaUsada = false;
+          estado.recapitulacaoViva = recap;
+          renderizarRecapitulacaoViva(recap, estado.historicoResumo);
+        } else {
+          console.warn('[SALEIA] Falha ao regenerar recapitulação:', resp ? resp.error : 'sem resposta');
+        }
+      }
+    );
+  }
+
+  function marcarRecapitulacaoComoUsada() {
+    estado.recapitulacaoVivaUsada = true;
+    const badge = document.getElementById('saleia-recap-status');
+    if (badge) badge.textContent = 'usada';
+    const recapEl = document.getElementById('saleia-recapitulacao');
+    if (recapEl) recapEl.classList.add('saleia-recap-usada');
+  }
+
+  function fecharRecapitulacaoViva() {
+    estado.recapitulacaoVivaOculta = true;
+    const recapEl = document.getElementById('saleia-recapitulacao');
+    if (recapEl) recapEl.style.display = 'none';
   }
 
   function enviarParaBackend() {
@@ -233,11 +915,17 @@
       return;
     }
 
+    // Captura delta e índice ANTES da chamada async (evita race condition)
+    var indexSnapshot = estado.transcricao.length;
+    var transcricaoDelta = montarTranscricaoDelta();
+
     const payload = {
       transcricao_parcial: transcricaoParcial,
+      transcricao_nova: transcricaoDelta,  // apenas novas entradas → DB não acumula duplicatas
       historico: montarHistorico(),
       perfil_disc_atual: estado.perfilDiscAtual,
       mapa_financeiro: estado.mapaFinanceiro,
+      meeting_id: MEETING_ID,
     };
 
     const url = CONFIG.backendUrl + '/tempo-real';
@@ -246,9 +934,11 @@
     // O fetch é delegado ao background.js para contornar o bloqueio do
     // Service Worker do Google Meet (meetsw.js) que intercepta requisições
     // externas feitas diretamente por content scripts.
+    if (!chrome.runtime || !chrome.runtime.id) return;
     chrome.runtime.sendMessage(
       { tipo: 'fetchBackend', url: url, payload: payload },
       function (resp) {
+        if (chrome.runtime.lastError) { estado.backendOnline = false; return; }
         if (resp && resp.ok) {
           var dados = resp.data;
           estado.backendOnline = true;
@@ -273,6 +963,8 @@
           atualizarSidebarComResposta(dados);
           if (dados.perfil_disc && dados.perfil_disc.tipo) estado.perfilDiscAtual = dados.perfil_disc.tipo;
           estado.contador = CONFIG.intervaloAnalise;
+          // Avança índice para não reenviar as mesmas entradas ao DB
+          estado.ultimoIndexEnviado = indexSnapshot;
         } else {
           console.warn('[SALEIA] Backend offline:', resp ? resp.error : 'sem resposta');
           estado.backendOnline = false;
@@ -283,6 +975,26 @@
   }
 
   function atualizarSidebarComResposta(dados) {
+    if (dados && (dados.resumo_vivo || dados.recapitulacao)) {
+      estado.historicoResumo = dados.resumo_vivo || dados.recapitulacao || estado.historicoResumo;
+    }
+
+    // 🧠 RECAPITULAÇÃO DO CLIENTE
+    const recapEl = document.getElementById('saleia-recapitulacao');
+    const recapTexto = document.getElementById('saleia-recapitulacao-texto');
+    const resumoAtual = dados.resumo_vivo || dados.recapitulacao;
+    const recapViva = dados.recapitulacao_viva || dados.live_recap || dados.recapitulacaoViva || null;
+    if (recapViva) {
+      estado.recapitulacaoViva = recapViva;
+      estado.recapitulacaoVivaOculta = false;
+      estado.recapitulacaoVivaUsada = false;
+      renderizarRecapitulacaoViva(recapViva, resumoAtual);
+    } else if (resumoAtual && recapTexto) {
+      renderizarRecapitulacaoViva(null, resumoAtual);
+    } else if (recapEl) {
+      recapEl.style.display = 'none';
+    }
+
     // ⚠️ ALERTA URGENTE
     const alertaBox = document.getElementById('saleia-alerta');
     const alertaTexto = document.getElementById('saleia-alerta-texto');
@@ -334,9 +1046,10 @@
     }
 
     // 💬 PRÓXIMA FALA
-    if (dados.proxima_fala) {
+    const proximaFala = dados.texto_falavel || dados.proxima_fala || dados.acao_recomendada || dados.dica_vendedor;
+    if (proximaFala) {
       document.getElementById('saleia-proxima-fala-texto').innerHTML =
-        '<span class="saleia-verde">' + escaparHtml(dados.proxima_fala) + '</span>';
+        '<span class="saleia-verde">' + escaparHtml(proximaFala) + '</span>';
     }
 
     // 🛡️ OBJEÇÃO DETECTADA
@@ -358,6 +1071,21 @@
       dadoEsquecidoEl.style.display = 'block';
     } else {
       dadoEsquecidoEl.style.display = 'none';
+    }
+
+    // 📊 SCORE DE COMPRA
+    const scoreEl = document.getElementById('saleia-score');
+    if (dados.score_compra && dados.score_compra.valor !== undefined) {
+      const val = Math.min(98, Math.max(5, Number(dados.score_compra.valor)));
+      const cor = val >= 70 ? '#00d4aa' : val >= 45 ? '#ffaa00' : '#ff4444';
+      document.getElementById('saleia-score-valor').textContent = val + '/100';
+      document.getElementById('saleia-score-valor').style.color = cor;
+      document.getElementById('saleia-score-fill').style.width = val + '%';
+      document.getElementById('saleia-score-fill').style.background = cor;
+      document.getElementById('saleia-score-texto').textContent = dados.score_compra.justificativa || '';
+      scoreEl.style.display = 'block';
+    } else {
+      scoreEl.style.display = 'none';
     }
 
     animarAtualizacao();

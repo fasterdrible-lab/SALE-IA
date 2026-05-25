@@ -43,11 +43,28 @@
         type="text"
         id="backend-url"
         class="popup-input"
-        placeholder="http://localhost:8000"
-        value="http://localhost:8000"
+        placeholder="https://api.saleia.com.br"
+        value="https://api.saleia.com.br"
       />
       <button id="btn-salvar-url" class="popup-btn popup-btn-primario">Salvar URL</button>
       <div id="url-feedback" class="popup-feedback" style="display:none"></div>
+    </div>
+
+    <div class="popup-secao">
+      <div class="popup-secao-titulo">⚡ Status das APIs de IA</div>
+      <div id="api-status" class="popup-api-status">
+        Carregando status das APIs...
+      </div>
+      <label class="popup-label" for="provedor-preferido">Provedor preferido</label>
+      <select id="provedor-preferido" class="popup-select">
+        <option value="deepseek">DeepSeek</option>
+        <option value="openai">OpenAI</option>
+        <option value="anthropic">Claude</option>
+        <option value="gemini">Gemini</option>
+      </select>
+      <button id="btn-trocar-api" class="popup-btn popup-btn-secundario">Trocar prioridade da IA</button>
+      <button id="btn-definir-api" class="popup-btn popup-btn-primario">Definir provedor preferido</button>
+      <div id="api-feedback" class="popup-feedback" style="display:none"></div>
     </div>
 
     <!-- Rodapé -->

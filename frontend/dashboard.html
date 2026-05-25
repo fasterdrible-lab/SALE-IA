@@ -4,92 +4,160 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SALEIA — Dashboard de Reuniões</title>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    .hidden { display: none !important; }
 
     :root {
-      --bg:      #0d0d0d;
-      --surface: #141414;
-      --card:    #1a1a1a;
-      --border:  #2a2a2a;
-      --primary: #00d4aa;
-      --danger:  #ff4444;
-      --warn:    #ffaa00;
-      --text:    #f0f0f0;
-      --muted:   #777;
-      --radius:  10px;
+      --bg:        #2D2B3D;
+      --card:      #252338;
+      --field:     #1E1C2E;
+      --border:    #3D3B52;
+      --primary:   #14B8A6;
+      --secondary: #38BDF8;
+      --text:      #F8FAFC;
+      --muted:     #9D9BB8;
+      --alert:     #F97316;
+      --danger:    #EF4444;
+      --radius:    12px;
+      --sidebar-w: 240px;
+      --sidebar-collapsed: 60px;
     }
 
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       font-size: 15px;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ── Layout ── */
+    .layout {
+      display: flex;
       min-height: 100vh;
     }
 
-    /* ── Sidebar nav ── */
-    .layout { display: flex; min-height: 100vh; }
-
-    nav {
-      width: 220px;
-      background: var(--surface);
+    /* ── Sidebar ── */
+    .sidebar {
+      width: var(--sidebar-w);
+      background: #201E30;
       border-right: 1px solid var(--border);
-      padding: 28px 16px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      z-index: 100;
+      transition: width 0.25s ease;
+      overflow: hidden;
+    }
+
+    .sidebar.collapsed {
+      width: var(--sidebar-collapsed);
+    }
+
+    .sidebar-header {
+      padding: 20px 16px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 68px;
       flex-shrink: 0;
     }
 
     .nav-logo {
-      font-size: 1.1rem;
-      font-weight: 700;
+      font-size: 1.25rem;
+      font-weight: 800;
       color: var(--primary);
-      letter-spacing: 1px;
-      margin-bottom: 24px;
+      letter-spacing: 1.5px;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
+    .nav-logo span { color: var(--secondary); }
+
+    .sidebar-toggle {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: .75rem;
+      transition: color .15s, border-color .15s;
+      margin-left: 8px;
+    }
+    .sidebar-toggle:hover { color: var(--primary); border-color: var(--primary); }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 12px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      overflow-y: auto;
+      overflow-x: hidden;
     }
 
     .nav-item {
-      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 10px;
       border-radius: 8px;
       cursor: pointer;
       color: var(--muted);
       font-size: .9rem;
-      transition: background .15s, color .15s;
-      display: flex;
-      align-items: center;
-      gap: 10px;
+      font-weight: 500;
       border: none;
       background: none;
       width: 100%;
       text-align: left;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: background .15s, color .15s;
     }
-    .nav-item:hover { background: #222; color: var(--text); }
-    .nav-item.active { background: #002e25; color: var(--primary); }
-
-    /* ── Main ── */
-    main {
-      flex: 1;
-      padding: 32px;
-      overflow-y: auto;
+    .nav-item:hover {
+      background: rgba(249,115,22,.08);
+      color: var(--text);
+      border-color: rgba(249,115,22,.2);
+    }
+    .nav-item.active {
+      background: rgba(249,115,22,.12);
+      color: #FDBA74;
+      border: 1px solid rgba(249,115,22,.45);
+      box-shadow: 0 0 14px rgba(249,115,22,.18), inset 0 0 10px rgba(249,115,22,.06);
     }
 
-    .page { display: none; }
-    .page.active { display: block; }
+    .nav-icon { font-size: 1.1rem; flex-shrink: 0; width: 24px; text-align: center; }
+    .nav-label { overflow: hidden; text-overflow: ellipsis; transition: opacity .2s; }
 
-    h2 { font-size: 1.4rem; margin-bottom: 20px; color: var(--text); }
-    h3 { font-size: 1rem; color: var(--primary); margin-bottom: 10px; }
+    .sidebar.collapsed .nav-label { opacity: 0; width: 0; }
+    .sidebar.collapsed .nav-logo-text { display: none; }
 
-    /* ── Status bar ── */
+    .sidebar-footer {
+      padding: 14px 12px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
     .status-bar {
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: .82rem;
+      font-size: .78rem;
       color: var(--muted);
-      margin-bottom: 24px;
+      white-space: nowrap;
+      overflow: hidden;
     }
 
     .dot {
@@ -97,8 +165,39 @@
       height: 8px;
       border-radius: 50%;
       background: var(--danger);
+      flex-shrink: 0;
     }
     .dot.online { background: var(--primary); }
+
+    /* ── Main wrapper ── */
+    .main-wrapper {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      transition: margin-left 0.25s ease;
+      min-width: 0;
+    }
+    .main-wrapper.collapsed { margin-left: var(--sidebar-collapsed); }
+
+    main {
+      padding: 32px;
+      max-width: 1100px;
+    }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ── Typography ── */
+    h2 { font-size: 1.4rem; margin-bottom: 20px; color: var(--text); }
+    h3 { font-size: .95rem; color: var(--primary); margin-bottom: 10px; font-weight: 600; }
+
+    /* ── Cards ── */
+    .info-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
 
     /* ── Metrics ── */
     .metrics {
@@ -117,7 +216,7 @@
     .metric-val { font-size: 2rem; font-weight: 700; color: var(--primary); }
     .metric-lbl { color: var(--muted); font-size: .82rem; margin-top: 4px; }
 
-    /* ── Cards de reunião ── */
+    /* ── Meeting cards ── */
     .reunioes { display: flex; flex-direction: column; gap: 12px; }
 
     .reuniao-card {
@@ -146,470 +245,1190 @@
       border: 3px solid;
     }
 
-    .reuniao-info { flex: 1; }
-    .reuniao-titulo { font-weight: 600; margin-bottom: 4px; }
+    .reuniao-info { flex: 1; min-width: 0; }
+    .reuniao-titulo { font-weight: 600; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .reuniao-meta { color: var(--muted); font-size: .82rem; }
 
-    .badge {
-      padding: 3px 10px;
-      border-radius: 20px;
-      font-size: .78rem;
-      font-weight: 600;
-    }
-    .badge-alta { background: #00d4aa22; color: #00d4aa; }
-    .badge-media { background: #ffaa0022; color: #ffaa00; }
-    .badge-baixa { background: #ff444422; color: #ff4444; }
+    .badge { padding: 3px 10px; border-radius: 20px; font-size: .78rem; font-weight: 600; }
+    .badge-alta   { background: rgba(20,184,166,.15); color: #2dd4bf; }
+    .badge-media  { background: rgba(251,191,36,.12); color: #fbbf24; }
+    .badge-baixa  { background: rgba(239,68,68,.12);  color: #f87171; }
 
-    /* ── Detalhe reunião ── */
-    .detalhe-header {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      margin-bottom: 24px;
-    }
+    /* ── Score bar ── */
+    .score-barra-wrap { background: #1a2a3a; border-radius: 6px; height: 8px; overflow: hidden; margin: 8px 0; }
+    .score-barra-fill { height: 100%; border-radius: 6px; transition: width .6s ease; }
 
-    .back-btn {
-      background: none;
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 6px 14px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: .85rem;
-    }
-    .back-btn:hover { border-color: var(--primary); }
-
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      margin-bottom: 16px;
-    }
+    /* ── Grid ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
     @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
 
-    .info-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 18px;
-    }
-
-    ul { padding-left: 18px; }
-    li { margin-bottom: 6px; color: #ccc; line-height: 1.5; }
-
-    /* ── Score barra ── */
-    .score-barra-wrap {
-      background: #222;
-      border-radius: 6px;
-      height: 10px;
-      overflow: hidden;
-      margin: 8px 0;
-    }
-    .score-barra-fill {
-      height: 100%;
-      border-radius: 6px;
-      transition: width .6s ease;
-    }
-
-    /* ── Filtro e busca ── */
-    .toolbar {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
+    /* ── Toolbar ── */
+    .toolbar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
 
     input[type=text], select {
-      background: var(--card);
+      background: var(--field);
       border: 1px solid var(--border);
       color: var(--text);
-      padding: 8px 12px;
-      border-radius: 6px;
+      padding: 9px 12px;
+      border-radius: 8px;
       font-size: .9rem;
       outline: none;
+      transition: border-color .15s;
     }
-    input[type=text]:focus, select:focus { border-color: var(--primary); }
+    input[type=text]:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(20,184,166,.12); }
+    input[type=text]::placeholder { color: var(--muted); }
     input[type=text] { flex: 1; min-width: 180px; }
 
     button.btn {
-      background: var(--primary);
-      color: #000;
+      background: linear-gradient(135deg, var(--alert), #dc2626);
+      color: #fff;
       border: none;
-      padding: 8px 18px;
-      border-radius: 6px;
+      padding: 9px 18px;
+      border-radius: 8px;
       font-weight: 600;
       cursor: pointer;
       font-size: .9rem;
+      transition: opacity .15s;
     }
     button.btn:hover { opacity: .85; }
 
     button.btn-secondary {
-      background: transparent;
+      background: rgba(30,41,59,.5);
       color: var(--text);
       border: 1px solid var(--border);
     }
     button.btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
 
-    .config-panel { max-width: 860px; display: grid; gap: 16px; }
-    .config-card {
-      background: var(--card);
+    /* ── Back button ── */
+    .back-btn {
+      background: none;
       border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 18px;
-    }
-    .api-options {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 12px;
-      margin: 14px 0;
-    }
-    .api-option {
-      background: #101010;
-      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 7px 14px;
       border-radius: 8px;
-      padding: 14px;
       cursor: pointer;
-      text-align: left;
-      color: var(--text);
+      font-size: .85rem;
+      transition: border-color .15s;
     }
-    .api-option.active { border-color: var(--primary); background: #002e25; }
-    .api-option strong { display: block; margin-bottom: 6px; }
-    .api-option span { display: block; color: var(--muted); font-size: .82rem; word-break: break-all; }
-    .api-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-    .api-current { color: var(--muted); font-size: .85rem; margin-top: 10px; word-break: break-all; }
+    .back-btn:hover { border-color: var(--primary); }
 
-    /* ── Analisador ── */
-    textarea {
-      width: 100%;
-      min-height: 160px;
+    .detalhe-header { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }
+
+    /* ── Passos ── */
+    .passo { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .passo:last-child { border-bottom: none; }
+    .passo-icon { color: var(--primary); font-size: 1.1rem; margin-top: 1px; }
+
+    /* ── Error ── */
+    .erro { color: var(--danger); background: rgba(239,68,68,.08); padding: 12px 16px; border-radius: 8px; border: 1px solid rgba(239,68,68,.2); }
+
+    /* ── Loading ── */
+    .loading { display: none; align-items: center; gap: 10px; color: var(--muted); padding: 16px; }
+    .loading.visible { display: flex; }
+    .spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Quote list ── */
+    .quote-list { display: grid; gap: 8px; }
+    .quote-item { padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: rgba(8,17,31,.5); line-height: 1.6; }
+    .quote-role { display: block; font-size: .73rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; }
+    .quote-role.vendedor { color: var(--primary); }
+    .quote-role.cliente  { color: var(--secondary); }
+    .quote-role.unknown  { color: var(--muted); }
+
+    /* ── AI usage ── */
+    .ai-usage-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 10px; margin-top: 10px; }
+    .ai-usage-item { border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: rgba(8,17,31,.35); }
+    .ai-usage-item strong { color: var(--primary); display: block; margin-bottom: 4px; }
+
+    /* ── Config ── */
+    .config-panel { max-width: 900px; display: grid; gap: 16px; }
+    .config-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+    .config-card h3 { margin-bottom: 14px; font-size: 1rem; }
+    .cfg-status-row { display: flex; align-items: center; gap: 10px; font-size: .9rem; }
+    .cfg-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+    .cfg-section-header h3 { margin: 0; font-size: 1rem; }
+    .cfg-admin-badge { background: rgba(249,115,22,.15); color: #FDBA74; border: 1px solid rgba(249,115,22,.35); border-radius: 999px; padding: 2px 10px; font-size: .75rem; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
+    .cfg-loading { color: var(--muted); font-size: .9rem; padding: 14px 0; }
+    .cfg-erro { color: #FCA5A5; font-size: .88rem; padding: 10px 12px; background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); border-radius: 6px; }
+    .cfg-badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: .73rem; font-weight: 700; border: 1px solid transparent; }
+    .cfg-badge-admin    { background: rgba(249,115,22,.15); color: #FDBA74; border-color: rgba(249,115,22,.3); }
+    .cfg-badge-usuario  { background: rgba(157,155,184,.12); color: #9D9BB8; border-color: rgba(157,155,184,.3); }
+    .cfg-badge-gerente  { background: rgba(56,189,248,.12); color: #7DD3FC; border-color: rgba(56,189,248,.3); }
+    .cfg-badge-ativo    { background: rgba(20,184,166,.15); color: #14B8A6; border-color: rgba(20,184,166,.3); }
+    .cfg-badge-inativo  { background: rgba(239,68,68,.12); color: #FCA5A5; border-color: rgba(239,68,68,.3); }
+    .cfg-badge-pendente { background: rgba(249,115,22,.12); color: #FDBA74; border-color: rgba(249,115,22,.3); }
+    .cfg-badge-free     { background: rgba(157,155,184,.12); color: #9D9BB8; }
+    .cfg-badge-pro      { background: rgba(20,184,166,.15); color: #14B8A6; }
+    .cfg-badge-enterprise { background: rgba(249,115,22,.15); color: #FDBA74; }
+    /* Tabela usuários */
+    .cfg-tabela-wrapper { overflow-x: auto; margin-top: 4px; }
+    .cfg-tabela { width: 100%; border-collapse: collapse; font-size: .86rem; min-width: 640px; }
+    .cfg-tabela th { text-align: left; color: var(--muted); font-size: .76rem; text-transform: uppercase; letter-spacing: .5px; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .cfg-tabela td { padding: 10px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .cfg-tabela tr:last-child td { border-bottom: none; }
+    .cfg-tabela tr:hover td { background: rgba(255,255,255,.025); }
+    .cfg-acoes { display: flex; gap: 4px; flex-wrap: wrap; }
+    .cfg-btn-acao { background: rgba(37,35,56,.8); border: 1px solid var(--border); border-radius: 5px; color: var(--muted); font-size: .74rem; padding: 4px 8px; cursor: pointer; transition: border-color .15s, color .15s; white-space: nowrap; }
+    .cfg-btn-acao:hover { border-color: rgba(249,115,22,.5); color: #FDBA74; }
+    .cfg-btn-acao.perigo:hover { border-color: rgba(239,68,68,.5); color: #FCA5A5; }
+    /* Provedores API */
+    .cfg-provedor-lista { display: grid; gap: 10px; margin-top: 4px; }
+    .cfg-provedor-card { background: rgba(37,35,56,.6); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; transition: border-color .2s; }
+    .cfg-provedor-card.ativo { border-color: rgba(20,184,166,.35); }
+    .cfg-provedor-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 6px; }
+    .cfg-provedor-nome { font-weight: 700; font-size: .95rem; }
+    .cfg-provedor-badges { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .cfg-badge-principal { background: rgba(20,184,166,.2); color: #2DD4BF; border: 1px solid rgba(20,184,166,.4); border-radius: 999px; padding: 2px 9px; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+    .cfg-provedor-key-row { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+    .cfg-provedor-key-row input { flex: 1; background: var(--field); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 7px 10px; font-size: .84rem; font-family: monospace; transition: border-color .2s; }
+    .cfg-provedor-key-row input:focus { border-color: var(--alert); outline: none; }
+    .cfg-provedor-acoes { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .cfg-btn-provedor { background: rgba(37,35,56,.8); border: 1px solid var(--border); border-radius: 6px; color: var(--muted); font-size: .82rem; padding: 5px 10px; cursor: pointer; transition: border-color .15s, color .15s; font-weight: 600; }
+    .cfg-btn-provedor:hover { border-color: rgba(249,115,22,.5); color: #FDBA74; }
+    .cfg-btn-provedor.primario { background: rgba(20,184,166,.12); border-color: rgba(20,184,166,.4); color: #14B8A6; }
+    .cfg-btn-provedor.primario:hover { background: rgba(20,184,166,.2); border-color: #14B8A6; }
+    .cfg-btn-provedor.inativar { color: #FCA5A5; border-color: rgba(239,68,68,.35); }
+    .cfg-btn-provedor.inativar:hover { border-color: rgba(239,68,68,.7); }
+    .cfg-provedor-feedback { font-size: .8rem; color: var(--muted); margin-left: 4px; }
+
+    /* ══════════════════════════════════════════════════
+       ── ANALISAR PAGE ──────────────────────────────
+    ══════════════════════════════════════════════════ */
+
+    .page-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+
+    .page-title {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .page-subtitle {
+      color: var(--muted);
+      font-size: .95rem;
+      max-width: 520px;
+    }
+
+    .version-badge {
+      background: rgba(20,184,166,.12);
+      border: 1px solid rgba(20,184,166,.3);
+      color: var(--primary);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .5px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* Form card */
+    .form-card {
       background: var(--card);
       border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 28px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.25);
+    }
+
+    .field-group {
+      margin-bottom: 20px;
+    }
+    .field-group:last-child { margin-bottom: 0; }
+
+    .field-label {
+      display: block;
+      font-size: .82rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 8px;
+    }
+
+    .required { color: var(--alert); margin-left: 2px; }
+
+    .field-input {
+      width: 100%;
+      background: var(--field);
+      border: 1px solid var(--border);
       color: var(--text);
-      padding: 12px;
-      border-radius: var(--radius);
+      padding: 11px 14px;
+      border-radius: 9px;
+      font-size: .95rem;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+      font-family: inherit;
+    }
+    .field-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(20,184,166,.12);
+    }
+    .field-input::placeholder { color: #4a6070; }
+    .field-input.error { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(239,68,68,.1); }
+
+    /* Participants grid */
+    .participants-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 600px) { .participants-grid { grid-template-columns: 1fr; } }
+
+    .participant-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: .75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+    .participant-badge.vendedor {
+      background: rgba(20,184,166,.12);
+      color: var(--primary);
+      border: 1px solid rgba(20,184,166,.25);
+    }
+    .participant-badge.cliente {
+      background: rgba(56,189,248,.1);
+      color: var(--secondary);
+      border: 1px solid rgba(56,189,248,.22);
+    }
+
+    .participants-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .participants-header .field-label { margin-bottom: 0; }
+
+    .btn-add-participant {
+      background: none;
+      border: 1px dashed var(--border);
+      color: var(--primary);
+      padding: 6px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: .82rem;
+      font-weight: 600;
+      transition: border-color .15s, background .15s;
+    }
+    .btn-add-participant:hover { border-color: var(--primary); background: rgba(20,184,166,.06); }
+
+    .extra-participant {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 10px;
+      margin-bottom: 10px;
+      align-items: end;
+    }
+    @media (max-width: 600px) { .extra-participant { grid-template-columns: 1fr auto; } }
+
+    .field-select {
+      background: var(--field);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 11px 14px;
+      border-radius: 9px;
+      font-size: .9rem;
+      outline: none;
+      transition: border-color .15s;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .field-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(20,184,166,.12); }
+
+    .btn-remove-participant {
+      background: none;
+      border: 1px solid rgba(239,68,68,.3);
+      color: var(--danger);
+      width: 38px;
+      height: 42px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .15s;
+      flex-shrink: 0;
+    }
+    .btn-remove-participant:hover { background: rgba(239,68,68,.08); }
+
+    /* Textarea */
+    .field-textarea {
+      width: 100%;
+      min-height: 200px;
+      background: var(--field);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 12px 14px;
+      border-radius: 9px;
       font-size: .9rem;
       resize: vertical;
       outline: none;
       font-family: inherit;
-      margin-bottom: 10px;
+      line-height: 1.65;
+      transition: border-color .15s, box-shadow .15s;
     }
-    textarea:focus { border-color: var(--primary); }
+    .field-textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(20,184,166,.12);
+    }
+    .field-textarea::placeholder { color: #4a6070; }
+    .field-textarea.error { border-color: var(--danger); }
 
-    .erro { color: var(--danger); background: #ff444411; padding: 12px 16px; border-radius: 8px; border: 1px solid #ff444422; }
+    .textarea-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 6px;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
 
-    .loading {
-      display: none;
+    .char-counter {
+      font-size: .78rem;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .field-hint { font-size: .78rem; color: #4a6070; }
+
+    /* Action row */
+    .action-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 24px;
+      flex-wrap: wrap;
+    }
+
+    .btn-analisar {
+      display: inline-flex;
       align-items: center;
       gap: 10px;
-      color: var(--muted);
-      padding: 16px;
+      background: linear-gradient(135deg, var(--primary) 0%, #0d9488 100%);
+      color: #022c22;
+      border: none;
+      padding: 13px 28px;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+      letter-spacing: .2px;
     }
-    .loading.visible { display: flex; }
+    .btn-analisar:hover:not(:disabled) { opacity: .88; transform: translateY(-1px); }
+    .btn-analisar:active:not(:disabled) { transform: translateY(0); }
+    .btn-analisar:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 
-    .spinner {
-      width: 20px;
-      height: 20px;
-      border: 2px solid #333;
-      border-top-color: var(--primary);
+    .btn-spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(2,44,34,.3);
+      border-top-color: #022c22;
       border-radius: 50%;
       animation: spin .7s linear infinite;
+      display: none;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    .btn-analisar.loading .btn-spinner { display: block; }
+    .btn-analisar.loading #btn-text { opacity: .7; }
 
-    /* ── Proximos passos ── */
-    .passo {
+    .action-hint { font-size: .82rem; color: var(--muted); }
+
+    /* Form error */
+    .form-error {
+      margin-top: 14px;
+      padding: 12px 16px;
+      background: rgba(239,68,68,.08);
+      border: 1px solid rgba(239,68,68,.2);
+      border-radius: 8px;
+      color: #fca5a5;
+      font-size: .9rem;
+    }
+
+    /* ── Result area ── */
+    .resultado-container { animation: fadeIn .4s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+    .resultado-header {
       display: flex;
-      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .resultado-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .resultado-meta { color: var(--muted); font-size: .85rem; }
+
+    .resultado-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 700px) { .resultado-grid { grid-template-columns: 1fr; } }
+
+    .resultado-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    .resultado-card.full { grid-column: 1 / -1; }
+
+    .resultado-card h3 {
+      font-size: .85rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .resultado-card p { color: #CBD5E1; line-height: 1.7; font-size: .92rem; }
+
+    .resultado-card ul { padding-left: 18px; }
+    .resultado-card li { color: #CBD5E1; font-size: .92rem; margin-bottom: 6px; line-height: 1.6; }
+
+    .section-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 24px 0;
+    }
+
+    .falas-section { margin-bottom: 16px; }
+
+    .fala-block {
+      background: rgba(8,17,31,.5);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 10px;
+      line-height: 1.65;
+      font-size: .9rem;
+      color: #CBD5E1;
+    }
+
+    .fala-speaker {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: .73rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 6px;
+    }
+    .fala-speaker.vendedor { color: var(--primary); }
+    .fala-speaker.cliente  { color: var(--secondary); }
+    .fala-speaker.unknown  { color: var(--muted); }
+
+    .melhoria-item {
+      display: flex;
+      gap: 12px;
       align-items: flex-start;
-      padding: 10px 0;
+      padding: 12px 0;
       border-bottom: 1px solid var(--border);
     }
-    .passo:last-child { border-bottom: none; }
-    .passo-icon { color: var(--primary); font-size: 1.1rem; }
+    .melhoria-item:last-child { border-bottom: none; }
+    .melhoria-num {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: rgba(249,115,22,.12);
+      color: var(--alert);
+      font-size: .8rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .sidebar { width: var(--sidebar-collapsed); }
+      .sidebar .nav-label { opacity: 0; width: 0; }
+      .main-wrapper { margin-left: var(--sidebar-collapsed); }
+      .sidebar-header { justify-content: center; }
+      .nav-logo { display: none; }
+    }
+
+    @media (max-width: 640px) {
+      main { padding: 16px; }
+      .form-card { padding: 16px; }
+      .page-title { font-size: 1.4rem; }
+      .btn-analisar { width: 100%; justify-content: center; }
+      .action-row { flex-direction: column; align-items: stretch; }
+      .action-hint { text-align: center; }
+    }
   </style>
 </head>
 <body>
 <div class="layout">
 
-  <!-- ── Navegação lateral ── -->
-  <nav>
-    <div class="nav-logo">🤖 SALEIA</div>
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="nav-logo">SALE<span>IA</span></div>
+      <button class="sidebar-toggle" id="sidebar-toggle" title="Ocultar menu" onclick="toggleSidebar()">◀</button>
+    </div>
 
-    <button class="nav-item active" onclick="mostrarPagina('dashboard', this)">
-      📊 Dashboard
-    </button>
-    <button class="nav-item" onclick="mostrarPagina('reunioes', this)">
-      📋 Reuniões
-    </button>
-    <button class="nav-item" onclick="mostrarPagina('sessoes', this)">
-      🔴 Sessões ao Vivo
-    </button>
-    <button class="nav-item" onclick="mostrarPagina('analisar', this)">
-      🔍 Analisar
-    </button>
-    <a class="nav-item" href="/manual" target="_blank" style="text-decoration:none">
-      📖 Manual
-    </a>
-    <button class="nav-item" onclick="mostrarPagina('configuracoes', this)">
-      ⚙ Configuracoes
-    </button>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-page="dashboard" onclick="mostrarPagina('dashboard', this)">
+        <span class="nav-icon">📊</span><span class="nav-label">Dashboard</span>
+      </button>
+      <button class="nav-item" data-page="reunioes" onclick="mostrarPagina('reunioes', this)">
+        <span class="nav-icon">📋</span><span class="nav-label">Reuniões</span>
+      </button>
+      <button class="nav-item" data-page="sessoes" onclick="mostrarPagina('sessoes', this)">
+        <span class="nav-icon">🔴</span><span class="nav-label">Sessões ao Vivo</span>
+      </button>
+      <button class="nav-item" data-page="analisar" onclick="mostrarPagina('analisar', this)">
+        <span class="nav-icon">🔍</span><span class="nav-label">Analisar</span>
+      </button>
+      <a class="nav-item" href="/manual" target="_blank" rel="noopener">
+        <span class="nav-icon">📖</span><span class="nav-label">Manual</span>
+      </a>
+      <button class="nav-item" data-page="configuracoes" onclick="mostrarPagina('configuracoes', this)">
+        <span class="nav-icon">⚙️</span><span class="nav-label">Configurações</span>
+      </button>
+    </nav>
 
-    <div style="margin-top:auto">
+    <div class="sidebar-footer">
       <div class="status-bar">
         <div class="dot" id="nav-dot"></div>
-        <span id="nav-status">verificando...</span>
+        <span id="nav-status" class="nav-label">verificando...</span>
       </div>
-      <div style="color:var(--muted);font-size:.75rem">v1.2.0</div>
     </div>
-  </nav>
+  </aside>
 
-  <!-- ── Conteúdo principal ── -->
-  <main>
+  <!-- ── Main wrapper ── -->
+  <div class="main-wrapper" id="main-wrapper">
+    <main>
 
-    <!-- DASHBOARD -->
-    <div class="page active" id="page-dashboard">
-      <h2>Dashboard</h2>
-
-      <div class="status-bar" style="margin-bottom:20px">
-        <div class="dot" id="dash-dot"></div>
-        <span id="dash-status">Verificando backend...</span>
-      </div>
-
-      <div class="metrics" id="dash-metrics">
-        <div class="metric">
-          <div class="metric-val" id="m-total">–</div>
-          <div class="metric-lbl">Reuniões registradas</div>
+      <!-- DASHBOARD -->
+      <div class="page active" id="page-dashboard">
+        <h2>Dashboard</h2>
+        <div class="status-bar" style="margin-bottom:20px">
+          <div class="dot" id="dash-dot"></div>
+          <span id="dash-status">Verificando backend...</span>
         </div>
-        <div class="metric">
-          <div class="metric-val" id="m-alta">–</div>
-          <div class="metric-lbl">Alta propensão</div>
+        <div class="metrics" id="dash-metrics">
+          <div class="metric"><div class="metric-val" id="m-total">–</div><div class="metric-lbl">Reuniões registradas</div></div>
+          <div class="metric"><div class="metric-val" id="m-alta">–</div><div class="metric-lbl">Alta propensão</div></div>
+          <div class="metric"><div class="metric-val" id="m-media">–</div><div class="metric-lbl">Propensão média</div></div>
+          <div class="metric"><div class="metric-val" id="m-baixa">–</div><div class="metric-lbl">Baixa propensão</div></div>
         </div>
-        <div class="metric">
-          <div class="metric-val" id="m-media">–</div>
-          <div class="metric-lbl">Propensão média</div>
+        <h3>Últimas reuniões</h3>
+        <div class="reunioes" id="dash-reunioes"><div style="color:var(--muted)">Carregando...</div></div>
+      </div>
+
+      <!-- REUNIÕES -->
+      <div class="page" id="page-reunioes">
+        <h2>Reuniões</h2>
+        <div class="toolbar">
+          <input type="text" id="filtro-busca" placeholder="Buscar por título..." oninput="filtrarReunioes()" />
+          <select id="filtro-prop" onchange="filtrarReunioes()">
+            <option value="">Todas as propensões</option>
+            <option value="alta">Alta</option>
+            <option value="media">Média</option>
+            <option value="baixa">Baixa</option>
+          </select>
+          <button class="btn" onclick="carregarReunioes()">↻ Atualizar</button>
         </div>
-        <div class="metric">
-          <div class="metric-val" id="m-baixa">–</div>
-          <div class="metric-lbl">Baixa propensão</div>
+        <div class="reunioes" id="lista-reunioes"><div style="color:var(--muted)">Carregando...</div></div>
+      </div>
+
+      <!-- DETALHE -->
+      <div class="page" id="page-detalhe">
+        <div class="detalhe-header">
+          <button class="back-btn" onclick="voltarParaReunioes()">← Voltar</button>
+          <h2 id="det-titulo" style="margin:0">Reunião</h2>
         </div>
+        <div id="det-conteudo"></div>
       </div>
 
-      <h3>Últimas reuniões</h3>
-      <div class="reunioes" id="dash-reunioes">
-        <div style="color:var(--muted)">Carregando...</div>
-      </div>
-    </div>
-
-    <!-- REUNIÕES -->
-    <div class="page" id="page-reunioes">
-      <h2>Reuniões</h2>
-
-      <div class="toolbar">
-        <input type="text" id="filtro-busca" placeholder="Buscar por título..." oninput="filtrarReunioes()" />
-        <select id="filtro-prop" onchange="filtrarReunioes()">
-          <option value="">Todas as propensões</option>
-          <option value="alta">Alta</option>
-          <option value="media">Média</option>
-          <option value="baixa">Baixa</option>
-        </select>
-        <button class="btn" onclick="carregarReunioes()">↻ Atualizar</button>
-      </div>
-
-      <div class="reunioes" id="lista-reunioes">
-        <div style="color:var(--muted)">Carregando...</div>
-      </div>
-    </div>
-
-    <!-- DETALHE (inline) -->
-    <div class="page" id="page-detalhe">
-      <div class="detalhe-header">
-        <button class="back-btn" onclick="voltarParaReunioes()">← Voltar</button>
-        <h2 id="det-titulo" style="margin:0">Reunião</h2>
-      </div>
-      <div id="det-conteudo"></div>
-    </div>
-
-    <!-- SESSÕES AO VIVO -->
-    <div class="page" id="page-sessoes">
-      <h2>Sessões ao Vivo</h2>
-      <p style="color:var(--muted);margin-bottom:16px">Reuniões capturadas em tempo real pela extensão Chrome. Clique para ver a transcrição e a análise da IA.</p>
-
-      <div class="toolbar">
-        <button class="btn" onclick="carregarSessoes()">↻ Atualizar</button>
-        <span id="sessoes-info" style="color:var(--muted);font-size:.85rem;align-self:center"></span>
-      </div>
-
-      <div class="reunioes" id="lista-sessoes">
-        <div style="color:var(--muted)">Carregando...</div>
-      </div>
-    </div>
-
-    <!-- DETALHE SESSÃO -->
-    <div class="page" id="page-sessao-detalhe">
-      <div class="detalhe-header">
-        <button class="back-btn" onclick="voltarParaSessoes()">← Voltar</button>
-        <h2 id="sd-titulo" style="margin:0">Sessão</h2>
-      </div>
-      <div id="sd-conteudo"></div>
-    </div>
-
-    <!-- ANALISAR -->
-    <div class="page" id="page-analisar">
-      <h2>Analisar Transcrição</h2>
-      <p style="color:var(--muted);margin-bottom:16px">Cole a transcrição completa e gere análise + recapitulação sem precisar da extensão Chrome.</p>
-
-      <label style="display:block;margin-bottom:6px;color:var(--muted);font-size:.85rem">Título da Reunião</label>
-      <input type="text" id="an-titulo" placeholder="Ex: João Silva — Consultoria" style="width:100%;margin-bottom:14px" />
-
-      <label style="display:block;margin-bottom:6px;color:var(--muted);font-size:.85rem">Transcrição</label>
-      <textarea id="an-transcricao" placeholder="Cole aqui a transcrição da reunião..."></textarea>
-
-      <div style="display:flex;gap:10px;align-items:center">
-        <button class="btn" onclick="analisar()">🔍 Analisar</button>
-        <div class="loading" id="an-loading">
-          <div class="spinner"></div>
-          <span>Processando com GPT-4o...</span>
+      <!-- SESSÕES AO VIVO -->
+      <div class="page" id="page-sessoes">
+        <h2>Sessões ao Vivo</h2>
+        <p style="color:var(--muted);margin-bottom:16px">Reuniões capturadas em tempo real pela extensão Chrome.</p>
+        <div class="toolbar">
+          <button class="btn" onclick="carregarSessoes()">↻ Atualizar</button>
+          <span id="sessoes-info" style="color:var(--muted);font-size:.85rem;align-self:center"></span>
         </div>
+        <div class="reunioes" id="lista-sessoes"><div style="color:var(--muted)">Carregando...</div></div>
       </div>
 
-      <div id="an-resultado" style="margin-top:24px"></div>
-    </div>
+      <!-- DETALHE SESSÃO -->
+      <div class="page" id="page-sessao-detalhe">
+        <div class="detalhe-header">
+          <button class="back-btn" onclick="voltarParaSessoes()">← Voltar</button>
+          <h2 id="sd-titulo" style="margin:0">Sessão</h2>
+        </div>
+        <div id="sd-conteudo"></div>
+      </div>
 
-    <!-- CONFIGURACOES -->
-    <div class="page" id="page-configuracoes">
-      <h2>Configuracoes</h2>
-      <div class="config-panel">
-        <div class="config-card">
-          <h3>API do painel</h3>
-          <p style="color:var(--muted);margin-bottom:12px">
-            Escolha manualmente qual backend o dashboard deve usar neste navegador.
-          </p>
+      <!-- ════════════════════════════════
+           ANALISAR TRANSCRIÇÃO — V.1.3.2
+           ════════════════════════════════ -->
+      <div class="page" id="page-analisar">
 
-          <div class="api-options" id="api-options"></div>
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Analisar Transcrição</h1>
+            <p class="page-subtitle">Cole a transcrição de uma reunião e receba análise completa com IA — sem precisar da extensão Chrome.</p>
+          </div>
+          <span class="version-badge">V.1.3.2</span>
+        </div>
 
-          <div class="api-actions">
-            <button class="btn" onclick="trocarApiManualmente()">Trocar API manualmente</button>
-            <button class="btn btn-secondary" onclick="testarApiAtual()">Testar API</button>
-            <span id="api-test-status" style="color:var(--muted);font-size:.85rem"></span>
+        <div class="form-card">
+
+          <!-- Título -->
+          <div class="field-group">
+            <label class="field-label" for="an-titulo">
+              Título da Reunião <span class="required">*</span>
+            </label>
+            <input
+              type="text"
+              id="an-titulo"
+              class="field-input"
+              placeholder="Ex: João Silva — Consultoria Inicial"
+              aria-label="Título da reunião"
+            />
           </div>
 
-          <div class="api-current" id="api-current"></div>
+          <!-- Vendedor + Cliente -->
+          <div class="participants-grid">
+            <div class="field-group" style="margin-bottom:0">
+              <label class="field-label" for="an-vendedor">
+                <span class="participant-badge vendedor">🎙 Vendedor</span>
+              </label>
+              <input type="text" id="an-vendedor" class="field-input" placeholder="Nome do vendedor" aria-label="Nome do vendedor" />
+            </div>
+            <div class="field-group" style="margin-bottom:0">
+              <label class="field-label" for="an-cliente">
+                <span class="participant-badge cliente">👤 Cliente</span>
+              </label>
+              <input type="text" id="an-cliente" class="field-input" placeholder="Nome do cliente" aria-label="Nome do cliente" />
+            </div>
+          </div>
+
+          <!-- Participantes extras -->
+          <div class="field-group" style="margin-top:16px">
+            <div class="participants-header">
+              <span class="field-label" style="margin-bottom:0">Participantes Adicionais</span>
+              <button type="button" class="btn-add-participant" onclick="adicionarParticipante()" aria-label="Adicionar participante">
+                + Adicionar participante
+              </button>
+            </div>
+            <div id="participantes-extras"></div>
+          </div>
+
+          <!-- Transcrição -->
+          <div class="field-group">
+            <label class="field-label" for="an-transcricao">
+              Transcrição <span class="required">*</span>
+            </label>
+            <textarea
+              id="an-transcricao"
+              class="field-textarea"
+              placeholder="Cole aqui a transcrição completa da reunião...&#10;&#10;Formato aceito com identificação de falantes:&#10;  João: Olá, tudo bem?&#10;  Maria: Sim, obrigada!&#10;&#10;Ou cole o texto bruto sem identificação — a IA processa os dois formatos."
+              oninput="atualizarContador()"
+              aria-label="Transcrição da reunião"
+            ></textarea>
+            <div class="textarea-footer">
+              <span class="char-counter" id="char-counter" aria-live="polite">0 caracteres</span>
+              <span class="field-hint">Aceita qualquer formato · Ctrl+Enter para analisar</span>
+            </div>
+          </div>
+
+          <!-- Botão de ação -->
+          <div class="action-row">
+            <button
+              class="btn-analisar"
+              id="btn-analisar"
+              onclick="analisar()"
+              aria-label="Analisar transcrição"
+            >
+              <span id="btn-text">🔍 Analisar Transcrição</span>
+              <div class="btn-spinner" id="btn-spinner"></div>
+            </button>
+            <span class="action-hint">ou pressione Ctrl + Enter</span>
+          </div>
+
+          <!-- Erro de validação -->
+          <div id="an-erro" class="form-error" role="alert" style="display:none"></div>
+
+        </div><!-- /form-card -->
+
+        <!-- Área de resultado -->
+        <div id="an-resultado"></div>
+
+      </div><!-- /page-analisar -->
+
+      <!-- CONFIGURAÇÕES -->
+      <div class="page" id="page-configuracoes">
+        <h2>Configurações</h2>
+        <div class="config-panel">
+
+          <!-- Status backend (somente leitura) -->
+          <div class="config-card">
+            <h3>Status do Backend</h3>
+            <div class="cfg-status-row">
+              <span class="dot" id="cfg-dot"></span>
+              <span id="cfg-status-text" style="color:var(--muted)">Verificando...</span>
+            </div>
+            <div id="cfg-api-url" style="color:var(--muted);font-size:.82rem;margin-top:6px;word-break:break-all"></div>
+          </div>
+
+          <!-- Gerenciamento de Usuários -->
+          <div class="config-card" id="cfg-card-usuarios">
+            <div class="cfg-section-header">
+              <h3>Gerenciamento de Usuários</h3>
+              <span class="cfg-admin-badge">Admin</span>
+            </div>
+            <div id="cfg-usuarios-loading" class="cfg-loading">Carregando usuários...</div>
+            <div id="cfg-usuarios-erro" class="cfg-erro hidden"></div>
+            <div id="cfg-usuarios-wrapper" class="cfg-tabela-wrapper hidden">
+              <table class="cfg-tabela">
+                <thead>
+                  <tr>
+                    <th>Nome</th><th>E-mail</th><th>Perfil</th><th>Plano</th><th>Status</th><th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="cfg-usuarios-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Configuração de APIs -->
+          <div class="config-card" id="cfg-card-apis">
+            <div class="cfg-section-header">
+              <h3>Configuração de APIs</h3>
+              <span class="cfg-admin-badge">Admin</span>
+            </div>
+            <div id="cfg-apis-loading" class="cfg-loading">Carregando provedores...</div>
+            <div id="cfg-apis-erro" class="cfg-erro hidden"></div>
+            <div id="cfg-apis-lista" class="cfg-provedor-lista hidden"></div>
+          </div>
+
+          <!-- Sobre -->
+          <div class="config-card" style="text-align:center;padding:18px 20px">
+            <div style="font-size:1.5rem;margin-bottom:8px">🔷</div>
+            <div style="font-weight:700;font-size:1rem;margin-bottom:4px">SALEIA <span style="color:var(--primary)">V.1.3.3</span></div>
+            <div style="color:var(--muted);font-size:.82rem;line-height:1.7">
+              Assistente de Vendas com Inteligência Artificial<br>
+              Copyright © 2026 <strong style="color:var(--text)">HEXAGON TECNOLOGIA</strong>. Todos os direitos reservados.
+            </div>
+          </div>
+
         </div>
       </div>
-    </div>
 
-  </main>
-</div>
+    </main>
+  </div><!-- /main-wrapper -->
+</div><!-- /layout -->
 
 <script>
+  /* ─── Config ─────────────────────────────────────── */
   const _host = window.location.hostname;
   const API_OPTIONS = [
-    { id: 'local', label: 'Local', url: 'http://localhost:8000' },
-    { id: 'producao', label: 'Producao', url: window.location.origin }
+    { id: 'local',    label: 'Local',    url: 'http://localhost:8000' },
+    { id: 'producao', label: 'Producao', url: 'https://api.saleia.com.br' },
   ];
+  const API_CANONICAL_PROD = 'https://api.saleia.com.br';
   const API_STORAGE_KEY = 'saleia_dashboard_api_url';
   let API = obterApiSalva();
   let _reunioesCache = [];
   let _paginaAnterior = 'reunioes';
+  let _participantesExtras = [];
 
   function obterApiSalva() {
     const fallback = (_host === 'localhost' || _host === '127.0.0.1')
       ? 'http://localhost:8000'
-      : '';
+      : 'https://api.saleia.com.br';
     return localStorage.getItem(API_STORAGE_KEY) || fallback;
   }
 
-  function nomeApiAtual() {
-    const atual = API_OPTIONS.find(opt => opt.url === API || (!opt.url && !API));
-    return atual ? atual.label : 'Personalizada';
+  /* ─── Sidebar toggle ──────────────────────────────── */
+  function toggleSidebar() {
+    const sb = document.getElementById('sidebar');
+    const mw = document.getElementById('main-wrapper');
+    const btn = document.getElementById('sidebar-toggle');
+    const collapsed = sb.classList.toggle('collapsed');
+    mw.classList.toggle('collapsed', collapsed);
+    btn.textContent = collapsed ? '▶' : '◀';
+    btn.title = collapsed ? 'Expandir menu' : 'Ocultar menu';
   }
 
-  function selecionarApi(url) {
-    API = url;
-    localStorage.setItem(API_STORAGE_KEY, url);
-    renderizarConfiguracoesApi();
-    verificarBackend();
-  }
-
-  function trocarApiManualmente() {
-    const currentIndex = API_OPTIONS.findIndex(opt => opt.url === API);
-    const next = API_OPTIONS[(currentIndex + 1) % API_OPTIONS.length] || API_OPTIONS[0];
-    selecionarApi(next.url);
-  }
-
-  async function testarApiAtual() {
-    const status = document.getElementById('api-test-status');
-    if (status) status.textContent = 'Testando...';
-
-    try {
-      const r = await fetch(API + '/health', { signal: AbortSignal.timeout(3000) });
-      if (status) status.textContent = r.ok ? 'API online' : 'API respondeu com erro';
-    } catch {
-      if (status) status.textContent = 'API offline';
-    }
-  }
-
-  function renderizarConfiguracoesApi() {
-    const options = document.getElementById('api-options');
-    const current = document.getElementById('api-current');
-    if (!options || !current) return;
-
-    options.innerHTML = API_OPTIONS.map(opt => {
-      const active = opt.url === API || (!opt.url && !API);
-      const urlLabel = opt.url || window.location.origin;
-      return '<button class="api-option' + (active ? ' active' : '') + '" onclick="selecionarApi(\'' + opt.url + '\')">' +
-        '<strong>' + opt.label + '</strong>' +
-        '<span>' + urlLabel + '</span>' +
-        '</button>';
-    }).join('');
-
-    current.textContent = 'API atual: ' + nomeApiAtual() + ' - ' + (API || window.location.origin);
-  }
-
-  // ── Navegação ──────────────────────────────────────
+  /* ─── Navegação ───────────────────────────────────── */
   function mostrarPagina(nome, btn) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
     document.getElementById('page-' + nome).classList.add('active');
     if (btn) btn.classList.add('active');
-    if (nome === 'dashboard') carregarDashboard();
-    if (nome === 'reunioes') carregarReunioes();
-    if (nome === 'sessoes') carregarSessoes();
-    if (nome === 'configuracoes') renderizarConfiguracoesApi();
+    if (nome === 'dashboard')     carregarDashboard();
+    if (nome === 'reunioes')      carregarReunioes();
+    if (nome === 'sessoes')       carregarSessoes();
+    if (nome === 'configuracoes') carregarConfiguracoes();
   }
 
-  // ── Status backend ─────────────────────────────────
+  /* ─── Configurações — carregamento geral ─────────── */
+  async function carregarConfiguracoes() {
+    // Status backend
+    const dot  = document.getElementById('cfg-dot');
+    const txt  = document.getElementById('cfg-status-text');
+    const urlEl = document.getElementById('cfg-api-url');
+    if (urlEl) urlEl.textContent = 'Endpoint: ' + API;
+    try {
+      const r = await fetch(API + '/health', { signal: AbortSignal.timeout(4000) });
+      if (dot) dot.className = 'dot' + (r.ok ? ' online' : '');
+      if (txt) txt.textContent = r.ok ? 'Backend online' : 'Backend respondeu com erro';
+    } catch {
+      if (dot) dot.className = 'dot';
+      if (txt) txt.textContent = 'Backend offline ou inacessível';
+    }
+    carregarUsuarios();
+    carregarProvedoresApi();
+  }
+
+  /* ─── Gerenciamento de Usuários ───────────────────── */
+  const _perfisBadge = { admin:'cfg-badge-admin', usuario:'cfg-badge-usuario', gerente:'cfg-badge-gerente' };
+  const _statusBadge = { ativo:'cfg-badge-ativo', inativo:'cfg-badge-inativo', pendente:'cfg-badge-pendente' };
+  const _planosBadge = { free:'cfg-badge-free', pro:'cfg-badge-pro', enterprise:'cfg-badge-enterprise' };
+
+  async function carregarUsuarios() {
+    const loading = document.getElementById('cfg-usuarios-loading');
+    const erro    = document.getElementById('cfg-usuarios-erro');
+    const wrapper = document.getElementById('cfg-usuarios-wrapper');
+    if (!loading) return;
+    loading.classList.remove('hidden');
+    erro.classList.add('hidden');
+    wrapper.classList.add('hidden');
+    try {
+      const r = await fetch(API + '/admin/usuarios', {
+        headers: { Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') }
+      });
+      if (r.status === 401 || r.status === 403) {
+        loading.classList.add('hidden');
+        erro.classList.remove('hidden');
+        erro.textContent = 'Apenas administradores podem gerenciar usuários.';
+        return;
+      }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const dados = await r.json();
+      renderizarUsuarios(dados.usuarios || dados);
+      loading.classList.add('hidden');
+      wrapper.classList.remove('hidden');
+    } catch (e) {
+      loading.classList.add('hidden');
+      erro.classList.remove('hidden');
+      erro.textContent = 'Não foi possível carregar usuários. O serviço pode estar indisponível.';
+    }
+  }
+
+  function renderizarUsuarios(lista) {
+    const tbody = document.getElementById('cfg-usuarios-tbody');
+    if (!tbody) return;
+    if (!lista.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:16px">Nenhum usuário encontrado.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = lista.map(u => {
+      const perfilCls = _perfisBadge[u.perfil] || 'cfg-badge-usuario';
+      const statusCls = _statusBadge[u.status] || 'cfg-badge-inativo';
+      const planoCls  = _planosBadge[u.plano]  || 'cfg-badge-free';
+      return `<tr>
+        <td>${escHtml(u.nome)}</td>
+        <td style="color:var(--muted)">${escHtml(u.email)}</td>
+        <td><span class="cfg-badge ${perfilCls}">${escHtml(u.perfil)}</span></td>
+        <td><span class="cfg-badge ${planoCls}">${escHtml(u.plano)}</span></td>
+        <td><span class="cfg-badge ${statusCls}">${escHtml(u.status)}</span></td>
+        <td>
+          <div class="cfg-acoes">
+            ${u.status === 'inativo' ? `<button class="cfg-btn-acao" onclick="gerenciarUsuario('${u.id}','reativar')">Reativar</button>` : ''}
+            ${u.status === 'ativo'   ? `<button class="cfg-btn-acao" onclick="gerenciarUsuario('${u.id}','inativar')">Inativar</button>` : ''}
+            <button class="cfg-btn-acao" onclick="gerenciarUsuario('${u.id}','resetar-senha')">Reset senha</button>
+            <button class="cfg-btn-acao" onclick="alterarPerfil('${u.id}','${escHtml(u.perfil)}')">Perfil</button>
+            <button class="cfg-btn-acao" onclick="alterarPlano('${u.id}','${escHtml(u.plano)}')">Plano</button>
+            <button class="cfg-btn-acao perigo" onclick="gerenciarUsuario('${u.id}','excluir')">Excluir</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function gerenciarUsuario(id, acao) {
+    if (acao === 'excluir' && !confirm('Excluir este usuário permanentemente?')) return;
+    try {
+      const metodo = acao === 'excluir' ? 'DELETE' : 'PATCH';
+      const url = API + '/admin/usuarios/' + id + (acao !== 'excluir' ? '/' + acao : '');
+      const r = await fetch(url, {
+        method: metodo,
+        headers: { Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') }
+      });
+      if (r.status === 401 || r.status === 403) { alert('Permissão negada.'); return; }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      carregarUsuarios();
+    } catch { alert('Erro ao executar ação. Tente novamente.'); }
+  }
+
+  async function alterarPerfil(id, atual) {
+    const opcoes = ['admin', 'gerente', 'usuario'];
+    const novo = prompt('Novo perfil (' + opcoes.join(', ') + '):', atual);
+    if (!novo || !opcoes.includes(novo.trim())) return;
+    try {
+      const r = await fetch(API + '/admin/usuarios/' + id + '/perfil', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') },
+        body: JSON.stringify({ perfil: novo.trim() })
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      carregarUsuarios();
+    } catch { alert('Erro ao alterar perfil.'); }
+  }
+
+  async function alterarPlano(id, atual) {
+    const opcoes = ['free', 'pro', 'enterprise'];
+    const novo = prompt('Novo plano (' + opcoes.join(', ') + '):', atual);
+    if (!novo || !opcoes.includes(novo.trim())) return;
+    try {
+      const r = await fetch(API + '/admin/usuarios/' + id + '/plano', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') },
+        body: JSON.stringify({ plano: novo.trim() })
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      carregarUsuarios();
+    } catch { alert('Erro ao alterar plano.'); }
+  }
+
+  /* ─── Configuração de APIs ────────────────────────── */
+  const _provedoresPadrao = [
+    { id: 'deepseek',  nome: 'DeepSeek',  modelo: 'deepseek-chat',        ativo: false, principal: false, tem_chave: false },
+    { id: 'openai',    nome: 'OpenAI',    modelo: 'gpt-4o-mini',           ativo: false, principal: false, tem_chave: false },
+    { id: 'anthropic', nome: 'Anthropic', modelo: 'claude-haiku-4-5',      ativo: false, principal: false, tem_chave: false },
+    { id: 'gemini',    nome: 'Gemini',    modelo: 'gemini-1.5-flash',      ativo: false, principal: false, tem_chave: false },
+  ];
+
+  async function carregarProvedoresApi() {
+    const loading = document.getElementById('cfg-apis-loading');
+    const erro    = document.getElementById('cfg-apis-erro');
+    const lista   = document.getElementById('cfg-apis-lista');
+    if (!loading) return;
+    loading.classList.remove('hidden');
+    erro.classList.add('hidden');
+    lista.classList.add('hidden');
+    try {
+      const r = await fetch(API + '/admin/api/provedores', {
+        headers: { Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') }
+      });
+      if (r.status === 401 || r.status === 403) {
+        loading.classList.add('hidden');
+        erro.classList.remove('hidden');
+        erro.textContent = 'Apenas administradores podem gerenciar APIs.';
+        return;
+      }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const dados = await r.json();
+      renderizarProvedores(dados.provedores || dados);
+      loading.classList.add('hidden');
+      lista.classList.remove('hidden');
+    } catch {
+      loading.classList.add('hidden');
+      renderizarProvedores(_provedoresPadrao);
+      lista.classList.remove('hidden');
+      erro.classList.remove('hidden');
+      erro.textContent = 'Usando dados locais — backend indisponível. As alterações não serão salvas.';
+    }
+  }
+
+  function renderizarProvedores(lista) {
+    const el = document.getElementById('cfg-apis-lista');
+    if (!el) return;
+    el.innerHTML = lista.map(p => {
+      const ativoCls = p.ativo ? 'ativo' : '';
+      const statusBadge = p.ativo
+        ? '<span class="cfg-badge cfg-badge-ativo">Ativo</span>'
+        : '<span class="cfg-badge cfg-badge-inativo">Inativo</span>';
+      const principalBadge = p.principal
+        ? '<span class="cfg-badge-principal">Principal</span>'
+        : '';
+      return `<div class="cfg-provedor-card ${ativoCls}" id="provedor-${p.id}">
+        <div class="cfg-provedor-header">
+          <div>
+            <span class="cfg-provedor-nome">${escHtml(p.nome)}</span>
+            <div style="color:var(--muted);font-size:.78rem;margin-top:2px">${escHtml(p.modelo)}</div>
+          </div>
+          <div class="cfg-provedor-badges">${statusBadge}${principalBadge}</div>
+        </div>
+        <div class="cfg-provedor-key-row">
+          <input type="password" id="key-${p.id}" placeholder="${p.tem_chave ? '••••••••••••••••' : 'Cole a chave de API aqui'}" autocomplete="off">
+          <button class="cfg-btn-provedor" onclick="salvarChaveProvedor('${p.id}')">Salvar</button>
+        </div>
+        <div class="cfg-provedor-acoes">
+          <button class="cfg-btn-provedor" onclick="testarProvedor('${p.id}')">Testar conexão</button>
+          ${p.ativo
+            ? `<button class="cfg-btn-provedor inativar" onclick="toggleProvedor('${p.id}', false)">Inativar</button>`
+            : `<button class="cfg-btn-provedor" onclick="toggleProvedor('${p.id}', true)">Ativar</button>`}
+          ${!p.principal
+            ? `<button class="cfg-btn-provedor primario" onclick="definirPrincipal('${p.id}')">Definir como principal</button>`
+            : ''}
+          <span class="cfg-provedor-feedback" id="fb-${p.id}"></span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function salvarChaveProvedor(id) {
+    const input = document.getElementById('key-' + id);
+    const fb    = document.getElementById('fb-' + id);
+    const chave = input ? input.value.trim() : '';
+    if (!chave) { if (fb) { fb.textContent = 'Digite a chave antes de salvar.'; fb.style.color = '#FCA5A5'; } return; }
+    if (fb) { fb.textContent = 'Salvando...'; fb.style.color = 'var(--muted)'; }
+    try {
+      const r = await fetch(API + '/admin/api/provedores/' + id + '/chave', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') },
+        body: JSON.stringify({ chave })
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      if (fb) { fb.textContent = 'Chave salva.'; fb.style.color = '#14B8A6'; }
+      if (input) input.value = '';
+      setTimeout(() => { if (fb) fb.textContent = ''; }, 3000);
+    } catch { if (fb) { fb.textContent = 'Erro ao salvar.'; fb.style.color = '#FCA5A5'; } }
+  }
+
+  async function testarProvedor(id) {
+    const fb = document.getElementById('fb-' + id);
+    if (fb) { fb.textContent = 'Testando...'; fb.style.color = 'var(--muted)'; }
+    try {
+      const r = await fetch(API + '/admin/api/teste', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') },
+        body: JSON.stringify({ provedor: id })
+      });
+      const json = await r.json().catch(() => ({}));
+      if (r.ok && json.ok) {
+        if (fb) { fb.textContent = '✅ Conectado'; fb.style.color = '#14B8A6'; }
+      } else {
+        if (fb) { fb.textContent = '❌ Falha: ' + (json.detalhe || json.detail || 'erro'); fb.style.color = '#FCA5A5'; }
+      }
+    } catch { if (fb) { fb.textContent = '❌ Sem resposta'; fb.style.color = '#FCA5A5'; } }
+    setTimeout(() => { if (fb) fb.textContent = ''; }, 4000);
+  }
+
+  async function toggleProvedor(id, ativar) {
+    const fb = document.getElementById('fb-' + id);
+    if (fb) { fb.textContent = ativar ? 'Ativando...' : 'Inativando...'; fb.style.color = 'var(--muted)'; }
+    try {
+      const r = await fetch(API + '/admin/api/provedores/' + id + '/status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') },
+        body: JSON.stringify({ ativo: ativar })
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      carregarProvedoresApi();
+    } catch { if (fb) { fb.textContent = 'Erro.'; fb.style.color = '#FCA5A5'; } }
+  }
+
+  async function definirPrincipal(id) {
+    const fb = document.getElementById('fb-' + id);
+    if (fb) { fb.textContent = 'Definindo...'; fb.style.color = 'var(--muted)'; }
+    try {
+      const r = await fetch(API + '/admin/api/principal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') },
+        body: JSON.stringify({ provedor: id })
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      carregarProvedoresApi();
+    } catch { if (fb) { fb.textContent = 'Erro.'; fb.style.color = '#FCA5A5'; } }
+  }
+
+  async function fetchJsonWithFallback(path, init) {
+    const candidates = [API];
+    if (!candidates.includes(API_CANONICAL_PROD)) candidates.push(API_CANONICAL_PROD);
+    let lastError = null;
+    for (const candidate of candidates) {
+      try {
+        const response = await fetch(candidate + path, init);
+        if (!response.ok) { lastError = new Error('HTTP ' + response.status); continue; }
+        if (candidate !== API) { API = candidate; localStorage.setItem(API_STORAGE_KEY, candidate); }
+        return response;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError || new Error('Falha ao conectar com a API');
+  }
+
+  /* ─── Status backend ──────────────────────────────── */
   async function verificarBackend() {
     try {
       const r = await fetch(API + '/health', { signal: AbortSignal.timeout(3000) });
       const ok = r.ok;
       ['dash-dot', 'nav-dot'].forEach(id => {
-        document.getElementById(id).className = 'dot' + (ok ? ' online' : '');
+        const el = document.getElementById(id);
+        if (el) el.className = 'dot' + (ok ? ' online' : '');
       });
-      document.getElementById('dash-status').textContent = ok ? ('Backend online — ' + (API || window.location.origin)) : 'Backend offline';
-      document.getElementById('nav-status').textContent = ok ? 'online' : 'offline';
+      const ds = document.getElementById('dash-status');
+      const ns = document.getElementById('nav-status');
+      if (ds) ds.textContent = ok ? ('Backend online — ' + API) : 'Backend offline';
+      if (ns) ns.textContent = ok ? 'online' : 'offline';
     } catch {
-      ['dash-dot', 'nav-dot'].forEach(id => document.getElementById(id).className = 'dot');
-      document.getElementById('dash-status').textContent = 'Backend offline — rode iniciar.bat';
-      document.getElementById('nav-status').textContent = 'offline';
+      ['dash-dot', 'nav-dot'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.className = 'dot';
+      });
+      const ds = document.getElementById('dash-status');
+      if (ds) ds.textContent = 'Backend offline — rode iniciar.bat';
+      const ns = document.getElementById('nav-status');
+      if (ns) ns.textContent = 'offline';
     }
   }
 
-  // ── Dashboard ──────────────────────────────────────
+  /* ─── Dashboard ───────────────────────────────────── */
   async function carregarDashboard() {
     await verificarBackend();
     try {
-      const r = await fetch(API + '/relatorios');
-      if (!r.ok) throw new Error();
+      const r = await fetchJsonWithFallback('/relatorios');
       const d = await r.json();
       const lista = d.relatorios || [];
       _reunioesCache = lista;
-
       document.getElementById('m-total').textContent = lista.length;
       document.getElementById('m-alta').textContent  = lista.filter(x => norm(x.probabilidade_fechamento) === 'alta').length;
       document.getElementById('m-media').textContent = lista.filter(x => norm(x.probabilidade_fechamento) === 'media').length;
       document.getElementById('m-baixa').textContent = lista.filter(x => norm(x.probabilidade_fechamento) === 'baixa').length;
-
       const container = document.getElementById('dash-reunioes');
       container.innerHTML = lista.slice(0, 5).map(r => cardReuniaoHTML(r)).join('') || '<div style="color:var(--muted)">Nenhuma reunião registrada ainda.</div>';
     } catch {
@@ -617,18 +1436,17 @@
     }
   }
 
-  // ── Reuniões ───────────────────────────────────────
+  /* ─── Reuniões ────────────────────────────────────── */
   async function carregarReunioes() {
     const container = document.getElementById('lista-reunioes');
     container.innerHTML = '<div style="color:var(--muted)">Carregando...</div>';
     try {
-      const r = await fetch(API + '/relatorios');
-      if (!r.ok) throw new Error();
+      const r = await fetchJsonWithFallback('/relatorios');
       const d = await r.json();
       _reunioesCache = d.relatorios || [];
       renderizarReunioes(_reunioesCache);
     } catch {
-      container.innerHTML = '<div class="erro">Erro ao carregar. Backend está rodando?</div>';
+      container.innerHTML = '<div class="erro">Erro ao carregar reuniões. Ajuste a URL da API em Configurações.</div>';
     }
   }
 
@@ -645,26 +1463,20 @@
 
   function renderizarReunioes(lista) {
     const container = document.getElementById('lista-reunioes');
-    container.innerHTML = lista.map(r => cardReuniaoHTML(r)).join('') ||
-      '<div style="color:var(--muted)">Nenhuma reunião encontrada.</div>';
+    container.innerHTML = lista.map(r => cardReuniaoHTML(r)).join('') || '<div style="color:var(--muted)">Nenhuma reunião encontrada.</div>';
   }
 
   function cardReuniaoHTML(r) {
     const titulo = escHtml(r.titulo || r.nome_reuniao || 'Reunião');
     const data   = escHtml((r.data || r.criado_em || '').slice(0, 10));
     const prop   = norm(r.probabilidade_fechamento);
-    const cor    = prop === 'alta' ? '#00d4aa' : prop === 'media' ? '#ffaa00' : prop === 'baixa' ? '#ff4444' : '#555';
+    const cor    = prop === 'alta' ? '#2dd4bf' : prop === 'media' ? '#fbbf24' : prop === 'baixa' ? '#f87171' : '#555';
     const badge  = prop ? `<span class="badge badge-${prop}">${prop.charAt(0).toUpperCase() + prop.slice(1)}</span>` : '';
     const scoreVal = r.dados?.score_compra?.valor;
     const score  = scoreVal !== undefined ? Math.min(98, Math.max(5, Number(scoreVal))) : null;
-    const scoreHTML = score !== null
-      ? `<span style="color:${cor};font-weight:700;font-size:.85rem">${score}/100</span>`
-      : '';
-    const id = escHtml(r.id || r.arquivo || titulo);
-    return `<div class="reuniao-card" onclick="verDetalhe(${JSON.stringify(r)})">
-      <div class="score-circle" style="border-color:${cor};color:${cor}">
-        ${score !== null ? score : '?'}
-      </div>
+    const scoreHTML = score !== null ? `<span style="color:${cor};font-weight:700;font-size:.85rem">${score}/100</span>` : '';
+    return `<div class="reuniao-card" onclick='verDetalhe(${JSON.stringify(r)})'>
+      <div class="score-circle" style="border-color:${cor};color:${cor}">${score !== null ? score : '?'}</div>
       <div class="reuniao-info">
         <div class="reuniao-titulo">${titulo}</div>
         <div class="reuniao-meta">${data} ${scoreHTML}</div>
@@ -673,7 +1485,62 @@
     </div>`;
   }
 
-  // ── Detalhe ────────────────────────────────────────
+  /* ─── Frases gatilho ──────────────────────────────── */
+  function limparFrasesGatilho(texto) {
+    let limpo = String(texto ?? '');
+    [
+      /deixa\s+eu\s+ver\s+se\s+entendi/gi,
+      /pelo\s+que\s+voc[eê]\s+me\s+falou/gi,
+      /foi\s+isso\s+que\s+eu\s+colhi/gi,
+      /s[oó]\s+para\s+confirmar/gi,
+    ].forEach(pattern => { limpo = limpo.replace(pattern, ''); });
+    return limpo.replace(/\s{2,}/g, ' ').replace(/\s+([,.;:!?])/g, '$1').trim();
+  }
+
+  /* ─── Detectar falas ──────────────────────────────── */
+  function detectarFalas(transcricao, nomes = {}, extras = []) {
+    const vendedorNome = (nomes.vendedor || '').trim();
+    const clienteNome  = (nomes.cliente  || '').trim();
+    const vendedorAliases = ['vendedor', 'consultor', 'paulo', 'paulo henrique', 'voce', 'você'];
+    const clienteAliases  = ['cliente', 'participante'];
+    const falas = [];
+
+    const extraMap = {};
+    extras.forEach(e => {
+      if (e.nome) extraMap[norm(e.nome)] = e.papel;
+    });
+
+    String(transcricao || '').split(/\n+/).forEach((linha, index) => {
+      const raw = linha.trim();
+      if (!raw) return;
+      const match = raw.match(/^([^:]{2,60}):\s*(.+)$/);
+      const speakerOriginal = match ? match[1].trim() : '';
+      const text = match ? match[2].trim() : raw;
+      const normalized = norm(speakerOriginal);
+      let role = 'desconhecido';
+
+      if (vendedorNome && normalized === norm(vendedorNome)) role = 'vendedor';
+      else if (clienteNome && normalized === norm(clienteNome)) role = 'cliente';
+      else if (extraMap[normalized]) role = extraMap[normalized];
+      else if (vendedorAliases.includes(normalized)) role = 'vendedor';
+      else if (clienteAliases.includes(normalized)) role = 'cliente';
+
+      const speaker = role === 'vendedor'
+        ? (vendedorNome || speakerOriginal || 'Vendedor')
+        : role === 'cliente'
+          ? (clienteNome || speakerOriginal || 'Cliente')
+          : (speakerOriginal || 'Participante não identificado');
+
+      falas.push({ role, speaker, text });
+    });
+    return falas;
+  }
+
+  function falasPorRole(falas, role, limite = 6) {
+    return falas.filter(f => f.role === role && f.text.length > 18).slice(0, limite);
+  }
+
+  /* ─── Detalhe reunião ─────────────────────────────── */
   function verDetalhe(r) {
     _paginaAnterior = document.querySelector('.page.active')?.id?.replace('page-', '') || 'reunioes';
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -686,18 +1553,18 @@
     const fin   = dados.diagnostico_financeiro || {};
     const passos = recap.proximos_passos || [];
     const prop   = norm(recap.probabilidade_fechamento);
-    const cor    = prop === 'alta' ? '#00d4aa' : prop === 'media' ? '#ffaa00' : '#ff4444';
+    const cor    = prop === 'alta' ? '#2dd4bf' : prop === 'media' ? '#fbbf24' : '#f87171';
 
     document.getElementById('det-titulo').textContent = r.titulo || r.nome_reuniao || 'Reunião';
 
     let html = '';
+    html += renderAnaliseEssencial(dados, dados.falas_separadas || []);
 
-    // Score
     const scoreVal = dados.score_compra?.valor;
     if (scoreVal !== undefined) {
       const val = Math.min(98, Math.max(5, Number(scoreVal)));
-      const corS = val >= 70 ? '#00d4aa' : val >= 45 ? '#ffaa00' : '#ff4444';
-      html += `<div class="info-card" style="margin-bottom:16px;border-color:${corS}22">
+      const corS = val >= 70 ? '#2dd4bf' : val >= 45 ? '#fbbf24' : '#f87171';
+      html += `<div class="info-card" style="margin-bottom:16px;border-color:${corS}33">
         <h3 style="color:${corS}">📊 Score de Compra</h3>
         <div style="font-size:2rem;font-weight:700;color:${corS}">${val}<span style="font-size:1rem;color:var(--muted)">/100</span></div>
         <div class="score-barra-wrap"><div class="score-barra-fill" style="width:${val}%;background:${corS}"></div></div>
@@ -705,16 +1572,12 @@
       </div>`;
     }
 
-    // Resumo + probabilidade
     html += `<div class="grid-2">`;
     if (recap.resumo_executivo) {
-      html += `<div class="info-card">
-        <h3>📋 Resumo Executivo</h3>
-        <p style="line-height:1.7;color:#ccc">${escHtml(recap.resumo_executivo)}</p>
-      </div>`;
+      html += `<div class="info-card"><h3>📋 Resumo Executivo</h3><p style="line-height:1.7;color:#cbd5e1">${escHtml(recap.resumo_executivo)}</p></div>`;
     }
     if (prop) {
-      html += `<div class="info-card" style="border-color:${cor}44">
+      html += `<div class="info-card" style="border-color:${cor}33">
         <h3 style="color:${cor}">🎯 Probabilidade de Fechamento</h3>
         <div style="font-size:1.6rem;font-weight:700;color:${cor};text-transform:capitalize">${prop}</div>
         <p style="color:var(--muted);font-size:.85rem;margin-top:8px">${escHtml(recap.justificativa_probabilidade || '')}</p>
@@ -722,28 +1585,26 @@
     }
     html += `</div>`;
 
-    // DISC + Emocional
     html += `<div class="grid-2">`;
     if (disc.tipo || disc.perfil_primario) {
       const tipo = disc.tipo || disc.perfil_primario;
       html += `<div class="info-card">
         <h3>🎯 Perfil DISC</h3>
         <div style="font-size:2rem;font-weight:700;color:var(--primary)">${escHtml(tipo)}</div>
-        <p style="color:#ccc;margin-top:6px">${escHtml(disc.descricao || disc.como_abordar || '')}</p>
-        ${disc.estrategia_fechamento ? `<p style="color:var(--warn);font-size:.85rem;margin-top:8px">🎯 ${escHtml(disc.estrategia_fechamento)}</p>` : ''}
+        <p style="color:#cbd5e1;margin-top:6px">${escHtml(disc.descricao || disc.como_abordar || '')}</p>
+        ${disc.estrategia_fechamento ? `<p style="color:var(--alert);font-size:.85rem;margin-top:8px">🎯 ${escHtml(disc.estrategia_fechamento)}</p>` : ''}
       </div>`;
     }
     const emoc = recap.recapitulacao_emocional || {};
     if (emoc.estado_emocional_cliente) {
       html += `<div class="info-card">
         <h3>💭 Estado Emocional</h3>
-        <p style="color:#ccc">${escHtml(emoc.estado_emocional_cliente)}</p>
+        <p style="color:#cbd5e1">${escHtml(emoc.estado_emocional_cliente)}</p>
         ${emoc.nivel_interesse ? `<span class="badge badge-${norm(emoc.nivel_interesse)}" style="margin-top:8px;display:inline-block">Interesse: ${emoc.nivel_interesse}</span>` : ''}
       </div>`;
     }
     html += `</div>`;
 
-    // Financeiro
     if (fin.produto_recomendado || fin.capacidade_investimento) {
       html += `<div class="info-card" style="margin-bottom:16px">
         <h3>💰 Diagnóstico Financeiro</h3>
@@ -755,7 +1616,6 @@
       </div>`;
     }
 
-    // Próximos passos
     if (passos.length > 0) {
       html += `<div class="info-card" style="margin-bottom:16px">
         <h3>📌 Próximos Passos</h3>
@@ -769,72 +1629,405 @@
       </div>`;
     }
 
-    // Dores e Objeções
     const estrateg = recap.recapitulacao_estrategica || {};
     html += `<div class="grid-2">`;
     if (estrateg.dores_identificadas?.length) {
-      html += `<div class="info-card">
-        <h3>🩹 Dores Identificadas</h3>
-        <ul>${estrateg.dores_identificadas.map(d => `<li>${escHtml(d)}</li>`).join('')}</ul>
-      </div>`;
+      html += `<div class="info-card"><h3>🩹 Dores Identificadas</h3><ul>${estrateg.dores_identificadas.map(d => `<li>${escHtml(d)}</li>`).join('')}</ul></div>`;
     }
     if (estrateg.objecoes_levantadas?.length) {
-      html += `<div class="info-card">
-        <h3>🛡️ Objeções</h3>
-        <ul>${estrateg.objecoes_levantadas.map(o => `<li>${escHtml(o)}</li>`).join('')}</ul>
-      </div>`;
+      html += `<div class="info-card"><h3>🛡️ Objeções</h3><ul>${estrateg.objecoes_levantadas.map(o => `<li>${escHtml(o)}</li>`).join('')}</ul></div>`;
     }
     html += `</div>`;
 
     document.getElementById('det-conteudo').innerHTML = html;
   }
 
-  function voltarParaReunioes() {
-    mostrarPagina(_paginaAnterior, null);
-    const btns = document.querySelectorAll('.nav-item');
-    if (_paginaAnterior === 'dashboard') btns[0].classList.add('active');
-    else if (_paginaAnterior === 'reunioes') btns[1].classList.add('active');
+  function renderAnaliseEssencial(dados, falas) {
+    const recap     = dados.recapitulacao || {};
+    const fin       = dados.diagnostico_financeiro || {};
+    const estrateg  = recap.recapitulacao_estrategica || {};
+    const objecoes  = estrateg.objecoes_levantadas || recap.top_objecoes || [];
+    const proxima   = Array.isArray(recap.proximos_passos) ? recap.proximos_passos[0] : recap.proximos_passos;
+    const resposta  = (Array.isArray(recap.top_objecoes) && recap.top_objecoes[0]?.resposta_sugerida) || recap.script_follow_up || recap.justificativa_probabilidade || '';
+
+    let html = `<div class="grid-2">`;
+    html += `<div class="info-card"><h3>📝 Resumo da conversa</h3><p style="line-height:1.7;color:#CBD5E1">${escHtml(limparFrasesGatilho(recap.resumo_executivo || recap.recapitulacao || 'Resumo ainda não disponível.'))}</p></div>`;
+    html += `<div class="info-card"><h3>📊 Dados identificados</h3><ul>
+      ${fin.faturamento_mensal ? `<li>Faturamento: ${escHtml(fin.faturamento_mensal)}</li>` : ''}
+      ${fin.capacidade_investimento ? `<li>Capacidade de investimento: ${escHtml(fin.capacidade_investimento)}</li>` : ''}
+      ${fin.produto_recomendado ? `<li>Produto recomendado: ${escHtml(fin.produto_recomendado)}</li>` : ''}
+      ${dados.perfil_disc?.perfil_primario || dados.perfil_disc?.tipo ? `<li>Perfil DISC: ${escHtml(dados.perfil_disc.perfil_primario || dados.perfil_disc.tipo)}</li>` : ''}
+    </ul></div></div>`;
+
+    if (falas.length) {
+      const vFalas = falasPorRole(falas, 'vendedor');
+      const cFalas = falasPorRole(falas, 'cliente');
+      if (vFalas.length) html += renderQuoteList('🎙 Falas do Vendedor', vFalas, 'vendedor');
+      if (cFalas.length) html += renderQuoteList('👤 Falas do Cliente', cFalas, 'cliente');
+    }
+
+    if (objecoes.length) {
+      html += `<div class="info-card"><h3>🛡️ Objeções</h3><ul>${objecoes.map(o => `<li>${escHtml(limparFrasesGatilho(o.objecao || o))}</li>`).join('')}</ul></div>`;
+    }
+
+    html += `<div class="grid-2">`;
+    html += `<div class="info-card"><h3>📌 Próxima ação recomendada</h3><p style="line-height:1.7;color:#CBD5E1">${escHtml(limparFrasesGatilho(proxima?.acao || proxima || 'Definir próximo passo com o cliente.'))}</p></div>`;
+    html += `<div class="info-card"><h3>💡 Sugestão para o vendedor</h3><p style="line-height:1.7;color:#CBD5E1">${escHtml(limparFrasesGatilho(resposta || 'Conduza com uma pergunta objetiva para confirmar prioridade e próximo passo.'))}</p></div>`;
+    html += `</div>`;
+
+    html += renderUsoIa(dados);
+    return html;
   }
 
-  // ── Analisar ───────────────────────────────────────
+  function renderQuoteList(titulo, falas, roleClass) {
+    if (!falas.length) return '';
+    return `<div class="info-card" style="margin-bottom:16px">
+      <h3>${escHtml(titulo)}</h3>
+      <div class="quote-list">
+        ${falas.map(f => `<div class="quote-item">
+          <span class="quote-role ${f.role === 'vendedor' ? 'vendedor' : f.role === 'cliente' ? 'cliente' : 'unknown'}">${escHtml(f.speaker)}</span>
+          ${escHtml(limparFrasesGatilho(f.text))}
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  function renderUsoIa(dados) {
+    const blocos = [
+      ['Recapitulação',        dados.recapitulacao],
+      ['Diagnóstico financeiro', dados.diagnostico_financeiro],
+      ['Perfil DISC',           dados.perfil_disc],
+    ].filter(([, b]) => b && (b._provedor_ia || b._modelo_ia || b._custo_estimado_ia !== undefined));
+    if (!blocos.length) return '';
+
+    const moeda = blocos.find(([, b]) => b._moeda_ia)?.[1]._moeda_ia || 'USD';
+    const total = blocos.reduce((acc, [, b]) => acc + (Number(b._custo_estimado_ia) || 0), 0);
+    const totalTok = blocos.reduce((acc, [, b]) => acc + (Number(b._tokens_entrada_ia) || 0) + (Number(b._tokens_saida_ia) || 0), 0);
+
+    const linhasBloco = blocos.map(([nome, b]) => {
+      const tokIn  = b._tokens_entrada_ia  != null ? Number(b._tokens_entrada_ia).toLocaleString('pt-BR')  : null;
+      const tokOut = b._tokens_saida_ia    != null ? Number(b._tokens_saida_ia).toLocaleString('pt-BR')    : null;
+      const custo  = b._custo_estimado_ia  != null ? (b._moeda_ia || moeda) + ' ' + Number(b._custo_estimado_ia).toFixed(6) : 'n/d';
+      return `<div class="ai-usage-item">
+        <strong style="color:var(--text)">${escHtml(nome)}</strong>
+        <div style="color:var(--primary);font-size:.82rem;margin-top:3px">${escHtml(b._provedor_ia || 'n/d')}</div>
+        <div style="color:var(--muted);font-size:.78rem">${escHtml(b._modelo_ia || 'n/d')}</div>
+        ${(tokIn || tokOut) ? `<div style="color:var(--muted);font-size:.75rem;margin-top:4px">Tokens: ↑${tokIn ?? 'n/d'} ↓${tokOut ?? 'n/d'}</div>` : ''}
+        <div style="color:var(--alert);font-size:.78rem;margin-top:2px;font-weight:600">${custo}</div>
+      </div>`;
+    }).join('');
+
+    return `<div class="info-card" style="margin-bottom:16px">
+      <h3>🤖 Uso da IA</h3>
+      <div class="ai-usage-grid">${linhasBloco}</div>
+      <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <span style="color:var(--muted);font-size:.82rem">
+          ${totalTok ? totalTok.toLocaleString('pt-BR') + ' tokens totais · ' : ''}Custo total estimado
+        </span>
+        <span style="color:var(--primary);font-weight:700;font-size:.9rem">${total ? moeda + ' ' + total.toFixed(6) : 'n/d'}</span>
+      </div>
+    </div>`;
+  }
+
+  function voltarParaReunioes() {
+    mostrarPagina(_paginaAnterior, null);
+    const mapa = { dashboard: 0, reunioes: 1, sessoes: 2, analisar: 3, configuracoes: 5 };
+    const idx = mapa[_paginaAnterior] ?? 1;
+    document.querySelectorAll('.nav-item')[idx]?.classList.add('active');
+  }
+
+  /* ─── Participantes extras ────────────────────────── */
+  const PAPEIS = ['vendedor', 'cliente', 'gerente', 'consultor', 'observador'];
+
+  function adicionarParticipante() {
+    const id = Date.now();
+    _participantesExtras.push({ id, nome: '', papel: 'cliente' });
+    renderizarParticipantes();
+  }
+
+  function removerParticipante(id) {
+    _participantesExtras = _participantesExtras.filter(p => p.id !== id);
+    renderizarParticipantes();
+  }
+
+  function renderizarParticipantes() {
+    const container = document.getElementById('participantes-extras');
+    if (!_participantesExtras.length) { container.innerHTML = ''; return; }
+    container.innerHTML = _participantesExtras.map(p => `
+      <div class="extra-participant" id="ep-${p.id}">
+        <div>
+          <label class="field-label" style="font-size:.75rem;margin-bottom:4px">Nome</label>
+          <input
+            type="text"
+            class="field-input"
+            placeholder="Nome do participante"
+            value="${escHtml(p.nome)}"
+            oninput="atualizarParticipante(${p.id}, 'nome', this.value)"
+            aria-label="Nome do participante"
+          />
+        </div>
+        <div>
+          <label class="field-label" style="font-size:.75rem;margin-bottom:4px">Papel</label>
+          <select
+            class="field-select"
+            style="width:100%"
+            onchange="atualizarParticipante(${p.id}, 'papel', this.value)"
+            aria-label="Papel do participante"
+          >
+            ${PAPEIS.map(papel => `<option value="${papel}" ${p.papel === papel ? 'selected' : ''}>${papel.charAt(0).toUpperCase() + papel.slice(1)}</option>`).join('')}
+          </select>
+        </div>
+        <button
+          class="btn-remove-participant"
+          onclick="removerParticipante(${p.id})"
+          title="Remover participante"
+          aria-label="Remover participante"
+        >✕</button>
+      </div>
+    `).join('');
+  }
+
+  function atualizarParticipante(id, campo, valor) {
+    const p = _participantesExtras.find(x => x.id === id);
+    if (p) p[campo] = valor;
+  }
+
+  /* ─── Contador de caracteres ──────────────────────── */
+  function atualizarContador() {
+    const len = document.getElementById('an-transcricao').value.length;
+    const counter = document.getElementById('char-counter');
+    if (counter) counter.textContent = len.toLocaleString('pt-BR') + ' caracteres';
+  }
+
+  /* ─── Analisar ────────────────────────────────────── */
   async function analisar() {
     const transcricao = document.getElementById('an-transcricao').value.trim();
     const titulo      = document.getElementById('an-titulo').value.trim() || 'Reunião Manual';
+    const vendedor    = document.getElementById('an-vendedor')?.value.trim() || '';
+    const cliente     = document.getElementById('an-cliente')?.value.trim() || '';
     const resultado   = document.getElementById('an-resultado');
-    const loading     = document.getElementById('an-loading');
+    const erroEl      = document.getElementById('an-erro');
+    const btn         = document.getElementById('btn-analisar');
+    const btnText     = document.getElementById('btn-text');
 
+    // Clear errors
+    erroEl.style.display = 'none';
+    erroEl.textContent = '';
+    document.getElementById('an-transcricao').classList.remove('error');
+
+    // Validate
     if (!transcricao) {
-      resultado.innerHTML = '<div class="erro">Cole a transcrição antes de analisar.</div>';
+      erroEl.textContent = '⚠️ O campo de transcrição é obrigatório. Cole o texto da reunião antes de analisar.';
+      erroEl.style.display = 'block';
+      document.getElementById('an-transcricao').classList.add('error');
+      document.getElementById('an-transcricao').focus();
       return;
     }
 
-    loading.classList.add('visible');
+    // Build participant map
+    const nomes  = { vendedor, cliente };
+    const extras = _participantesExtras.filter(p => p.nome.trim());
+    const falasSeparadas = detectarFalas(transcricao, nomes, extras);
+    const transcricaoComParticipantes = falasSeparadas.length
+      ? falasSeparadas.map(f => `${f.speaker}: ${f.text}`).join('\n')
+      : transcricao;
+
+    // Loading state
+    btn.disabled = true;
+    btn.classList.add('loading');
+    btnText.textContent = 'Analisando...';
     resultado.innerHTML = '';
 
     try {
       const r = await fetch(API + '/recapitulacao-manual', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transcricao, titulo_reuniao: titulo }),
+        body: JSON.stringify({ transcricao: transcricaoComParticipantes, titulo_reuniao: titulo }),
       });
 
-      if (!r.ok) {
-        const err = await r.json().catch(() => ({ detail: r.statusText }));
-        throw new Error(err.detail || `Erro ${r.status}`);
-      }
+      if (!r.ok) throw await criarErroHttp(r);
 
       const dados = await r.json();
-      verDetalhe(dados);
-      mostrarPagina('detalhe', null);
+      dados.falas_separadas = falasSeparadas;
+      dados.participantes   = { vendedor, cliente };
+
+      resultado.innerHTML = renderizarResultadoAnalisar(dados, titulo, vendedor, cliente, falasSeparadas);
+      resultado.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     } catch (err) {
-      resultado.innerHTML = `<div class="erro">❌ ${escHtml(err.message)}</div>`;
+      erroEl.textContent = '❌ ' + (err.message || 'Erro desconhecido.');
+      erroEl.style.display = 'block';
     } finally {
-      loading.classList.remove('visible');
+      btn.disabled = false;
+      btn.classList.remove('loading');
+      btnText.textContent = '🔍 Analisar Transcrição';
     }
   }
 
-  // ── Sessões ao Vivo ───────────────────────────────
+  /* ─── Renderizar resultado completo ──────────────── */
+  function renderizarResultadoAnalisar(dados, titulo, vendedor, cliente, falas) {
+    const recap    = dados.recapitulacao || {};
+    const fin      = dados.diagnostico_financeiro || {};
+    const estrateg = recap.recapitulacao_estrategica || {};
+    const passos   = recap.proximos_passos || [];
+    const objecoes = estrateg.objecoes_levantadas || recap.top_objecoes || [];
+
+    const vFalas = falasPorRole(falas, 'vendedor');
+    const cFalas = falasPorRole(falas, 'cliente');
+    const desconhecidas = falas.filter(f => f.role === 'desconhecido' && f.text.length > 18).slice(0, 4);
+
+    const sugestoes = [
+      recap.sugestoes_melhoria,
+      recap.sugestao_melhoria,
+      recap.script_follow_up ? ['Usar script de follow-up: ' + recap.script_follow_up] : null,
+    ].flat().filter(Boolean);
+
+    const recapFinal = recap.recapitulacao_completa
+      || recap.recapitulacao_final
+      || (recap.recapitulacao_estrategica?.conclusao)
+      || recap.justificativa_probabilidade
+      || '';
+
+    let html = `<div class="resultado-container">`;
+
+    // Header
+    html += `<div class="resultado-header">
+      <div>
+        <div class="resultado-title">✅ Análise concluída</div>
+        <div class="resultado-meta">${escHtml(titulo)} · ${new Date().toLocaleString('pt-BR', { timeStyle: 'short', dateStyle: 'short' })}</div>
+      </div>
+      <span class="version-badge">V.1.3.2</span>
+    </div>`;
+
+    // 1. Resumo da reunião
+    const resumo = recap.resumo_executivo || recap.recapitulacao || '';
+    if (resumo) {
+      html += `<div class="resultado-grid">
+        <div class="resultado-card full">
+          <h3>📝 RESUMO DA REUNIÃO</h3>
+          <p>${escHtml(limparFrasesGatilho(resumo))}</p>
+        </div>
+      </div>`;
+    }
+
+    // 2. Pontos principais + Dados identificados
+    const pontos = estrateg.pontos_principais || estrateg.dores_identificadas || [];
+    html += `<div class="resultado-grid">`;
+    if (pontos.length) {
+      html += `<div class="resultado-card">
+        <h3>⭐ PONTOS PRINCIPAIS</h3>
+        <ul>${pontos.map(p => `<li>${escHtml(limparFrasesGatilho(p))}</li>`).join('')}</ul>
+      </div>`;
+    }
+    const temDados = fin.faturamento_mensal || fin.capacidade_investimento || fin.produto_recomendado || dados.perfil_disc?.tipo;
+    if (temDados) {
+      html += `<div class="resultado-card">
+        <h3>📊 DADOS IDENTIFICADOS</h3>
+        <ul>
+          ${fin.faturamento_mensal ? `<li>Faturamento: <strong>${escHtml(fin.faturamento_mensal)}</strong></li>` : ''}
+          ${fin.capacidade_investimento ? `<li>Capacidade de investimento: <strong>${escHtml(fin.capacidade_investimento)}</strong></li>` : ''}
+          ${fin.produto_recomendado ? `<li>Produto recomendado: <strong>${escHtml(fin.produto_recomendado)}</strong></li>` : ''}
+          ${dados.perfil_disc?.tipo ? `<li>Perfil DISC: <strong>${escHtml(dados.perfil_disc.tipo)}</strong></li>` : ''}
+        </ul>
+      </div>`;
+    }
+    html += `</div>`;
+
+    // 3. Objeções do cliente
+    if (objecoes.length) {
+      html += `<div class="resultado-grid">
+        <div class="resultado-card full">
+          <h3>🛡️ OBJEÇÕES DO CLIENTE</h3>
+          <ul>${objecoes.map(o => `<li>${escHtml(limparFrasesGatilho(typeof o === 'string' ? o : (o.objecao || '')))}</li>`).join('')}</ul>
+        </div>
+      </div>`;
+    }
+
+    // 4. Próximos passos
+    if (passos.length) {
+      html += `<div class="resultado-grid">
+        <div class="resultado-card full">
+          <h3>📌 PRÓXIMOS PASSOS</h3>
+          ${passos.map(p => `<div class="passo">
+            <div class="passo-icon">${p.responsavel === 'cliente' ? '👤' : '📞'}</div>
+            <div>
+              <div style="font-weight:600;font-size:.92rem">${escHtml(limparFrasesGatilho(p.acao || String(p)))}</div>
+              ${(p.prazo || p.responsavel) ? `<div style="color:var(--muted);font-size:.8rem;margin-top:2px">${escHtml(p.prazo || '')}${p.prazo && p.responsavel ? ' · ' : ''}${escHtml(p.responsavel || '')}</div>` : ''}
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    }
+
+    // 5. Falas do vendedor
+    if (vFalas.length) {
+      html += `<div class="resultado-grid">
+        <div class="resultado-card full falas-section">
+          <h3>🎙 FALAS DO VENDEDOR${vendedor ? ' — ' + escHtml(vendedor) : ''}</h3>
+          ${vFalas.map(f => `<div class="fala-block">
+            <div class="fala-speaker vendedor">● ${escHtml(f.speaker)}</div>
+            ${escHtml(limparFrasesGatilho(f.text))}
+          </div>`).join('')}
+        </div>
+      </div>`;
+    }
+
+    // 6. Falas do cliente
+    if (cFalas.length) {
+      html += `<div class="resultado-grid">
+        <div class="resultado-card full falas-section">
+          <h3>👤 FALAS DO CLIENTE${cliente ? ' — ' + escHtml(cliente) : ''}</h3>
+          ${cFalas.map(f => `<div class="fala-block">
+            <div class="fala-speaker cliente">● ${escHtml(f.speaker)}</div>
+            ${escHtml(limparFrasesGatilho(f.text))}
+          </div>`).join('')}
+        </div>
+      </div>`;
+    }
+
+    // Participantes não identificados
+    if (desconhecidas.length) {
+      html += `<div class="resultado-grid">
+        <div class="resultado-card full falas-section">
+          <h3>❓ PARTICIPANTE NÃO IDENTIFICADO</h3>
+          ${desconhecidas.map(f => `<div class="fala-block">
+            <div class="fala-speaker unknown">● ${escHtml(f.speaker)}</div>
+            ${escHtml(limparFrasesGatilho(f.text))}
+          </div>`).join('')}
+        </div>
+      </div>`;
+    }
+
+    // 7. Sugestões de melhoria
+    if (sugestoes.length) {
+      const lista = Array.isArray(sugestoes[0]) ? sugestoes.flat() : sugestoes;
+      html += `<div class="resultado-grid">
+        <div class="resultado-card full">
+          <h3>💡 SUGESTÕES DE MELHORIA</h3>
+          ${lista.map((s, i) => `<div class="melhoria-item">
+            <div class="melhoria-num">${i + 1}</div>
+            <div style="color:#CBD5E1;font-size:.92rem;line-height:1.65">${escHtml(limparFrasesGatilho(String(s)))}</div>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    }
+
+    // 8. Recapitulação final
+    if (recapFinal) {
+      html += `<div class="resultado-grid">
+        <div class="resultado-card full" style="border-color:rgba(20,184,166,.25)">
+          <h3 style="color:var(--primary)">🔄 RECAPITULAÇÃO FINAL</h3>
+          <p>${escHtml(limparFrasesGatilho(recapFinal))}</p>
+        </div>
+      </div>`;
+    }
+
+    html += renderUsoIa(dados);
+    html += `</div>`;
+    return html;
+  }
+
+  /* ─── Sessões ao Vivo ─────────────────────────────── */
   async function carregarSessoes() {
     const container = document.getElementById('lista-sessoes');
     const info = document.getElementById('sessoes-info');
@@ -856,24 +2049,22 @@
   }
 
   function cardSessaoHTML(s) {
-    const meetId = escHtml(s.meeting_id || 'default');
-    const disc   = escHtml(s.disc_identificado || '?');
-    const num    = s.num_analises || 0;
-    const criado = escHtml((s.created_at || '').replace('T', ' ').slice(0, 16));
-    const atualizado = escHtml((s.updated_at || '').replace('T', ' ').slice(0, 16));
+    const meetId  = escHtml(s.meeting_id || 'default');
+    const disc    = escHtml(s.disc_identificado || '?');
+    const num     = s.num_analises || 0;
+    const criado  = escHtml((s.created_at || '').replace('T', ' ').slice(0, 16));
+    const atualiz = escHtml((s.updated_at || '').replace('T', ' ').slice(0, 16));
     const preview = escHtml((s.preview || '').slice(0, 120));
-    const discCor = disc === 'D' ? '#ff4444' : disc === 'I' ? '#ffaa00' : disc === 'S' ? '#00d4aa' : disc === 'C' ? '#90caf9' : '#555';
+    const discCor = disc === 'D' ? '#f87171' : disc === 'I' ? '#fbbf24' : disc === 'S' ? '#2dd4bf' : disc === 'C' ? '#90caf9' : '#555';
     return `<div class="reuniao-card" onclick="verSessaoDetalhe(${s.id})" style="position:relative">
-      <div class="score-circle" style="border-color:${discCor};color:${discCor};font-size:.85rem">
-        ${disc}
-      </div>
+      <div class="score-circle" style="border-color:${discCor};color:${discCor};font-size:.85rem">${disc}</div>
       <div class="reuniao-info">
         <div class="reuniao-titulo">${meetId}</div>
-        <div class="reuniao-meta">${criado} · ${num} análise(s) · atualizado ${atualizado}</div>
+        <div class="reuniao-meta">${criado} · ${num} análise(s) · atualizado ${atualiz}</div>
         <div style="color:var(--muted);font-size:.8rem;margin-top:4px">${preview}...</div>
       </div>
       <button onclick="excluirSessao(${s.id}, event)" title="Excluir sessão"
-        style="background:none;border:1px solid #ff444466;color:#ff4444;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.8rem;flex-shrink:0">
+        style="background:none;border:1px solid rgba(239,68,68,.4);color:var(--danger);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.8rem;flex-shrink:0">
         🗑️
       </button>
     </div>`;
@@ -897,7 +2088,6 @@
     document.getElementById('page-sessao-detalhe').classList.add('active');
     document.getElementById('sd-titulo').textContent = 'Sessão #' + id;
     document.getElementById('sd-conteudo').innerHTML = '<div style="color:var(--muted)">Carregando...</div>';
-
     try {
       const r = await fetch(API + '/sessoes/' + id);
       if (!r.ok) throw new Error('Erro ' + r.status);
@@ -909,10 +2099,10 @@
   }
 
   function renderizarSessaoDetalhe(s) {
-    const analise = s.ultima_analise || {};
-    const disc    = analise.perfil_disc || {};
+    const analise  = s.ultima_analise || {};
+    const disc     = analise.perfil_disc || {};
     const discTipo = disc.tipo || s.disc_identificado || '?';
-    const discCor  = discTipo === 'D' ? '#ff4444' : discTipo === 'I' ? '#ffaa00' : discTipo === 'S' ? '#00d4aa' : '#90caf9';
+    const discCor  = discTipo === 'D' ? '#f87171' : discTipo === 'I' ? '#fbbf24' : discTipo === 'S' ? '#2dd4bf' : '#90caf9';
     const criado   = (s.created_at || '').replace('T', ' ').slice(0, 16);
     const num      = s.num_analises || 0;
 
@@ -923,11 +2113,10 @@
       <div><div style="color:var(--muted);font-size:.8rem">DISC</div><div style="font-weight:700;font-size:1.4rem;color:${discCor}">${escHtml(discTipo)}</div></div>
     </div>`;
 
-    // Última análise
     if (analise.alerta_urgente) {
-      html += `<div class="info-card" style="margin-bottom:16px;border-color:#ff444444">
+      html += `<div class="info-card" style="margin-bottom:16px;border-color:rgba(239,68,68,.3)">
         <h3 style="color:var(--danger)">⚠️ Alerta Urgente</h3>
-        <p style="color:#ccc">${escHtml(analise.alerta_urgente)}</p>
+        <p style="color:#cbd5e1">${escHtml(analise.alerta_urgente)}</p>
       </div>`;
     }
 
@@ -937,21 +2126,21 @@
         <h3>🎯 Perfil DISC</h3>
         <div style="font-size:2rem;font-weight:700;color:${discCor}">${escHtml(disc.tipo)}</div>
         <div style="color:var(--muted);font-size:.82rem;margin-top:4px">Confiança: ${escHtml(disc.confianca || '')}</div>
-        <p style="color:#ccc;margin-top:6px">${escHtml(disc.acao_sugerida || '')}</p>
+        <p style="color:#cbd5e1;margin-top:6px">${escHtml(disc.acao_sugerida || '')}</p>
       </div>`;
     }
     if (analise.proxima_acao) {
       html += `<div class="info-card">
         <h3>💬 Próxima Ação Sugerida</h3>
-        <p style="color:#ccc;font-style:italic">"${escHtml(analise.proxima_acao)}"</p>
+        <p style="color:#cbd5e1;font-style:italic">"${escHtml(analise.proxima_acao)}"</p>
       </div>`;
     }
     html += `</div>`;
 
     if (analise.oportunidade_perdida) {
-      html += `<div class="info-card" style="margin-bottom:16px;border-color:#ffaa0044">
-        <h3 style="color:var(--warn)">💡 Oportunidade</h3>
-        <p style="color:#ccc">${escHtml(analise.oportunidade_perdida)}</p>
+      html += `<div class="info-card" style="margin-bottom:16px;border-color:rgba(251,191,36,.25)">
+        <h3 style="color:var(--alert)">💡 Oportunidade</h3>
+        <p style="color:#cbd5e1">${escHtml(analise.oportunidade_perdida)}</p>
       </div>`;
     }
 
@@ -959,31 +2148,35 @@
     if (objecoes.length) {
       html += `<div class="info-card" style="margin-bottom:16px">
         <h3>🛡️ Objeções Detectadas</h3>
-        ${objecoes.map(o => `<div class="passo"><div class="passo-icon">❗</div><div><div style="font-weight:600">${escHtml(o.objecao || '')}</div><div style="color:var(--muted);font-size:.82rem;margin-top:2px">${escHtml(o.resposta || '')}</div></div></div>`).join('')}
+        ${objecoes.map(o => `<div class="passo">
+          <div class="passo-icon">❗</div>
+          <div>
+            <div style="font-weight:600">${escHtml(o.objecao || '')}</div>
+            <div style="color:var(--muted);font-size:.82rem;margin-top:2px">${escHtml(o.resposta || '')}</div>
+          </div>
+        </div>`).join('')}
       </div>`;
     }
 
-    // Transcrição acumulada
     const transcricao = s.transcricao_acumulada || '';
     html += `<div class="info-card" style="margin-bottom:16px">
       <h3>📝 Transcrição Acumulada</h3>
-      <div style="display:flex;gap:8px;margin-bottom:10px">
+      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
         <span style="color:var(--muted);font-size:.82rem">${transcricao.length.toLocaleString()} caracteres</span>
         <button onclick="copiarTranscricao()" style="background:none;border:1px solid var(--border);color:var(--text);padding:2px 10px;border-radius:4px;cursor:pointer;font-size:.8rem">📋 Copiar</button>
-        <button onclick="analisarEstaTranscricao()" style="background:var(--primary);border:none;color:#000;padding:2px 10px;border-radius:4px;cursor:pointer;font-size:.8rem;font-weight:600">🔍 Analisar completo</button>
+        <button onclick="analisarEstaTranscricao()" style="background:var(--primary);border:none;color:#022c22;padding:2px 10px;border-radius:4px;cursor:pointer;font-size:.8rem;font-weight:600">🔍 Analisar completo</button>
       </div>
-      <textarea id="transcricao-sessao" style="min-height:280px;font-size:.82rem;line-height:1.6">${escHtml(transcricao)}</textarea>
+      <textarea id="transcricao-sessao" class="field-textarea" style="min-height:280px;font-size:.82rem;line-height:1.6">${escHtml(transcricao)}</textarea>
     </div>`;
 
     document.getElementById('sd-titulo').textContent = 'Sessão #' + s.id + ' — ' + (s.meeting_id || '');
-    html = `<div style="display:flex;justify-content:flex-end;gap:8px;align-items:center;margin-bottom:12px">
-      <button onclick="exportarParaBase(${s.id})" style="background:var(--primary);border:none;color:#000;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:.85rem;font-weight:600">📚 Adicionar à Base de IA</button>
+    html = `<div style="display:flex;justify-content:flex-end;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <button onclick="exportarParaBase(${s.id})" style="background:var(--primary);border:none;color:#022c22;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:.85rem;font-weight:600">📚 Adicionar à Base de IA</button>
       <span id="exportar-feedback" style="font-size:.8rem;color:var(--muted)"></span>
       <button onclick="excluirSessaoDetalhe(${s.id})" style="background:none;border:1px solid var(--danger);color:var(--danger);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:.85rem">🗑️ Excluir sessão</button>
     </div>` + html;
-    document.getElementById('sd-conteudo').innerHTML = html;
 
-    // Guardar transcrição para usar nas funções de ação
+    document.getElementById('sd-conteudo').innerHTML = html;
     window._sessaoTranscricao = transcricao;
   }
 
@@ -996,13 +2189,14 @@
     const txt = window._sessaoTranscricao || '';
     document.getElementById('an-transcricao').value = txt;
     document.getElementById('an-titulo').value = 'Análise de Sessão';
+    atualizarContador();
     mostrarPagina('analisar', null);
-    document.querySelectorAll('.nav-item')[3].classList.add('active');
+    document.querySelectorAll('.nav-item')[3]?.classList.add('active');
   }
 
   function voltarParaSessoes() {
     mostrarPagina('sessoes', null);
-    document.querySelectorAll('.nav-item')[2].classList.add('active');
+    document.querySelectorAll('.nav-item')[2]?.classList.add('active');
   }
 
   async function exportarParaBase(id) {
@@ -1015,13 +2209,12 @@
         body: JSON.stringify({ titulo: '', tipo: 'reuniao' }),
       });
       const txt = await r.text();
-      let d;
-      try { d = JSON.parse(txt); } catch { d = {}; }
+      let d; try { d = JSON.parse(txt); } catch { d = {}; }
       if (!r.ok) {
         const det = d.detail;
         const msg = typeof det === 'string' ? det
-                  : Array.isArray(det) ? det.map(function(x) { return x.msg || JSON.stringify(x); }).join('; ')
-                  : (d.erro || d.error || 'Erro ' + r.status);
+          : Array.isArray(det) ? det.map(x => x.msg || JSON.stringify(x)).join('; ')
+          : (d.erro || d.error || 'Erro ' + r.status);
         if (fb) fb.textContent = '❌ ' + msg;
         return;
       }
@@ -1042,24 +2235,55 @@
     }
   }
 
-  // ── Utilitários ────────────────────────────────────
+  /* ─── Utilitários ─────────────────────────────────── */
   function escHtml(t) {
     if (typeof t !== 'string') return String(t ?? '');
-    return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  async function criarErroHttp(response) {
+    const payload = await response.json().catch(async () => {
+      const texto = await response.text().catch(() => '');
+      return { detail: texto || response.statusText };
+    });
+    const detalhe = payload?.detail ?? payload?.erro ?? payload?.error ?? payload;
+    const erro = new Error(textoErroApi(detalhe, response.status));
+    erro.status = response.status;
+    erro.detalheApi = detalhe;
+    return erro;
+  }
+
+  function textoErroApi(detalhe, status) {
+    if (typeof detalhe === 'string') return detalhe || ('Erro ' + status);
+    if (detalhe && typeof detalhe === 'object') {
+      const base = detalhe.erro || detalhe.message || detalhe.detail || ('Erro ' + status);
+      if (Array.isArray(detalhe.provedores_tentados) && detalhe.provedores_tentados.length) {
+        const tentativas = detalhe.provedores_tentados.map(p => {
+          const modelo = p.model ? ' (' + p.model + ')' : '';
+          const motivo = p.error ? ' - ' + p.error : '';
+          return (p.provider || 'provedor') + ': ' + (p.status || 'falhou') + modelo + motivo;
+        }).join(' | ');
+        return base + ' Tentativas: ' + tentativas;
+      }
+      return base;
+    }
+    return 'Erro ' + status;
   }
 
   function norm(s) {
     if (!s) return '';
-    return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[éê]/g,'e');
+    return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   }
 
-  // ── Init ───────────────────────────────────────────
+  /* ─── Init ────────────────────────────────────────── */
   carregarDashboard();
   setInterval(verificarBackend, 10000);
 
-  // Atalho: Enter no campo de busca
   document.addEventListener('keydown', e => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') analisar();
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      const analisarPage = document.getElementById('page-analisar');
+      if (analisarPage?.classList.contains('active')) analisar();
+    }
   });
 </script>
 </body>

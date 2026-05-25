@@ -14,16 +14,23 @@ Endpoints:
 
 import os
 import json
+import asyncio
 import html as html_module
 import logging
 from datetime import datetime
+from pathlib import Path
 from typing import Optional, List
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from dotenv import load_dotenv
+load_dotenv()
+
+from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
-from openai import OpenAI
+
+from api.ai_router import chamar_ia, definir_provedor_preferido, rotacionar_provedor_preferido, snapshot_provedores
+from api.database import criar_tabelas, salvar_relatorio as db_salvar, listar_relatorios as db_listar, buscar_ultimo_relatorio as db_ultimo, obter_meeting_memory
 
 logger = logging.getLogger(__name__)
 
@@ -45,25 +52,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Cliente OpenAI (inicializado de forma lazy para não falhar se a chave não estiver configurada)
-_openai_client: Optional[OpenAI] = None
+# Clientes de IA gerenciados pelo ai_router (com fallback automático)
 
-
-def get_openai_client() -> OpenAI:
-    """Retorna o cliente OpenAI, inicializando-o na primeira chamada."""
-    global _openai_client
-    if _openai_client is None:
-        api_key = os.environ.get("OPENAI_API_KEY")
-        if not api_key:
-            raise HTTPException(
-                status_code=503,
-                detail="OPENAI_API_KEY não configurada. Defina a variável de ambiente."
-            )
-        _openai_client = OpenAI(api_key=api_key)
-    return _openai_client
-
-# Armazenamento em memória do último relatório (em produção, usar banco de dados)
+# Armazenamento em memória do último relatório (cache rápido)
 ultimo_relatorio: dict = {}
+
+# Pasta para persistência de relatórios em arquivo (fallback legado)
+PASTA_RELATORIOS = Path("data/relatorios")
+PASTA_RELATORIOS.mkdir(parents=True, exist_ok=True)
+
+# ─────────────────────────────────────────────
+# BANCO DE DADOS — SQLite via SQLModel
+# ─────────────────────────────────────────────
+from api.database import criar_tabelas, salvar_relatorio as db_salvar, listar_relatorios as db_listar, buscar_ultimo_relatorio as db_ultimo
+
+@app.on_event("startup")
+def on_startup():
+    criar_tabelas()
+    logger.info("✅ Banco de dados inicializado.")
+    # Criar tabela de sessões no MySQL
+    try:
+        from agent.sessao_manager import criar_tabela_sessoes
+        criar_tabela_sessoes()
+    except Exception as e:
+        logger.warning("Tabela sessoes não criada no MySQL: %s", e)
 
 # ─────────────────────────────────────────────
 # TABELA DE PREÇOS DOS PRODUTOS
@@ -95,6 +107,7 @@ class TempoRealRequest(BaseModel):
     perfil_disc_atual: Optional[str] = None
     mapa_financeiro: Optional[dict] = None
     meeting_id: Optional[str] = "default"
+    transcricao_nova: Optional[str] = None  # delta: only new entries since last send
 
 
 class TactiqWebhookRequest(BaseModel):
@@ -117,6 +130,29 @@ class RecapitulacaoRequest(BaseModel):
     transcricao: str
     titulo_reuniao: Optional[str] = "Reunião de Vendas"
     data: Optional[str] = None
+
+
+class RecapitulacaoVivaRequest(BaseModel):
+    meeting_id: str
+
+
+class ProvedorIARequest(BaseModel):
+    provedor: str
+
+
+class IniciarSessaoRequest(BaseModel):
+    meeting_id: str
+
+
+class ExportarBaseRequest(BaseModel):
+    titulo: Optional[str] = ""
+    tipo: Optional[str] = "reuniao"
+
+
+class AudioTranscricaoRequest(BaseModel):
+    audio_base64: str          # formato: "data:audio/webm;base64,XXXX"
+    mime_type: Optional[str] = "audio/webm"
+    meeting_id: Optional[str] = "default"
 
 
 # ─────────────────────────────────────────────
@@ -262,26 +298,8 @@ Retorne APENAS um JSON válido (sem markdown):
 # FUNÇÃO AUXILIAR — CHAMAR GPT-4o
 # ─────────────────────────────────────────────
 def chamar_gpt(system_prompt: str, user_content: str, modelo: str = "gpt-4o") -> dict:
-    """Chama o GPT-4o e retorna o JSON da resposta."""
-    try:
-        openai_client = get_openai_client()
-        resposta = openai_client.chat.completions.create(
-            model=modelo,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_content},
-            ],
-            temperature=0.3,
-            response_format={"type": "json_object"},
-        )
-        conteudo = resposta.choices[0].message.content
-        return json.loads(conteudo)
-    except json.JSONDecodeError as e:
-        logger.error("Erro ao parsear resposta da IA: %s", e)
-        raise HTTPException(status_code=500, detail="Erro ao processar resposta da IA. Tente novamente.")
-    except Exception as e:
-        logger.error("Erro ao chamar GPT-4o: %s", e)
-        raise HTTPException(status_code=500, detail="Erro ao conectar com a IA. Verifique a chave OPENAI_API_KEY.")
+    """Chama a IA com fallback automático: OpenAI → Anthropic → Gemini."""
+    return chamar_ia(system_prompt, user_content)
 
 
 # ─────────────────────────────────────────────
@@ -290,13 +308,51 @@ def chamar_gpt(system_prompt: str, user_content: str, modelo: str = "gpt-4o") ->
 
 @app.get("/health")
 def health_check():
-    """Verificação de saúde do serviço."""
+    """Verificação de saúde do serviço — inclui status dos provedores de IA."""
+    snapshot = snapshot_provedores()
+    provedores = snapshot["ia"]
+    ia_ok = any(
+        p.get("status") == "ok" or p.get("status", "").startswith("degradado")
+        for p in provedores.values()
+    )
     return {
-        "status": "online",
+        "status": "online" if ia_ok else "degradado",
         "servico": "SALEIA Backend",
-        "versao": "1.0.0",
+        "versao": "1.3.0",
         "timestamp": datetime.now().isoformat(),
+        "ia": provedores,
+        "ordem_ia": snapshot["ordem_ia"],
+        "provedor_preferido": snapshot["provedor_preferido"],
+        "banco": "mysql" if os.environ.get("DB_HOST") else "sqlite",
     }
+
+
+@app.post("/ai/provedor/proximo")
+def trocar_provedor_preferido():
+    """Rotaciona a prioridade dos provedores de IA sem expor credenciais."""
+    return rotacionar_provedor_preferido()
+
+
+@app.post("/ai/provedor/preferido")
+def definir_provedor_ia(req: ProvedorIARequest):
+    """Define manualmente o provedor preferido da IA sem expor credenciais."""
+    return definir_provedor_preferido(req.provedor)
+
+
+@app.websocket("/ws/heartbeat")
+async def websocket_heartbeat(websocket: WebSocket):
+    """
+    Heartbeat WebSocket — a extensão Chrome mantém conexão aberta.
+    Se o backend reiniciar, a extensão detecta a desconexão e tenta reconectar
+    automaticamente, sem o vendedor precisar recarregar a página.
+    """
+    await websocket.accept()
+    try:
+        while True:
+            await websocket.send_json({"status": "online", "ts": datetime.now().isoformat()})
+            await asyncio.sleep(5)
+    except WebSocketDisconnect:
+        pass
 
 
 @app.post("/tempo-real")
@@ -308,6 +364,16 @@ async def analisar_tempo_real(req: TempoRealRequest):
     if not req.transcricao_parcial and not req.historico:
         raise HTTPException(status_code=400, detail="Transcrição vazia — ative as legendas no Meet")
 
+    # Salvar transcrição bruta ANTES do GPT — garante persistência mesmo se GPT falhar
+    # Usa transcricao_nova (delta) se disponível para evitar duplicatas no DB.
+    _para_salvar = (req.transcricao_nova or "").strip() or (req.transcricao_parcial or "").strip()
+    if _para_salvar:
+        try:
+            from agent.sessao_manager import salvar_transcricao_bruta
+            salvar_transcricao_bruta(req.meeting_id or "default", _para_salvar)
+        except Exception as _e:
+            logger.warning("[Sessões] Não foi possível salvar transcrição bruta: %s", _e)
+
     from api.processador_tempo_real import processar_fragmento_tempo_real
 
     try:
@@ -317,10 +383,18 @@ async def analisar_tempo_real(req: TempoRealRequest):
             perfil_disc_atual=req.perfil_disc_atual or "",
             mapa_financeiro=req.mapa_financeiro,
             meeting_id=req.meeting_id or "default",
+            transcricao_nova=req.transcricao_nova or "",
         )
     except Exception as e:
         logger.error("Erro ao processar fragmento tempo real: %s", e)
-        raise HTTPException(status_code=500, detail="Erro ao processar transcrição. Verifique a chave OPENAI_API_KEY.")
+        raise HTTPException(status_code=500, detail="Erro ao processar transcricao. Verifique as APIs de IA configuradas.")
+
+    # Persistir última análise para o endpoint /cenario
+    try:
+        from agent.sessao_manager import salvar_analise
+        salvar_analise(req.meeting_id or "default", req.transcricao_parcial or "", resultado)
+    except Exception as _e:
+        logger.warning("[Cenário] Não foi possível salvar análise: %s", _e)
 
     return resultado
 
@@ -375,6 +449,23 @@ def processar_transcricao_completa(req: TactiqWebhookRequest):
             "perfil_disc": disc,
             "gerado_em": datetime.now().isoformat(),
         }
+
+        # Persistir no banco SQLite
+        try:
+            db_salvar(
+                meeting_id=req.meeting_title or "default",
+                nome_reuniao=req.meeting_title or "Reunião de Vendas",
+                dados=ultimo_relatorio,
+            )
+            logger.info("📄 Relatório salvo no banco SQLite.")
+        except Exception as e:
+            logger.warning("Erro ao salvar no banco: %s — salvando em arquivo.", e)
+            import unicodedata, re
+            nome_safe = unicodedata.normalize("NFKD", req.meeting_title or "reuniao")
+            nome_safe = re.sub(r"[^\w\s-]", "", nome_safe).strip().replace(" ", "_")[:40]
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            caminho = PASTA_RELATORIOS / f"{timestamp}_{nome_safe}.json"
+            caminho.write_text(json.dumps(ultimo_relatorio, ensure_ascii=False, indent=2), encoding="utf-8")
     except Exception as e:
         ultimo_relatorio = {"erro": str(e), "gerado_em": datetime.now().isoformat()}
 
@@ -434,11 +525,74 @@ def recapitulacao_completa(req: RecapitulacaoRequest):
     return resultado
 
 
+@app.post("/recapitulacao-viva")
+async def recapitulacao_viva(req: RecapitulacaoVivaRequest):
+    """
+    Gera ou regenera a recapitulação guiada usando a MeetingMemory persistida.
+    """
+    if not req.meeting_id:
+        raise HTTPException(status_code=400, detail="meeting_id é obrigatório")
+
+    memoria = obter_meeting_memory(req.meeting_id)
+    if not memoria:
+        raise HTTPException(status_code=404, detail="MeetingMemory não encontrada para este meeting_id")
+
+    from agent.recapitulacao import generateLiveRecapMindMap
+
+    current_diagnosis = {}
+    if memoria.get("current_diagnosis"):
+        try:
+            current_diagnosis = json.loads(memoria["current_diagnosis"])
+        except Exception:
+            current_diagnosis = {}
+
+    trigger = {
+        "triggered": True,
+        "reason": "manual_regenerate",
+        "trigger_phrase": "regenerar manualmente",
+        "confidence": "medium",
+        "fact_or_inference": "inference",
+        "timestamp": datetime.now().isoformat(),
+    }
+
+    resultado = await generateLiveRecapMindMap(
+        transcricao_recente=memoria.get("transcript_buffer") or memoria.get("transcript_full") or "",
+        resumo_vivo=memoria.get("accumulated_summary") or "",
+        diagnostico_atual=current_diagnosis,
+        score_history=memoria.get("score_history") or [],
+        key_moments=memoria.get("key_moments") or [],
+        events=memoria.get("events") or [],
+        trigger=trigger,
+    )
+
+    return {
+        "meeting_id": req.meeting_id,
+        "recapitulacao_viva": resultado,
+        "live_recap": resultado,
+    }
+
+
 @app.get("/relatorio", response_class=HTMLResponse)
 def ver_relatorio():
     """
     Exibe o último relatório gerado em formato HTML legível.
+    Se não há relatório em memória, carrega o arquivo mais recente.
     """
+    global ultimo_relatorio
+
+    if not ultimo_relatorio:
+        try:
+            ultimo_relatorio = db_ultimo() or {}
+        except Exception:
+            pass
+    if not ultimo_relatorio:
+        try:
+            arquivos = sorted(PASTA_RELATORIOS.glob("*.json"), reverse=True)
+            if arquivos:
+                ultimo_relatorio = json.loads(arquivos[0].read_text(encoding="utf-8"))
+        except Exception as e:
+            logger.warning("Erro ao carregar relatório do arquivo: %s", e)
+
     if not ultimo_relatorio:
         return HTMLResponse(content="""
             <html><body style="font-family:Arial;background:#1a1a2e;color:#e0e0e0;padding:40px;text-align:center">
@@ -492,3 +646,306 @@ def ver_relatorio():
 </html>"""
 
     return HTMLResponse(content=html)
+
+
+@app.get("/relatorios")
+def listar_relatorios_endpoint():
+    """Lista todos os relatórios salvos (banco SQLite + fallback arquivos JSON)."""
+    try:
+        # Tentar banco primeiro
+        try:
+            rows = db_listar(limite=20)
+            if rows:
+                return {"total": len(rows), "fonte": "sqlite", "relatorios": [
+                    {
+                        "id": r["id"],
+                        "titulo": r["nome_reuniao"],
+                        "data": r["criado_em"],
+                        "probabilidade_fechamento": r["dados"].get("recapitulacao", {}).get("probabilidade_fechamento", ""),
+                    }
+                    for r in rows
+                ]}
+        except Exception:
+            pass
+
+        # Fallback: arquivos JSON
+        arquivos = sorted(PASTA_RELATORIOS.glob("*.json"), reverse=True)
+        relatorios = []
+        for arq in arquivos[:20]:
+            try:
+                dados = json.loads(arq.read_text(encoding="utf-8"))
+                relatorios.append({
+                    "arquivo": arq.name,
+                    "titulo": dados.get("titulo", ""),
+                    "data": dados.get("data", ""),
+                    "gerado_em": dados.get("gerado_em", ""),
+                    "probabilidade_fechamento": (
+                        dados.get("recapitulacao", {}).get("probabilidade_fechamento", "")
+                    ),
+                })
+            except Exception:
+                continue
+        return {"total": len(relatorios), "fonte": "arquivos", "relatorios": relatorios}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/recapitulacao-manual")
+def recapitulacao_manual(req: RecapitulacaoRequest):
+    """
+    Endpoint simplificado: cola a transcrição e gera recapitulação + DISC + diagnóstico financeiro.
+    Ideal para uso no painel HTML sem a extensão Chrome.
+    """
+    if not req.transcricao:
+        raise HTTPException(status_code=400, detail="Transcrição vazia")
+
+    conteudo = f"REUNIÃO: {req.titulo_reuniao}\nDATA: {req.data or 'não informada'}\n\nTRANSCRIÇÃO:\n{req.transcricao}"
+
+    recapitulacao = chamar_gpt(PROMPT_RECAPITULACAO, conteudo)
+    diagnostico = chamar_gpt(PROMPT_DIAGNOSTICO_FINANCEIRO, req.transcricao)
+    disc = chamar_gpt(PROMPT_PERFIL_DISC, req.transcricao)
+
+    resultado = {
+        "titulo": req.titulo_reuniao,
+        "data": req.data or datetime.now().isoformat(),
+        "recapitulacao": recapitulacao,
+        "diagnostico_financeiro": diagnostico,
+        "perfil_disc": disc,
+        "gerado_em": datetime.now().isoformat(),
+    }
+
+    global ultimo_relatorio
+    ultimo_relatorio = resultado
+
+    # Salvar em arquivo
+    try:
+        import unicodedata, re
+        nome_safe = unicodedata.normalize("NFKD", req.titulo_reuniao or "manual")
+        nome_safe = re.sub(r"[^\w\s-]", "", nome_safe).strip().replace(" ", "_")[:40]
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        caminho = PASTA_RELATORIOS / f"{timestamp}_{nome_safe}.json"
+        caminho.write_text(json.dumps(resultado, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception as e:
+        logger.warning("Não foi possível salvar relatório manual: %s", e)
+
+    return resultado
+
+
+@app.get("/dashboard.", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/dashboard/", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/dashboard", response_class=HTMLResponse)
+def dashboard():
+    """Dashboard web para visualizar reuniões e analisar transcrições."""
+    caminho = Path(__file__).parent.parent / "frontend" / "dashboard.html"
+    try:
+        return HTMLResponse(content=caminho.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="dashboard.html não encontrado")
+
+
+@app.get("/manual", response_class=HTMLResponse)
+def manual():
+    """Manual do usuário em HTML."""
+    caminho = Path(__file__).parent.parent / "frontend" / "manual.html"
+    try:
+        return HTMLResponse(content=caminho.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="manual.html não encontrado")
+
+
+@app.get("/manual-tecnico", response_class=HTMLResponse)
+def manual_tecnico():
+    """Manual técnico para apresentação a compradores."""
+    caminho = Path(__file__).parent.parent / "frontend" / "manual_tecnico.html"
+    try:
+        return HTMLResponse(content=caminho.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="manual_tecnico.html não encontrado")
+
+
+# ─────────────────────────────────────────────
+# SESSÕES EM TEMPO REAL
+# ─────────────────────────────────────────────
+
+@app.get("/sessoes")
+def listar_sessoes_endpoint():
+    """
+    Lista todas as sessões gravadas durante reuniões ao vivo.
+    Cada sessão contém a transcrição acumulada e a última análise da IA.
+    """
+    try:
+        from agent.sessao_manager import listar_sessoes
+        sessoes = listar_sessoes(limite=50)
+        return {"total": len(sessoes), "sessoes": sessoes}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/sessoes/{sessao_id}")
+def buscar_sessao_endpoint(sessao_id: int):
+    """
+    Retorna a sessão completa com transcrição e última análise da IA.
+    """
+    try:
+        from agent.sessao_manager import buscar_sessao
+        s = buscar_sessao(sessao_id)
+        if not s:
+            raise HTTPException(status_code=404, detail="Sessão não encontrada")
+        return s
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/sessoes/{sessao_id}")
+def deletar_sessao_endpoint(sessao_id: int):
+    """
+    Remove uma sessão pelo ID.
+    """
+    try:
+        from agent.sessao_manager import deletar_sessao
+        ok = deletar_sessao(sessao_id)
+        if not ok:
+            raise HTTPException(status_code=404, detail="Sessão não encontrada")
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/iniciar-sessao")
+def iniciar_sessao_endpoint(req: IniciarSessaoRequest):
+    """
+    Registra uma sessão imediatamente ao carregar a extensão no Meet,
+    mesmo antes de qualquer transcrição ser capturada.
+    """
+    try:
+        from agent.sessao_manager import registrar_sessao
+        sessao_id = registrar_sessao(req.meeting_id)
+        return {"ok": True, "sessao_id": sessao_id}
+    except Exception as e:
+        logger.error("Erro ao iniciar sessão: %s", e)
+        return {"ok": False, "sessao_id": 0}
+
+
+@app.post("/sessoes/{sessao_id}/exportar-base")
+def exportar_base_endpoint(sessao_id: int, req: ExportarBaseRequest):
+    """
+    Exporta a transcrição de uma sessão para a base de conhecimento da IA.
+    Gera embedding e insere na tabela base_conhecimento.
+    """
+    try:
+        from agent.sessao_manager import exportar_para_base_conhecimento
+        resultado = exportar_para_base_conhecimento(sessao_id, req.titulo or "", req.tipo or "reuniao")
+        if not resultado.get("ok"):
+            raise HTTPException(status_code=400, detail=resultado.get("erro", "Erro ao exportar"))
+        return resultado
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/cenario/{meeting_id}", response_class=HTMLResponse)
+def cenario_cliente_page(meeting_id: str):
+    """
+    Página de apresentação visual do cenário do cliente (slides para compartilhar na tela).
+    """
+    import re
+    if not re.match(r'^[a-z]{3}-[a-z]{4}-[a-z]{3}$', meeting_id, re.IGNORECASE):
+        raise HTTPException(status_code=400, detail="meeting_id inválido")
+    caminho = Path(__file__).parent.parent / "frontend" / "cenario.html"
+    try:
+        return HTMLResponse(content=caminho.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="cenario.html não encontrado")
+
+
+@app.get("/api/cenario/{meeting_id}")
+def api_cenario_dados(meeting_id: str):
+    """
+    JSON com a última análise da IA para o meeting_id.
+    Consumido pela página cenario.html via polling a cada 30s.
+    """
+    import re
+    if not re.match(r'^[a-z]{3}-[a-z]{4}-[a-z]{3}$', meeting_id, re.IGNORECASE):
+        raise HTTPException(status_code=400, detail="meeting_id inválido")
+    from agent.sessao_manager import obter_ultima_analise
+    return obter_ultima_analise(meeting_id)
+
+
+# ─────────────────────────────────────────────
+# WHISPER — transcrição de áudio em tempo real
+# ─────────────────────────────────────────────
+@app.post("/audio-transcricao")
+async def audio_transcricao(req: AudioTranscricaoRequest):
+    """
+    Recebe um chunk de áudio (base64, audio/webm) da extensão Chrome,
+    transcreve via OpenAI Whisper-1 e retorna o texto.
+    Chamado pelo background.js a cada ~15 segundos durante a captura.
+    """
+    import base64
+    import tempfile
+    import re as _re
+
+    # Decodifica base64 — aceita tanto data-URL quanto base64 puro
+    raw = req.audio_base64
+    if ',' in raw:
+        raw = raw.split(',', 1)[1]
+    try:
+        audio_bytes = base64.b64decode(raw)
+    except Exception:
+        raise HTTPException(status_code=400, detail="audio_base64 inválido")
+
+    if len(audio_bytes) < 512:
+        return {"texto": "", "ok": True, "motivo": "chunk muito pequeno"}
+
+    # Extensão baseada no mime_type
+    ext = '.webm' if 'webm' in (req.mime_type or '') else '.ogg'
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
+            tmp.write(audio_bytes)
+            tmp_path = tmp.name
+
+        openai_key = os.getenv("OPENAI_API_KEY")
+        if not openai_key:
+            raise HTTPException(status_code=500, detail="OPENAI_API_KEY não configurada")
+
+        from openai import OpenAI
+        client = OpenAI(api_key=openai_key)
+
+        with open(tmp_path, 'rb') as f:
+            transcript = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=f,
+                language="pt",
+            )
+
+        texto = transcript.text.strip() if transcript.text else ""
+
+        # Persiste na transcrição bruta da sessão (mesmo pipeline das legendas CC)
+        # Garante que a sessão exista — registrar_sessao() cria se não houver
+        if texto and req.meeting_id and req.meeting_id != "default":
+            try:
+                from agent.sessao_manager import registrar_sessao, salvar_transcricao_bruta
+                registrar_sessao(req.meeting_id)  # no-op se já existe
+                salvar_transcricao_bruta(req.meeting_id, f"[Whisper] {texto}")
+            except Exception as _e:
+                logger.warning("[Whisper] Não foi possível salvar transcrição: %s", _e)
+
+        return {"texto": texto, "ok": True}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("[Whisper] Erro na transcrição: %s", e)
+        return {"texto": "", "ok": False, "error": str(e)}
+    finally:
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass

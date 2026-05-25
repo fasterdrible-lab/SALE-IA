@@ -7,12 +7,19 @@ uvicorn[standard]==0.30.1
 # Variáveis de ambiente
 python-dotenv==1.0.1
 
+# Banco de dados SQLite (ORM)
+sqlmodel>=0.0.21
+
+# Driver MySQL (MariaDB/MySQL remoto)
+pymysql>=1.0.2
+cryptography>=42.0.0
+
 # ─── Provedores de LLM ───────────────────────────────────────
-# OpenAI (GPT-4o, GPT-4o-mini)
+# OpenAI (GPT-4o) — primário
 openai==1.35.7
 
-# Anthropic (Claude 3.5 Sonnet) — opcional
-anthropic==0.26.0
+# Anthropic (Claude 3.5 Sonnet) — fallback 1
+anthropic>=0.26.0
 
-# Google (Gemini 1.5 Pro) — opcional
-google-generativeai==0.7.0
+# Google (Gemini 1.5 Pro) — fallback 2
+google-generativeai>=0.7.0

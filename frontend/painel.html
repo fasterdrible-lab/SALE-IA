@@ -427,6 +427,29 @@ Cliente: Tenho um limite de uns 5 mil, mas não sei se vale a pena..."
         </div>`;
     }
 
+    // 🎯 Score de Propensão de Compra
+    if (d.score_compra && d.score_compra.valor !== undefined) {
+      const val = Math.min(98, Math.max(5, Number(d.score_compra.valor)));
+      const corBarra = val >= 70 ? '#00d4aa' : val >= 45 ? '#ffaa00' : '#ff4444';
+      const rotulo   = val >= 70 ? '🔥 Alta propensão' : val >= 45 ? '⚡ Moderada' : '❄️ Baixa — reverter agora';
+      html += `
+        <div class="card" style="border-color:${corBarra}22">
+          <div class="card-title" style="color:${corBarra}">📊 SCORE DE COMPRA</div>
+          <div class="card-body">
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:8px">
+              <div style="font-size:2.2rem;font-weight:700;color:${corBarra};line-height:1">${val}</div>
+              <div>
+                <div style="font-weight:600">${rotulo}</div>
+                <div style="color:var(--muted);font-size:.85rem">${escapeHtml(d.score_compra.justificativa || '')}</div>
+              </div>
+            </div>
+            <div style="background:#222;border-radius:6px;height:10px;overflow:hidden">
+              <div style="height:100%;width:${val}%;background:${corBarra};border-radius:6px;transition:width .6s ease"></div>
+            </div>
+          </div>
+        </div>`;
+    }
+
     // 📊 Nível de Empolgação
     if (d.nivel_empolgacao_cliente) {
       const nivel   = d.nivel_empolgacao_cliente.toLowerCase();

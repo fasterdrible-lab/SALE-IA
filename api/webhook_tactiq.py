@@ -20,8 +20,10 @@ from typing import Optional
 from fastapi import HTTPException, Request
 
 from agent.diagnostico import diagnostico_financeiro
+from agent.diagnostico_final import generateFinalDiagnosis
 from agent.perfil_disc import perfil_disc
 from agent.recapitulacao import recapitulacao_completa
+from api.database import obter_meeting_memory, salvar_meeting_memory, registrar_transcricao_meeting
 from api.notificador import notificar_vendedor
 from api.processador_tempo_real import limpar_cache_reuniao
 
@@ -30,6 +32,36 @@ logger = logging.getLogger(__name__)
 
 # Pasta onde os relatórios são salvos
 PASTA_RELATORIOS = Path("data/relatorios")
+
+
+def _json_para_dict(valor, fallback=None) -> dict:
+    if fallback is None:
+        fallback = {}
+    if valor in (None, ""):
+        return fallback
+    if isinstance(valor, dict):
+        return valor
+    if isinstance(valor, str):
+        try:
+            parsed = json.loads(valor)
+        except Exception:
+            return fallback
+        return parsed if isinstance(parsed, dict) else fallback
+    return fallback
+
+
+def _custo_estimado(resultado) -> float:
+    if not isinstance(resultado, dict):
+        return 0.0
+    for chave in ("_custo_estimado_ia", "custo_estimado_ia", "custo_estimado_usd", "_estimated_cost_usd"):
+        valor = resultado.get(chave)
+        if valor in (None, ""):
+            continue
+        try:
+            return float(valor)
+        except Exception:
+            continue
+    return 0.0
 
 
 def _validar_assinatura_webhook(payload_bytes: bytes, assinatura_header: Optional[str]) -> bool:
@@ -281,6 +313,61 @@ async def processar_webhook_tactiq(payload: dict) -> dict:
     )
     logger.info("✅ Recapitulação gerada")
 
+    memoria_reuniao = {}
+    memoria_diagnostico_atual = {}
+    memoria_key_moments = []
+    memoria_events = []
+    memoria_score_history = []
+    memoria_accumulated_summary = ""
+
+    if meeting_id:
+        try:
+            registrar_transcricao_meeting(meeting_id, transcript, substituir=True)
+            memoria_reuniao = obter_meeting_memory(meeting_id) or {}
+            memoria_diagnostico_atual = _json_para_dict(memoria_reuniao.get("current_diagnosis"), {})
+            memoria_key_moments = memoria_reuniao.get("key_moments") or []
+            memoria_events = memoria_reuniao.get("events") or []
+            memoria_score_history = memoria_reuniao.get("score_history") or []
+            memoria_accumulated_summary = memoria_reuniao.get("accumulated_summary") or ""
+        except Exception as e:
+            logger.warning("[MeetingMemory] Não foi possível carregar memória prévia: %s", e)
+
+    diagnostico_atual_final = {
+        **memoria_diagnostico_atual,
+        "diagnostico_financeiro": resultado_financeiro,
+        "perfil_disc": resultado_disc,
+        "recapitulacao": resultado_recapitulacao,
+        "resumo_executivo": (
+            resultado_recapitulacao.get("resumo_executivo")
+            or resultado_recapitulacao.get("recapitulacao")
+            or memoria_diagnostico_atual.get("resumo_executivo")
+            or ""
+        ),
+    }
+
+    logger.info("🎯 Gerando diagnóstico final...")
+    resultado_diagnostico_final = await generateFinalDiagnosis(
+        accumulated_summary=memoria_accumulated_summary
+        or resultado_recapitulacao.get("resumo_executivo")
+        or resultado_recapitulacao.get("recapitulacao")
+        or "",
+        current_diagnosis=diagnostico_atual_final,
+        key_moments=memoria_key_moments,
+        score_history=memoria_score_history,
+        transcript_full=transcript,
+        events=memoria_events,
+        diagnostico_financeiro=resultado_financeiro,
+        perfil_disc=resultado_disc,
+        recapitulacao=resultado_recapitulacao,
+    )
+    logger.info("✅ Diagnóstico final gerado")
+    custo_estimado_total = (
+        _custo_estimado(resultado_financeiro)
+        + _custo_estimado(resultado_disc)
+        + _custo_estimado(resultado_recapitulacao)
+        + _custo_estimado(resultado_diagnostico_final)
+    )
+
     # Gera ID único do relatório
     relatorio_id = _gerar_relatorio_id(data, nome_cliente)
 
@@ -295,12 +382,45 @@ async def processar_webhook_tactiq(payload: dict) -> dict:
         **resultado_recapitulacao,
         "diagnostico_financeiro": resultado_financeiro,
         "perfil_disc_completo": resultado_disc,
+        "diagnostico_final": resultado_diagnostico_final,
+        "custo_estimado_ia_total": round(custo_estimado_total, 6),
         "processado_em": datetime.now(timezone.utc).isoformat(),
     }
 
     # Salva o relatório ANTES de notificar (garantia de não perder dados)
     caminho_arquivo = salvar_relatorio(relatorio_completo, relatorio_id)
     logger.info(f"💾 Relatório salvo: {caminho_arquivo}")
+
+    if meeting_id:
+        try:
+            salvar_meeting_memory(
+                meeting_id,
+                transcript_full=transcript,
+                transcript_buffer=memoria_reuniao.get("transcript_buffer", "") if memoria_reuniao else "",
+                accumulated_summary=str(
+                    resultado_diagnostico_final.get("resumo_executivo")
+                    or resultado_recapitulacao.get("resumo_executivo")
+                    or resultado_recapitulacao.get("recapitulacao")
+                    or ""
+                ),
+                current_diagnosis=json.dumps(
+                    {
+                        "diagnostico_atual": diagnostico_atual_final,
+                        "diagnostico_financeiro": resultado_financeiro,
+                        "perfil_disc": resultado_disc,
+                        "recapitulacao": resultado_recapitulacao,
+                        "diagnostico_final": resultado_diagnostico_final,
+                    },
+                    ensure_ascii=False,
+                ),
+                score_history=memoria_score_history,
+                key_moments=memoria_key_moments,
+                events=memoria_events,
+                provider_cost_estimate_delta=custo_estimado_total,
+                last_ai_at=datetime.now(timezone.utc),
+            )
+        except Exception as e:
+            logger.warning("[MeetingMemory] Não foi possível persistir memória final: %s", e)
 
     # Notifica o vendedor (WhatsApp com fallback para e-mail)
     logger.info("📤 Enviando notificação ao vendedor...")

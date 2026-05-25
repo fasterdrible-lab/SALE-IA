@@ -5,11 +5,26 @@
 
 'use strict';
 
+function escaparHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 document.addEventListener('DOMContentLoaded', function () {
   const toggleAtivo = document.getElementById('toggle-ativo');
   const backendUrlInput = document.getElementById('backend-url');
   const btnSalvarUrl = document.getElementById('btn-salvar-url');
   const urlFeedback = document.getElementById('url-feedback');
+  const btnTrocarApi = document.getElementById('btn-trocar-api');
+  const btnDefinirApi = document.getElementById('btn-definir-api');
+  const provedorPreferido = document.getElementById('provedor-preferido');
+  const apiStatus = document.getElementById('api-status');
+  const apiFeedback = document.getElementById('api-feedback');
   const statusTexto = document.getElementById('status-texto');
   const statusEl = document.getElementById('popup-status');
   const ultimasDicas = document.getElementById('ultimas-dicas');
@@ -33,6 +48,8 @@ document.addEventListener('DOMContentLoaded', function () {
       if (result.saleiaUltimasDicas) {
         exibirUltimasDicas(result.saleiaUltimasDicas, result.saleiaUltimaAtualizacao);
       }
+
+      carregarStatusIA();
     }
   );
 
@@ -68,8 +85,52 @@ document.addEventListener('DOMContentLoaded', function () {
 
     chrome.runtime.sendMessage({ tipo: 'setBackendUrl', valor: url }, function () {
       mostrarFeedback('✅ URL salva com sucesso!', 'success');
+      carregarStatusIA();
     });
   });
+
+  if (btnTrocarApi) {
+    btnTrocarApi.addEventListener('click', function () {
+      const btn = this;
+      btn.disabled = true;
+      mostrarFeedbackApi('Trocando prioridade da IA...', 'success');
+
+      requisitarBackend('/ai/provedor/proximo', 'POST', {})
+        .then(function (data) {
+          renderizarStatusIA(data);
+          mostrarFeedbackApi(data && data.mensagem ? data.mensagem : 'Prioridade da IA atualizada.', 'success');
+        })
+        .catch(function (error) {
+          console.warn('[SALEIA] Falha ao trocar provedor:', error.message);
+          mostrarFeedbackApi('Não foi possível trocar a prioridade da IA: ' + error.message, 'error');
+        })
+        .finally(function () {
+          btn.disabled = false;
+        });
+    });
+  }
+
+  if (btnDefinirApi && provedorPreferido) {
+    btnDefinirApi.addEventListener('click', function () {
+      const btn = this;
+      const provedor = provedorPreferido.value;
+      btn.disabled = true;
+      mostrarFeedbackApi('Definindo provedor preferido...', 'success');
+
+      requisitarBackend('/ai/provedor/preferido', 'POST', { provedor: provedor })
+        .then(function (data) {
+          renderizarStatusIA(data);
+          mostrarFeedbackApi(data && data.mensagem ? data.mensagem : 'Provedor preferido atualizado.', 'success');
+        })
+        .catch(function (error) {
+          console.warn('[SALEIA] Falha ao definir provedor:', error.message);
+          mostrarFeedbackApi('Nao foi possivel definir o provedor: ' + error.message, 'error');
+        })
+        .finally(function () {
+          btn.disabled = false;
+        });
+    });
+  }
 
   // ─────────────────────────────────────────────
   // BOTÃO VER RELATÓRIO COMPLETO
@@ -92,18 +153,125 @@ document.addEventListener('DOMContentLoaded', function () {
     }, 3000);
   }
 
+  function mostrarFeedbackApi(mensagem, tipo) {
+    if (!apiFeedback) return;
+    apiFeedback.textContent = mensagem;
+    apiFeedback.style.display = 'block';
+    apiFeedback.className = 'popup-feedback popup-feedback-' + tipo;
+    setTimeout(function () {
+      apiFeedback.style.display = 'none';
+    }, 3500);
+  }
+
+  function backendAtual() {
+    return backendUrlInput.value.trim().replace(/\/$/, '') || 'https://api.saleia.com.br';
+  }
+
+  function requisitarBackend(path, method, payload) {
+    return new Promise(function (resolve, reject) {
+      if (!chrome.runtime || !chrome.runtime.id) {
+        reject(new Error('Extensão indisponível'));
+        return;
+      }
+
+      chrome.runtime.sendMessage(
+        {
+          tipo: 'fetchBackend',
+          url: backendAtual() + path,
+          method: method || 'POST',
+          payload: payload || {},
+        },
+        function (response) {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+            return;
+          }
+          if (!response || !response.ok) {
+            reject(new Error(response && response.error ? response.error : 'Falha na comunicação com o backend'));
+            return;
+          }
+          resolve(response.data);
+        }
+      );
+    });
+  }
+
+  function classificarStatus(status) {
+    if (!status) return 'desconhecido';
+    if (status.indexOf('cooldown') === 0) return 'cooldown';
+    if (status.indexOf('degradado') === 0) return 'degradado';
+    return status;
+  }
+
+  function labelStatus(status) {
+    if (!status) return 'Desconhecido';
+    if (status === 'ok') return 'OK';
+    if (status === 'sem_chave') return 'Sem chave';
+    if (status.indexOf('cooldown') === 0) return 'Cooldown';
+    if (status.indexOf('degradado') === 0) return 'Degradado';
+    return status.replace(/_/g, ' ');
+  }
+
+  function formatarNomeProvedor(nome) {
+    if (!nome) return 'Provedor';
+    return nome.charAt(0).toUpperCase() + nome.slice(1);
+  }
+
+  function renderizarStatusIA(payload) {
+    if (!apiStatus) return;
+
+    const ia = payload && payload.ia ? payload.ia : {};
+    const ordem = Array.isArray(payload && payload.ordem_ia) ? payload.ordem_ia : Object.keys(ia);
+    const preferido = payload && payload.provedor_preferido ? payload.provedor_preferido : (ordem[0] || 'indisponível');
+    const estadoBackend = payload && payload.status ? payload.status : 'desconhecido';
+
+    if (provedorPreferido && preferido) {
+      provedorPreferido.value = preferido;
+    }
+
+    let html = '<div class="popup-api-summary">Backend: ' + escaparHtml(estadoBackend) + ' | Prioridade: <strong>' + escaparHtml(formatarNomeProvedor(preferido)) + '</strong></div>';
+    html += '<div class="popup-api-list">';
+
+    if (!ordem.length) {
+      html += '<div class="popup-api-item"><div>Nenhum provedor configurado.</div><div class="popup-api-label desconhecido">indisponível</div></div>';
+    } else {
+      ordem.forEach(function (nome, index) {
+        const item = ia[nome] || {};
+        const status = item.status || 'desconhecido';
+        const classeStatus = classificarStatus(status);
+        const modelo = item.modelo ? '<div class="popup-api-meta">' + escaparHtml(item.modelo) + '</div>' : '';
+        const falhas = typeof item.falhas_consecutivas === 'number'
+          ? '<div class="popup-api-meta">Falhas: ' + item.falhas_consecutivas + '</div>'
+          : '';
+
+        html += '<div class="popup-api-item">';
+        html += '<div>';
+        html += '<strong>' + (index + 1) + '. ' + escaparHtml(formatarNomeProvedor(nome)) + '</strong>';
+        html += modelo + falhas;
+        html += '</div>';
+        html += '<div class="popup-api-label ' + escaparHtml(classeStatus) + '">' + escaparHtml(labelStatus(status)) + '</div>';
+        html += '</div>';
+      });
+    }
+
+    html += '</div>';
+    apiStatus.innerHTML = html;
+  }
+
+  function carregarStatusIA() {
+    if (!apiStatus) return;
+    apiStatus.textContent = 'Carregando status das APIs...';
+    requisitarBackend('/health', 'GET')
+      .then(function (data) {
+        renderizarStatusIA(data);
+      })
+      .catch(function (error) {
+        apiStatus.textContent = 'Não foi possível carregar o status das APIs: ' + error.message;
+      });
+  }
+
   function exibirUltimasDicas(dicas, timestamp) {
     if (!dicas) return;
-
-    function escaparHtml(str) {
-      if (str == null) return '';
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-    }
 
     let html = '';
     if (dicas.proxima_acao) {

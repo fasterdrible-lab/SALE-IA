@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cenário do Cliente · SALEIA</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --verde:   #14B8A6;
+      --azul:    #38BDF8;
+      --roxo:    #A78BFA;
+      --laranja: #F97316;
+      --vermelho:#EF4444;
+      --bg:      #2D2B3D;
+      --card:    #252338;
+      --card2:   #201E30;
+      --borda:   #3D3B52;
+      --texto:   #F8FAFC;
+      --muted:   #9D9BB8;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--texto);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+    }
+
+    /* ── TOPO ─────────────────────────────────── */
+    #topo {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 56px;
+      background: rgba(32,30,48,.97);
+      border-bottom: 1px solid var(--borda);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+    }
+    #topo .logo { font-size: 1.05rem; font-weight: 700; letter-spacing: .05em; }
+    #topo .logo span { color: var(--verde); }
+    #status-bar { display: flex; align-items: center; gap: 10px; font-size: .8rem; color: var(--muted); }
+    .dot-live { width: 8px; height: 8px; border-radius: 50%; background: var(--verde);
+                animation: pulse 2s infinite; flex-shrink: 0; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* ── SLIDES ───────────────────────────────── */
+    #slides-wrap {
+      position: fixed;
+      top: 56px; bottom: 60px; left: 0; right: 0;
+      overflow: hidden;
+    }
+    .slide {
+      position: absolute;
+      inset: 0;
+      padding: 36px 48px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      opacity: 0;
+      transform: translateX(60px);
+      transition: opacity .45s ease, transform .45s ease;
+      pointer-events: none;
+      overflow-y: auto;
+    }
+    .slide.active {
+      opacity: 1;
+      transform: translateX(0);
+      pointer-events: all;
+    }
+    .slide.out-left {
+      opacity: 0;
+      transform: translateX(-60px);
+    }
+
+    .slide-titulo {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #fff;
+    }
+    .slide-subtitulo {
+      font-size: .95rem;
+      color: var(--muted);
+      margin-bottom: 28px;
+    }
+
+    /* ── GRID DE CARDS ────────────────────────── */
+    .grid { display: grid; gap: 18px; }
+    .grid-2 { grid-template-columns: 1fr 1fr; }
+    .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .grid-auto { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--borda);
+      border-radius: 14px;
+      padding: 22px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      border-radius: 14px 14px 0 0;
+    }
+    .card.verde::before  { background: var(--verde); }
+    .card.azul::before   { background: var(--azul); }
+    .card.roxo::before   { background: var(--roxo); }
+    .card.laranja::before{ background: var(--laranja); }
+    .card-icone { font-size: 1.8rem; margin-bottom: 10px; }
+    .card-label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; }
+    .card-valor { font-size: 1.35rem; font-weight: 700; color: #fff; margin-bottom: 4px; }
+    .card-detalhe { font-size: .82rem; color: var(--muted); line-height: 1.5; }
+
+    /* ── DISC BADGE ───────────────────────────── */
+    .disc-hero {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      background: var(--card);
+      border: 1px solid var(--borda);
+      border-radius: 14px;
+      padding: 26px 30px;
+      margin-bottom: 20px;
+    }
+    .disc-badge {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.2rem;
+      font-weight: 900;
+      flex-shrink: 0;
+      box-shadow: 0 0 32px rgba(0,0,0,.4);
+    }
+    .disc-info h2 { font-size: 1.5rem; font-weight: 700; color: #fff; }
+    .disc-info p  { color: var(--muted); margin-top: 4px; font-size: .9rem; line-height: 1.5; }
+    .disc-info .disc-conf { margin-top: 8px; font-size: .8rem; }
+    .tag { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: .75rem; font-weight: 600; }
+
+    /* ── SCORE GAUGE ──────────────────────────── */
+    .score-hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+    .score-numero {
+      font-size: 5rem;
+      font-weight: 900;
+      line-height: 1;
+      margin: 12px 0 6px;
+    }
+    .score-barra-wrap {
+      width: 100%;
+      background: var(--borda);
+      border-radius: 8px;
+      height: 12px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    .score-barra {
+      height: 100%;
+      border-radius: 8px;
+      transition: width 1s ease;
+    }
+    .score-label { font-size: .85rem; color: var(--muted); }
+    .score-just  { font-size: .9rem; color: var(--muted); margin-top: 10px; font-style: italic; }
+
+    /* ── PRODUTO CARD ─────────────────────────── */
+    .produto-hero {
+      background: linear-gradient(135deg, #1E1C2E, #201E30);
+      border: 1px solid var(--verde);
+      border-radius: 16px;
+      padding: 30px;
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+    }
+    .produto-icon { font-size: 3rem; flex-shrink: 0; }
+    .produto-nome { font-size: 1.6rem; font-weight: 800; color: var(--verde); margin-bottom: 8px; }
+    .produto-just { font-size: .95rem; color: var(--muted); line-height: 1.6; }
+
+    /* ── PRÓXIMOS PASSOS ──────────────────────── */
+    .passos { display: flex; flex-direction: column; gap: 14px; }
+    .passo {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      background: var(--card);
+      border: 1px solid var(--borda);
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+    .passo-num {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--verde), var(--azul));
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 1rem;
+      flex-shrink: 0;
+      color: #000;
+    }
+    .passo-texto { font-size: .95rem; line-height: 1.5; color: var(--texto); }
+    .passo-detalhe { font-size: .82rem; color: var(--muted); margin-top: 4px; }
+
+    /* ── MAPA MENTAL (slide 4) ────────────────── */
+    .mapa-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      height: 100%;
+      min-height: 340px;
+    }
+    .mapa-centro {
+      background: linear-gradient(135deg, var(--verde), var(--azul));
+      color: #000;
+      border-radius: 50%;
+      width: 140px; height: 140px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      font-weight: 800; font-size: .9rem;
+      text-align: center;
+      flex-shrink: 0;
+      box-shadow: 0 0 48px rgba(20,184,166,.25);
+    }
+    .mapa-ramos {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .mapa-ramo {
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+    .mapa-linha {
+      width: 60px; height: 2px;
+      background: linear-gradient(to right, var(--verde), var(--borda));
+      flex-shrink: 0;
+    }
+    .mapa-no {
+      background: var(--card);
+      border: 1px solid var(--borda);
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: .82rem;
+    }
+    .mapa-no strong { color: #fff; display: block; font-size: .85rem; }
+    .mapa-no span   { color: var(--muted); }
+
+    /* ── NAV BOTTOM ───────────────────────────── */
+    #nav-bottom {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: 60px;
+      background: rgba(32,30,48,.97);
+      border-top: 1px solid var(--borda);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      backdrop-filter: blur(8px);
+    }
+    .nav-btn {
+      padding: 8px 22px;
+      border-radius: 8px;
+      border: 1px solid var(--borda);
+      background: var(--card);
+      color: var(--texto);
+      font-size: .9rem;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .nav-btn:hover { background: var(--card2); }
+    .nav-btn:disabled { opacity: .35; cursor: default; }
+    .nav-btn.primary {
+      background: linear-gradient(135deg, var(--verde), var(--azul));
+      color: #000;
+      font-weight: 700;
+      border: none;
+    }
+    .dots { display: flex; gap: 8px; align-items: center; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--borda); cursor: pointer; transition: background .2s; }
+    .dot.active { background: var(--verde); }
+
+    /* ── AGUARDANDO ───────────────────────────── */
+    .aguardando {
+      text-align: center;
+      padding: 60px 0;
+      color: var(--muted);
+    }
+    .aguardando .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid var(--borda);
+      border-top-color: var(--verde);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── CONDUÇÃO — dropdown e overlay ──────────── */
+    .nav-conducao-wrap { position: relative; }
+    .cond-dropdown {
+      position: absolute;
+      bottom: 52px; right: 0;
+      min-width: 210px;
+      background: rgba(32,30,48,.98);
+      border: 1px solid var(--borda);
+      border-radius: 10px;
+      box-shadow: 0 -8px 32px rgba(0,0,0,.55);
+      padding: 6px;
+      z-index: 200;
+    }
+    .cond-item {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px; border-radius: 7px; cursor: pointer;
+      color: var(--texto); font-size: .9rem; font-weight: 500;
+      transition: background .15s, color .15s; position: relative;
+    }
+    .cond-item:hover { background: rgba(20,184,166,.1); color: var(--verde); }
+    .cond-submenu {
+      position: absolute;
+      bottom: 0; right: 100%; margin-right: 6px;
+      min-width: 210px;
+      background: rgba(32,30,48,.98);
+      border: 1px solid var(--borda);
+      border-radius: 10px;
+      box-shadow: -8px 0 32px rgba(0,0,0,.5);
+      padding: 6px; z-index: 201;
+    }
+    .cond-overlay {
+      position: fixed; inset: 0;
+      background: rgba(30,28,46,.82);
+      z-index: 300;
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    .cond-panel {
+      width: min(560px, calc(100vw - 32px));
+      max-height: calc(100vh - 80px);
+      background: var(--card);
+      border: 1px solid var(--borda);
+      border-radius: 16px;
+      box-shadow: 0 32px 80px rgba(0,0,0,.65);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .cond-panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; border-bottom: 1px solid var(--borda);
+      background: rgba(32,30,48,.8); flex-shrink: 0;
+    }
+    .cond-panel-titulo { font-weight: 700; font-size: 1rem; color: #fff; }
+    .cond-panel-fechar {
+      background: none; border: none; color: var(--muted);
+      font-size: 1.2rem; cursor: pointer; padding: 0 4px; transition: color .15s;
+    }
+    .cond-panel-fechar:hover { color: #fff; }
+    .cond-panel-body {
+      padding: 20px; overflow-y: auto; flex: 1;
+      color: var(--texto); line-height: 1.65; font-size: .92rem;
+    }
+    .cond-panel-footer {
+      padding: 12px 20px; border-top: 1px solid var(--borda);
+      display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;
+    }
+    .cond-btn-copiar {
+      background: rgba(20,184,166,.12); border: 1px solid rgba(20,184,166,.35);
+      color: var(--verde); padding: 7px 18px; border-radius: 7px;
+      font-size: .85rem; font-weight: 600; cursor: pointer; transition: background .15s;
+    }
+    .cond-btn-copiar:hover { background: rgba(20,184,166,.22); }
+    .cond-spinner {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; padding: 40px 0; color: var(--muted);
+    }
+    .cond-spinner .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--borda); border-top-color: var(--verde);
+      border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 14px;
+    }
+    .cond-erro { color: var(--vermelho); padding: 20px 0; text-align: center; }
+    .hidden { display: none !important; }
+
+    /* ── RESPONSIVO ───────────────────────────── */
+    @media (max-width: 768px) {
+      .slide { padding: 24px 20px; }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .disc-hero { flex-direction: column; }
+      .produto-hero { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOPO -->
+<div id="topo">
+  <div class="logo">SALE<span>IA</span> · Cenário do Cliente</div>
+  <div id="status-bar">
+    <div class="dot-live"></div>
+    <span id="status-txt">Carregando dados...</span>
+  </div>
+</div>
+
+<!-- SLIDES -->
+<div id="slides-wrap">
+
+  <!-- SLIDE 1: Perfil + Financeiro -->
+  <div class="slide active" id="slide-1">
+    <div class="slide-titulo">📋 Seu Perfil</div>
+    <div class="slide-subtitulo" id="s1-subtitulo">Análise comportamental e situação financeira</div>
+
+    <div id="s1-disc-hero" class="disc-hero">
+      <div class="disc-badge" id="s1-disc-badge">?</div>
+      <div class="disc-info">
+        <h2 id="s1-disc-nome">Aguardando análise...</h2>
+        <p id="s1-disc-desc"></p>
+        <div class="disc-conf" id="s1-disc-conf"></div>
+      </div>
+    </div>
+
+    <div class="grid grid-auto" id="s1-cards">
+      <div class="card aguardando" id="s1-aguardando">
+        <div class="spinner"></div>
+        <p>Aguardando dados da reunião...</p>
+        <p style="font-size:.8rem;margin-top:8px">A análise é atualizada a cada 60 segundos durante a conversa.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 2: Solução Ideal -->
+  <div class="slide" id="slide-2">
+    <div class="slide-titulo">✨ Solução Ideal para Você</div>
+    <div class="slide-subtitulo">Produto recomendado com base no seu perfil e objetivos</div>
+
+    <div id="s2-produto" class="produto-hero" style="margin-bottom:20px">
+      <div class="produto-icon">💼</div>
+      <div>
+        <div class="produto-nome" id="s2-produto-nome">Aguardando dados...</div>
+        <div class="produto-just" id="s2-produto-just">A recomendação aparecerá automaticamente conforme a conversa evolui.</div>
+      </div>
+    </div>
+
+    <div class="grid grid-2" id="s2-cards">
+      <div class="card verde">
+        <div class="card-icone">💰</div>
+        <div class="card-label">Capacidade de Investimento</div>
+        <div class="card-valor" id="s2-capacidade">--</div>
+        <div class="card-detalhe" id="s2-capacidade-det"></div>
+      </div>
+      <div class="card score-hero" id="s2-score-card" style="padding:24px">
+        <div class="card-label">Score de Fit</div>
+        <div class="score-numero" id="s2-score-num" style="color:var(--verde)">--</div>
+        <div class="score-barra-wrap">
+          <div class="score-barra" id="s2-score-fill" style="width:0%;background:var(--verde)"></div>
+        </div>
+        <div class="score-just" id="s2-score-just"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3: Condução -->
+  <div class="slide" id="slide-3">
+    <div class="slide-titulo">🎯 Condução</div>
+    <div class="slide-subtitulo">Guie a reunião com inteligência — recapitule, apresente ou feche</div>
+
+    <div class="passos" id="s3-passos">
+      <div class="passo">
+        <div class="passo-num">1</div>
+        <div>
+          <div class="passo-texto">Análise do perfil completa</div>
+          <div class="passo-detalhe">Identificamos seu perfil comportamental e situação financeira atual</div>
+        </div>
+      </div>
+      <div class="passo">
+        <div class="passo-num">2</div>
+        <div>
+          <div class="passo-texto" id="s3-passo2">Solução personalizada identificada</div>
+          <div class="passo-detalhe" id="s3-passo2-det">O produto ideal para seu objetivo foi mapeado</div>
+        </div>
+      </div>
+      <div class="passo">
+        <div class="passo-num">3</div>
+        <div>
+          <div class="passo-texto">Proposta formal enviada por e-mail</div>
+          <div class="passo-detalhe">Você receberá todos os detalhes, valores e formas de pagamento</div>
+        </div>
+      </div>
+      <div class="passo">
+        <div class="passo-num">4</div>
+        <div>
+          <div class="passo-texto">Início do processo de adesão</div>
+          <div class="passo-detalhe">Documentação simples e atendimento dedicado em todo o processo</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4: Mapa Mental / Visão Geral -->
+  <div class="slide" id="slide-4">
+    <div class="slide-titulo">🧠 Visão Geral do Seu Cenário</div>
+    <div class="slide-subtitulo">Todos os elementos da sua situação conectados</div>
+
+    <div class="mapa-wrap">
+      <!-- esquerda -->
+      <div class="mapa-ramos" id="mapa-esq" style="align-items:flex-end">
+        <div class="mapa-ramo" style="flex-direction:row-reverse">
+          <div class="mapa-no">
+            <strong id="mapa-disc-tipo">Perfil</strong>
+            <span id="mapa-disc-conf">DISC</span>
+          </div>
+          <div class="mapa-linha" style="background:linear-gradient(to left,var(--verde),var(--borda))"></div>
+        </div>
+        <div class="mapa-ramo" style="flex-direction:row-reverse">
+          <div class="mapa-no">
+            <strong id="mapa-fat">Faturamento</strong>
+            <span id="mapa-fat-val">--</span>
+          </div>
+          <div class="mapa-linha" style="background:linear-gradient(to left,var(--verde),var(--borda))"></div>
+        </div>
+        <div class="mapa-ramo" style="flex-direction:row-reverse">
+          <div class="mapa-no">
+            <strong>Score</strong>
+            <span id="mapa-score">--/100</span>
+          </div>
+          <div class="mapa-linha" style="background:linear-gradient(to left,var(--verde),var(--borda))"></div>
+        </div>
+      </div>
+
+      <!-- centro -->
+      <div class="mapa-centro" id="mapa-centro">
+        <div style="font-size:1.6rem">🎯</div>
+        <div id="mapa-centro-txt">Cliente</div>
+      </div>
+
+      <!-- direita -->
+      <div class="mapa-ramos" id="mapa-dir" style="align-items:flex-start">
+        <div class="mapa-ramo">
+          <div class="mapa-linha"></div>
+          <div class="mapa-no">
+            <strong id="mapa-prod-nome">Produto</strong>
+            <span id="mapa-prod-det">Recomendado</span>
+          </div>
+        </div>
+        <div class="mapa-ramo">
+          <div class="mapa-linha"></div>
+          <div class="mapa-no">
+            <strong id="mapa-cap">Capacidade</strong>
+            <span id="mapa-cap-val">--</span>
+          </div>
+        </div>
+        <div class="mapa-ramo">
+          <div class="mapa-linha"></div>
+          <div class="mapa-no">
+            <strong id="mapa-temp">Temperatura</strong>
+            <span id="mapa-temp-val">--</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /slides-wrap -->
+
+<!-- NAV BOTTOM -->
+<div id="nav-bottom">
+  <button class="nav-btn" id="btn-prev" onclick="navSlide(-1)" disabled>← Anterior</button>
+  <div class="dots" id="dots"></div>
+  <div class="nav-conducao-wrap" id="nav-conducao-wrap">
+    <button class="nav-btn" id="btn-conducao" onclick="toggleMenuConducao(event)">🎯 Condução ▾</button>
+    <div class="cond-dropdown hidden" id="cond-dropdown">
+      <div class="cond-item" onclick="acaoConducao('recapitulacao')">🔁 Recapitulação</div>
+      <div class="cond-item" id="cond-apres-item" onclick="toggleSubmenuApresentacao(event)">
+        📊 Apresentação ▸
+        <div class="cond-submenu hidden" id="cond-submenu">
+          <div class="cond-item" onclick="acaoConducao('programa-aceleracao')">🚀 Programa de Aceleração</div>
+          <div class="cond-item" onclick="acaoConducao('performance')">📈 Performance</div>
+        </div>
+      </div>
+      <div class="cond-item" onclick="acaoConducao('fechamento')">🤝 Fechamento</div>
+    </div>
+  </div>
+  <button class="nav-btn primary" id="btn-next" onclick="navSlide(1)">Próximo →</button>
+</div>
+
+<!-- Overlay Condução -->
+<div class="cond-overlay hidden" id="cond-overlay" onclick="fecharOverlayConducaoClick(event)">
+  <div class="cond-panel">
+    <div class="cond-panel-header">
+      <span class="cond-panel-titulo" id="cond-titulo">Condução</span>
+      <button class="cond-panel-fechar" onclick="fecharOverlayConducao()">✕</button>
+    </div>
+    <div class="cond-panel-body" id="cond-corpo"></div>
+    <div class="cond-panel-footer">
+      <button class="cond-btn-copiar" id="btn-copiar-cond" onclick="copiarConducao()">Copiar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Configuração ─────────────────────────────────────────────────────────
+  const TOTAL_SLIDES = 4;
+  let slideAtual = 1;
+  let dados = {};
+
+  // Extrai meeting_id da URL: /cenario/abc-defg-hij
+  const meetingId = (location.pathname.match(/\/cenario\/([a-z0-9-]+)/i) || [])[1] || '';
+
+  // ── Navegação ─────────────────────────────────────────────────────────────
+  function buildDots() {
+    const wrap = document.getElementById('dots');
+    wrap.innerHTML = '';
+    for (let i = 1; i <= TOTAL_SLIDES; i++) {
+      const d = document.createElement('div');
+      d.className = 'dot' + (i === slideAtual ? ' active' : '');
+      d.onclick = () => irParaSlide(i);
+      wrap.appendChild(d);
+    }
+  }
+
+  function irParaSlide(n) {
+    const atual = document.getElementById('slide-' + slideAtual);
+    if (atual) { atual.classList.remove('active'); atual.classList.add('out-left'); }
+    slideAtual = n;
+    const prox = document.getElementById('slide-' + slideAtual);
+    if (prox) {
+      prox.classList.remove('out-left');
+      requestAnimationFrame(() => prox.classList.add('active'));
+    }
+    // Remove out-left após transição
+    setTimeout(() => {
+      document.querySelectorAll('.slide').forEach(s => {
+        if (!s.classList.contains('active')) s.classList.remove('out-left');
+      });
+    }, 500);
+    document.getElementById('btn-prev').disabled = slideAtual === 1;
+    document.getElementById('btn-next').textContent = slideAtual === TOTAL_SLIDES ? '↺ Reiniciar' : 'Próximo →';
+    buildDots();
+  }
+
+  function navSlide(dir) {
+    let prox = slideAtual + dir;
+    if (prox < 1) prox = 1;
+    if (prox > TOTAL_SLIDES) prox = 1; // loop
+    irParaSlide(prox);
+  }
+
+  // Teclado
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ') navSlide(1);
+    if (e.key === 'ArrowLeft')  navSlide(-1);
+  });
+
+  buildDots();
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function txt(id, val) {
+    const el = document.getElementById(id);
+    if (el && val != null && val !== '') el.textContent = val;
+  }
+
+  function corDisc(tipo) {
+    return { D: '#EF4444', I: '#F97316', S: '#14B8A6', C: '#38BDF8' }[tipo] || '#9D9BB8';
+  }
+  function nomeDisc(tipo) {
+    return { D: 'Dominante — Direto e decidido', I: 'Influente — Entusiasta e comunicativo',
+             S: 'Estável — Paciente e leal', C: 'Analítico — Detalhista e criterioso' }[tipo] || tipo;
+  }
+  function diceDesc(tipo) {
+    return {
+      D: 'Valoriza resultados rápidos e autonomia. Prefere informações diretas e objetivas.',
+      I: 'Motivado por reconhecimento e relacionamentos. Gosta de entusiasmo e novidade.',
+      S: 'Busca segurança e estabilidade. Precisa de confiança antes de decidir.',
+      C: 'Toma decisões com base em dados e análise. Aprecia precisão e detalhes.'
+    }[tipo] || '';
+  }
+
+  // ── Atualização de dados ──────────────────────────────────────────────────
+  function aplicarDados(d) {
+    dados = d;
+    if (!d || Object.keys(d).length === 0) return;
+
+    const meta = d._meta || {};
+
+    // ── SLIDE 1 ──────────────────────────────────────────────────────────
+    const disc = d.perfil_disc || {};
+    const tipo = disc.tipo || '';
+    if (tipo) {
+      const badge = document.getElementById('s1-disc-badge');
+      badge.textContent = tipo;
+      badge.style.background = corDisc(tipo);
+      badge.style.color = tipo === 'I' || tipo === 'C' ? '#000' : '#fff';
+      txt('s1-disc-nome', nomeDisc(tipo));
+      txt('s1-disc-desc', diceDesc(tipo));
+      const conf = disc.confianca ? `<span class="tag" style="background:${corDisc(tipo)}22;color:${corDisc(tipo)}">${disc.confianca}</span>` : '';
+      const ev = disc.evidencia ? ` · <em style="color:#9D9BB8">${disc.evidencia}</em>` : '';
+      document.getElementById('s1-disc-conf').innerHTML = conf + ev;
+    }
+
+    // Cards financeiros slide 1
+    const mapa = d.mapa_financeiro || {};
+    const aguardando = document.getElementById('s1-aguardando');
+    const linhas = [];
+    if (mapa.faturamento_mensal) linhas.push({ icone: '📈', label: 'Faturamento Mensal', valor: mapa.faturamento_mensal, cor: 'verde' });
+    if (mapa.renda_clt)          linhas.push({ icone: '💼', label: 'Renda Mensal',       valor: mapa.renda_clt,          cor: 'azul' });
+    if (mapa.capacidade_investimento) linhas.push({ icone: '💰', label: 'Capacidade de Investimento', valor: mapa.capacidade_investimento, cor: 'laranja' });
+    if (mapa.cartao_credito_limite)   linhas.push({ icone: '💳', label: 'Limite do Cartão', valor: mapa.cartao_credito_limite, cor: 'roxo' });
+
+    if (linhas.length > 0) {
+      if (aguardando) aguardando.remove();
+      const container = document.getElementById('s1-cards');
+      // Limpa cards anteriores (mantém somente o aguardando que já foi removido)
+      container.querySelectorAll('.card:not(#s1-aguardando)').forEach(c => c.remove());
+      linhas.forEach(l => {
+        const c = document.createElement('div');
+        c.className = `card ${l.cor}`;
+        c.innerHTML = `<div class="card-icone">${l.icone}</div><div class="card-label">${l.label}</div><div class="card-valor">${l.valor}</div>`;
+        container.appendChild(c);
+      });
+    }
+
+    // ── SLIDE 2 ──────────────────────────────────────────────────────────
+    const prod = (mapa.produto_indicado && mapa.produto_indicado.nome) ? mapa.produto_indicado : null;
+    if (prod) {
+      txt('s2-produto-nome', prod.nome);
+      txt('s2-produto-just', prod.justificativa || '');
+    }
+    txt('s2-capacidade', mapa.capacidade_investimento || '--');
+    txt('s2-capacidade-det', mapa.faturamento_mensal ? `Faturamento: ${mapa.faturamento_mensal}` : '');
+
+    const score = d.score_compra || {};
+    if (score.valor != null) {
+      const val = Math.min(98, Math.max(5, Number(score.valor)));
+      const cor = val >= 70 ? 'var(--verde)' : val >= 45 ? 'var(--laranja)' : 'var(--vermelho)';
+      document.getElementById('s2-score-num').textContent = val + '/100';
+      document.getElementById('s2-score-num').style.color = cor;
+      document.getElementById('s2-score-fill').style.width = val + '%';
+      document.getElementById('s2-score-fill').style.background = cor;
+      txt('s2-score-just', score.justificativa || '');
+    }
+
+    // ── SLIDE 3 ──────────────────────────────────────────────────────────
+    if (prod) {
+      txt('s3-passo2', `${prod.nome} selecionado como solução ideal`);
+      txt('s3-passo2-det', prod.justificativa || 'Produto alinhado com seu perfil e capacidade financeira');
+    }
+
+    // ── SLIDE 4 — Mapa Mental ─────────────────────────────────────────────
+    if (tipo) {
+      txt('mapa-disc-tipo', tipo + ' — ' + (tipo === 'D' ? 'Dominante' : tipo === 'I' ? 'Influente' : tipo === 'S' ? 'Estável' : 'Analítico'));
+      txt('mapa-disc-conf', disc.confianca || 'DISC');
+    }
+    txt('mapa-fat', mapa.faturamento_mensal ? 'Faturamento' : 'Renda');
+    txt('mapa-fat-val', mapa.faturamento_mensal || mapa.renda_clt || '--');
+    if (score.valor != null) txt('mapa-score', Math.min(98, Math.max(5, Number(score.valor))) + '/100');
+    if (prod) { txt('mapa-prod-nome', prod.nome); txt('mapa-prod-det', 'Produto indicado'); }
+    txt('mapa-cap', 'Capacidade'); txt('mapa-cap-val', mapa.capacidade_investimento || '--');
+    const temp = d.temperatura || {};
+    if (temp.nivel) { txt('mapa-temp', 'Temperatura'); txt('mapa-temp-val', temp.nivel); }
+
+    // Status
+    const hora = meta.updated_at ? new Date(meta.updated_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+    document.getElementById('status-txt').textContent = hora ? `Atualizado às ${hora}` : 'Ao vivo';
+  }
+
+  // ── Polling ───────────────────────────────────────────────────────────────
+  async function buscarDados() {
+    if (!meetingId) {
+      document.getElementById('status-txt').textContent = 'meeting_id não encontrado na URL';
+      return;
+    }
+    try {
+      const r = await fetch('/api/cenario/' + meetingId);
+      if (r.ok) {
+        const d = await r.json();
+        aplicarDados(d);
+      }
+    } catch (e) {
+      document.getElementById('status-txt').textContent = 'Sem conexão com o servidor';
+    }
+  }
+
+  buscarDados();
+  setInterval(buscarDados, 30000); // atualiza a cada 30s
+
+  // ── CONDUÇÃO ─────────────────────────────────────────────────────────────
+  const _API_COND = (() => {
+    const h = location.hostname;
+    return (h === 'localhost' || h === '127.0.0.1') ? 'http://localhost:8000' : 'https://api.saleia.com.br';
+  })();
+
+  const _titulosConducao = {
+    'recapitulacao':        '🔁 Recapitulação',
+    'programa-aceleracao':  '🚀 Programa de Aceleração',
+    'performance':          '📈 Performance',
+    'fechamento':           '🤝 Fechamento',
+  };
+
+  let _condTexto = '';
+
+  function toggleMenuConducao(e) {
+    e.stopPropagation();
+    const dd = document.getElementById('cond-dropdown');
+    const aberto = !dd.classList.contains('hidden');
+    dd.classList.toggle('hidden');
+    if (aberto) document.getElementById('cond-submenu').classList.add('hidden');
+  }
+
+  function toggleSubmenuApresentacao(e) {
+    e.stopPropagation();
+    document.getElementById('cond-submenu').classList.toggle('hidden');
+  }
+
+  function fecharMenusConducao() {
+    document.getElementById('cond-dropdown').classList.add('hidden');
+    document.getElementById('cond-submenu').classList.add('hidden');
+  }
+
+  document.addEventListener('click', () => fecharMenusConducao());
+
+  async function acaoConducao(tipo) {
+    fecharMenusConducao();
+    if (!meetingId) {
+      alert('meeting_id não encontrado na URL. Abra esta página pelo link correto da reunião.');
+      return;
+    }
+    const titulo = _titulosConducao[tipo] || tipo;
+    _abrirOverlay(titulo);
+    try {
+      const r = await fetch(_API_COND + '/cenario/' + meetingId + '/conducao', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo, dados }),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const json = await r.json();
+      const texto = json.conteudo || json.texto || json.resultado || JSON.stringify(json, null, 2);
+      _mostrarTextoOverlay(texto);
+    } catch {
+      document.getElementById('cond-corpo').innerHTML =
+        '<div class="cond-erro">❌ Não foi possível gerar o conteúdo. Verifique a conexão e tente novamente.</div>';
+      _condTexto = '';
+    }
+  }
+
+  function _abrirOverlay(titulo) {
+    document.getElementById('cond-titulo').textContent = titulo;
+    document.getElementById('cond-corpo').innerHTML =
+      '<div class="cond-spinner"><div class="spinner"></div><span>Gerando...</span></div>';
+    document.getElementById('cond-overlay').classList.remove('hidden');
+    _condTexto = '';
+  }
+
+  function _mostrarTextoOverlay(texto) {
+    _condTexto = texto;
+    document.getElementById('cond-corpo').innerHTML = texto
+      .split('\n')
+      .map(l => l.trim()
+        ? '<p style="margin-bottom:10px">' + l.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') + '</p>'
+        : '')
+      .join('');
+  }
+
+  function fecharOverlayConducao() {
+    document.getElementById('cond-overlay').classList.add('hidden');
+    _condTexto = '';
+  }
+
+  function fecharOverlayConducaoClick(e) {
+    if (e.target === document.getElementById('cond-overlay')) fecharOverlayConducao();
+  }
+
+  function copiarConducao() {
+    if (!_condTexto) return;
+    const btn = document.getElementById('btn-copiar-cond');
+    navigator.clipboard.writeText(_condTexto).then(() => {
+      if (btn) { btn.textContent = 'Copiado!'; setTimeout(() => { btn.textContent = 'Copiar'; }, 2000); }
+    }).catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = _condTexto;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (btn) { btn.textContent = 'Copiado!'; setTimeout(() => { btn.textContent = 'Copiar'; }, 2000); }
+    });
+  }
+
+  // Fechar overlay com Escape
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') fecharOverlayConducao();
+  });
+</script>
+</body>
+</html>
