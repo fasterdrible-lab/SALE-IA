@@ -674,6 +674,35 @@
 
     .action-hint { font-size: .82rem; color: var(--muted); }
 
+    /* Drag-drop zone */
+    .base-dropzone {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 26px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      background: var(--field);
+      user-select: none;
+    }
+    .base-dropzone:hover, .base-dropzone.drag-over {
+      border-color: var(--primary);
+      background: rgba(20,184,166,.05);
+    }
+    .base-dropzone-icon { font-size: 2rem; margin-bottom: 6px; pointer-events: none; }
+    .base-dropzone-hint { color: var(--muted); font-size: .88rem; pointer-events: none; }
+    .base-dropzone-hint strong { color: var(--primary); }
+    .base-dropzone-status {
+      display: none;
+      margin-top: 10px;
+      font-size: .85rem;
+      padding: 7px 12px;
+      border-radius: 6px;
+      background: rgba(20,184,166,.08);
+      color: #5eead4;
+    }
+    .base-dropzone-status.erro { background: rgba(239,68,68,.08); color: #fca5a5; }
+
     /* Form error / ok */
     .form-error {
       margin-top: 14px;
@@ -1067,11 +1096,24 @@
           </div>
 
           <div class="field-group">
+            <label class="field-label">Arquivo <span style="color:var(--muted);font-weight:400;font-size:.8rem">PDF • DOCX • TXT • MD</span></label>
+            <div class="base-dropzone" id="base-dropzone">
+              <div class="base-dropzone-icon">📎</div>
+              <div class="base-dropzone-hint">
+                <strong>Arraste um arquivo aqui</strong> ou <strong>clique para selecionar</strong>
+              </div>
+              <div style="color:var(--muted);font-size:.78rem;margin-top:4px;pointer-events:none">PDF • DOCX • TXT • MD</div>
+              <div class="base-dropzone-status" id="base-drop-status"></div>
+            </div>
+            <input type="file" id="base-file-input" accept=".pdf,.docx,.doc,.txt,.md,.csv" style="display:none">
+          </div>
+
+          <div class="field-group">
             <label class="field-label" for="base-texto">Conteúdo <span class="required">*</span></label>
             <textarea
               id="base-texto"
               class="field-textarea"
-              placeholder="Cole aqui o texto do script, instrução, informação ou conteúdo que a IA deve considerar ao analisar reuniões e gerar scripts de Condução..."
+              placeholder="Cole aqui o texto do script, instrução, informação ou conteúdo que a IA deve considerar ao analisar reuniões e gerar scripts de Condução... (ou arraste um arquivo acima)"
               oninput="atualizarContadorBase()"
             ></textarea>
             <div class="textarea-footer">
@@ -1227,7 +1269,7 @@
     if (nome === 'dashboard')     carregarDashboard();
     if (nome === 'reunioes')      carregarReunioes();
     if (nome === 'sessoes')       carregarSessoes();
-    if (nome === 'base')          carregarBase();
+    if (nome === 'base')          { carregarBase(); initDropzone(); }
     if (nome === 'configuracoes') carregarConfiguracoes();
   }
 
@@ -1311,6 +1353,8 @@
       document.getElementById('base-titulo').value = '';
       document.getElementById('base-texto').value  = '';
       document.getElementById('base-char-counter').textContent = '0 caracteres';
+      const dropStatus = document.getElementById('base-drop-status');
+      if (dropStatus) dropStatus.style.display = 'none';
       const charsStr = r.chars > 999 ? (r.chars/1000).toFixed(1)+'k' : r.chars;
       if (r.aviso) {
         okEl.innerHTML = '✓ Documento adicionado (' + charsStr + ' chars)<br><small style="color:#F97316">⚠️ ' + r.aviso + '</small>';
@@ -1343,6 +1387,101 @@
   function atualizarContadorBase() {
     const len = document.getElementById('base-texto').value.length;
     document.getElementById('base-char-counter').textContent = len.toLocaleString('pt-BR') + ' caracteres';
+  }
+
+  /* ─── Drag-and-Drop / Upload de Arquivos ─────────── */
+  function initDropzone() {
+    const zone   = document.getElementById('base-dropzone');
+    const input  = document.getElementById('base-file-input');
+    if (!zone || !input) return;
+
+    zone.addEventListener('click',     () => input.click());
+    input.addEventListener('change',   e  => { if (e.target.files[0]) processarArquivo(e.target.files[0]); input.value = ''; });
+    zone.addEventListener('dragover',  e  => { e.preventDefault(); zone.classList.add('drag-over'); });
+    zone.addEventListener('dragleave', ()  => zone.classList.remove('drag-over'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file) processarArquivo(file);
+    });
+  }
+
+  async function processarArquivo(file) {
+    const status  = document.getElementById('base-drop-status');
+    const textarea = document.getElementById('base-texto');
+    const tituloEl = document.getElementById('base-titulo');
+
+    const setStatus = (msg, erro) => {
+      status.textContent = msg;
+      status.style.display = 'block';
+      status.className = 'base-dropzone-status' + (erro ? ' erro' : '');
+    };
+
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    setStatus('⏳ Lendo ' + file.name + '...', false);
+
+    try {
+      let texto = '';
+      if (['txt', 'md', 'csv', 'json', 'log'].includes(ext)) {
+        texto = await file.text();
+      } else if (ext === 'pdf') {
+        texto = await _extrairPDF(file);
+      } else if (['docx', 'doc'].includes(ext)) {
+        texto = await _extrairDOCX(file);
+      } else {
+        setStatus('❌ Formato não suportado. Use PDF, DOCX, TXT ou MD.', true);
+        return;
+      }
+
+      texto = texto.trim();
+      if (!texto) { setStatus('❌ Não foi possível extrair texto do arquivo.', true); return; }
+
+      textarea.value = texto;
+      atualizarContadorBase();
+
+      if (!tituloEl.value.trim()) {
+        tituloEl.value = file.name.replace(/\.[^.]+$/, '').replace(/[_\-]+/g, ' ').trim();
+      }
+
+      const chars = texto.length.toLocaleString('pt-BR');
+      setStatus('✓ ' + file.name + ' — ' + chars + ' caracteres extraídos', false);
+    } catch (e) {
+      setStatus('❌ Erro ao processar: ' + (e.message || e), true);
+    }
+  }
+
+  async function _carregarScript(src) {
+    return new Promise((resolve, reject) => {
+      if (document.querySelector('script[src="' + src + '"]')) { resolve(); return; }
+      const s = document.createElement('script');
+      s.src = src; s.onload = resolve; s.onerror = () => reject(new Error('Falha ao carregar ' + src));
+      document.head.appendChild(s);
+    });
+  }
+
+  async function _extrairPDF(file) {
+    await _carregarScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+    const pdfjsLib = window['pdfjs-dist/build/pdf'] || window.pdfjsLib;
+    if (!pdfjsLib) throw new Error('PDF.js não carregou');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    let text = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page    = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map(it => it.str).join(' ') + '\n';
+    }
+    return text;
+  }
+
+  async function _extrairDOCX(file) {
+    await _carregarScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js');
+    if (!window.mammoth) throw new Error('Mammoth.js não carregou');
+    const buf    = await file.arrayBuffer();
+    const result = await window.mammoth.extractRawText({ arrayBuffer: buf });
+    return result.value;
   }
 
   /* ─── Configurações — carregamento geral ─────────── */
