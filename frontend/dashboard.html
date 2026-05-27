@@ -148,7 +148,30 @@
       padding: 14px 12px;
       border-top: 1px solid var(--border);
       flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
+
+    .btn-sair {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(239,68,68,.25);
+      background: rgba(239,68,68,.07);
+      color: #FCA5A5;
+      font-size: .88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s, border-color .15s;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .btn-sair:hover { background: rgba(239,68,68,.15); border-color: rgba(239,68,68,.45); }
+    .sidebar.collapsed .btn-sair .btn-sair-label { opacity: 0; width: 0; }
 
     .status-bar {
       display: flex;
@@ -836,6 +859,9 @@
     </nav>
 
     <div class="sidebar-footer">
+      <button class="btn-sair" onclick="sair()" title="Sair da aplicação">
+        <span>🚪</span><span class="btn-sair-label">Sair</span>
+      </button>
       <div class="status-bar">
         <div class="dot" id="nav-dot"></div>
         <span id="nav-status" class="nav-label">verificando...</span>
@@ -1173,6 +1199,12 @@
       ? 'http://localhost:8000'
       : 'https://api.saleia.com.br';
     return localStorage.getItem(API_STORAGE_KEY) || fallback;
+  }
+
+  /* ─── Sair ───────────────────────────────────────── */
+  function sair() {
+    localStorage.removeItem('saleia_token');
+    window.location.href = '/login';
   }
 
   /* ─── Sidebar toggle ──────────────────────────────── */
