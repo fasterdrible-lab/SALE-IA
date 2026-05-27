@@ -737,6 +737,17 @@ def recapitulacao_manual(req: RecapitulacaoRequest):
     return resultado
 
 
+@app.get("/login", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+def login_page():
+    """Página de login."""
+    caminho = Path(__file__).parent.parent / "frontend" / "login.html"
+    try:
+        return HTMLResponse(content=caminho.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="login.html não encontrado")
+
+
 @app.get("/dashboard.", response_class=HTMLResponse, include_in_schema=False)
 @app.get("/dashboard/", response_class=HTMLResponse, include_in_schema=False)
 @app.get("/dashboard", response_class=HTMLResponse)
