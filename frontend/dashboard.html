@@ -1311,7 +1311,14 @@
       document.getElementById('base-titulo').value = '';
       document.getElementById('base-texto').value  = '';
       document.getElementById('base-char-counter').textContent = '0 caracteres';
-      okEl.textContent = '✓ Documento adicionado! (' + (r.chars > 999 ? (r.chars/1000).toFixed(1)+'k' : r.chars) + ' chars)';
+      const charsStr = r.chars > 999 ? (r.chars/1000).toFixed(1)+'k' : r.chars;
+      if (r.aviso) {
+        okEl.innerHTML = '✓ Documento adicionado (' + charsStr + ' chars)<br><small style="color:#F97316">⚠️ ' + r.aviso + '</small>';
+        okEl.style.borderColor = 'rgba(249,115,22,.4)';
+      } else {
+        okEl.textContent = '✓ Documento adicionado com embedding! (' + charsStr + ' chars)';
+        okEl.style.borderColor = '';
+      }
       okEl.classList.remove('hidden');
       await carregarBase();
     } catch (e) {

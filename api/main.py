@@ -900,15 +900,18 @@ async def adicionar_base(req: AdicionarBaseRequest):
 
     import json as _json
     from openai import AsyncOpenAI
+    embedding_json = None
+    aviso = None
     try:
-        client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-        resp = await client.embeddings.create(
+        oai = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        resp = await oai.embeddings.create(
             model="text-embedding-3-small",
             input=req.texto[:8000],
         )
         embedding_json = _json.dumps(resp.data[0].embedding)
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Erro ao gerar embedding: {e}")
+        aviso = "Documento salvo sem embedding (quota OpenAI esgotada). Atualize a chave em Configurações > APIs."
+        logger.warning("[base] embedding falhou, salvando sem: %s", e)
 
     from agent.sessao_manager import _get_conn
     try:
@@ -926,7 +929,7 @@ async def adicionar_base(req: AdicionarBaseRequest):
 
     from agent.base_conhecimento import invalidar_cache
     invalidar_cache()
-    return {"ok": True, "id": novo_id, "chars": len(req.texto)}
+    return {"ok": True, "id": novo_id, "chars": len(req.texto), "aviso": aviso}
 
 
 @app.delete("/base/{doc_id}")
