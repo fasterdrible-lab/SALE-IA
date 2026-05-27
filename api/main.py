@@ -149,6 +149,12 @@ class ExportarBaseRequest(BaseModel):
     tipo: Optional[str] = "reuniao"
 
 
+class AdicionarBaseRequest(BaseModel):
+    titulo: str
+    tipo: Optional[str] = "instrucao"
+    texto: str
+
+
 class AudioTranscricaoRequest(BaseModel):
     audio_base64: str          # formato: "data:audio/webm;base64,XXXX"
     mime_type: Optional[str] = "audio/webm"
@@ -846,6 +852,100 @@ def exportar_base_endpoint(sessao_id: int, req: ExportarBaseRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/base")
+def listar_base():
+    """Lista todos os documentos da base de conhecimento (sem embeddings)."""
+    from agent.sessao_manager import _get_conn
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS base_conhecimento (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    titulo VARCHAR(255) NOT NULL,
+                    tipo VARCHAR(50) DEFAULT 'instrucao',
+                    conteudo MEDIUMTEXT NOT NULL,
+                    embedding JSON,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """)
+            cur.execute(
+                "SELECT id, titulo, tipo, CHAR_LENGTH(conteudo) AS chars, created_at "
+                "FROM base_conhecimento ORDER BY created_at DESC"
+            )
+            rows = cur.fetchall()
+        conn.close()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    docs = [
+        {
+            "id": r[0], "titulo": r[1], "tipo": r[2], "chars": r[3],
+            "created_at": r[4].isoformat() if r[4] else None,
+        }
+        for r in rows
+    ]
+    return {"docs": docs, "total": len(docs)}
+
+
+@app.post("/base")
+async def adicionar_base(req: AdicionarBaseRequest):
+    """Adiciona um documento à base de conhecimento, gerando embedding via OpenAI."""
+    if not req.titulo or not req.titulo.strip():
+        raise HTTPException(status_code=400, detail="Título obrigatório")
+    if not req.texto or len(req.texto.strip()) < 10:
+        raise HTTPException(status_code=400, detail="Texto muito curto (mínimo 10 caracteres)")
+
+    import json as _json
+    from openai import AsyncOpenAI
+    try:
+        client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        resp = await client.embeddings.create(
+            model="text-embedding-3-small",
+            input=req.texto[:8000],
+        )
+        embedding_json = _json.dumps(resp.data[0].embedding)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Erro ao gerar embedding: {e}")
+
+    from agent.sessao_manager import _get_conn
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO base_conhecimento (titulo, tipo, conteudo, embedding) VALUES (%s, %s, %s, %s)",
+                (req.titulo.strip(), req.tipo or "instrucao", req.texto, embedding_json),
+            )
+            novo_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    from agent.base_conhecimento import invalidar_cache
+    invalidar_cache()
+    return {"ok": True, "id": novo_id, "chars": len(req.texto)}
+
+
+@app.delete("/base/{doc_id}")
+def remover_base(doc_id: int):
+    """Remove um documento da base de conhecimento."""
+    from agent.sessao_manager import _get_conn
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM base_conhecimento WHERE id = %s", (doc_id,))
+            affected = cur.rowcount
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    if affected == 0:
+        raise HTTPException(status_code=404, detail="Documento não encontrado")
+    from agent.base_conhecimento import invalidar_cache
+    invalidar_cache()
+    return {"ok": True}
 
 
 @app.get("/cenario/{meeting_id}", response_class=HTMLResponse)

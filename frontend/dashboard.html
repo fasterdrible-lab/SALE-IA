@@ -651,7 +651,7 @@
 
     .action-hint { font-size: .82rem; color: var(--muted); }
 
-    /* Form error */
+    /* Form error / ok */
     .form-error {
       margin-top: 14px;
       padding: 12px 16px;
@@ -659,6 +659,15 @@
       border: 1px solid rgba(239,68,68,.2);
       border-radius: 8px;
       color: #fca5a5;
+      font-size: .9rem;
+    }
+    .form-ok {
+      margin-top: 14px;
+      padding: 12px 16px;
+      background: rgba(20,184,166,.08);
+      border: 1px solid rgba(20,184,166,.3);
+      border-radius: 8px;
+      color: #5eead4;
       font-size: .9rem;
     }
 
@@ -814,6 +823,9 @@
       </button>
       <button class="nav-item" data-page="analisar" onclick="mostrarPagina('analisar', this)">
         <span class="nav-icon">🔍</span><span class="nav-label">Analisar</span>
+      </button>
+      <button class="nav-item" data-page="base" onclick="mostrarPagina('base', this)">
+        <span class="nav-icon">📚</span><span class="nav-label">Base de IA</span>
       </button>
       <a class="nav-item" href="/manual" target="_blank" rel="noopener">
         <span class="nav-icon">📖</span><span class="nav-label">Manual</span>
@@ -995,6 +1007,90 @@
 
       </div><!-- /page-analisar -->
 
+      <!-- BASE DE IA -->
+      <div class="page" id="page-base">
+
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Base de Conhecimento</h1>
+            <p class="page-subtitle">Documentos que a IA consulta durante análises e Condução. Quanto mais rico o acervo, mais precisa a IA.</p>
+          </div>
+          <span class="version-badge">V.1.3.3</span>
+        </div>
+
+        <!-- Formulário de adição -->
+        <div class="form-card">
+          <div style="font-weight:700;font-size:1rem;margin-bottom:18px;color:var(--primary)">📄 Novo Documento</div>
+
+          <div class="field-group">
+            <label class="field-label" for="base-titulo">Título <span class="required">*</span></label>
+            <input type="text" id="base-titulo" class="field-input" placeholder="Ex: Script Abertura Programa Aceleração v3" />
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="base-tipo">Tipo</label>
+            <select id="base-tipo" class="field-input" style="cursor:pointer">
+              <option value="instrucao">📋 Instrução para IA</option>
+              <option value="script_venda">🎯 Script de Venda</option>
+              <option value="programa_aceleracao">🚀 Programa de Aceleração</option>
+              <option value="diagnostico">🔍 Diagnóstico</option>
+              <option value="consultoria">💼 Consultoria</option>
+              <option value="reuniao_1_1">👥 Reunião 1:1</option>
+              <option value="outro">📁 Outro</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="base-texto">Conteúdo <span class="required">*</span></label>
+            <textarea
+              id="base-texto"
+              class="field-textarea"
+              placeholder="Cole aqui o texto do script, instrução, informação ou conteúdo que a IA deve considerar ao analisar reuniões e gerar scripts de Condução..."
+              oninput="atualizarContadorBase()"
+            ></textarea>
+            <div class="textarea-footer">
+              <span class="char-counter" id="base-char-counter">0 caracteres</span>
+              <span class="field-hint">Mínimo 50 caracteres recomendado para um embedding útil</span>
+            </div>
+          </div>
+
+          <div class="action-row">
+            <button class="btn-analisar" id="btn-base-add" onclick="adicionarDocumento()">
+              <span id="btn-base-text">📚 Adicionar à Base</span>
+              <div class="btn-spinner" id="btn-base-spinner"></div>
+            </button>
+          </div>
+
+          <div id="base-add-erro" class="form-error" style="display:none"></div>
+          <div id="base-add-ok"   class="form-ok   hidden"></div>
+        </div>
+
+        <!-- Lista de documentos -->
+        <div class="form-card" style="padding:0;overflow:hidden">
+          <div style="padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)">
+            <span style="font-weight:700;font-size:1rem;color:var(--primary)">📚 Documentos na Base</span>
+            <span id="base-contador" style="color:var(--muted);font-size:.83rem">Carregando...</span>
+          </div>
+          <div id="base-loading" style="padding:24px;color:var(--muted);text-align:center;font-size:.9rem">Carregando documentos...</div>
+          <div id="base-vazio" class="hidden" style="padding:40px;text-align:center;color:var(--muted)">
+            <div style="font-size:2.2rem;margin-bottom:10px">📭</div>
+            <div style="font-weight:600">Nenhum documento na base ainda.</div>
+            <div style="font-size:.85rem;margin-top:6px">Adicione acima para começar.</div>
+          </div>
+          <div id="base-lista" class="hidden">
+            <table class="cfg-tabela">
+              <thead>
+                <tr>
+                  <th>Título</th><th>Tipo</th><th>Tamanho</th><th>Adicionado em</th><th style="width:52px"></th>
+                </tr>
+              </thead>
+              <tbody id="base-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /page-base -->
+
       <!-- CONFIGURAÇÕES -->
       <div class="page" id="page-configuracoes">
         <h2>Configurações</h2>
@@ -1099,7 +1195,115 @@
     if (nome === 'dashboard')     carregarDashboard();
     if (nome === 'reunioes')      carregarReunioes();
     if (nome === 'sessoes')       carregarSessoes();
+    if (nome === 'base')          carregarBase();
     if (nome === 'configuracoes') carregarConfiguracoes();
+  }
+
+  /* ─── Base de Conhecimento ───────────────────────── */
+  const _TIPOS_BASE = {
+    instrucao:           '📋 Instrução para IA',
+    script_venda:        '🎯 Script de Venda',
+    programa_aceleracao: '🚀 Prog. Aceleração',
+    diagnostico:         '🔍 Diagnóstico',
+    consultoria:         '💼 Consultoria',
+    reuniao_1_1:         '👥 Reunião 1:1',
+    reuniao:             '🎙 Reunião',
+    outro:               '📁 Outro',
+  };
+
+  async function carregarBase() {
+    document.getElementById('base-loading').classList.remove('hidden');
+    document.getElementById('base-vazio').classList.add('hidden');
+    document.getElementById('base-lista').classList.add('hidden');
+    document.getElementById('base-contador').textContent = 'Carregando...';
+    try {
+      const resp = await fetchJsonWithFallback('/base');
+      const r = await resp.json();
+      document.getElementById('base-loading').classList.add('hidden');
+      if (!r.docs || r.docs.length === 0) {
+        document.getElementById('base-vazio').classList.remove('hidden');
+        document.getElementById('base-contador').textContent = '0 documentos';
+      } else {
+        renderizarBase(r.docs);
+        document.getElementById('base-contador').textContent = r.total + ' documento' + (r.total !== 1 ? 's' : '');
+      }
+    } catch (e) {
+      document.getElementById('base-loading').textContent = 'Erro ao carregar: ' + e.message;
+    }
+  }
+
+  function renderizarBase(docs) {
+    const tbody = document.getElementById('base-tbody');
+    tbody.innerHTML = docs.map(d => {
+      const tipo  = escHtml(_TIPOS_BASE[d.tipo] || d.tipo || 'Outro');
+      const titulo = escHtml(d.titulo || '—');
+      const chars = d.chars ? (d.chars > 999 ? (d.chars / 1000).toFixed(1) + ' k' : d.chars) + ' chars' : '—';
+      const data  = d.created_at ? new Date(d.created_at).toLocaleDateString('pt-BR') : '—';
+      return `<tr>
+        <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${titulo}">${titulo}</td>
+        <td><span style="font-size:.82rem;color:var(--muted)">${tipo}</span></td>
+        <td style="color:var(--muted);font-size:.82rem">${chars}</td>
+        <td style="color:var(--muted);font-size:.82rem">${data}</td>
+        <td>
+          <button class="cfg-btn-acao danger" onclick="removerDaBase(${d.id})" title="Excluir documento">🗑</button>
+        </td>
+      </tr>`;
+    }).join('');
+    document.getElementById('base-lista').classList.remove('hidden');
+  }
+
+  async function adicionarDocumento() {
+    const titulo = document.getElementById('base-titulo').value.trim();
+    const tipo   = document.getElementById('base-tipo').value;
+    const texto  = document.getElementById('base-texto').value.trim();
+    const erroEl = document.getElementById('base-add-erro');
+    const okEl   = document.getElementById('base-add-ok');
+
+    erroEl.style.display = 'none';
+    okEl.classList.add('hidden');
+
+    if (!titulo) { erroEl.textContent = 'Informe um título.'; erroEl.style.display = 'block'; return; }
+    if (texto.length < 50) { erroEl.textContent = 'Conteúdo muito curto (mínimo 50 caracteres).'; erroEl.style.display = 'block'; return; }
+
+    const btn = document.getElementById('btn-base-add');
+    btn.classList.add('loading'); btn.disabled = true;
+    document.getElementById('btn-base-text').textContent = 'Gerando embedding...';
+
+    try {
+      const resp = await fetchJsonWithFallback('/base', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ titulo, tipo, texto }),
+      });
+      const r = await resp.json();
+      document.getElementById('base-titulo').value = '';
+      document.getElementById('base-texto').value  = '';
+      document.getElementById('base-char-counter').textContent = '0 caracteres';
+      okEl.textContent = '✓ Documento adicionado! (' + (r.chars > 999 ? (r.chars/1000).toFixed(1)+'k' : r.chars) + ' chars)';
+      okEl.classList.remove('hidden');
+      await carregarBase();
+    } catch (e) {
+      erroEl.textContent = 'Erro: ' + e.message;
+      erroEl.style.display = 'block';
+    } finally {
+      btn.classList.remove('loading'); btn.disabled = false;
+      document.getElementById('btn-base-text').textContent = '📚 Adicionar à Base';
+    }
+  }
+
+  async function removerDaBase(id) {
+    if (!confirm('Excluir este documento da base de conhecimento?')) return;
+    try {
+      await fetchJsonWithFallback('/base/' + id, { method: 'DELETE' });
+      await carregarBase();
+    } catch (e) {
+      alert('Erro ao excluir: ' + e.message);
+    }
+  }
+
+  function atualizarContadorBase() {
+    const len = document.getElementById('base-texto').value.length;
+    document.getElementById('base-char-counter').textContent = len.toLocaleString('pt-BR') + ' caracteres';
   }
 
   /* ─── Configurações — carregamento geral ─────────── */
@@ -1731,7 +1935,7 @@
 
   function voltarParaReunioes() {
     mostrarPagina(_paginaAnterior, null);
-    const mapa = { dashboard: 0, reunioes: 1, sessoes: 2, analisar: 3, configuracoes: 5 };
+    const mapa = { dashboard: 0, reunioes: 1, sessoes: 2, analisar: 3, base: 4, configuracoes: 6 };
     const idx = mapa[_paginaAnterior] ?? 1;
     document.querySelectorAll('.nav-item')[idx]?.classList.add('active');
   }
