@@ -1185,3 +1185,310 @@ def auth_cadastro(req: AuthCadastroRequest):
 def auth_recuperar_senha(req: AuthRecuperarSenhaRequest):
     # Stub — apenas confirma recebimento (envio de e-mail não implementado)
     return {"ok": True, "mensagem": "Se o e-mail estiver cadastrado, você receberá as instruções em breve."}
+
+
+# ─────────────────────────────────────────────
+# ADMIN — gerenciamento de usuários e APIs
+# ─────────────────────────────────────────────
+from fastapi import Header as _Header
+
+
+def _req_admin(authorization: str | None) -> dict:
+    """Verifica JWT e exige perfil admin. Retorna payload."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Token não fornecido.")
+    token = authorization[7:]
+    try:
+        payload = _jwt.decode(token, _JWT_SECRET, algorithms=[_JWT_ALGO])
+    except _jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expirado.")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Token inválido.")
+    if payload.get("perfil") != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores têm acesso.")
+    return payload
+
+
+# ── Usuários ──────────────────────────────────
+
+@app.get("/admin/usuarios")
+def admin_listar_usuarios(authorization: str | None = _Header(default=None)):
+    _req_admin(authorization)
+    from agent.sessao_manager import _get_conn
+    conn = _get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, nome, email, perfil, plano, status, data_cadastro, ultimo_acesso "
+                "FROM usuarios ORDER BY data_cadastro DESC"
+            )
+            rows = cur.fetchall()
+    finally:
+        conn.close()
+    usuarios = [
+        {
+            "id": str(r[0]), "nome": r[1], "email": r[2], "perfil": r[3],
+            "plano": r[4] or "free", "status": r[5],
+            "data_cadastro": r[6].isoformat() if r[6] else None,
+            "ultimo_acesso": r[7].isoformat() if r[7] else None,
+        }
+        for r in rows
+    ]
+    return {"usuarios": usuarios, "total": len(usuarios)}
+
+
+@app.patch("/admin/usuarios/{uid}/inativar")
+def admin_inativar_usuario(uid: str, authorization: str | None = _Header(default=None)):
+    _req_admin(authorization)
+    _admin_set_status(uid, "inativo")
+    return {"ok": True}
+
+
+@app.patch("/admin/usuarios/{uid}/reativar")
+def admin_reativar_usuario(uid: str, authorization: str | None = _Header(default=None)):
+    _req_admin(authorization)
+    _admin_set_status(uid, "ativo")
+    return {"ok": True}
+
+
+@app.patch("/admin/usuarios/{uid}/resetar-senha")
+def admin_resetar_senha(uid: str, authorization: str | None = _Header(default=None)):
+    _req_admin(authorization)
+    nova_senha = "Saleia@2025"
+    from agent.sessao_manager import _get_conn
+    conn = _get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE usuarios SET senha_hash=%s WHERE id=%s",
+                (_hash_senha(nova_senha), uid),
+            )
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True, "nova_senha": nova_senha}
+
+
+class AdminPerfilRequest(BaseModel):
+    perfil: str
+
+
+class AdminPlanoRequest(BaseModel):
+    plano: str
+
+
+@app.patch("/admin/usuarios/{uid}/perfil")
+def admin_alterar_perfil(uid: str, req: AdminPerfilRequest, authorization: str | None = _Header(default=None)):
+    _req_admin(authorization)
+    if req.perfil not in ("admin", "gerente", "operador", "usuario"):
+        raise HTTPException(status_code=400, detail="Perfil inválido.")
+    from agent.sessao_manager import _get_conn
+    conn = _get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE usuarios SET perfil=%s WHERE id=%s", (req.perfil, uid))
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+@app.patch("/admin/usuarios/{uid}/plano")
+def admin_alterar_plano(uid: str, req: AdminPlanoRequest, authorization: str | None = _Header(default=None)):
+    _req_admin(authorization)
+    if req.plano not in ("free", "pro", "enterprise"):
+        raise HTTPException(status_code=400, detail="Plano inválido.")
+    from agent.sessao_manager import _get_conn
+    conn = _get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE usuarios SET plano=%s WHERE id=%s", (req.plano, uid))
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+@app.delete("/admin/usuarios/{uid}")
+def admin_excluir_usuario(uid: str, authorization: str | None = _Header(default=None)):
+    _req_admin(authorization)
+    from agent.sessao_manager import _get_conn
+    conn = _get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM usuarios WHERE id=%s", (uid,))
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+def _admin_set_status(uid: str, status: str):
+    from agent.sessao_manager import _get_conn
+    conn = _get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE usuarios SET status=%s WHERE id=%s", (status, uid))
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+# ── APIs / Provedores ─────────────────────────
+
+_PROVEDORES_CONF = {
+    "deepseek":  {"nome": "DeepSeek",   "modelo": "deepseek-chat",   "env_key": "DEEPSEEK_API_KEY"},
+    "openai":    {"nome": "OpenAI",     "modelo": "gpt-4o",          "env_key": "OPENAI_API_KEY"},
+    "anthropic": {"nome": "Anthropic",  "modelo": "claude-sonnet-4-6","env_key": "ANTHROPIC_API_KEY"},
+    "gemini":    {"nome": "Gemini",     "modelo": "gemini-2.0-flash", "env_key": "GEMINI_API_KEY"},
+}
+
+
+def _env_path() -> Path:
+    return Path(__file__).parent.parent / ".env"
+
+
+def _ler_env() -> dict:
+    env = {}
+    p = _env_path()
+    if p.exists():
+        for line in p.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if "=" in line and not line.startswith("#"):
+                k, _, v = line.partition("=")
+                env[k.strip()] = v.strip().strip('"').strip("'")
+    return env
+
+
+def _salvar_env_key(chave_env: str, valor: str):
+    p = _env_path()
+    linhas = p.read_text(encoding="utf-8").splitlines() if p.exists() else []
+    encontrou = False
+    novas = []
+    for linha in linhas:
+        if linha.strip().startswith(chave_env + "="):
+            novas.append(f'{chave_env}="{valor}"')
+            encontrou = True
+        else:
+            novas.append(linha)
+    if not encontrou:
+        novas.append(f'{chave_env}="{valor}"')
+    p.write_text("\n".join(novas) + "\n", encoding="utf-8")
+    os.environ[chave_env] = valor
+    load_dotenv(override=True)
+
+
+@app.get("/admin/api/provedores")
+def admin_listar_provedores(authorization: str | None = _Header(default=None)):
+    _req_admin(authorization)
+    env = _ler_env()
+    principal = env.get("PROVEDOR_PREFERIDO", "deepseek")
+    provedores = []
+    for pid, conf in _PROVEDORES_CONF.items():
+        chave = env.get(conf["env_key"], "")
+        tem_chave = bool(chave and len(chave) > 8)
+        ativo = tem_chave
+        provedores.append({
+            "id": pid,
+            "nome": conf["nome"],
+            "modelo": conf["modelo"],
+            "ativo": ativo,
+            "principal": pid == principal,
+            "tem_chave": tem_chave,
+        })
+    return {"provedores": provedores}
+
+
+class AdminChaveRequest(BaseModel):
+    chave: str
+
+
+@app.post("/admin/api/provedores/{pid}/chave")
+def admin_salvar_chave(pid: str, req: AdminChaveRequest, authorization: str | None = _Header(default=None)):
+    _req_admin(authorization)
+    if pid not in _PROVEDORES_CONF:
+        raise HTTPException(status_code=404, detail="Provedor desconhecido.")
+    if not req.chave or len(req.chave.strip()) < 8:
+        raise HTTPException(status_code=400, detail="Chave inválida.")
+    env_key = _PROVEDORES_CONF[pid]["env_key"]
+    _salvar_env_key(env_key, req.chave.strip())
+    return {"ok": True}
+
+
+class AdminTesteRequest(BaseModel):
+    provedor: str
+
+
+@app.post("/admin/api/teste")
+async def admin_testar_provedor(req: AdminTesteRequest, authorization: str | None = _Header(default=None)):
+    _req_admin(authorization)
+    pid = req.provedor
+    if pid not in _PROVEDORES_CONF:
+        raise HTTPException(status_code=404, detail="Provedor desconhecido.")
+    env = _ler_env()
+    chave = env.get(_PROVEDORES_CONF[pid]["env_key"], "")
+    if not chave:
+        return {"ok": False, "detalhe": "Chave não configurada."}
+    try:
+        if pid == "openai":
+            from openai import AsyncOpenAI as _OAI
+            c = _OAI(api_key=chave)
+            await c.chat.completions.create(model="gpt-4o-mini", messages=[{"role":"user","content":"ping"}], max_tokens=1)
+        elif pid == "deepseek":
+            from openai import AsyncOpenAI as _OAI
+            c = _OAI(api_key=chave, base_url="https://api.deepseek.com")
+            await c.chat.completions.create(model="deepseek-chat", messages=[{"role":"user","content":"ping"}], max_tokens=1)
+        elif pid == "anthropic":
+            import anthropic as _anth
+            c = _anth.AsyncAnthropic(api_key=chave)
+            await c.messages.create(model="claude-haiku-4-5-20251001", max_tokens=1, messages=[{"role":"user","content":"ping"}])
+        elif pid == "gemini":
+            import google.generativeai as _gem
+            _gem.configure(api_key=chave)
+            m = _gem.GenerativeModel("gemini-2.0-flash")
+            await asyncio.to_thread(m.generate_content, "ping")
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "detalhe": str(e)[:120]}
+
+
+class AdminStatusRequest(BaseModel):
+    ativo: bool
+
+
+@app.patch("/admin/api/provedores/{pid}/status")
+def admin_status_provedor(pid: str, req: AdminStatusRequest, authorization: str | None = _Header(default=None)):
+    _req_admin(authorization)
+    if pid not in _PROVEDORES_CONF:
+        raise HTTPException(status_code=404, detail="Provedor desconhecido.")
+    # ativo=False → remove chave do env em memória sem apagar o arquivo
+    # ativo=True → apenas confirma (a chave já precisa existir)
+    env = _ler_env()
+    chave = env.get(_PROVEDORES_CONF[pid]["env_key"], "")
+    if req.ativo and not chave:
+        raise HTTPException(status_code=400, detail="Configure a chave de API antes de ativar.")
+    return {"ok": True}
+
+
+class AdminPrincipalRequest(BaseModel):
+    provedor: str
+
+
+@app.post("/admin/api/principal")
+def admin_definir_principal(req: AdminPrincipalRequest, authorization: str | None = _Header(default=None)):
+    _req_admin(authorization)
+    if req.provedor not in _PROVEDORES_CONF:
+        raise HTTPException(status_code=404, detail="Provedor desconhecido.")
+    _salvar_env_key("PROVEDOR_PREFERIDO", req.provedor)
+    os.environ["PROVEDOR_PREFERIDO"] = req.provedor
+    return {"ok": True}
