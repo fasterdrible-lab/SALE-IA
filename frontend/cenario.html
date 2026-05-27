@@ -358,6 +358,10 @@
       border-radius: 16px;
       box-shadow: 0 32px 80px rgba(0,0,0,.65);
       display: flex; flex-direction: column; overflow: hidden;
+      transition: width .25s ease;
+    }
+    .cond-panel.recap {
+      width: min(760px, calc(100vw - 32px));
     }
     .cond-panel-header {
       display: flex; align-items: center; justify-content: space-between;
@@ -395,6 +399,53 @@
     }
     .cond-erro { color: var(--vermelho); padding: 20px 0; text-align: center; }
     .hidden { display: none !important; }
+
+    /* ── MAPA MENTAL INLINE (overlay recapitulação) ── */
+    .mapa-inline {
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid var(--borda);
+    }
+    .mapa-inline-titulo {
+      font-size: .78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      color: var(--verde);
+      margin-bottom: 14px;
+    }
+    .mapa-inline-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .mapa-inline-card {
+      background: var(--card2);
+      border: 1px solid var(--borda);
+      border-radius: 10px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .mapa-inline-card.destaque { border-color: rgba(20,184,166,.4); }
+    .mapa-inline-icone { font-size: 1.2rem; margin-bottom: 4px; }
+    .mapa-inline-card strong {
+      font-size: .78rem;
+      color: var(--muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+    .mapa-inline-card span {
+      font-size: .92rem;
+      color: var(--texto);
+      font-weight: 600;
+      line-height: 1.3;
+    }
+    @media (max-width: 500px) {
+      .mapa-inline-grid { grid-template-columns: 1fr 1fr; }
+    }
 
     /* ── RESPONSIVO ───────────────────────────── */
     @media (max-width: 768px) {
@@ -599,14 +650,14 @@
 
 <!-- Overlay Condução -->
 <div class="cond-overlay hidden" id="cond-overlay" onclick="fecharOverlayConducaoClick(event)">
-  <div class="cond-panel">
+  <div class="cond-panel" id="cond-panel">
     <div class="cond-panel-header">
       <span class="cond-panel-titulo" id="cond-titulo">Condução</span>
       <button class="cond-panel-fechar" onclick="fecharOverlayConducao()">✕</button>
     </div>
     <div class="cond-panel-body" id="cond-corpo"></div>
     <div class="cond-panel-footer">
-      <button class="cond-btn-copiar" id="btn-copiar-cond" onclick="copiarConducao()">Copiar</button>
+      <button class="cond-btn-copiar" id="btn-copiar-cond" onclick="copiarConducao()">Copiar texto</button>
     </div>
   </div>
 </div>
@@ -811,6 +862,7 @@
   };
 
   let _condTexto = '';
+  let _condTipo  = '';
 
   function toggleMenuConducao(e) {
     e.stopPropagation();
@@ -838,8 +890,9 @@
       alert('meeting_id não encontrado na URL. Abra esta página pelo link correto da reunião.');
       return;
     }
+    _condTipo = tipo;
     const titulo = _titulosConducao[tipo] || tipo;
-    _abrirOverlay(titulo);
+    _abrirOverlay(titulo, tipo);
     try {
       const r = await fetch(_API_COND + '/cenario/' + meetingId + '/conducao', {
         method: 'POST',
@@ -849,7 +902,7 @@
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const json = await r.json();
       const texto = json.conteudo || json.texto || json.resultado || JSON.stringify(json, null, 2);
-      _mostrarTextoOverlay(texto);
+      _mostrarTextoOverlay(texto, tipo);
     } catch {
       document.getElementById('cond-corpo').innerHTML =
         '<div class="cond-erro">❌ Não foi possível gerar o conteúdo. Verifique a conexão e tente novamente.</div>';
@@ -857,27 +910,120 @@
     }
   }
 
-  function _abrirOverlay(titulo) {
+  function _abrirOverlay(titulo, tipo) {
     document.getElementById('cond-titulo').textContent = titulo;
     document.getElementById('cond-corpo').innerHTML =
       '<div class="cond-spinner"><div class="spinner"></div><span>Gerando...</span></div>';
     document.getElementById('cond-overlay').classList.remove('hidden');
+    // Painel mais largo para recapitulação (texto + mapa mental)
+    const painel = document.getElementById('cond-panel');
+    painel.classList.toggle('recap', tipo === 'recapitulacao');
     _condTexto = '';
   }
 
-  function _mostrarTextoOverlay(texto) {
+  function _mostrarTextoOverlay(texto, tipo) {
     _condTexto = texto;
-    document.getElementById('cond-corpo').innerHTML = texto
+    const corpo = document.getElementById('cond-corpo');
+    corpo.innerHTML = texto
       .split('\n')
       .map(l => l.trim()
         ? '<p style="margin-bottom:10px">' + l.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') + '</p>'
         : '')
       .join('');
+    // Para Recapitulação: adiciona mapa mental inline abaixo do texto
+    if (tipo === 'recapitulacao') {
+      corpo.insertAdjacentHTML('beforeend', _buildMapaInline());
+    }
+  }
+
+  function _buildMapaInline() {
+    const disc  = dados.perfil_disc     || {};
+    const mapa  = dados.mapa_financeiro || {};
+    const score = dados.score_compra    || {};
+    const temp  = dados.temperatura     || {};
+    const prod  = (mapa.produto_indicado && mapa.produto_indicado.nome) ? mapa.produto_indicado : null;
+    const tipo  = disc.tipo || '';
+
+    const corDisc = { D: '#EF4444', I: '#F97316', S: '#14B8A6', C: '#38BDF8' }[tipo] || '#9D9BB8';
+    const nomeDiscCurto = { D: 'Dominante', I: 'Influente', S: 'Estável', C: 'Analítico' }[tipo] || 'DISC';
+
+    const scoreVal = score.valor != null ? Math.min(98, Math.max(5, Number(score.valor))) : null;
+    const scoreCor = scoreVal == null ? '#9D9BB8' : scoreVal >= 70 ? '#14B8A6' : scoreVal >= 45 ? '#F97316' : '#EF4444';
+
+    const tempNivel = temp.nivel || '';
+    const tempIcon  = { 'Alta': '🔥', 'Quente': '🔥', 'Média': '😐', 'Morno': '😐', 'Baixa': '❄️', 'Frio': '❄️' }[tempNivel] || '🌡️';
+
+    const fat = mapa.faturamento_mensal || mapa.renda_clt || '--';
+    const cap = mapa.capacidade_investimento || '--';
+
+    const cards = [
+      tipo
+        ? `<div class="mapa-inline-card destaque">
+             <span class="mapa-inline-icone">🎯</span>
+             <strong>Perfil DISC</strong>
+             <span style="color:${corDisc}">${tipo} — ${nomeDiscCurto}</span>
+           </div>`
+        : `<div class="mapa-inline-card">
+             <span class="mapa-inline-icone">🎯</span>
+             <strong>Perfil DISC</strong>
+             <span>Não identificado</span>
+           </div>`,
+      scoreVal != null
+        ? `<div class="mapa-inline-card">
+             <span class="mapa-inline-icone">📊</span>
+             <strong>Score de Compra</strong>
+             <span style="color:${scoreCor}">${scoreVal}/100</span>
+           </div>`
+        : `<div class="mapa-inline-card">
+             <span class="mapa-inline-icone">📊</span>
+             <strong>Score de Compra</strong>
+             <span>Aguardando dados</span>
+           </div>`,
+      tempNivel
+        ? `<div class="mapa-inline-card">
+             <span class="mapa-inline-icone">${tempIcon}</span>
+             <strong>Temperatura</strong>
+             <span>${tempNivel}</span>
+           </div>`
+        : `<div class="mapa-inline-card">
+             <span class="mapa-inline-icone">🌡️</span>
+             <strong>Temperatura</strong>
+             <span>Não definida</span>
+           </div>`,
+      `<div class="mapa-inline-card">
+         <span class="mapa-inline-icone">💰</span>
+         <strong>Faturamento / Renda</strong>
+         <span>${fat}</span>
+       </div>`,
+      `<div class="mapa-inline-card">
+         <span class="mapa-inline-icone">💸</span>
+         <strong>Capacidade</strong>
+         <span>${cap}</span>
+       </div>`,
+      prod
+        ? `<div class="mapa-inline-card destaque">
+             <span class="mapa-inline-icone">📦</span>
+             <strong>Produto Indicado</strong>
+             <span>${prod.nome}</span>
+           </div>`
+        : `<div class="mapa-inline-card">
+             <span class="mapa-inline-icone">📦</span>
+             <strong>Produto Indicado</strong>
+             <span>A definir</span>
+           </div>`,
+    ];
+
+    return `<div class="mapa-inline">
+      <div class="mapa-inline-titulo">🧠 Mapa Mental do Cenário</div>
+      <div class="mapa-inline-grid">${cards.join('')}</div>
+    </div>`;
   }
 
   function fecharOverlayConducao() {
     document.getElementById('cond-overlay').classList.add('hidden');
+    document.getElementById('cond-panel').classList.remove('recap');
     _condTexto = '';
+    _condTipo  = '';
   }
 
   function fecharOverlayConducaoClick(e) {
