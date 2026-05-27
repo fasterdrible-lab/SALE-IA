@@ -1050,3 +1050,138 @@ async def audio_transcricao(req: AudioTranscricaoRequest):
                 os.unlink(tmp_path)
             except OSError:
                 pass
+
+
+# ─────────────────────────────────────────────
+# AUTH — login, cadastro, recuperar senha
+# ─────────────────────────────────────────────
+import uuid as _uuid
+import bcrypt as _bcrypt
+import jwt as _jwt
+from datetime import timedelta
+
+_JWT_SECRET = os.environ.get("JWT_SECRET", "saleia-secret-change-me")
+_JWT_ALGO = "HS256"
+_JWT_EXP_HOURS = 72
+
+
+def _hash_senha(senha: str) -> str:
+    return _bcrypt.hashpw(senha.encode(), _bcrypt.gensalt()).decode()
+
+
+def _verificar_senha(senha: str, hash_: str) -> bool:
+    try:
+        return _bcrypt.checkpw(senha.encode(), hash_.encode())
+    except Exception:
+        return False
+
+
+def _gerar_token(user_id: str, email: str, perfil: str) -> str:
+    payload = {
+        "sub": user_id,
+        "email": email,
+        "perfil": perfil,
+        "exp": datetime.utcnow() + timedelta(hours=_JWT_EXP_HOURS),
+    }
+    return _jwt.encode(payload, _JWT_SECRET, algorithm=_JWT_ALGO)
+
+
+class AuthLoginRequest(BaseModel):
+    email: str
+    senha: str
+
+
+class AuthCadastroRequest(BaseModel):
+    nome: str
+    email: str
+    senha: str
+
+
+class AuthRecuperarSenhaRequest(BaseModel):
+    email: str
+
+
+@app.post("/auth/login")
+def auth_login(req: AuthLoginRequest):
+    from agent.sessao_manager import _get_conn
+    conn = _get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, nome, email, senha_hash, perfil, status FROM usuarios WHERE email=%s LIMIT 1",
+                (req.email.strip().lower(),),
+            )
+            row = cur.fetchone()
+    finally:
+        conn.close()
+
+    if not row:
+        raise HTTPException(status_code=401, detail="E-mail ou senha incorretos.")
+    uid, nome, email, senha_hash, perfil, status = row
+
+    if not _verificar_senha(req.senha, senha_hash):
+        raise HTTPException(status_code=401, detail="E-mail ou senha incorretos.")
+
+    if status == "pendente":
+        raise HTTPException(status_code=403, detail="Conta aguardando aprovação do administrador.")
+
+    if status == "inativo":
+        raise HTTPException(status_code=403, detail="Conta desativada. Entre em contato com o administrador.")
+
+    token = _gerar_token(str(uid), email, perfil)
+
+    conn2 = _get_conn()
+    try:
+        with conn2.cursor() as cur:
+            cur.execute("UPDATE usuarios SET ultimo_acesso=NOW() WHERE id=%s", (uid,))
+        conn2.commit()
+    finally:
+        conn2.close()
+
+    return {
+        "token": token,
+        "usuario": {"id": str(uid), "nome": nome, "email": email, "perfil": perfil},
+    }
+
+
+@app.post("/auth/cadastro")
+def auth_cadastro(req: AuthCadastroRequest):
+    if not req.nome or not req.nome.strip():
+        raise HTTPException(status_code=400, detail="Nome obrigatório.")
+    if not req.email or "@" not in req.email:
+        raise HTTPException(status_code=400, detail="E-mail inválido.")
+    if not req.senha or len(req.senha) < 6:
+        raise HTTPException(status_code=400, detail="Senha deve ter pelo menos 6 caracteres.")
+
+    from agent.sessao_manager import _get_conn
+    conn = _get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM usuarios WHERE email=%s LIMIT 1", (req.email.strip().lower(),))
+            if cur.fetchone():
+                raise HTTPException(status_code=409, detail="E-mail já cadastrado.")
+
+            novo_id = str(_uuid.uuid4())
+            senha_hash = _hash_senha(req.senha)
+            # primeiro usuário a se cadastrar vira admin automaticamente
+            cur.execute("SELECT COUNT(*) FROM usuarios")
+            total = cur.fetchone()[0]
+            perfil = "admin" if total == 0 else "operador"
+            status = "ativo" if perfil == "admin" else "pendente"
+
+            cur.execute(
+                """INSERT INTO usuarios (id, nome, email, senha_hash, perfil, status)
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
+                (novo_id, req.nome.strip(), req.email.strip().lower(), senha_hash, perfil, status),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+    return {"ok": True, "perfil": perfil, "status": status}
+
+
+@app.post("/auth/recuperar-senha")
+def auth_recuperar_senha(req: AuthRecuperarSenhaRequest):
+    # Stub — apenas confirma recebimento (envio de e-mail não implementado)
+    return {"ok": True, "mensagem": "Se o e-mail estiver cadastrado, você receberá as instruções em breve."}
