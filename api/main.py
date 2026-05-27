@@ -861,18 +861,8 @@ def listar_base():
     try:
         conn = _get_conn()
         with conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS base_conhecimento (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    titulo VARCHAR(255) NOT NULL,
-                    tipo VARCHAR(50) DEFAULT 'instrucao',
-                    conteudo MEDIUMTEXT NOT NULL,
-                    embedding JSON,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-            """)
             cur.execute(
-                "SELECT id, titulo, tipo, CHAR_LENGTH(conteudo) AS chars, created_at "
+                "SELECT id, titulo, tipo, CHAR_LENGTH(texto) AS chars, created_at "
                 "FROM base_conhecimento ORDER BY created_at DESC"
             )
             rows = cur.fetchall()
@@ -914,7 +904,7 @@ async def adicionar_base(req: AdicionarBaseRequest):
         conn = _get_conn()
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO base_conhecimento (titulo, tipo, conteudo, embedding) VALUES (%s, %s, %s, %s)",
+                "INSERT INTO base_conhecimento (titulo, tipo, texto, embedding) VALUES (%s, %s, %s, %s)",
                 (req.titulo.strip(), req.tipo or "instrucao", req.texto, embedding_json),
             )
             novo_id = cur.lastrowid
