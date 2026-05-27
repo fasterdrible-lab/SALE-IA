@@ -394,7 +394,9 @@
     .cfg-acoes { display: flex; gap: 4px; flex-wrap: wrap; }
     .cfg-btn-acao { background: rgba(37,35,56,.8); border: 1px solid var(--border); border-radius: 5px; color: var(--muted); font-size: .74rem; padding: 4px 8px; cursor: pointer; transition: border-color .15s, color .15s; white-space: nowrap; }
     .cfg-btn-acao:hover { border-color: rgba(249,115,22,.5); color: #FDBA74; }
-    .cfg-btn-acao.perigo:hover { border-color: rgba(239,68,68,.5); color: #FCA5A5; }
+    .cfg-btn-acao.perigo:hover,
+    .cfg-btn-acao.danger:hover { border-color: rgba(239,68,68,.5); color: #FCA5A5; }
+    .cfg-btn-acao.danger { border-color: rgba(239,68,68,.3); color: #FCA5A5; }
     /* Provedores API */
     .cfg-provedor-lista { display: grid; gap: 10px; margin-top: 4px; }
     .cfg-provedor-card { background: rgba(37,35,56,.6); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; transition: border-color .2s; }
@@ -1324,7 +1326,9 @@
         <td style="color:var(--muted);font-size:.82rem">${chars}</td>
         <td style="color:var(--muted);font-size:.82rem">${data}</td>
         <td>
-          <button class="cfg-btn-acao danger" onclick="removerDaBase(${d.id})" title="Excluir documento">🗑</button>
+          <button class="cfg-btn-acao danger" onclick="removerDaBase(${d.id}, this)" title="Excluir documento" style="padding:5px 10px;font-size:.8rem">
+            🗑 Excluir
+          </button>
         </td>
       </tr>`;
     }).join('');
@@ -1379,13 +1383,19 @@
     }
   }
 
-  async function removerDaBase(id) {
-    if (!confirm('Excluir este documento da base de conhecimento?')) return;
+  async function removerDaBase(id, btn) {
+    if (!confirm('Excluir este documento da base de conhecimento? Esta ação não pode ser desfeita.')) return;
+    if (btn) { btn.disabled = true; btn.textContent = 'Excluindo...'; }
     try {
-      await fetchJsonWithFallback('/base/' + id, { method: 'DELETE' });
+      const resp = await fetchJsonWithFallback('/base/' + id, { method: 'DELETE' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      // remove a linha visualmente antes de recarregar
+      const tr = btn ? btn.closest('tr') : null;
+      if (tr) tr.style.opacity = '0.3';
       await carregarBase();
     } catch (e) {
-      alert('Erro ao excluir: ' + e.message);
+      if (btn) { btn.disabled = false; btn.innerHTML = '🗑 Excluir'; }
+      alert('Erro ao excluir: ' + (e.message || e));
     }
   }
 
