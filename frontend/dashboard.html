@@ -1096,16 +1096,16 @@
           </div>
 
           <div class="field-group">
-            <label class="field-label">Arquivo <span style="color:var(--muted);font-weight:400;font-size:.8rem">PDF • DOCX • TXT • MD</span></label>
+            <label class="field-label">Arquivo <span style="color:var(--muted);font-weight:400;font-size:.8rem">PDF • DOCX • TXT • MD • JPG • PNG</span></label>
             <div class="base-dropzone" id="base-dropzone">
               <div class="base-dropzone-icon">📎</div>
               <div class="base-dropzone-hint">
                 <strong>Arraste um arquivo aqui</strong> ou <strong>clique para selecionar</strong>
               </div>
-              <div style="color:var(--muted);font-size:.78rem;margin-top:4px;pointer-events:none">PDF • DOCX • TXT • MD</div>
+              <div style="color:var(--muted);font-size:.78rem;margin-top:4px;pointer-events:none">PDF • DOCX • TXT • MD • JPG • PNG</div>
               <div class="base-dropzone-status" id="base-drop-status"></div>
             </div>
-            <input type="file" id="base-file-input" accept=".pdf,.docx,.doc,.txt,.md,.csv" style="display:none">
+            <input type="file" id="base-file-input" accept=".pdf,.docx,.doc,.txt,.md,.csv,.jpg,.jpeg,.png,.webp,.gif" style="display:none">
           </div>
 
           <div class="field-group">
@@ -1419,7 +1419,10 @@
     };
 
     const ext = (file.name.split('.').pop() || '').toLowerCase();
-    setStatus('⏳ Lendo ' + file.name + '...', false);
+    const isImagem = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'].includes(ext)
+                  || (file.type || '').startsWith('image/');
+
+    setStatus((isImagem ? '🔍 Extraindo texto via IA' : '⏳ Lendo') + ' — ' + file.name + '...', false);
 
     try {
       let texto = '';
@@ -1429,8 +1432,10 @@
         texto = await _extrairPDF(file);
       } else if (['docx', 'doc'].includes(ext)) {
         texto = await _extrairDOCX(file);
+      } else if (isImagem) {
+        texto = await _extrairImagem(file);
       } else {
-        setStatus('❌ Formato não suportado. Use PDF, DOCX, TXT ou MD.', true);
+        setStatus('❌ Formato não suportado. Use PDF, DOCX, TXT, MD, JPG ou PNG.', true);
         return;
       }
 
@@ -1482,6 +1487,18 @@
     const buf    = await file.arrayBuffer();
     const result = await window.mammoth.extractRawText({ arrayBuffer: buf });
     return result.value;
+  }
+
+  async function _extrairImagem(file) {
+    const formData = new FormData();
+    formData.append('arquivo', file, file.name);
+    const resp = await fetch(API + '/base/ocr', { method: 'POST', body: formData });
+    if (!resp.ok) {
+      const d = await resp.json().catch(() => ({}));
+      throw new Error(d.detail || 'HTTP ' + resp.status);
+    }
+    const d = await resp.json();
+    return d.texto || '';
   }
 
   /* ─── Configurações — carregamento geral ─────────── */

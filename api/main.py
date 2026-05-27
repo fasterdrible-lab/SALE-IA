@@ -1191,6 +1191,79 @@ def auth_recuperar_senha(req: AuthRecuperarSenhaRequest):
 
 
 # ─────────────────────────────────────────────
+# OCR de imagem via AI Vision
+# ─────────────────────────────────────────────
+from fastapi import UploadFile, File
+import base64 as _b64
+
+
+@app.post("/base/ocr")
+async def base_ocr_imagem(arquivo: UploadFile = File(...)):
+    """Extrai texto de uma imagem (JPEG/PNG/WEBP/GIF) via AI Vision."""
+    conteudo = await arquivo.read()
+    if len(conteudo) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Imagem muito grande (máx 10 MB).")
+
+    mime = arquivo.content_type or "image/jpeg"
+    b64 = _b64.b64encode(conteudo).decode()
+    data_url = f"data:{mime};base64,{b64}"
+
+    prompt = (
+        "Extraia TODO o texto visível nesta imagem, mantendo a estrutura original. "
+        "Inclua títulos, parágrafos, listas, tabelas e qualquer texto escrito. "
+        "Retorne APENAS o texto extraído, sem comentários ou explicações."
+    )
+
+    # Tenta Anthropic (Claude vision)
+    try:
+        import anthropic as _anth
+        chave = os.environ.get("ANTHROPIC_API_KEY", "")
+        if chave:
+            cliente = _anth.AsyncAnthropic(api_key=chave)
+            msg = await cliente.messages.create(
+                model="claude-sonnet-4-6",
+                max_tokens=4096,
+                messages=[{
+                    "role": "user",
+                    "content": [
+                        {"type": "image", "source": {"type": "base64", "media_type": mime, "data": b64}},
+                        {"type": "text", "text": prompt},
+                    ],
+                }],
+            )
+            texto = msg.content[0].text.strip()
+            if texto:
+                return {"ok": True, "texto": texto, "provedor": "anthropic"}
+    except Exception as e:
+        logger.warning("[OCR] Anthropic falhou: %s", e)
+
+    # Fallback OpenAI GPT-4o Vision
+    try:
+        from openai import AsyncOpenAI as _OAI
+        chave = os.environ.get("OPENAI_API_KEY", "")
+        if chave:
+            cliente = _OAI(api_key=chave)
+            resp = await cliente.chat.completions.create(
+                model="gpt-4o",
+                max_tokens=4096,
+                messages=[{
+                    "role": "user",
+                    "content": [
+                        {"type": "image_url", "image_url": {"url": data_url}},
+                        {"type": "text", "text": prompt},
+                    ],
+                }],
+            )
+            texto = resp.choices[0].message.content.strip()
+            if texto:
+                return {"ok": True, "texto": texto, "provedor": "openai"}
+    except Exception as e:
+        logger.warning("[OCR] OpenAI falhou: %s", e)
+
+    raise HTTPException(status_code=502, detail="Nenhum provedor de visão disponível. Verifique as chaves de API em Configurações.")
+
+
+# ─────────────────────────────────────────────
 # ADMIN — gerenciamento de usuários e APIs
 # ─────────────────────────────────────────────
 from fastapi import Header as _Header
