@@ -678,19 +678,24 @@
     .base-dropzone {
       border: 2px dashed var(--border);
       border-radius: 10px;
-      padding: 26px 20px;
+      padding: 28px 20px;
+      min-height: 100px;
       text-align: center;
       cursor: pointer;
       transition: border-color .2s, background .2s;
       background: var(--field);
       user-select: none;
+      position: relative;
     }
     .base-dropzone:hover, .base-dropzone.drag-over {
       border-color: var(--primary);
-      background: rgba(20,184,166,.05);
+      background: rgba(20,184,166,.06);
     }
-    .base-dropzone-icon { font-size: 2rem; margin-bottom: 6px; pointer-events: none; }
-    .base-dropzone-hint { color: var(--muted); font-size: .88rem; pointer-events: none; }
+    .base-dropzone.drag-over { border-style: solid; }
+    /* Filhos não devem interceptar eventos de drag */
+    .base-dropzone * { pointer-events: none; }
+    .base-dropzone-icon { font-size: 2rem; margin-bottom: 6px; }
+    .base-dropzone-hint { color: var(--muted); font-size: .88rem; }
     .base-dropzone-hint strong { color: var(--primary); }
     .base-dropzone-status {
       display: none;
@@ -1390,17 +1395,44 @@
   }
 
   /* ─── Drag-and-Drop / Upload de Arquivos ─────────── */
-  function initDropzone() {
-    const zone   = document.getElementById('base-dropzone');
-    const input  = document.getElementById('base-file-input');
-    if (!zone || !input) return;
+  let _dropzoneInited = false;
 
-    zone.addEventListener('click',     () => input.click());
-    input.addEventListener('change',   e  => { if (e.target.files[0]) processarArquivo(e.target.files[0]); input.value = ''; });
-    zone.addEventListener('dragover',  e  => { e.preventDefault(); zone.classList.add('drag-over'); });
-    zone.addEventListener('dragleave', ()  => zone.classList.remove('drag-over'));
+  function initDropzone() {
+    if (_dropzoneInited) return;
+    const zone  = document.getElementById('base-dropzone');
+    const input = document.getElementById('base-file-input');
+    if (!zone || !input) return;
+    _dropzoneInited = true;
+
+    // Impede o browser de abrir o arquivo se o drop ocorrer fora da zona
+    document.addEventListener('dragover', e => e.preventDefault());
+    document.addEventListener('drop',     e => e.preventDefault());
+
+    zone.addEventListener('click', () => input.click());
+
+    input.addEventListener('change', e => {
+      if (e.target.files[0]) processarArquivo(e.target.files[0]);
+      input.value = '';
+    });
+
+    zone.addEventListener('dragenter', e => {
+      e.preventDefault();
+      zone.classList.add('drag-over');
+    });
+
+    zone.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    });
+
+    zone.addEventListener('dragleave', e => {
+      // Ignora dragleave de elementos filhos
+      if (!zone.contains(e.relatedTarget)) zone.classList.remove('drag-over');
+    });
+
     zone.addEventListener('drop', e => {
       e.preventDefault();
+      e.stopPropagation();
       zone.classList.remove('drag-over');
       const file = e.dataTransfer.files[0];
       if (file) processarArquivo(file);
