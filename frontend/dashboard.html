@@ -397,6 +397,35 @@
     .cfg-btn-acao.perigo:hover,
     .cfg-btn-acao.danger:hover { border-color: rgba(239,68,68,.5); color: #FCA5A5; }
     .cfg-btn-acao.danger { border-color: rgba(239,68,68,.3); color: #FCA5A5; }
+    /* Selects inline na tabela de usuários */
+    .usr-select {
+      background: var(--field); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text); font-size: .78rem; padding: 4px 6px; cursor: pointer;
+      outline: none; width: 100%; min-width: 80px;
+    }
+    .usr-select:focus { border-color: var(--primary); }
+    /* Dropdown de ações */
+    .usr-acoes { position: relative; display: inline-block; }
+    .usr-acoes-btn {
+      background: rgba(37,35,56,.8); border: 1px solid var(--border); border-radius: 5px;
+      color: var(--muted); font-size: 1rem; width: 28px; height: 28px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: border-color .15s, color .15s;
+    }
+    .usr-acoes-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .usr-acoes-menu {
+      position: absolute; right: 0; top: 32px; z-index: 99;
+      background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+      min-width: 148px; box-shadow: 0 8px 24px rgba(0,0,0,.4); overflow: hidden;
+    }
+    .usr-acoes-menu button {
+      display: block; width: 100%; text-align: left; background: none; border: none;
+      color: var(--text); font-size: .82rem; padding: 9px 14px; cursor: pointer;
+    }
+    .usr-acoes-menu button:hover { background: rgba(255,255,255,.05); }
+    .usr-acoes-menu button.perigo { color: #FCA5A5; }
+    .usr-acoes-menu button.perigo:hover { background: rgba(239,68,68,.08); }
+    .usr-acoes-menu hr { border: none; border-top: 1px solid var(--border); margin: 2px 0; }
     /* Provedores API */
     .cfg-provedor-lista { display: grid; gap: 10px; margin-top: 4px; }
     .cfg-provedor-card { background: rgba(37,35,56,.6); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; transition: border-color .2s; }
@@ -1193,7 +1222,7 @@
               <table class="cfg-tabela">
                 <thead>
                   <tr>
-                    <th>Nome</th><th>E-mail</th><th>Perfil</th><th>Plano</th><th>Status</th><th>Ações</th>
+                    <th>Nome / E-mail</th><th style="width:110px">Perfil</th><th style="width:110px">Plano</th><th style="width:110px">Status</th><th style="width:40px"></th>
                   </tr>
                 </thead>
                 <tbody id="cfg-usuarios-tbody"></tbody>
@@ -1601,76 +1630,105 @@
     const tbody = document.getElementById('cfg-usuarios-tbody');
     if (!tbody) return;
     if (!lista.length) {
-      tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:16px">Nenhum usuário encontrado.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:16px">Nenhum usuário encontrado.</td></tr>';
       return;
     }
     tbody.innerHTML = lista.map(u => {
-      const perfilCls = _perfisBadge[u.perfil] || 'cfg-badge-usuario';
-      const statusCls = _statusBadge[u.status] || 'cfg-badge-inativo';
-      const planoCls  = _planosBadge[u.plano]  || 'cfg-badge-free';
+      const uid = escHtml(u.id);
+      const mkOpt = (vals, cur) => vals.map(v => `<option value="${v}"${cur===v?' selected':''}>${v}</option>`).join('');
       return `<tr>
-        <td>${escHtml(u.nome)}</td>
-        <td style="color:var(--muted)">${escHtml(u.email)}</td>
-        <td><span class="cfg-badge ${perfilCls}">${escHtml(u.perfil)}</span></td>
-        <td><span class="cfg-badge ${planoCls}">${escHtml(u.plano)}</span></td>
-        <td><span class="cfg-badge ${statusCls}">${escHtml(u.status)}</span></td>
         <td>
-          <div class="cfg-acoes">
-            ${u.status === 'inativo' ? `<button class="cfg-btn-acao" onclick="gerenciarUsuario('${u.id}','reativar')">Reativar</button>` : ''}
-            ${u.status === 'ativo'   ? `<button class="cfg-btn-acao" onclick="gerenciarUsuario('${u.id}','inativar')">Inativar</button>` : ''}
-            <button class="cfg-btn-acao" onclick="gerenciarUsuario('${u.id}','resetar-senha')">Reset senha</button>
-            <button class="cfg-btn-acao" onclick="alterarPerfil('${u.id}','${escHtml(u.perfil)}')">Perfil</button>
-            <button class="cfg-btn-acao" onclick="alterarPlano('${u.id}','${escHtml(u.plano)}')">Plano</button>
-            <button class="cfg-btn-acao perigo" onclick="gerenciarUsuario('${u.id}','excluir')">Excluir</button>
+          <div style="font-weight:500">${escHtml(u.nome)}</div>
+          <div style="color:var(--muted);font-size:.75rem">${escHtml(u.email)}</div>
+        </td>
+        <td>
+          <select class="usr-select" onchange="patchUsuario('${uid}','perfil',this.value,this)">
+            ${mkOpt(['admin','gerente','operador','usuario'], u.perfil)}
+          </select>
+        </td>
+        <td>
+          <select class="usr-select" onchange="patchUsuario('${uid}','plano',this.value,this)">
+            ${mkOpt(['free','pro','enterprise'], u.plano)}
+          </select>
+        </td>
+        <td>
+          <select class="usr-select" onchange="patchUsuario('${uid}','status',this.value,this)">
+            ${mkOpt(['ativo','pendente','inativo'], u.status)}
+          </select>
+        </td>
+        <td>
+          <div class="usr-acoes">
+            <button class="usr-acoes-btn" onclick="toggleAcoesMenu(this)" title="Ações">⋮</button>
+            <div class="usr-acoes-menu hidden">
+              <button onclick="fecharAcoesMenus();gerenciarUsuario('${uid}','resetar-senha')">🔑 Reset senha</button>
+              <hr>
+              <button class="perigo" onclick="fecharAcoesMenus();gerenciarUsuario('${uid}','excluir')">🗑 Excluir</button>
+            </div>
           </div>
         </td>
       </tr>`;
     }).join('');
   }
 
+  function toggleAcoesMenu(btn) {
+    const menu = btn.nextElementSibling;
+    const aberto = !menu.classList.contains('hidden');
+    fecharAcoesMenus();
+    if (!aberto) menu.classList.remove('hidden');
+  }
+
+  function fecharAcoesMenus() {
+    document.querySelectorAll('.usr-acoes-menu').forEach(m => m.classList.add('hidden'));
+  }
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.usr-acoes')) fecharAcoesMenus();
+  });
+
+  async function patchUsuario(uid, campo, valor, el) {
+    const token = localStorage.getItem('saleia_token') || '';
+    const urls = {
+      perfil:  API + '/admin/usuarios/' + uid + '/perfil',
+      plano:   API + '/admin/usuarios/' + uid + '/plano',
+      status:  API + '/admin/usuarios/' + uid + '/status',
+    };
+    const bodies = {
+      perfil: { perfil: valor },
+      plano:  { plano: valor },
+      status: { status: valor },
+    };
+    if (el) el.disabled = true;
+    try {
+      const r = await fetch(urls[campo], {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify(bodies[campo]),
+      });
+      if (r.status === 401 || r.status === 403) { alert('Permissão negada.'); carregarUsuarios(); return; }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+    } catch (e) {
+      alert('Erro ao atualizar: ' + e.message);
+      carregarUsuarios();
+    } finally {
+      if (el) el.disabled = false;
+    }
+  }
+
   async function gerenciarUsuario(id, acao) {
     if (acao === 'excluir' && !confirm('Excluir este usuário permanentemente?')) return;
+    const token = localStorage.getItem('saleia_token') || '';
     try {
       const metodo = acao === 'excluir' ? 'DELETE' : 'PATCH';
       const url = API + '/admin/usuarios/' + id + (acao !== 'excluir' ? '/' + acao : '');
-      const r = await fetch(url, {
-        method: metodo,
-        headers: { Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') }
-      });
+      const r = await fetch(url, { method: metodo, headers: { Authorization: 'Bearer ' + token } });
       if (r.status === 401 || r.status === 403) { alert('Permissão negada.'); return; }
       if (!r.ok) throw new Error('HTTP ' + r.status);
+      if (acao === 'resetar-senha') {
+        const d = await r.json().catch(() => ({}));
+        alert('Senha redefinida para: ' + (d.nova_senha || 'Saleia@2025'));
+      }
       carregarUsuarios();
-    } catch { alert('Erro ao executar ação. Tente novamente.'); }
-  }
-
-  async function alterarPerfil(id, atual) {
-    const opcoes = ['admin', 'gerente', 'usuario'];
-    const novo = prompt('Novo perfil (' + opcoes.join(', ') + '):', atual);
-    if (!novo || !opcoes.includes(novo.trim())) return;
-    try {
-      const r = await fetch(API + '/admin/usuarios/' + id + '/perfil', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') },
-        body: JSON.stringify({ perfil: novo.trim() })
-      });
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      carregarUsuarios();
-    } catch { alert('Erro ao alterar perfil.'); }
-  }
-
-  async function alterarPlano(id, atual) {
-    const opcoes = ['free', 'pro', 'enterprise'];
-    const novo = prompt('Novo plano (' + opcoes.join(', ') + '):', atual);
-    if (!novo || !opcoes.includes(novo.trim())) return;
-    try {
-      const r = await fetch(API + '/admin/usuarios/' + id + '/plano', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') },
-        body: JSON.stringify({ plano: novo.trim() })
-      });
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      carregarUsuarios();
-    } catch { alert('Erro ao alterar plano.'); }
+    } catch (e) { alert('Erro: ' + e.message); }
   }
 
   /* ─── Configuração de APIs ────────────────────────── */

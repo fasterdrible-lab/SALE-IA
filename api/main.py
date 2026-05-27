@@ -1391,6 +1391,19 @@ def admin_alterar_plano(uid: str, req: AdminPlanoRequest, authorization: str | N
     return {"ok": True}
 
 
+class AdminSetStatusRequest(BaseModel):
+    status: str
+
+
+@app.patch("/admin/usuarios/{uid}/status")
+def admin_set_status_usuario(uid: str, req: AdminSetStatusRequest, authorization: str | None = _Header(default=None)):
+    _req_admin(authorization)
+    if req.status not in ("ativo", "inativo", "pendente"):
+        raise HTTPException(status_code=400, detail="Status inválido.")
+    _admin_set_status(uid, req.status)
+    return {"ok": True}
+
+
 @app.delete("/admin/usuarios/{uid}")
 def admin_excluir_usuario(uid: str, authorization: str | None = _Header(default=None)):
     _req_admin(authorization)
