@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Visual Scenario AI — SALEIA</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #2D2B3D;
+      --card:      #252338;
+      --field:     #1E1C2E;
+      --border:    #3D3B52;
+      --primary:   #14B8A6;
+      --secondary: #38BDF8;
+      --text:      #F8FAFC;
+      --muted:     #9D9BB8;
+      --alert:     #F97316;
+      --danger:    #EF4444;
+      --radius:    12px;
+      --gold:      #F59E0B;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 15px;
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* ── HEADER ── */
+    .vs-header {
+      background: #201E30;
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .vs-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .vs-brand-icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem;
+    }
+    .vs-brand-text h1 { font-size: 1rem; font-weight: 800; letter-spacing: .5px; }
+    .vs-brand-text p  { font-size: .75rem; color: var(--muted); }
+    .vs-meeting-tag {
+      background: rgba(20,184,166,.12);
+      border: 1px solid rgba(20,184,166,.3);
+      border-radius: 999px;
+      padding: 4px 14px;
+      font-size: .8rem;
+      color: var(--primary);
+      font-weight: 600;
+    }
+    .vs-back {
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      border-radius: 8px; padding: 6px 14px; font-size: .82rem; cursor: pointer;
+      text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+      transition: border-color .15s, color .15s;
+    }
+    .vs-back:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* ── ACTION BAR ── */
+    .vs-actions {
+      padding: 16px 24px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--border);
+      background: rgba(37,35,56,.4);
+    }
+    .vs-btn {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 20px; border-radius: 10px; font-size: .88rem; font-weight: 700;
+      cursor: pointer; border: 1px solid var(--border);
+      background: var(--card); color: var(--text);
+      transition: all .2s; white-space: nowrap;
+    }
+    .vs-btn:hover   { border-color: var(--primary); color: var(--primary); }
+    .vs-btn:disabled { opacity: .45; cursor: not-allowed; }
+    .vs-btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .vs-btn.primary:hover { background: #0fa090; }
+    .vs-btn.gold    { background: rgba(245,158,11,.15); border-color: rgba(245,158,11,.4); color: var(--gold); }
+    .vs-btn.gold:hover { background: rgba(245,158,11,.25); }
+
+    /* ── STAGE (3 colunas) ── */
+    .vs-stage {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+      padding: 20px 24px;
+    }
+    @media (max-width: 900px) {
+      .vs-stage { grid-template-columns: 1fr; }
+    }
+
+    .vs-panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition: border-color .25s;
+      display: flex;
+      flex-direction: column;
+    }
+    .vs-panel:hover { border-color: rgba(20,184,166,.25); }
+
+    .vs-panel-header {
+      padding: 12px 16px;
+      display: flex; align-items: center; gap: 10px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,.02);
+    }
+    .vs-panel-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .95rem; flex-shrink: 0;
+    }
+    .icon-photo   { background: rgba(56,189,248,.15); border: 1px solid rgba(56,189,248,.25); }
+    .icon-current { background: rgba(239,68,68,.15);  border: 1px solid rgba(239,68,68,.25); }
+    .icon-future  { background: rgba(20,184,166,.15); border: 1px solid rgba(20,184,166,.25); }
+
+    .vs-panel-title { font-weight: 700; font-size: .9rem; }
+    .vs-panel-sub   { font-size: .75rem; color: var(--muted); margin-top: 1px; }
+
+    .vs-panel-body {
+      flex: 1;
+      position: relative;
+      min-height: 280px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--field);
+    }
+
+    /* ── PLACEHOLDER ── */
+    .vs-placeholder {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 10px; padding: 32px; text-align: center; color: var(--muted);
+    }
+    .vs-placeholder-icon { font-size: 2.5rem; opacity: .4; }
+    .vs-placeholder p { font-size: .82rem; line-height: 1.5; }
+
+    /* ── GENERATED IMAGE ── */
+    .vs-img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+      cursor: pointer;
+      transition: transform .3s;
+    }
+    .vs-img:hover { transform: scale(1.02); }
+
+    /* ── WEBCAM ── */
+    #webcam-video {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: none;
+    }
+    #webcam-canvas { display: none; }
+    .webcam-controls {
+      position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 8px;
+    }
+    .webcam-btn {
+      padding: 8px 18px; border-radius: 999px; font-size: .82rem; font-weight: 700;
+      border: none; cursor: pointer; transition: background .2s;
+    }
+    .webcam-btn.snap   { background: var(--primary); color: #fff; }
+    .webcam-btn.cancel { background: rgba(239,68,68,.8); color: #fff; }
+    .webcam-btn:hover  { filter: brightness(1.1); }
+
+    /* ── LOADING OVERLAY ── */
+    .vs-loading {
+      position: absolute; inset: 0;
+      background: rgba(30,28,46,.92);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 16px;
+      display: none;
+    }
+    .vs-loading.active { display: flex; }
+    .vs-spinner {
+      width: 48px; height: 48px; border-radius: 50%;
+      border: 3px solid rgba(20,184,166,.2);
+      border-top-color: var(--primary);
+      animation: spin 1s linear infinite;
+    }
+    .vs-loading-text { color: var(--muted); font-size: .85rem; text-align: center; }
+    .vs-loading-step { color: var(--primary); font-size: .78rem; margin-top: -8px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── CONTEXT STRIP ── */
+    .vs-context {
+      margin: 0 24px 20px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      display: none;
+    }
+    .vs-context.visible { display: block; animation: fadeUp .4s ease; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .vs-context-title {
+      font-size: .78rem; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px;
+    }
+    .vs-context-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+    .vs-chip {
+      padding: 4px 12px; border-radius: 999px; font-size: .76rem; font-weight: 600;
+      border: 1px solid transparent;
+    }
+    .chip-disc     { background: rgba(56,189,248,.12); color: #7DD3FC; border-color: rgba(56,189,248,.3); }
+    .chip-maturity { background: rgba(20,184,166,.12); color: #14B8A6; border-color: rgba(20,184,166,.3); }
+    .chip-urgency  { background: rgba(249,115,22,.12); color: #FDBA74; border-color: rgba(249,115,22,.3); }
+    .chip-segment  { background: rgba(157,155,184,.1); color: var(--muted); border-color: rgba(157,155,184,.3); }
+    .chip-pain     { background: rgba(239,68,68,.1);   color: #FCA5A5;  border-color: rgba(239,68,68,.25); }
+
+    .vs-summary {
+      margin-top: 12px; padding-top: 12px;
+      border-top: 1px solid var(--border);
+      color: var(--muted); font-size: .84rem; line-height: 1.6;
+    }
+
+    /* ── FULLSCREEN MODAL ── */
+    .fs-overlay {
+      display: none;
+      position: fixed; inset: 0; z-index: 999;
+      background: #0A0914;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .fs-overlay.active { display: flex; animation: fadeIn .3s ease; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .fs-close {
+      position: absolute; top: 16px; right: 20px;
+      z-index: 200;
+      background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25);
+      color: #fff; border-radius: 8px; padding: 8px 16px;
+      font-size: .85rem; cursor: pointer; font-weight: 600;
+      transition: background .2s;
+    }
+    .fs-close:hover { background: rgba(255,255,255,.22); }
+    .fs-title { z-index: 200; }
+
+    .fs-title {
+      position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+      font-size: .88rem; color: rgba(255,255,255,.5); letter-spacing: 1px;
+      text-transform: uppercase; font-weight: 700;
+    }
+
+    .fs-compare {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      width: 100%; height: 100%;
+    }
+    .fs-pane {
+      position: relative;
+      overflow: hidden;
+    }
+    .fs-pane img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+    .fs-pane-label {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      padding: 20px 24px;
+      background: linear-gradient(to top, rgba(0,0,0,.8), transparent);
+      font-size: .9rem; font-weight: 700; color: #fff;
+    }
+    .fs-pane-label span { display: block; font-size: .78rem; color: rgba(255,255,255,.6); font-weight: 400; margin-top: 2px; }
+    .fs-single {
+      width: 100%; height: 100%;
+    }
+    .fs-single img {
+      width: 100%; height: 100%;
+      object-fit: contain;
+    }
+
+    /* ── DIVIDER ── */
+    .fs-divider {
+      position: absolute; left: 50%; top: 0; bottom: 0;
+      width: 2px; background: rgba(255,255,255,.2);
+      z-index: 10; transform: translateX(-50%);
+    }
+
+    /* ── TOAST ── */
+    .vs-toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 24px; font-size: .85rem;
+      box-shadow: 0 8px 32px rgba(0,0,0,.4); z-index: 9999;
+      opacity: 0; pointer-events: none;
+      transition: opacity .3s;
+      min-width: 220px; text-align: center;
+    }
+    .vs-toast.show { opacity: 1; }
+    .vs-toast.ok   { border-color: rgba(20,184,166,.4);  color: #14B8A6; }
+    .vs-toast.err  { border-color: rgba(239,68,68,.4);   color: #FCA5A5; }
+  </style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header class="vs-header">
+  <div class="vs-brand">
+    <div class="vs-brand-icon">🎬</div>
+    <div class="vs-brand-text">
+      <h1>Visual Scenario AI</h1>
+      <p>Cenários visuais personalizados em tempo real</p>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <span class="vs-meeting-tag" id="meeting-tag">Carregando reunião...</span>
+    <div id="meeting-input-wrap" style="display:none;gap:6px;align-items:center">
+      <input id="meeting-input" type="text" placeholder="ex: abc-defg-hij"
+        style="background:var(--field);border:1px solid var(--border);border-radius:8px;
+               color:var(--text);padding:6px 12px;font-size:.82rem;width:160px;outline:none"
+        onkeydown="if(event.key==='Enter')definirMeeting()" />
+      <button class="vs-back" onclick="definirMeeting()">Entrar</button>
+    </div>
+    <a class="vs-back" id="btn-back" href="/">← Início</a>
+  </div>
+</header>
+
+<!-- ── ACTION BAR ── -->
+<div class="vs-actions">
+  <button class="vs-btn" id="btn-capture" onclick="iniciarCaptura()">
+    📸 Capturar Cliente
+  </button>
+  <button class="vs-btn primary" id="btn-generate" onclick="gerarCenarios()">
+    🎬 Gerar Cenários
+  </button>
+  <button class="vs-btn gold" id="btn-compare" onclick="abrirComparacao()" disabled>
+    📊 Comparar Cenários
+  </button>
+  <button class="vs-btn" id="btn-fullscreen-atual" onclick="abrirFullscreen('atual')" disabled>
+    🖥️ Apresentar Atual
+  </button>
+  <button class="vs-btn" id="btn-fullscreen-futuro" onclick="abrirFullscreen('futuro')" disabled>
+    🚀 Apresentar Futuro
+  </button>
+  <button class="vs-btn" id="btn-history" onclick="carregarHistorico()" style="margin-left:auto">
+    🕒 Histórico
+  </button>
+</div>
+
+<!-- ── STAGE ── -->
+<div class="vs-stage">
+
+  <!-- Coluna 1: Cliente -->
+  <div class="vs-panel" id="panel-cliente">
+    <div class="vs-panel-header">
+      <div class="vs-panel-icon icon-photo">📸</div>
+      <div>
+        <div class="vs-panel-title">Cliente</div>
+        <div class="vs-panel-sub">Foto capturada da webcam</div>
+      </div>
+    </div>
+    <div class="vs-panel-body" id="body-cliente">
+      <video id="webcam-video" autoplay playsinline></video>
+      <canvas id="webcam-canvas"></canvas>
+      <div class="webcam-controls hidden" id="webcam-controls">
+        <button class="webcam-btn snap"   onclick="tirarFoto()">📸 Capturar</button>
+        <button class="webcam-btn cancel" onclick="cancelarCaptura()">✕ Cancelar</button>
+      </div>
+      <div class="vs-placeholder" id="placeholder-cliente">
+        <div class="vs-placeholder-icon">👤</div>
+        <p>Clique em <strong>Capturar Cliente</strong><br>para tirar uma foto do cliente</p>
+      </div>
+      <img id="foto-cliente" src="" alt="Foto do cliente" class="vs-img hidden"
+           onclick="abrirFullscreen('cliente')" style="cursor:zoom-in" />
+    </div>
+  </div>
+
+  <!-- Coluna 2: Cenário Atual -->
+  <div class="vs-panel" id="panel-atual">
+    <div class="vs-panel-header">
+      <div class="vs-panel-icon icon-current">🔴</div>
+      <div>
+        <div class="vs-panel-title">Cenário Atual</div>
+        <div class="vs-panel-sub">Operação com desafios e dores identificadas</div>
+      </div>
+    </div>
+    <div class="vs-panel-body" id="body-atual">
+      <div class="vs-loading" id="loading-atual">
+        <div class="vs-spinner"></div>
+        <div class="vs-loading-text">Gerando cenário atual...</div>
+        <div class="vs-loading-step" id="step-atual">Extraindo contexto da reunião</div>
+      </div>
+      <div class="vs-placeholder" id="placeholder-atual">
+        <div class="vs-placeholder-icon">🏚️</div>
+        <p>O cenário visual do estado atual<br>do cliente será gerado aqui</p>
+      </div>
+      <img id="img-atual" src="" alt="Cenário Atual" class="vs-img hidden"
+           onclick="abrirFullscreen('atual')" />
+    </div>
+  </div>
+
+  <!-- Coluna 3: Cenário Futuro -->
+  <div class="vs-panel" id="panel-futuro">
+    <div class="vs-panel-header">
+      <div class="vs-panel-icon icon-future">🚀</div>
+      <div>
+        <div class="vs-panel-title">Cenário Futuro</div>
+        <div class="vs-panel-sub">Operação transformada com crescimento e escala</div>
+      </div>
+    </div>
+    <div class="vs-panel-body" id="body-futuro">
+      <div class="vs-loading" id="loading-futuro">
+        <div class="vs-spinner"></div>
+        <div class="vs-loading-text">Gerando cenário futuro...</div>
+        <div class="vs-loading-step" id="step-futuro">Aguardando análise de contexto</div>
+      </div>
+      <div class="vs-placeholder" id="placeholder-futuro">
+        <div class="vs-placeholder-icon">🏙️</div>
+        <p>O cenário visual do futuro<br>transformado será gerado aqui</p>
+      </div>
+      <img id="img-futuro" src="" alt="Cenário Futuro" class="vs-img hidden"
+           onclick="abrirFullscreen('futuro')" />
+    </div>
+  </div>
+
+</div><!-- /vs-stage -->
+
+<!-- ── CONTEXT STRIP ── -->
+<div class="vs-context" id="vs-context">
+  <div class="vs-context-title">Diagnóstico do cliente</div>
+  <div class="vs-context-grid" id="context-chips"></div>
+  <div class="vs-summary" id="context-summary"></div>
+</div>
+
+<!-- ── FULLSCREEN MODAL ── -->
+<div class="fs-overlay" id="fs-overlay">
+  <div class="fs-title">SALEIA — Visual Scenario AI</div>
+  <button class="fs-close" onclick="fecharFullscreen()">✕ Fechar</button>
+  <div id="fs-content" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative;z-index:10"></div>
+</div>
+
+<!-- ── TOAST ── -->
+<div class="vs-toast" id="vs-toast"></div>
+
+<script>
+  // ── Config ──────────────────────────────────────────
+  const API = (() => {
+    const h = location.hostname;
+    return (h === 'localhost' || h === '127.0.0.1') ? 'http://localhost:8000' : 'https://api.saleia.com.br';
+  })();
+
+  const params = new URLSearchParams(location.search);
+  let   meetingId     = params.get('meeting') || params.get('meeting_id') || '';
+  let   dadosAnalise  = {};
+  let   _stream       = null;
+  let   _fotoCapturada = null;
+  let   _gerado       = { atual: null, futuro: null };
+
+  // ── Inicialização ──────────────────────────────────
+  function _initMeeting(mid) {
+    meetingId = mid;
+    const tag  = document.getElementById('meeting-tag');
+    const back = document.getElementById('btn-back');
+    const wrap = document.getElementById('meeting-input-wrap');
+    back.href = '/';
+    if (mid) {
+      tag.textContent = `Reunião: ${mid}`;
+      tag.style.cursor = 'default';
+      wrap.style.display = 'none';
+      fetch(`${API}/api/cenario/${mid}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d) dadosAnalise = d; })
+        .catch(() => {});
+    } else {
+      tag.textContent = 'Sem meeting_id';
+      tag.style.cursor = 'pointer';
+      tag.title = 'Clique para informar o ID da reunião';
+      tag.onclick = () => {
+        wrap.style.display = 'flex';
+        document.getElementById('meeting-input').focus();
+      };
+    }
+  }
+
+  function definirMeeting() {
+    const val = document.getElementById('meeting-input').value.trim();
+    if (!val) return;
+    _initMeeting(val);
+    toast('✅ Reunião definida: ' + val, 'ok');
+  }
+
+  _initMeeting(meetingId);
+
+  // ── Toast ──────────────────────────────────────────
+  function toast(msg, tipo = 'ok', duracao = 3500) {
+    const el = document.getElementById('vs-toast');
+    el.textContent = msg;
+    el.className = 'vs-toast show ' + tipo;
+    clearTimeout(el._t);
+    el._t = setTimeout(() => el.classList.remove('show'), duracao);
+  }
+
+  // ── Captura webcam ─────────────────────────────────
+  async function iniciarCaptura() {
+    try {
+      _stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+      const video = document.getElementById('webcam-video');
+      video.srcObject = _stream;
+      video.style.display = 'block';
+      document.getElementById('placeholder-cliente').style.display = 'none';
+      document.getElementById('foto-cliente').classList.add('hidden');
+      document.getElementById('webcam-controls').classList.remove('hidden');
+    } catch (e) {
+      toast('Câmera não acessível: ' + e.message, 'err');
+    }
+  }
+
+  function tirarFoto() {
+    const video  = document.getElementById('webcam-video');
+    const canvas = document.getElementById('webcam-canvas');
+    canvas.width  = video.videoWidth  || 640;
+    canvas.height = video.videoHeight || 480;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    _fotoCapturada = canvas.toDataURL('image/jpeg', 0.9);
+    cancelarCaptura();
+    const img = document.getElementById('foto-cliente');
+    img.src = _fotoCapturada;
+    img.classList.remove('hidden');
+    document.getElementById('placeholder-cliente').style.display = 'none';
+    toast('📸 Foto capturada!', 'ok');
+  }
+
+  function cancelarCaptura() {
+    if (_stream) { _stream.getTracks().forEach(t => t.stop()); _stream = null; }
+    const video = document.getElementById('webcam-video');
+    video.srcObject = null;
+    video.style.display = 'none';
+    document.getElementById('webcam-controls').classList.add('hidden');
+    if (!_fotoCapturada) {
+      document.getElementById('placeholder-cliente').style.display = 'flex';
+    }
+  }
+
+  // ── Geração de cenários ────────────────────────────
+  async function gerarCenarios() {
+    const btn = document.getElementById('btn-generate');
+    btn.disabled = true;
+    btn.textContent = '⏳ Gerando...';
+
+    // Mostra loadings
+    _showLoading('atual', 'Extraindo contexto da reunião...');
+    _showLoading('futuro', 'Aguardando análise de contexto...');
+
+    // Monta body da requisição com dados disponíveis
+    const disc  = dadosAnalise?.perfil_disc?.tipo || '';
+    const score = dadosAnalise?.score_compra?.valor || 0;
+    const transcript = dadosAnalise?._transcricao_parcial
+      || dadosAnalise?._ultima_transcricao
+      || dadosAnalise?.transcricao
+      || '';
+
+    if (!meetingId) {
+      toast('Informe o ID da reunião antes de gerar.', 'err');
+      btn.disabled = false; btn.textContent = '🎬 Gerar Cenários';
+      document.getElementById('meeting-input-wrap').style.display = 'flex';
+      document.getElementById('meeting-input').focus();
+      return;
+    }
+
+    const payload = {
+      meeting_id:     meetingId,
+      transcript:     transcript || '(transcrição não disponível ainda — análise baseada nos dados do cenário)',
+      score:          Number(score) || 0,
+      disc_profile:   disc,
+      emotional_state: dadosAnalise?.temperatura?.nivel || '',
+    };
+
+    try {
+      _setStep('futuro', 'Aguardando análise de contexto...');
+      _setStep('atual',  'Comunicando com a IA...');
+
+      const r = await fetch(`${API}/generate-visual-scenario`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.detail || 'HTTP ' + r.status);
+      }
+
+      const data = await r.json();
+
+      _setStep('atual',  'Renderizando imagem...');
+      _setStep('futuro', 'Renderizando imagem...');
+
+      // Exibe imagens
+      _mostrarImagem('atual',  data.current_scenario_image);
+      _mostrarImagem('futuro', data.future_scenario_image);
+      _gerado.atual  = data.current_scenario_image;
+      _gerado.futuro = data.future_scenario_image;
+
+      // Mostra contexto
+      _renderizarContexto(data.context || {}, data.detected_pain_points || [], data.scenario_summary || '');
+
+      // Habilita botões
+      document.getElementById('btn-compare').disabled = false;
+      document.getElementById('btn-fullscreen-atual').disabled = false;
+      document.getElementById('btn-fullscreen-futuro').disabled = false;
+
+      toast('✅ Cenários gerados com sucesso!', 'ok', 4000);
+    } catch (e) {
+      _esconderLoading('atual');
+      _esconderLoading('futuro');
+      document.getElementById('placeholder-atual').style.display = 'flex';
+      document.getElementById('placeholder-futuro').style.display = 'flex';
+      toast('❌ ' + e.message, 'err', 6000);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🎬 Gerar Cenários';
+    }
+  }
+
+  function _showLoading(panel, msg) {
+    document.getElementById(`placeholder-${panel}`).style.display = 'none';
+    document.getElementById(`img-${panel}`).classList.add('hidden');
+    const ld = document.getElementById(`loading-${panel}`);
+    ld.classList.add('active');
+    if (msg) document.getElementById(`step-${panel}`).textContent = msg;
+  }
+
+  function _esconderLoading(panel) {
+    document.getElementById(`loading-${panel}`).classList.remove('active');
+  }
+
+  function _setStep(panel, msg) {
+    const el = document.getElementById(`step-${panel}`);
+    if (el) el.textContent = msg;
+  }
+
+  function _mostrarImagem(panel, url) {
+    _esconderLoading(panel);
+    const img = document.getElementById(`img-${panel}`);
+    img.src = url;
+    img.classList.remove('hidden');
+    img.style.animation = 'fadeIn .5s ease';
+  }
+
+  function _renderizarContexto(ctx, painPoints, summary) {
+    const grid = document.getElementById('context-chips');
+    const chips = [];
+    if (ctx.perfil_disc_confirmado) chips.push({ label: 'DISC: ' + ctx.perfil_disc_confirmado, cls: 'chip-disc' });
+    if (ctx.segmento)               chips.push({ label: ctx.segmento, cls: 'chip-segment' });
+    if (ctx.maturidade_operacional) chips.push({ label: 'Maturidade: ' + ctx.maturidade_operacional.replace('_', ' '), cls: 'chip-maturity' });
+    if (ctx.urgencia)               chips.push({ label: 'Urgência: ' + ctx.urgencia, cls: 'chip-urgency' });
+    (painPoints || []).slice(0, 4).forEach(p => chips.push({ label: '⚡ ' + p, cls: 'chip-pain' }));
+
+    grid.innerHTML = chips.map(c => `<span class="vs-chip ${c.cls}">${_esc(c.label)}</span>`).join('');
+    document.getElementById('context-summary').textContent = summary || '';
+    document.getElementById('vs-context').classList.add('visible');
+  }
+
+  // ── Fullscreen ─────────────────────────────────────
+  function abrirFullscreen(tipo) {
+    const overlay = document.getElementById('fs-overlay');
+    const content = document.getElementById('fs-content');
+
+    if (tipo === 'compare' || tipo === 'comparar') {
+      content.innerHTML = `
+        <div class="fs-compare">
+          <div class="fs-pane">
+            <img src="${_gerado.atual || ''}" alt="Cenário Atual" />
+            <div class="fs-pane-label">Cenário Atual <span>Situação presente com desafios identificados</span></div>
+          </div>
+          <div class="fs-divider"></div>
+          <div class="fs-pane">
+            <img src="${_gerado.futuro || ''}" alt="Cenário Futuro" />
+            <div class="fs-pane-label">Cenário Futuro <span>Operação transformada com crescimento e escala</span></div>
+          </div>
+        </div>`;
+    } else if (tipo === 'cliente') {
+      content.innerHTML = `<div class="fs-single"><img src="${_fotoCapturada || ''}" alt="Cliente" /></div>`;
+    } else {
+      const url = tipo === 'futuro' ? _gerado.futuro : _gerado.atual;
+      const label = tipo === 'futuro' ? 'Cenário Futuro' : 'Cenário Atual';
+      content.innerHTML = `<div class="fs-single" style="position:relative">
+        <img src="${url || ''}" alt="${label}" />
+        <div class="fs-pane-label">${label}</div>
+      </div>`;
+    }
+
+    overlay.classList.add('active');
+    document.addEventListener('keydown', _fsKeyHandler);
+  }
+
+  function abrirComparacao() { abrirFullscreen('compare'); }
+
+  function fecharFullscreen() {
+    document.getElementById('fs-overlay').classList.remove('active');
+    document.removeEventListener('keydown', _fsKeyHandler);
+  }
+
+  function _fsKeyHandler(e) { if (e.key === 'Escape') fecharFullscreen(); }
+
+  // ── Histórico ──────────────────────────────────────
+  async function carregarHistorico() {
+    if (!meetingId) { toast('Sem meeting_id para carregar histórico.', 'err'); return; }
+    try {
+      const r = await fetch(`${API}/visual-scenarios/${meetingId}`);
+      const d = await r.json();
+      if (!d.cenarios || d.cenarios.length === 0) {
+        toast('Nenhum cenário gerado anteriormente.', 'ok'); return;
+      }
+      const ultimo = d.cenarios[0];
+      if (ultimo.current_url)  { _mostrarImagem('atual',  ultimo.current_url);  _gerado.atual  = ultimo.current_url; }
+      if (ultimo.future_url)   { _mostrarImagem('futuro', ultimo.future_url);   _gerado.futuro = ultimo.future_url; }
+      if (ultimo.context || ultimo.pain_points || ultimo.summary) {
+        _renderizarContexto(ultimo.context || {}, ultimo.pain_points || [], ultimo.summary || '');
+      }
+      document.getElementById('btn-compare').disabled = false;
+      document.getElementById('btn-fullscreen-atual').disabled = false;
+      document.getElementById('btn-fullscreen-futuro').disabled = false;
+      toast(`📂 Último cenário carregado (${new Date(ultimo.created_at).toLocaleString('pt-BR')})`, 'ok', 4000);
+    } catch (e) {
+      toast('Erro ao carregar histórico: ' + e.message, 'err');
+    }
+  }
+
+  function _esc(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+</script>
+</body>
+</html>

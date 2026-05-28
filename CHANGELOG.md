@@ -3,6 +3,309 @@
 
 ---
 
+## V.1.4.0 — Auth, Admin, Histórico de Uso, Filtros, Smoke Tests, Visual Scenario DALL-E 3
+> Data: 28/05/2026 | Desenvolvido com Claude Sonnet 4.6
+
+---
+
+### AUTENTICAÇÃO (`api/main.py`, `agent/sessao_manager.py`)
+
+**Endpoints implementados e validados:**
+- `POST /auth/login` — verifica senha (bcrypt), gera JWT 72h, atualiza `ultimo_acesso`
+- `POST /auth/cadastro` — valida dados, hash bcrypt, primeiro usuário vira admin/ativo, demais operador/pendente
+- `POST /auth/recuperar-senha` — stub seguro (não vaza se e-mail existe ou não)
+
+**Tabela `usuarios` criada automaticamente no startup** via `criar_tabela_usuarios()` adicionada a `agent/sessao_manager.py` e chamada em `on_startup`. Schema: `id UUID`, `nome`, `email UNIQUE`, `senha_hash`, `perfil`, `plano`, `status`, `data_cadastro`, `ultimo_acesso`.
+
+**Dependências adicionadas a `requirements.txt`:** `bcrypt>=4.0.0`, `PyJWT>=2.8.0`.
+
+**Helpers de autorização:**
+- `_req_auth(authorization)` — verifica JWT, aceita qualquer perfil autenticado
+- `_req_admin(authorization)` — verifica JWT e exige `perfil == "admin"`
+
+---
+
+### CONDUÇÃO — AUTENTICAÇÃO ADICIONADA (`api/main.py`)
+
+**Problema anterior:** `POST /cenario/{meeting_id}/conducao` não exigia autenticação e tinha bug silencioso de `_get_conn` não importado em `_buscar_conteudo_programa`.
+
+**Correções:**
+- Adicionado `Header` ao import FastAPI no topo do arquivo
+- Endpoint recebe `authorization: str | None = Header(default=None)` e chama `_req_auth` como primeira linha
+- Validação de `meeting_id` adicionada (padrão `xxx-xxxx-xxx`)
+- `_get_conn` importado localmente em `_buscar_conteudo_programa` (bug: caía no `except` e retornava sempre placeholder)
+
+---
+
+### ADMIN — GERENCIAMENTO DE USUÁRIOS E APIs (`api/main.py`)
+
+**Endpoints de usuários** (todos com `_req_admin`):
+| Endpoint | Ação |
+|---|---|
+| `GET /admin/usuarios` | Lista todos com perfil, plano, status, datas |
+| `PATCH /admin/usuarios/{uid}/perfil` | Altera perfil (admin/gerente/operador/usuario) |
+| `PATCH /admin/usuarios/{uid}/plano` | Altera plano (free/pro/enterprise) |
+| `PATCH /admin/usuarios/{uid}/status` | Altera status (ativo/inativo/pendente) |
+| `PATCH /admin/usuarios/{uid}/inativar` | Atalho: status → inativo |
+| `PATCH /admin/usuarios/{uid}/reativar` | Atalho: status → ativo |
+| `PATCH /admin/usuarios/{uid}/resetar-senha` | Reset para "Saleia@2025" |
+| `DELETE /admin/usuarios/{uid}` | Remove permanentemente |
+
+**Endpoints de APIs** (todos com `_req_admin`):
+| Endpoint | Ação |
+|---|---|
+| `GET /admin/api/provedores` | Lista provedores com status de chave (sem expor a chave) |
+| `POST /admin/api/provedores/{pid}/chave` | Salva chave no `.env` + `os.environ` |
+| `POST /admin/api/teste` | Testa conectividade real com o SDK do provedor |
+| `PATCH /admin/api/provedores/{pid}/status` | Ativa/inativa provedor |
+| `POST /admin/api/principal` | Define provedor preferido (persiste em `.env`) |
+
+---
+
+### HISTÓRICO DE USO (`api/main.py`)
+
+**Novos endpoints:**
+- `GET /historico/uso` — lista últimas 100 reuniões com `custo_estimado_usd`, `score_final`, `disc_identificado`, `num_analises`, `num_key_moments`, `num_eventos`. Requer JWT. Cruza `MeetingMemory` (SQLModel) com `sessoes` (MySQL raw). Retorna `custo_total_usd` acumulado.
+- `GET /historico/uso/{meeting_id}` — detalhe de uma reunião: `score_history[]` completo, `key_moments[]`, `eventos[]`, infos da sessão. Valida formato do `meeting_id`.
+
+---
+
+### PÁGINA HISTÓRICO NO DASHBOARD (`frontend/dashboard.html`)
+
+**Nav item:** `📈 Histórico` adicionado à sidebar entre Analisar e Base de IA.
+
+**Página `page-historico`:**
+- Métricas resumidas: total de reuniões, custo total estimado (U$), score médio
+- Lista de cards com meeting_id, data, número de análises, custo, score e DISC
+
+**Página `page-historico-detalhe`** (ao clicar em uma reunião):
+- Card de metadados (meeting_id, custo, score, análises, DISC, iniciada_em)
+- Gráfico de barras da evolução do score ao longo da reunião
+- Momentos-chave com tipo, fala, importância e timestamp
+- Eventos com ícones por tipo (💰 pricing, 🛡️ objeção, ⚠️ alerta, 🔔 recap)
+
+---
+
+### FILTROS DE REUNIÕES — MELHORIAS (`frontend/dashboard.html`)
+
+**Adicionado ao toolbar de Reuniões:**
+- `input[type=date]` "De" e "Até" — filtro por intervalo de data (`r.data` ou `r.criado_em`)
+- Botão `✕ Limpar` — zera todos os filtros de uma vez
+- Contador `"X de Y reuniões"` aparece quando qualquer filtro está ativo
+
+**CSS:** `input[type=date]` incluído nas regras dark (`color-scheme: dark` para o calendário do sistema).
+
+**Nota:** filtro por provedor não implementado — campo ausente no response de `/relatorios`.
+
+---
+
+### SMOKE TESTS (`tests/test_smoke.py`)
+
+**8 testes automatizados**, sem dependências externas (DB e IA mockados):
+
+| Endpoint | Testes |
+|---|---|
+| `GET /health` | status 200, shape `{status, servico, versao, timestamp}`, status ∈ `{online, degradado}` |
+| `GET /dashboard` | status 200, `content-type: text/html`, HTML contém `SALEIA` |
+| `POST /recapitulacao-manual` | status 200, chaves `{recapitulacao, perfil_disc, diagnostico_financeiro, gerado_em}`, rejeita `transcricao: ""` com 400 |
+
+**Resultado:** 8/8 OK em 1.1s.
+
+**Como rodar:** `.\venv\Scripts\python.exe -m unittest tests.test_smoke -v`
+
+---
+
+### VISUAL SCENARIO AI — PERSISTÊNCIA (`agent/visual_scenario.py`)
+
+**Problema anterior:** `ImageGenerator` retornava URLs do CDN da OpenAI que expiram após 1 hora. O botão `🕒 Histórico` em `visual-scenario.html` quebrava na segunda visita.
+
+**Solução:** `response_format="b64_json"` — a imagem retorna como base64 e é armazenada como `data:image/png;base64,...` diretamente nas colunas `current_url`/`future_url` (`LONGTEXT`) do MySQL. Imagens persistem indefinidamente.
+
+Timeout aumentado de 60s para 90s (DALL-E 3 pode levar 30–60s por imagem).
+
+**Fluxo completo:**
+1. `PainExtractor.extract()` — extrai segmento, dores, DISC, maturidade, urgência, descrições de ambiente via IA de texto
+2. `PromptBuilder.build_current/future()` — monta prompts cinematográficos personalizados
+3. `ImageGenerator.generate()` × 2 em paralelo (`asyncio.gather`) via DALL-E 3
+4. `_salvar_cenario()` — persiste no MySQL
+5. Retorna URLs (data URIs) + contexto + pain points
+
+**Acesso:** `cenario.html` → botão `🎬 Visual` → `visual-scenario.html?meeting=<id>`
+
+---
+
+## V.1.3.6 — Configurações Accordion + Condução Conectada aos Prompts + RAG Corrigido
+> Data: 27/05/2026 | Desenvolvido com Claude Sonnet 4.6
+
+---
+
+### CONFIGURAÇÕES — REDESIGN EM ACCORDION (`frontend/dashboard.html`)
+
+**Problema anterior:** Página Configurações exibia todos os cards abertos e expandidos simultaneamente, ocupando muito espaço e carregando dados desnecessariamente.
+
+**Solução:** Substituição dos cards planos por acordeão colapsável.
+
+**Novo comportamento:**
+- 3 seções colapsáveis com ícone + título + subtítulo + chevron (▾)
+- Clique no cabeçalho abre/fecha — chevron rotaciona
+- **Lazy-load:** cada seção carrega os dados apenas na primeira abertura (não dispara requisições desnecessárias)
+- Ao re-navegar para Configurações: todas as seções fecham e o cache de load é resetado (dados sempre frescos)
+- Rodapé fixo: status do backend (dot online/offline) + endpoint + versão + copyright
+
+**Seções:**
+| Ícone | Seção | Badge | Conteúdo ao abrir |
+|---|---|---|---|
+| 👥 (laranja) | Gerenciamento de Usuários | Admin | Tabela de usuários com selects inline |
+| 🔑 (azul) | Configuração de APIs | Admin | Cards dos provedores de IA |
+| 📚 (teal) | Base de Conhecimento | — | Contagem de documentos + botão ir à Base de IA |
+
+**Novos CSS:** `.acc-wrap`, `.acc-item`, `.acc-item.open`, `.acc-header`, `.acc-icon`, `.acc-icon.orange`, `.acc-icon.blue`, `.acc-label`, `.acc-chevron`, `.acc-body`, `.acc-divider`, `.cfg-status-footer`
+
+**Novas funções JS:**
+```javascript
+toggleAcc(id)          // abre/fecha seção + lazy-load na primeira abertura
+carregarResumoBase()   // busca total de documentos via GET /base
+```
+
+---
+
+### CONDUÇÃO — ENDPOINT CRIADO (`api/main.py`)
+
+**Problema anterior:** `cenario.html` chamava `POST /cenario/{meeting_id}/conducao` mas o endpoint **não existia** — retornava erro e o overlay fechava com "❌ Não foi possível gerar o conteúdo". Os 4 arquivos de prompt template existiam mas nunca eram usados.
+
+**Solução:** Endpoint implementado do zero.
+
+| Endpoint | Método | Descrição |
+|---|---|---|
+| `/cenario/{meeting_id}/conducao` | POST | Gera script de condução ao vivo baseado no tipo e dados do cliente |
+
+**Modelo Pydantic:**
+```python
+class ConducaoRequest(BaseModel):
+    tipo: str        # recapitulacao | programa-aceleracao | performance | fechamento
+    dados: Optional[dict] = None  # objeto completo de análise do cenário
+```
+
+**Roteamento por tipo:**
+| `tipo` recebido | Template carregado |
+|---|---|
+| `recapitulacao` | `conducao_recapitulacao.txt` |
+| `programa-aceleracao` | `conducao_programa_aceleracao.txt` |
+| `performance` | `conducao_performance.txt` |
+| `fechamento` | `conducao_fechamento.txt` |
+
+**Variáveis extraídas do objeto `dados`:**
+| Placeholder | Origem em `dados` |
+|---|---|
+| `{perfil_disc_tipo}` | `dados.perfil_disc.tipo` |
+| `{perfil_disc_descricao}` | `dados.perfil_disc.descricao` ou `.evidencia` |
+| `{faturamento}` | `dados.mapa_financeiro.faturamento_mensal` ou `.renda_clt` |
+| `{capacidade_investimento}` | `dados.mapa_financeiro.capacidade_investimento` |
+| `{produto_nome}` | `dados.mapa_financeiro.produto_indicado.nome` |
+| `{produto_justificativa}` | `dados.mapa_financeiro.produto_indicado.justificativa` |
+| `{score}` | `dados.score_compra.valor` |
+| `{temperatura}` | `dados.temperatura.nivel` |
+| `{conteudo_programa}` | Documentos da Base de IA (ver seção abaixo) |
+
+**Compatibilidade com `chamar_ia_async` (que espera JSON):**
+```python
+system_prompt = (
+    'Você é um assistente de vendas. '
+    'Responda APENAS com um JSON válido sem markdown, no formato: '
+    '{"conteudo": "script do vendedor aqui"}'
+)
+resultado = await chamar_ia_async(system_prompt, prompt_preenchido)
+conteudo = resultado.get("conteudo") or ...
+```
+
+---
+
+### CONDUÇÃO — INJEÇÃO DE DOCUMENTOS DA BASE DE IA (`api/main.py`)
+
+**Problema:** Os prompts de Apresentação (Programa de Aceleração e Performance) geravam scripts genéricos porque a IA não sabia o que são esses programas na empresa.
+
+**Solução:** O endpoint busca automaticamente documentos da `base_conhecimento` pelo `tipo` correspondente e injeta o conteúdo no prompt como `{conteudo_programa}`.
+
+**Função adicionada:**
+```python
+def _buscar_conteudo_programa(tipo_base: str) -> str:
+    # Query: SELECT titulo, texto FROM base_conhecimento WHERE tipo = %s ORDER BY created_at
+    # Concatena todos os documentos do tipo com separador ### Titulo
+```
+
+**Mapeamento tipo condução → tipo Base de IA:**
+```python
+_CONDUCAO_TIPO_BASE = {
+    "programa-aceleracao": "programa_aceleracao",
+    "performance":         "performance",
+}
+```
+
+**Como usar — fluxo completo:**
+1. No Dashboard → Base de IA → adicionar documento
+2. Selecionar tipo: **🚀 Programa de Aceleração** ou **📈 Programa Performance**
+3. Escrever o conteúdo completo do programa (metodologia, benefícios, resultados, investimento...)
+4. Salvar — entra em vigor imediatamente na próxima chamada de Condução
+5. Múltiplos documentos do mesmo tipo são concatenados automaticamente
+
+---
+
+### PROMPT TEMPLATES ATUALIZADOS
+
+Ambos os templates de Apresentação receberam bloco `INFORMAÇÕES DO PROGRAMA` com `{conteudo_programa}`:
+
+**`conducao_programa_aceleracao.txt`** — adicionado:
+```
+INFORMAÇÕES DO PROGRAMA DE ACELERAÇÃO:
+{conteudo_programa}
+```
+Instrução atualizada: *"Use as informações do programa acima para embasar a fala com detalhes reais."*
+
+**`conducao_performance.txt`** — adicionado:
+```
+INFORMAÇÕES DO PROGRAMA PERFORMANCE:
+{conteudo_programa}
+```
+Instrução atualizada: *"Use as informações reais do programa acima para mostrar o que muda na vida ou no negócio do cliente."*
+
+---
+
+### BASE DE IA — NOVO TIPO `performance` (`frontend/dashboard.html`)
+
+**Adicionado:**
+- Option `📈 Programa Performance` no `<select>` de tipo do formulário
+- `_TIPOS_BASE` map: `performance: '📈 Prog. Performance'`
+
+**Tipos disponíveis agora:**
+```
+instrucao, script_venda, programa_aceleracao, performance,
+diagnostico, consultoria, reuniao_1_1, reuniao, outro
+```
+
+---
+
+### CORREÇÕES DE BUGS
+
+| # | Arquivo | Problema | Solução |
+|---|---|---|---|
+| 1 | `agent/base_conhecimento.py` | RAG buscava coluna `tipo_reuniao` (inexistente) | Corrigido para `tipo` (nome real da coluna adicionada em V.1.3.5) |
+| 2 | `api/main.py` | `POST /cenario/{id}/conducao` retornava 404/405 | Endpoint criado do zero |
+| 3 | `frontend/dashboard.html` | Configurações carregava todos os dados simultaneamente ao abrir | Lazy-load com accordion resolve |
+
+---
+
+### ARQUIVOS ALTERADOS NESTA VERSÃO
+
+| Arquivo | Tipo de alteração |
+|---|---|
+| `api/main.py` | feat: `ConducaoRequest`, endpoint `/cenario/{id}/conducao`, `_buscar_conteudo_programa` |
+| `frontend/dashboard.html` | feat: accordion Configurações, tipo `performance` na Base de IA |
+| `agent/base_conhecimento.py` | fix: `tipo_reuniao` → `tipo` |
+| `agent/prompt_templates/conducao_programa_aceleracao.txt` | feat: bloco `{conteudo_programa}` |
+| `agent/prompt_templates/conducao_performance.txt` | feat: bloco `{conteudo_programa}` |
+
+---
+
 ## V.1.3.5 — Deploy VPS + Auth + Admin + Base de IA Avançada
 > Data: 27/05/2026 | Desenvolvido com Claude Sonnet 4.6
 

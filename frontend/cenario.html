@@ -645,6 +645,7 @@
       <div class="cond-item" onclick="acaoConducao('fechamento')">🤝 Fechamento</div>
     </div>
   </div>
+  <button class="nav-btn" id="btn-visual-scenario" onclick="abrirVisualScenario()" title="Visual Scenario AI">🎬 Visual</button>
   <button class="nav-btn primary" id="btn-next" onclick="navSlide(1)">Próximo →</button>
 </div>
 
@@ -883,6 +884,11 @@
   }
 
   document.addEventListener('click', () => fecharMenusConducao());
+
+  function abrirVisualScenario() {
+    const url = '/visual-scenario' + (meetingId ? '?meeting=' + meetingId : '');
+    window.open(url, '_blank');
+  }
 
   async function acaoConducao(tipo) {
     fecharMenusConducao();

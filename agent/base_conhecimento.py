@@ -46,7 +46,7 @@ def _carregar_cache() -> dict:
         conn = _get_db_conn()
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, titulo, tipo_reuniao, texto, embedding "
+                "SELECT id, titulo, tipo, texto, embedding "
                 "FROM base_conhecimento WHERE embedding IS NOT NULL"
             )
             rows = cur.fetchall()

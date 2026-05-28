@@ -24,7 +24,7 @@ from typing import Optional, List
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
@@ -70,12 +70,17 @@ from api.database import criar_tabelas, salvar_relatorio as db_salvar, listar_re
 def on_startup():
     criar_tabelas()
     logger.info("✅ Banco de dados inicializado.")
-    # Criar tabela de sessões no MySQL
     try:
-        from agent.sessao_manager import criar_tabela_sessoes
+        from agent.sessao_manager import criar_tabela_sessoes, criar_tabela_usuarios
         criar_tabela_sessoes()
+        criar_tabela_usuarios()
     except Exception as e:
-        logger.warning("Tabela sessoes não criada no MySQL: %s", e)
+        logger.warning("Tabelas MySQL não criadas: %s", e)
+    try:
+        from agent.visual_scenario import criar_tabela_visual_scenarios
+        criar_tabela_visual_scenarios()
+    except Exception as e:
+        logger.warning("Tabela visual_scenarios não criada: %s", e)
 
 # ─────────────────────────────────────────────
 # TABELA DE PREÇOS DOS PRODUTOS
@@ -144,6 +149,11 @@ class IniciarSessaoRequest(BaseModel):
     meeting_id: str
 
 
+class ConducaoRequest(BaseModel):
+    tipo: str
+    dados: Optional[dict] = None
+
+
 class ExportarBaseRequest(BaseModel):
     titulo: Optional[str] = ""
     tipo: Optional[str] = "reuniao"
@@ -159,6 +169,14 @@ class AudioTranscricaoRequest(BaseModel):
     audio_base64: str          # formato: "data:audio/webm;base64,XXXX"
     mime_type: Optional[str] = "audio/webm"
     meeting_id: Optional[str] = "default"
+
+
+class VisualScenarioRequest(BaseModel):
+    meeting_id: str
+    transcript: Optional[str] = ""
+    score: Optional[int] = 0
+    disc_profile: Optional[str] = ""
+    emotional_state: Optional[str] = ""
 
 
 # ─────────────────────────────────────────────
@@ -696,6 +714,114 @@ def listar_relatorios_endpoint():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ─────────────────────────────────────────────
+# HISTÓRICO DE USO / CUSTO
+# ─────────────────────────────────────────────
+
+@app.get("/historico/uso")
+def historico_uso(authorization: str | None = Header(default=None)):
+    """Lista o histórico de uso e custo estimado por reunião (últimas 100)."""
+    _req_auth(authorization)
+
+    from sqlmodel import Session as _Session, select as _select
+    from api.database import engine as _engine, MeetingMemory as _MM
+    import json as _j
+
+    with _Session(_engine) as session:
+        rows = session.exec(
+            _select(_MM).order_by(_MM.updated_at.desc()).limit(100)
+        ).all()
+
+    sessoes_map: dict = {}
+    try:
+        from agent.sessao_manager import _get_conn
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT meeting_id, num_analises, disc_identificado "
+                "FROM sessoes ORDER BY updated_at DESC"
+            )
+            for mid, num, disc in cur.fetchall():
+                if mid not in sessoes_map:
+                    sessoes_map[mid] = {"num_analises": num or 0, "disc": disc}
+        conn.close()
+    except Exception:
+        pass
+
+    reunioes = []
+    custo_total = 0.0
+    for row in rows:
+        score_history = _j.loads(row.score_history_json or "[]")
+        score_final = score_history[-1]["valor"] if score_history else None
+        sessao = sessoes_map.get(row.meeting_id, {})
+        custo = float(row.provider_cost_estimate or 0.0)
+        custo_total += custo
+        reunioes.append({
+            "meeting_id": row.meeting_id,
+            "data": row.updated_at.isoformat() if row.updated_at else None,
+            "custo_estimado_usd": round(custo, 6),
+            "score_final": score_final,
+            "disc_identificado": sessao.get("disc") or None,
+            "num_analises": sessao.get("num_analises", 0),
+            "num_key_moments": len(_j.loads(row.key_moments_json or "[]")),
+            "num_eventos": len(_j.loads(row.events_json or "[]")),
+        })
+
+    return {
+        "reunioes": reunioes,
+        "total": len(reunioes),
+        "custo_total_usd": round(custo_total, 6),
+    }
+
+
+@app.get("/historico/uso/{meeting_id}")
+def historico_uso_reuniao(meeting_id: str, authorization: str | None = Header(default=None)):
+    """Retorna o detalhamento de uso e custo de uma reunião específica."""
+    _req_auth(authorization)
+    import re as _re3
+    if not _re3.match(r'^[a-z]{3}-[a-z]{4}-[a-z]{3}$', meeting_id, _re3.IGNORECASE):
+        raise HTTPException(status_code=400, detail="meeting_id inválido")
+
+    memoria = obter_meeting_memory(meeting_id)
+    if not memoria:
+        raise HTTPException(status_code=404, detail="Reunião não encontrada.")
+
+    sessao_info: dict = {}
+    try:
+        from agent.sessao_manager import _get_conn
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT num_analises, disc_identificado, created_at "
+                "FROM sessoes WHERE meeting_id=%s ORDER BY created_at DESC LIMIT 1",
+                (meeting_id,),
+            )
+            row = cur.fetchone()
+            if row:
+                sessao_info = {
+                    "num_analises": row[0] or 0,
+                    "disc_identificado": row[1],
+                    "iniciada_em": row[2].isoformat() if row[2] else None,
+                }
+        conn.close()
+    except Exception:
+        pass
+
+    score_history = memoria.get("score_history") or []
+    score_final = score_history[-1]["valor"] if score_history else None
+
+    return {
+        "meeting_id": meeting_id,
+        "data": memoria.get("updated_at"),
+        "custo_estimado_usd": round(float(memoria.get("provider_cost_estimate") or 0.0), 6),
+        "score_final": score_final,
+        "score_history": score_history,
+        "key_moments": memoria.get("key_moments") or [],
+        "eventos": memoria.get("events") or [],
+        **sessao_info,
+    }
+
+
 @app.post("/recapitulacao-manual")
 def recapitulacao_manual(req: RecapitulacaoRequest):
     """
@@ -981,6 +1107,129 @@ def api_cenario_dados(meeting_id: str):
 
 
 # ─────────────────────────────────────────────
+# CONDUÇÃO — scripts de venda ao vivo
+# ─────────────────────────────────────────────
+_CONDUCAO_TEMPLATES = {
+    "recapitulacao":       "conducao_recapitulacao.txt",
+    "programa-aceleracao": "conducao_programa_aceleracao.txt",
+    "performance":         "conducao_performance.txt",
+    "fechamento":          "conducao_fechamento.txt",
+}
+# Mapa: tipo de condução → tipo de documento na base_conhecimento
+_CONDUCAO_TIPO_BASE = {
+    "programa-aceleracao": "programa_aceleracao",
+    "performance":         "performance",
+}
+_CONDUCAO_PROMPT_DIR = Path(__file__).parent.parent / "agent" / "prompt_templates"
+
+
+def _buscar_conteudo_programa(tipo_base: str) -> str:
+    """Busca documentos da base_conhecimento pelo tipo e retorna texto concatenado."""
+    try:
+        from agent.sessao_manager import _get_conn
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT titulo, texto FROM base_conhecimento WHERE tipo = %s ORDER BY created_at ASC",
+                (tipo_base,),
+            )
+            rows = cur.fetchall()
+        conn.close()
+    except Exception as e:
+        logger.warning("[conducao] Erro ao buscar docs da base: %s", e)
+        return "(Nenhum documento de programa cadastrado na Base de IA)"
+
+    if not rows:
+        return "(Nenhum documento cadastrado para este programa na Base de IA)"
+
+    partes = []
+    for titulo, texto in rows:
+        partes.append(f"### {titulo}\n{(texto or '').strip()}")
+    return "\n\n".join(partes)
+
+
+@app.post("/cenario/{meeting_id}/conducao")
+async def cenario_conducao(meeting_id: str, req: ConducaoRequest, authorization: str | None = Header(default=None)):
+    """
+    Gera script de condução ao vivo (recapitulação / apresentação / fechamento)
+    usando o prompt template correspondente ao tipo solicitado.
+    Para Apresentação, injeta os documentos da Base de IA do programa correspondente.
+    """
+    _req_auth(authorization)
+    import re as _re2
+    if not _re2.match(r'^[a-z]{3}-[a-z]{4}-[a-z]{3}$', meeting_id, _re2.IGNORECASE):
+        raise HTTPException(status_code=400, detail="meeting_id inválido")
+    template_file = _CONDUCAO_TEMPLATES.get(req.tipo)
+    if not template_file:
+        raise HTTPException(status_code=400, detail=f"Tipo de condução desconhecido: {req.tipo}")
+
+    template_path = _CONDUCAO_PROMPT_DIR / template_file
+    try:
+        template = template_path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        raise HTTPException(status_code=500, detail=f"Template não encontrado: {template_file}")
+
+    # Extrai variáveis do objeto dados enviado pelo cenario.html
+    d = req.dados or {}
+    disc = d.get("perfil_disc") or {}
+    mapa = d.get("mapa_financeiro") or {}
+    score_obj = d.get("score_compra") or {}
+    temp_obj = d.get("temperatura") or {}
+    produto = mapa.get("produto_indicado") or {}
+
+    disc_tipo = disc.get("tipo") or "não identificado"
+    disc_desc = disc.get("descricao") or disc.get("evidencia") or "perfil não detalhado"
+    faturamento = mapa.get("faturamento_mensal") or mapa.get("renda_clt") or "não informado"
+    capacidade = mapa.get("capacidade_investimento") or "não informado"
+    produto_nome = produto.get("nome") or "produto recomendado"
+    produto_just = produto.get("justificativa") or "alinhado ao perfil e capacidade financeira"
+    score_val = str(score_obj.get("valor") or "—")
+    temperatura = temp_obj.get("nivel") or temp_obj.get("valor") or "não informada"
+
+    # Busca documentos do programa na Base de IA (apenas para Apresentação)
+    tipo_base = _CONDUCAO_TIPO_BASE.get(req.tipo)
+    conteudo_programa = _buscar_conteudo_programa(tipo_base) if tipo_base else ""
+
+    prompt = (
+        template
+        .replace("{perfil_disc_tipo}", disc_tipo)
+        .replace("{perfil_disc_descricao}", disc_desc)
+        .replace("{faturamento}", faturamento)
+        .replace("{capacidade_investimento}", capacidade)
+        .replace("{produto_nome}", produto_nome)
+        .replace("{produto_justificativa}", produto_just)
+        .replace("{score}", score_val)
+        .replace("{temperatura}", str(temperatura))
+        .replace("{conteudo_programa}", conteudo_programa)
+    )
+
+    # chamar_ia_async espera JSON — instruímos o modelo a retornar {"conteudo": "..."}
+    system_prompt = (
+        'Você é um assistente de vendas. '
+        'Responda APENAS com um JSON válido sem markdown, no formato: '
+        '{"conteudo": "script do vendedor aqui"}'
+    )
+    from api.ai_router import chamar_ia_async
+    try:
+        resultado = await chamar_ia_async(system_prompt, prompt)
+        conteudo = (
+            resultado.get("conteudo")
+            or resultado.get("texto")
+            or resultado.get("resposta")
+            or resultado.get("resultado")
+            or next((v for v in resultado.values() if isinstance(v, str) and len(v) > 10), "")
+        )
+        if not isinstance(conteudo, str):
+            import json as _json2
+            conteudo = _json2.dumps(conteudo, ensure_ascii=False)
+    except Exception as e:
+        logger.error("[conducao] Erro ao chamar IA: %s", e)
+        raise HTTPException(status_code=503, detail="Serviço de IA indisponível. Tente novamente.")
+
+    return {"conteudo": conteudo}
+
+
+# ─────────────────────────────────────────────
 # WHISPER — transcrição de áudio em tempo real
 # ─────────────────────────────────────────────
 @app.post("/audio-transcricao")
@@ -1053,6 +1302,62 @@ async def audio_transcricao(req: AudioTranscricaoRequest):
                 os.unlink(tmp_path)
             except OSError:
                 pass
+
+
+# ─────────────────────────────────────────────
+# VISUAL SCENARIO AI
+# ─────────────────────────────────────────────
+
+@app.post("/generate-visual-scenario")
+async def generate_visual_scenario(req: VisualScenarioRequest):
+    """
+    Gera cenários visuais atual e futuro do cliente via DALL-E 3.
+    Usa transcrição + perfil DISC + score para extrair contexto e criar imagens.
+    """
+    if not req.meeting_id:
+        raise HTTPException(status_code=400, detail="meeting_id obrigatório.")
+    if not req.transcript or len(req.transcript.strip()) < 50:
+        raise HTTPException(status_code=400, detail="Transcrição insuficiente para análise (mínimo 50 caracteres).")
+
+    from agent.visual_scenario import ScenarioComposer
+    composer = ScenarioComposer()
+    try:
+        result = await composer.compose(
+            meeting_id=req.meeting_id,
+            transcript=req.transcript,
+            score=req.score or 0,
+            disc_profile=req.disc_profile or "",
+            emotional_state=req.emotional_state or "",
+        )
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        logger.error("[visual-scenario] Erro inesperado: %s", e)
+        raise HTTPException(status_code=500, detail="Erro interno ao gerar cenário visual.")
+
+    return result
+
+
+@app.get("/visual-scenarios/{meeting_id}")
+def listar_visual_scenarios(meeting_id: str):
+    """Lista os cenários visuais gerados para um meeting_id (últimos 10)."""
+    from agent.visual_scenario import listar_cenarios
+    try:
+        cenarios = listar_cenarios(meeting_id)
+    except Exception as e:
+        logger.error("[visual-scenarios] Erro ao listar: %s", e)
+        raise HTTPException(status_code=500, detail="Erro ao buscar cenários.")
+    return {"cenarios": cenarios, "total": len(cenarios)}
+
+
+@app.get("/visual-scenario", response_class=HTMLResponse)
+def visual_scenario_page():
+    """Serve a página Visual Scenario AI."""
+    caminho = Path(__file__).parent.parent / "frontend" / "visual-scenario.html"
+    try:
+        return HTMLResponse(content=caminho.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="visual-scenario.html não encontrado")
 
 
 # ─────────────────────────────────────────────
@@ -1267,6 +1572,20 @@ async def base_ocr_imagem(arquivo: UploadFile = File(...)):
 # ADMIN — gerenciamento de usuários e APIs
 # ─────────────────────────────────────────────
 from fastapi import Header as _Header
+
+
+def _req_auth(authorization: str | None) -> dict:
+    """Verifica JWT. Retorna payload sem exigir perfil específico."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Token não fornecido.")
+    token = authorization[7:]
+    try:
+        payload = _jwt.decode(token, _JWT_SECRET, algorithms=[_JWT_ALGO])
+    except _jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expirado.")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Token inválido.")
+    return payload
 
 
 def _req_admin(authorization: str | None) -> dict:

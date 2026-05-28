@@ -8,7 +8,7 @@ Use este arquivo como fila operacional. Execute apenas a primeira tarefa pendent
 - [x] Integrar `MeetingMemory` ao fluxo de tempo real.
 - [x] Implementar coach em tempo real com controle de custo/contexto.
 - [x] Criar eventos estruturados e key moments.
-- [x] Detectar deixas verbais para recapitulação.
+- [x] Detectar deixas verbais para recapitulacao.
 - [x] Gerar recapitulacao viva com mapa mental.
 - [x] Exibir recapitulacao viva na sidebar.
 - [x] Gerar diagnostico final pos-reuniao.
@@ -19,13 +19,20 @@ Use este arquivo como fila operacional. Execute apenas a primeira tarefa pendent
 - [x] Corrigir `/dashboard.` retornando `404`.
 - [x] Corrigir erro `[object Object]` na analise manual.
 - [x] Configurar DeepSeek em producao.
+- [x] Registrar em docs o estado atual do projeto e a frente Runware para o cenario do Nilton.
 
-## Concluido (V.1.3.3 — frontend)
+## Concluido (V.1.3.6 - ultimo registro)
+
+- [x] Reorganizar Configuracoes em accordion no dashboard.
+- [x] Ligar Conducao aos prompts da apresentacao.
+- [x] Corrigir o RAG do fluxo atual.
+
+## Concluido (V.1.3.3 - frontend)
 
 - [x] T01 - Exibir metadados da IA no resultado da analise manual (`renderUsoIa` com tokens, moeda e custo total).
 - [x] Criar `frontend/login.html` com tabs Login / Cadastro / Recuperar senha, show/hide password, loading states, auto-detect API.
 - [x] Config dashboard: remover seletor Local/Producao da UI; adicionar Gerenciamento de Usuarios (tabela com perfil, plano, status, acoes) e Configuracao de APIs (provedores com chave mascarada, testar, ativar/inativar, definir principal).
-- [x] `cenario.html`: renomear slide-3 para "Conducao"; adicionar menu dropdown (Recapitulacao, Apresentacao → submenu, Fechamento) com overlay de resultado e botao Copiar.
+- [x] `cenario.html`: renomear slide-3 para "Conducao"; adicionar menu dropdown (Recapitulacao, Apresentacao -> submenu, Fechamento) com overlay de resultado e botao Copiar.
 - [x] Criar `frontend/apresentacao/programa-aceleracao.md` e `frontend/apresentacao/performance.md` com prompts estruturados.
 
 ## Proxima Tarefa
@@ -34,7 +41,7 @@ Use este arquivo como fila operacional. Execute apenas a primeira tarefa pendent
 
 Objetivo:
 
-Implementar `POST /cenario/{meeting_id}/conducao` no backend para suportar o menu Conducao do cenario.html.
+Implementar `POST /cenario/{meeting_id}/conducao` no backend para suportar o menu Conducao do `cenario.html`.
 
 Escopo permitido:
 
@@ -54,13 +61,38 @@ Comportamento esperado:
 - Autenticacao obrigatoria.
 - Nunca expor chaves de API no retorno.
 
-## Fila
+## Concluido (T02)
 
-- [ ] T02 - Criar endpoint backend para Conducao (`POST /cenario/{meeting_id}/conducao`).
-- [ ] T03 - Criar endpoints backend de autenticacao (`POST /auth/login`, `/auth/cadastro`, `/auth/recuperar-senha`).
-- [ ] T04 - Criar endpoints backend de gerenciamento de usuarios (`GET/PATCH/DELETE /admin/usuarios`).
-- [ ] T05 - Criar endpoints backend de configuracao de APIs (`GET /admin/api/provedores`, `POST /admin/api/teste`, etc).
-- [ ] T06 - Criar endpoint backend de historico de uso/custo por reuniao.
-- [ ] T07 - Exibir historico de score e eventos no dashboard.
-- [ ] T08 - Melhorar filtros de relatorios por data, provedor e probabilidade.
-- [ ] T09 - Criar smoke test automatizado para `/health`, `/dashboard` e `/recapitulacao-manual`.
+- [x] T02 - Criar endpoint backend para Conducao (`POST /cenario/{meeting_id}/conducao`) — autenticacao JWT obrigatoria, bug `_get_conn` corrigido, validacao de meeting_id adicionada.
+
+## Concluido (T03)
+
+- [x] T03 - Endpoints de autenticacao existentes e validados; `criar_tabela_usuarios()` adicionada ao sessao_manager e chamada no startup — tabela `usuarios` agora criada automaticamente na VPS.
+
+## Concluido (T04)
+
+- [x] T04 - Endpoints de gerenciamento de usuarios existentes e validados (GET/PATCH x6/DELETE, todos protegidos com `_req_admin`). Tabela criada no startup via T03.
+
+## Concluido (T05)
+
+- [x] T05 - Endpoints de configuracao de APIs existentes e validados (5 endpoints, todos com `_req_admin`). Chaves salvas em .env + os.environ; nunca expostas nas respostas.
+
+## Concluido (T06)
+
+- [x] T06 - `GET /historico/uso` (lista reunioes com custo, score final, DISC, num_analises) e `GET /historico/uso/{meeting_id}` (detalhe com score_history, key_moments, eventos). Requer JWT. Fonte: MeetingMemory + sessoes.
+
+## Concluido (T07)
+
+- [x] T07 - Pagina Historico adicionada ao dashboard: nav item, lista de reunioes com score/custo/DISC, grafico de barras da evolucao do score, momentos-chave e eventos por reuniao. Consome GET /historico/uso e GET /historico/uso/{meeting_id}.
+
+## Concluido (T08)
+
+- [x] T08 - Filtros de Reunioes melhorados: data De/Ate adicionados, botao Limpar, contador "X de Y reunioes" exibido ao filtrar. Filtro por provedor nao implementado (campo ausente no response de /relatorios; requer alteracao de backend futura).
+
+## Concluido (T09)
+
+- [x] T09 - `tests/test_smoke.py` criado com 8 testes (2 por endpoint + rejeicao de input invalido). Nao requer servicos externos. Dependencias `bcrypt` e `PyJWT` adicionadas ao `requirements.txt`. Resultado: 8/8 OK em 1.1s.
+
+## Concluido (T10)
+
+- [x] T10 - Visual Scenario com DALL-E 3 (OpenAI) ja implementado. Runware descartado. Corrigido bug de expiracao de URL: `ImageGenerator` agora usa `response_format="b64_json"` e armazena data URI no banco — imagens persistem indefinidamente. Timeout aumentado para 90s.

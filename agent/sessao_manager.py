@@ -316,6 +316,34 @@ def exportar_para_base_conhecimento(sessao_id: int, titulo: str = "", tipo: str 
         return {"ok": False, "erro": str(e)}
 
 
+def criar_tabela_usuarios():
+    """Cria a tabela usuarios se não existir."""
+    sql = """
+    CREATE TABLE IF NOT EXISTS usuarios (
+        id VARCHAR(36) NOT NULL PRIMARY KEY,
+        nome VARCHAR(200) NOT NULL,
+        email VARCHAR(200) NOT NULL,
+        senha_hash VARCHAR(255) NOT NULL,
+        perfil VARCHAR(50) NOT NULL DEFAULT 'operador',
+        plano VARCHAR(50) NOT NULL DEFAULT 'free',
+        status VARCHAR(50) NOT NULL DEFAULT 'pendente',
+        data_cadastro DATETIME DEFAULT CURRENT_TIMESTAMP,
+        ultimo_acesso DATETIME NULL,
+        UNIQUE INDEX idx_email (email),
+        INDEX idx_status (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    """
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(sql)
+        conn.commit()
+        conn.close()
+        logger.info("[Auth] Tabela usuarios criada/verificada.")
+    except Exception as e:
+        logger.error("[Auth] Erro ao criar tabela usuarios: %s", e)
+
+
 def buscar_sessao(sessao_id: int) -> dict:
     """Busca sessão completa pelo ID incluindo transcrição e análise."""
     try:

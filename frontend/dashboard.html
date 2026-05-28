@@ -288,7 +288,7 @@
     /* ── Toolbar ── */
     .toolbar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
 
-    input[type=text], select {
+    input[type=text], input[type=date], select {
       background: var(--field);
       border: 1px solid var(--border);
       color: var(--text);
@@ -298,9 +298,10 @@
       outline: none;
       transition: border-color .15s;
     }
-    input[type=text]:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(20,184,166,.12); }
+    input[type=text]:focus, input[type=date]:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(20,184,166,.12); }
     input[type=text]::placeholder { color: var(--muted); }
     input[type=text] { flex: 1; min-width: 180px; }
+    input[type=date] { min-width: 140px; color-scheme: dark; }
 
     button.btn {
       background: linear-gradient(135deg, var(--alert), #dc2626);
@@ -364,14 +365,47 @@
     .ai-usage-item { border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: rgba(8,17,31,.35); }
     .ai-usage-item strong { color: var(--primary); display: block; margin-bottom: 4px; }
 
-    /* ── Config ── */
-    .config-panel { max-width: 900px; display: grid; gap: 16px; }
-    .config-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
-    .config-card h3 { margin-bottom: 14px; font-size: 1rem; }
-    .cfg-status-row { display: flex; align-items: center; gap: 10px; font-size: .9rem; }
+    /* ── Config — Accordion ── */
+    .config-panel { max-width: 860px; display: grid; gap: 0; }
+    .acc-wrap { display: grid; gap: 10px; max-width: 860px; }
+    .acc-item { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: border-color .2s; }
+    .acc-item.open { border-color: rgba(20,184,166,.35); }
+    .acc-header {
+      width: 100%; display: flex; align-items: center; gap: 14px;
+      background: none; border: none; color: var(--text); cursor: pointer;
+      padding: 16px 20px; text-align: left;
+      transition: background .15s;
+    }
+    .acc-header:hover { background: rgba(255,255,255,.03); }
+    .acc-icon {
+      width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+      background: rgba(20,184,166,.12); border: 1px solid rgba(20,184,166,.25);
+      display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
+    }
+    .acc-icon.orange { background: rgba(249,115,22,.12); border-color: rgba(249,115,22,.25); }
+    .acc-icon.blue   { background: rgba(56,189,248,.12);  border-color: rgba(56,189,248,.25); }
+    .acc-label { flex: 1; min-width: 0; }
+    .acc-label h4 { font-size: .96rem; font-weight: 700; margin: 0 0 2px; }
+    .acc-label p  { font-size: .8rem;  color: var(--muted); margin: 0; }
+    .acc-chevron {
+      font-size: .85rem; color: var(--muted); transition: transform .22s ease; flex-shrink: 0;
+    }
+    .acc-item.open .acc-chevron { transform: rotate(180deg); }
+    .acc-body { padding: 0 20px 20px; display: none; }
+    .acc-item.open .acc-body { display: block; }
+    .acc-divider { border: none; border-top: 1px solid var(--border); margin: 0 0 16px; }
+    /* Status footer */
+    .cfg-status-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 8px;
+      background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 14px 20px; margin-top: 10px; font-size: .82rem; color: var(--muted);
+    }
+    .cfg-status-row { display: flex; align-items: center; gap: 8px; }
+    .cfg-admin-badge { background: rgba(249,115,22,.15); color: #FDBA74; border: 1px solid rgba(249,115,22,.35); border-radius: 999px; padding: 2px 10px; font-size: .75rem; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
+    /* keep legacy cfg-section-header for any JS that references it */
     .cfg-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
     .cfg-section-header h3 { margin: 0; font-size: 1rem; }
-    .cfg-admin-badge { background: rgba(249,115,22,.15); color: #FDBA74; border: 1px solid rgba(249,115,22,.35); border-radius: 999px; padding: 2px 10px; font-size: .75rem; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
     .cfg-loading { color: var(--muted); font-size: .9rem; padding: 14px 0; }
     .cfg-erro { color: #FCA5A5; font-size: .88rem; padding: 10px 12px; background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); border-radius: 6px; }
     .cfg-badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: .73rem; font-weight: 700; border: 1px solid transparent; }
@@ -391,6 +425,20 @@
     .cfg-tabela td { padding: 10px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
     .cfg-tabela tr:last-child td { border-bottom: none; }
     .cfg-tabela tr:hover td { background: rgba(255,255,255,.025); }
+    .cfg-tabela tr.usr-pendente td { background: rgba(249,115,22,.04); }
+    .cfg-tabela tr.usr-pendente td:first-child { border-left: 3px solid rgba(249,115,22,.6); padding-left: 7px; }
+    /* Badge de pendentes no accordion */
+    .acc-pendente-badge {
+      background: rgba(249,115,22,.9); color: #fff;
+      border-radius: 999px; font-size: .7rem; font-weight: 800;
+      min-width: 20px; height: 20px; padding: 0 6px;
+      display: inline-flex; align-items: center; justify-content: center;
+      margin-right: 4px; animation: pulse-badge .5s ease;
+    }
+    @keyframes pulse-badge {
+      from { transform: scale(0.6); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
     .cfg-acoes { display: flex; gap: 4px; flex-wrap: wrap; }
     .cfg-btn-acao { background: rgba(37,35,56,.8); border: 1px solid var(--border); border-radius: 5px; color: var(--muted); font-size: .74rem; padding: 4px 8px; cursor: pointer; transition: border-color .15s, color .15s; white-space: nowrap; }
     .cfg-btn-acao:hover { border-color: rgba(249,115,22,.5); color: #FDBA74; }
@@ -912,9 +960,15 @@
       <button class="nav-item" data-page="analisar" onclick="mostrarPagina('analisar', this)">
         <span class="nav-icon">🔍</span><span class="nav-label">Analisar</span>
       </button>
+      <button class="nav-item" data-page="historico" onclick="mostrarPagina('historico', this)">
+        <span class="nav-icon">📈</span><span class="nav-label">Histórico</span>
+      </button>
       <button class="nav-item" data-page="base" onclick="mostrarPagina('base', this)">
         <span class="nav-icon">📚</span><span class="nav-label">Base de IA</span>
       </button>
+      <a class="nav-item" href="/visual-scenario" target="_blank" rel="noopener">
+        <span class="nav-icon">🎬</span><span class="nav-label">Visual Scenario</span>
+      </a>
       <a class="nav-item" href="/manual" target="_blank" rel="noopener">
         <span class="nav-icon">📖</span><span class="nav-label">Manual</span>
       </a>
@@ -966,8 +1020,12 @@
             <option value="media">Média</option>
             <option value="baixa">Baixa</option>
           </select>
+          <input type="date" id="filtro-data-de"  onchange="filtrarReunioes()" title="De (data)" />
+          <input type="date" id="filtro-data-ate" onchange="filtrarReunioes()" title="Até (data)" />
+          <button class="btn btn-secondary" onclick="limparFiltrosReunioes()" title="Limpar filtros">✕ Limpar</button>
           <button class="btn" onclick="carregarReunioes()">↻ Atualizar</button>
         </div>
+        <div id="filtro-contador" style="color:var(--muted);font-size:.82rem;margin-bottom:10px;display:none"></div>
         <div class="reunioes" id="lista-reunioes"><div style="color:var(--muted)">Carregando...</div></div>
       </div>
 
@@ -1124,6 +1182,7 @@
               <option value="instrucao">📋 Instrução para IA</option>
               <option value="script_venda">🎯 Script de Venda</option>
               <option value="programa_aceleracao">🚀 Programa de Aceleração</option>
+              <option value="performance">📈 Programa Performance</option>
               <option value="diagnostico">🔍 Diagnóstico</option>
               <option value="consultoria">💼 Consultoria</option>
               <option value="reuniao_1_1">👥 Reunião 1:1</option>
@@ -1195,63 +1254,123 @@
 
       </div><!-- /page-base -->
 
+      <!-- HISTÓRICO DE USO -->
+      <div class="page" id="page-historico">
+        <h2>Histórico de Uso</h2>
+        <p style="color:var(--muted);margin-bottom:16px">Custo estimado, scores e eventos por reunião.</p>
+        <div class="toolbar">
+          <button class="btn" onclick="carregarHistorico()">↻ Atualizar</button>
+          <span id="hist-info" style="color:var(--muted);font-size:.85rem;align-self:center"></span>
+        </div>
+        <div class="metrics" id="hist-metrics" style="display:none">
+          <div class="metric"><div class="metric-val" id="hm-total">–</div><div class="metric-lbl">Reuniões</div></div>
+          <div class="metric"><div class="metric-val" id="hm-custo">–</div><div class="metric-lbl">Custo total est.</div></div>
+          <div class="metric"><div class="metric-val" id="hm-score">–</div><div class="metric-lbl">Score médio</div></div>
+        </div>
+        <div class="reunioes" id="hist-lista"><div style="color:var(--muted)">Carregando...</div></div>
+      </div>
+
+      <!-- HISTÓRICO DETALHE -->
+      <div class="page" id="page-historico-detalhe">
+        <div class="detalhe-header">
+          <button class="back-btn" onclick="voltarParaHistorico()">← Voltar</button>
+          <h2 id="hd-titulo" style="margin:0">Reunião</h2>
+        </div>
+        <div id="hd-conteudo"></div>
+      </div>
+
       <!-- CONFIGURAÇÕES -->
       <div class="page" id="page-configuracoes">
         <h2>Configurações</h2>
-        <div class="config-panel">
 
-          <!-- Status backend (somente leitura) -->
-          <div class="config-card">
-            <h3>Status do Backend</h3>
-            <div class="cfg-status-row">
-              <span class="dot" id="cfg-dot"></span>
-              <span id="cfg-status-text" style="color:var(--muted)">Verificando...</span>
-            </div>
-            <div id="cfg-api-url" style="color:var(--muted);font-size:.82rem;margin-top:6px;word-break:break-all"></div>
-          </div>
+        <div class="acc-wrap">
 
           <!-- Gerenciamento de Usuários -->
-          <div class="config-card" id="cfg-card-usuarios">
-            <div class="cfg-section-header">
-              <h3>Gerenciamento de Usuários</h3>
-              <span class="cfg-admin-badge">Admin</span>
-            </div>
-            <div id="cfg-usuarios-loading" class="cfg-loading">Carregando usuários...</div>
-            <div id="cfg-usuarios-erro" class="cfg-erro hidden"></div>
-            <div id="cfg-usuarios-wrapper" class="cfg-tabela-wrapper hidden">
-              <table class="cfg-tabela">
-                <thead>
-                  <tr>
-                    <th>Nome / E-mail</th><th style="width:110px">Perfil</th><th style="width:110px">Plano</th><th style="width:110px">Status</th><th style="width:40px"></th>
-                  </tr>
-                </thead>
-                <tbody id="cfg-usuarios-tbody"></tbody>
-              </table>
+          <div class="acc-item" id="acc-usuarios">
+            <button class="acc-header" onclick="toggleAcc('usuarios')">
+              <div class="acc-icon orange">👥</div>
+              <div class="acc-label">
+                <h4>Gerenciamento de Usuários</h4>
+                <p>Gerencie perfis, planos e status dos usuários</p>
+              </div>
+              <span class="cfg-admin-badge" style="margin-right:8px">Admin</span>
+              <span class="acc-chevron">▾</span>
+            </button>
+            <div class="acc-body" id="acc-body-usuarios">
+              <hr class="acc-divider">
+              <div id="cfg-usuarios-loading" class="cfg-loading">Carregando usuários...</div>
+              <div id="cfg-usuarios-erro" class="cfg-erro hidden"></div>
+              <div id="cfg-usuarios-wrapper" class="cfg-tabela-wrapper hidden">
+                <table class="cfg-tabela">
+                  <thead>
+                    <tr>
+                      <th>Nome / E-mail</th><th style="width:110px">Perfil</th><th style="width:110px">Plano</th><th style="width:110px">Status</th><th style="width:40px"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="cfg-usuarios-tbody"></tbody>
+                </table>
+              </div>
             </div>
           </div>
 
           <!-- Configuração de APIs -->
-          <div class="config-card" id="cfg-card-apis">
-            <div class="cfg-section-header">
-              <h3>Configuração de APIs</h3>
-              <span class="cfg-admin-badge">Admin</span>
+          <div class="acc-item" id="acc-apis">
+            <button class="acc-header" onclick="toggleAcc('apis')">
+              <div class="acc-icon blue">🔑</div>
+              <div class="acc-label">
+                <h4>Configuração de APIs</h4>
+                <p>Chaves e provedores de inteligência artificial</p>
+              </div>
+              <span class="cfg-admin-badge" style="margin-right:8px">Admin</span>
+              <span class="acc-chevron">▾</span>
+            </button>
+            <div class="acc-body" id="acc-body-apis">
+              <hr class="acc-divider">
+              <div id="cfg-apis-loading" class="cfg-loading">Carregando provedores...</div>
+              <div id="cfg-apis-erro" class="cfg-erro hidden"></div>
+              <div id="cfg-apis-lista" class="cfg-provedor-lista hidden"></div>
             </div>
-            <div id="cfg-apis-loading" class="cfg-loading">Carregando provedores...</div>
-            <div id="cfg-apis-erro" class="cfg-erro hidden"></div>
-            <div id="cfg-apis-lista" class="cfg-provedor-lista hidden"></div>
           </div>
 
-          <!-- Sobre -->
-          <div class="config-card" style="text-align:center;padding:18px 20px">
-            <div style="font-size:1.5rem;margin-bottom:8px">🔷</div>
-            <div style="font-weight:700;font-size:1rem;margin-bottom:4px">SALEIA <span style="color:var(--primary)">V.1.3.4</span></div>
-            <div style="color:var(--muted);font-size:.82rem;line-height:1.7">
-              Assistente de Vendas com Inteligência Artificial<br>
-              Copyright © 2026 <strong style="color:var(--text)">HEXAGON TECNOLOGIA</strong>. Todos os direitos reservados.
+          <!-- Base de Conhecimento -->
+          <div class="acc-item" id="acc-base">
+            <button class="acc-header" onclick="toggleAcc('base')">
+              <div class="acc-icon">📚</div>
+              <div class="acc-label">
+                <h4>Base de Conhecimento</h4>
+                <p>Documentos e embeddings para o RAG da IA</p>
+              </div>
+              <span class="acc-chevron">▾</span>
+            </button>
+            <div class="acc-body" id="acc-body-base">
+              <hr class="acc-divider">
+              <div id="cfg-base-loading" class="cfg-loading">Carregando documentos...</div>
+              <div id="cfg-base-resumo" class="hidden" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+                <div>
+                  <div id="cfg-base-count" style="font-size:1.4rem;font-weight:800;color:var(--primary)">—</div>
+                  <div style="color:var(--muted);font-size:.82rem">documentos indexados</div>
+                </div>
+                <button class="cfg-btn-provedor primario" onclick="mostrarPagina('base', document.querySelector('[data-page=base]'))">
+                  ✏️ Gerenciar Base de IA
+                </button>
+              </div>
             </div>
           </div>
 
         </div>
+
+        <!-- Footer: status + versão -->
+        <div class="cfg-status-footer">
+          <div class="cfg-status-row">
+            <span class="dot" id="cfg-dot"></span>
+            <span id="cfg-status-text" style="color:var(--muted)">Verificando backend...</span>
+            <span id="cfg-api-url" style="color:var(--muted);font-size:.78rem;margin-left:4px;word-break:break-all"></span>
+          </div>
+          <div style="color:var(--muted);font-size:.78rem;text-align:right">
+            SALEIA <strong style="color:var(--primary)">V.1.3.5</strong> &nbsp;·&nbsp; HEXAGON TECNOLOGIA © 2026
+          </div>
+        </div>
+
       </div>
 
     </main>
@@ -1306,7 +1425,14 @@
     if (nome === 'reunioes')      carregarReunioes();
     if (nome === 'sessoes')       carregarSessoes();
     if (nome === 'base')          { carregarBase(); initDropzone(); }
-    if (nome === 'configuracoes') carregarConfiguracoes();
+    if (nome === 'historico')     carregarHistorico();
+    if (nome === 'configuracoes') {
+      // reset lazy-load flags so sections reload fresh data on next open
+      Object.keys(_accLoaded).forEach(k => delete _accLoaded[k]);
+      // close all accordions
+      document.querySelectorAll('.acc-item').forEach(el => el.classList.remove('open'));
+      carregarConfiguracoes();
+    }
   }
 
   /* ─── Base de Conhecimento ───────────────────────── */
@@ -1314,6 +1440,7 @@
     instrucao:           '📋 Instrução para IA',
     script_venda:        '🎯 Script de Venda',
     programa_aceleracao: '🚀 Prog. Aceleração',
+    performance:         '📈 Prog. Performance',
     diagnostico:         '🔍 Diagnóstico',
     consultoria:         '💼 Consultoria',
     reuniao_1_1:         '👥 Reunião 1:1',
@@ -1573,22 +1700,50 @@
   }
 
   /* ─── Configurações — carregamento geral ─────────── */
+  const _accLoaded = {};
+
+  function toggleAcc(id) {
+    const item = document.getElementById('acc-' + id);
+    if (!item) return;
+    const opening = !item.classList.contains('open');
+    item.classList.toggle('open', opening);
+    if (opening && !_accLoaded[id]) {
+      _accLoaded[id] = true;
+      if (id === 'usuarios') carregarUsuarios();
+      if (id === 'apis')     carregarProvedoresApi();
+      if (id === 'base')     carregarResumoBase();
+    }
+  }
+
   async function carregarConfiguracoes() {
-    // Status backend
-    const dot  = document.getElementById('cfg-dot');
-    const txt  = document.getElementById('cfg-status-text');
+    const dot   = document.getElementById('cfg-dot');
+    const txt   = document.getElementById('cfg-status-text');
     const urlEl = document.getElementById('cfg-api-url');
-    if (urlEl) urlEl.textContent = 'Endpoint: ' + API;
+    if (urlEl) urlEl.textContent = '· ' + API;
     try {
       const r = await fetch(API + '/health', { signal: AbortSignal.timeout(4000) });
       if (dot) dot.className = 'dot' + (r.ok ? ' online' : '');
-      if (txt) txt.textContent = r.ok ? 'Backend online' : 'Backend respondeu com erro';
+      if (txt) txt.textContent = r.ok ? 'Backend online' : 'Backend com erro';
     } catch {
       if (dot) dot.className = 'dot';
-      if (txt) txt.textContent = 'Backend offline ou inacessível';
+      if (txt) txt.textContent = 'Backend offline';
     }
-    carregarUsuarios();
-    carregarProvedoresApi();
+  }
+
+  async function carregarResumoBase() {
+    const loading = document.getElementById('cfg-base-loading');
+    const resumo  = document.getElementById('cfg-base-resumo');
+    const countEl = document.getElementById('cfg-base-count');
+    if (!loading) return;
+    try {
+      const resp = await fetchJsonWithFallback('/base');
+      const r = await resp.json();
+      loading.classList.add('hidden');
+      if (countEl) countEl.textContent = (r.total || 0).toString();
+      if (resumo) { resumo.classList.remove('hidden'); resumo.style.display = 'flex'; }
+    } catch {
+      if (loading) loading.textContent = 'Erro ao carregar documentos.';
+    }
   }
 
   /* ─── Gerenciamento de Usuários ───────────────────── */
@@ -1631,15 +1786,23 @@
     if (!tbody) return;
     if (!lista.length) {
       tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:16px">Nenhum usuário encontrado.</td></tr>';
+      _atualizarBadgePendentes(0);
       return;
     }
+    const pendentes = lista.filter(u => u.status === 'pendente').length;
+    _atualizarBadgePendentes(pendentes);
     tbody.innerHTML = lista.map(u => {
       const uid = escHtml(u.id);
+      const isPendente = u.status === 'pendente';
       const mkOpt = (vals, cur) => vals.map(v => `<option value="${v}"${cur===v?' selected':''}>${v}</option>`).join('');
-      return `<tr>
+      const btnAprovar = isPendente
+        ? `<button onclick="fecharAcoesMenus();aprovarUsuario('${uid}')">✅ Aprovar</button><hr>`
+        : '';
+      return `<tr class="${isPendente ? 'usr-pendente' : ''}">
         <td>
           <div style="font-weight:500">${escHtml(u.nome)}</div>
           <div style="color:var(--muted);font-size:.75rem">${escHtml(u.email)}</div>
+          ${isPendente ? '<div style="color:#FDBA74;font-size:.72rem;margin-top:2px">⏳ Aguardando aprovação</div>' : ''}
         </td>
         <td>
           <select class="usr-select" onchange="patchUsuario('${uid}','perfil',this.value,this)">
@@ -1660,6 +1823,7 @@
           <div class="usr-acoes">
             <button class="usr-acoes-btn" onclick="toggleAcoesMenu(this)" title="Ações">⋮</button>
             <div class="usr-acoes-menu hidden">
+              ${btnAprovar}
               <button onclick="fecharAcoesMenus();gerenciarUsuario('${uid}','resetar-senha')">🔑 Reset senha</button>
               <hr>
               <button class="perigo" onclick="fecharAcoesMenus();gerenciarUsuario('${uid}','excluir')">🗑 Excluir</button>
@@ -1668,6 +1832,26 @@
         </td>
       </tr>`;
     }).join('');
+  }
+
+  function _atualizarBadgePendentes(count) {
+    const header = document.querySelector('#acc-usuarios .acc-header');
+    if (!header) return;
+    const existing = header.querySelector('.acc-pendente-badge');
+    if (existing) existing.remove();
+    if (count > 0) {
+      const badge = document.createElement('span');
+      badge.className = 'acc-pendente-badge';
+      badge.title = count + ' usuário(s) aguardando aprovação';
+      badge.textContent = count;
+      const chevron = header.querySelector('.acc-chevron');
+      header.insertBefore(badge, chevron);
+    }
+  }
+
+  async function aprovarUsuario(uid) {
+    await patchUsuario(uid, 'status', 'ativo', null);
+    carregarUsuarios();
   }
 
   function toggleAcoesMenu(btn) {
@@ -1952,12 +2136,34 @@
   function filtrarReunioes() {
     const busca = document.getElementById('filtro-busca').value.toLowerCase();
     const prop  = document.getElementById('filtro-prop').value.toLowerCase();
-    const filtradas = _reunioesCache.filter(r => {
-      const titulo = (r.titulo || r.nome_reuniao || '').toLowerCase();
-      const p = norm(r.probabilidade_fechamento);
-      return titulo.includes(busca) && (!prop || p === prop);
+    const de    = document.getElementById('filtro-data-de').value;
+    const ate   = document.getElementById('filtro-data-ate').value;
+
+    const filtradas = _reunioesCache.filter(function(r) {
+      const titulo    = (r.titulo || r.nome_reuniao || '').toLowerCase();
+      const p         = norm(r.probabilidade_fechamento);
+      const dataStr   = (r.data || r.criado_em || '').slice(0, 10);
+      const dentroData = (!de || dataStr >= de) && (!ate || dataStr <= ate);
+      return titulo.includes(busca) && (!prop || p === prop) && dentroData;
     });
+
+    const contEl = document.getElementById('filtro-contador');
+    const temFiltro = busca || prop || de || ate;
+    if (contEl) {
+      contEl.style.display = temFiltro ? '' : 'none';
+      contEl.textContent = filtradas.length + ' de ' + _reunioesCache.length + ' reuniões';
+    }
     renderizarReunioes(filtradas);
+  }
+
+  function limparFiltrosReunioes() {
+    document.getElementById('filtro-busca').value     = '';
+    document.getElementById('filtro-prop').value      = '';
+    document.getElementById('filtro-data-de').value   = '';
+    document.getElementById('filtro-data-ate').value  = '';
+    const contEl = document.getElementById('filtro-contador');
+    if (contEl) contEl.style.display = 'none';
+    renderizarReunioes(_reunioesCache);
   }
 
   function renderizarReunioes(lista) {
@@ -2772,6 +2978,155 @@
   function norm(s) {
     if (!s) return '';
     return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  }
+
+  /* ─── Histórico de Uso ──────────────────────────── */
+  async function carregarHistorico() {
+    const lista   = document.getElementById('hist-lista');
+    const metrics = document.getElementById('hist-metrics');
+    const info    = document.getElementById('hist-info');
+    lista.innerHTML = '<div style="color:var(--muted)">Carregando...</div>';
+    if (metrics) metrics.style.display = 'none';
+    const token = localStorage.getItem('saleia_token') || '';
+    try {
+      const r = await fetch(API + '/historico/uso', { headers: { Authorization: 'Bearer ' + token } });
+      if (r.status === 401) { lista.innerHTML = '<div class="erro">Faça login para ver o histórico.</div>'; return; }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+      const reunioes = d.reunioes || [];
+      const scores = reunioes.filter(x => x.score_final != null).map(x => x.score_final);
+      const avgScore = scores.length ? Math.round(scores.reduce(function(a,b){return a+b;},0) / scores.length) : null;
+      document.getElementById('hm-total').textContent = d.total;
+      document.getElementById('hm-custo').textContent = (d.custo_total_usd||0) > 0 ? 'U$ ' + (d.custo_total_usd).toFixed(4) : 'U$ 0';
+      document.getElementById('hm-score').textContent = avgScore != null ? avgScore + '/100' : '–';
+      if (metrics) metrics.style.display = '';
+      if (info) info.textContent = d.total + ' reuniã' + (d.total === 1 ? 'o' : 'oes');
+      renderizarHistorico(reunioes);
+    } catch (e) {
+      lista.innerHTML = '<div class="erro">Erro ao carregar histórico: ' + escHtml(e.message) + '</div>';
+    }
+  }
+
+  function renderizarHistorico(lista) {
+    const container = document.getElementById('hist-lista');
+    if (!lista.length) {
+      container.innerHTML = '<div style="color:var(--muted);padding:24px 0">Nenhuma reunião com dados de uso registrada.</div>';
+      return;
+    }
+    container.innerHTML = lista.map(function(r) {
+      const score = r.score_final;
+      const cor   = score != null ? (score >= 70 ? '#2dd4bf' : score >= 45 ? '#fbbf24' : '#f87171') : '#555';
+      const data  = r.data ? r.data.slice(0,10) : '–';
+      const custo = r.custo_estimado_usd > 0 ? 'U$ ' + r.custo_estimado_usd.toFixed(4) : 'U$ 0';
+      const disc  = r.disc_identificado || '–';
+      const discCor = disc==='D'?'#f87171':disc==='I'?'#fbbf24':disc==='S'?'#2dd4bf':disc==='C'?'#90caf9':'#9D9BB8';
+      return '<div class="reuniao-card" onclick="verDetalheHistorico(\'' + escHtml(r.meeting_id) + '\')">'
+        + '<div class="score-circle" style="border-color:' + cor + ';color:' + cor + '">' + (score != null ? score : '?') + '</div>'
+        + '<div class="reuniao-info">'
+        + '<div class="reuniao-titulo">' + escHtml(r.meeting_id) + '</div>'
+        + '<div class="reuniao-meta">' + data + ' · ' + r.num_analises + ' análise' + (r.num_analises!==1?'s':'') + ' · ' + custo + '</div>'
+        + '</div>'
+        + '<div style="text-align:right;flex-shrink:0">'
+        + '<div style="font-weight:700;font-size:1.3rem;color:' + discCor + '">' + escHtml(disc) + '</div>'
+        + '<div style="color:var(--muted);font-size:.75rem">' + r.num_key_moments + ' momento' + (r.num_key_moments!==1?'s':'') + '</div>'
+        + '</div></div>';
+    }).join('');
+  }
+
+  async function verDetalheHistorico(meetingId) {
+    document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+    document.querySelectorAll('.nav-item').forEach(function(b){b.classList.remove('active');});
+    document.getElementById('page-historico-detalhe').classList.add('active');
+    document.getElementById('hd-titulo').textContent = meetingId;
+    document.getElementById('hd-conteudo').innerHTML = '<div style="color:var(--muted)">Carregando...</div>';
+    const token = localStorage.getItem('saleia_token') || '';
+    try {
+      const r = await fetch(API + '/historico/uso/' + meetingId, { headers: { Authorization: 'Bearer ' + token } });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+      renderizarDetalheHistorico(d);
+    } catch (e) {
+      document.getElementById('hd-conteudo').innerHTML = '<div class="erro">Erro: ' + escHtml(e.message) + '</div>';
+    }
+  }
+
+  function renderizarDetalheHistorico(d) {
+    const score = d.score_final;
+    const cor   = score != null ? (score >= 70 ? '#2dd4bf' : score >= 45 ? '#fbbf24' : '#f87171') : '#555';
+    const custo = (d.custo_estimado_usd||0) > 0 ? 'U$ ' + d.custo_estimado_usd.toFixed(4) : 'U$ 0';
+
+    let html = '<div class="info-card" style="margin-bottom:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">'
+      + '<div><div style="color:var(--muted);font-size:.8rem">Meeting ID</div><div style="font-weight:600">' + escHtml(d.meeting_id) + '</div></div>'
+      + '<div><div style="color:var(--muted);font-size:.8rem">Última atividade</div><div style="font-weight:600">' + (d.data||'–').slice(0,16).replace('T',' ') + '</div></div>'
+      + '<div><div style="color:var(--muted);font-size:.8rem">Custo estimado</div><div style="font-weight:600;color:var(--primary)">' + custo + '</div></div>'
+      + '<div><div style="color:var(--muted);font-size:.8rem">Score final</div><div style="font-weight:700;font-size:1.4rem;color:' + cor + '">' + (score!=null?score:'–') + '</div></div>'
+      + (d.num_analises != null ? '<div><div style="color:var(--muted);font-size:.8rem">Análises IA</div><div style="font-weight:600">' + d.num_analises + '</div></div>' : '')
+      + (d.disc_identificado ? '<div><div style="color:var(--muted);font-size:.8rem">DISC</div><div style="font-weight:700;font-size:1.4rem;color:var(--primary)">' + escHtml(d.disc_identificado) + '</div></div>' : '')
+      + '</div>';
+
+    var hist = d.score_history || [];
+    if (hist.length > 1) {
+      var barras = '';
+      hist.forEach(function(h) {
+        var val = h.valor || 0;
+        var pct = Math.max(4, val);
+        var c = val>=70?'#2dd4bf':val>=45?'#fbbf24':'#f87171';
+        barras += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px" title="' + escHtml((h.timestamp||'').slice(0,16)) + ': ' + val + '">'
+                + '<div style="font-size:.65rem;color:var(--muted)">' + val + '</div>'
+                + '<div style="width:100%;background:' + c + ';border-radius:3px 3px 0 0;height:' + pct + '%;min-height:4px"></div></div>';
+      });
+      html += '<div class="info-card" style="margin-bottom:16px">'
+            + '<h3>📈 Evolução do Score</h3>'
+            + '<div style="display:flex;align-items:flex-end;gap:4px;height:80px;margin-top:8px">' + barras + '</div>'
+            + '<div style="color:var(--muted);font-size:.75rem;margin-top:6px">' + hist.length + ' pontos registrados</div></div>';
+    }
+
+    var moments = d.key_moments || [];
+    if (moments.length) {
+      var mHtml = '';
+      moments.slice(0,10).forEach(function(m) {
+        var ic = m.importance==='high'?'#f87171':m.importance==='medium'?'#fbbf24':'#9D9BB8';
+        var rc = m.speaker==='cliente'?'cliente':m.speaker==='vendedor'?'vendedor':'unknown';
+        mHtml += '<div class="quote-item">'
+          + '<span class="quote-role ' + rc + '">' + escHtml(m.type||'evento') + '</span>'
+          + '<div style="color:#CBD5E1">' + escHtml(m.quote||'') + '</div>'
+          + '<div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">'
+          + (m.importance ? '<span style="font-size:.72rem;color:' + ic + '">● ' + m.importance + '</span>' : '')
+          + (m.timestamp ? '<span style="font-size:.72rem;color:var(--muted)">' + m.timestamp.slice(0,16).replace('T',' ') + '</span>' : '')
+          + '</div></div>';
+      });
+      if (moments.length > 10) mHtml += '<div style="color:var(--muted);font-size:.82rem;text-align:center">+' + (moments.length-10) + ' momentos adicionais</div>';
+      html += '<div class="info-card" style="margin-bottom:16px"><h3>⭐ Momentos-Chave (' + moments.length + ')</h3>'
+            + '<div style="display:grid;gap:8px;margin-top:8px">' + mHtml + '</div></div>';
+    }
+
+    var eventos = d.eventos || [];
+    if (eventos.length) {
+      var ticn = {pricing_resistance:'💰',objection_detected:'🛡️',alerta_urgente:'⚠️',recap_trigger:'🔔'};
+      var eHtml = '';
+      eventos.slice(0,15).forEach(function(e) {
+        eHtml += '<div class="passo"><div class="passo-icon">' + (ticn[e.type]||'📌') + '</div><div>'
+          + '<div style="font-size:.78rem;font-weight:700;color:var(--muted);text-transform:uppercase">' + escHtml(e.type||'') + '</div>'
+          + '<div style="color:#CBD5E1;font-size:.88rem">' + escHtml(e.quote||'') + '</div>'
+          + (e.timestamp ? '<div style="color:var(--muted);font-size:.72rem;margin-top:2px">' + e.timestamp.slice(0,16).replace('T',' ') + '</div>' : '')
+          + '</div></div>';
+      });
+      if (eventos.length > 15) eHtml += '<div style="color:var(--muted);font-size:.82rem;text-align:center">+' + (eventos.length-15) + ' eventos adicionais</div>';
+      html += '<div class="info-card" style="margin-bottom:16px"><h3>📋 Eventos (' + eventos.length + ')</h3>'
+            + '<div style="display:grid;gap:8px;margin-top:8px">' + eHtml + '</div></div>';
+    }
+
+    if (!moments.length && !eventos.length && hist.length <= 1) {
+      html += '<div style="color:var(--muted);padding:24px 0;text-align:center">Nenhum dado detalhado registrado para esta reunião.</div>';
+    }
+    document.getElementById('hd-conteudo').innerHTML = html;
+  }
+
+  function voltarParaHistorico() {
+    mostrarPagina('historico', null);
+    document.querySelectorAll('.nav-item').forEach(function(b) {
+      if (b.dataset.page === 'historico') b.classList.add('active');
+    });
   }
 
   /* ─── Init ────────────────────────────────────────── */
