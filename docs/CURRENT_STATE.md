@@ -1,6 +1,6 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-05-28
+Atualizado em: 2026-05-29
 
 ## Ambiente
 
@@ -23,7 +23,7 @@ Atualizado em: 2026-05-28
 
 ## Versao Atual
 
-`V.1.4.0` — registrada no CHANGELOG.md
+`V.1.4.4` — registrada no CHANGELOG.md
 
 ## Funcionalidades Entregues
 
@@ -50,6 +50,19 @@ Atualizado em: 2026-05-28
 - Admin de usuarios: `GET/PATCH/DELETE /admin/usuarios/*` — perfil, plano, status, reset senha.
 - Admin de APIs: `GET/POST/PATCH /admin/api/*` — provedores, chaves, teste, principal.
 - `POST /cenario/{meeting_id}/conducao` agora exige JWT valido.
+
+### Recuperacao de Senha (V.1.4.1)
+- `agent/email_service.py` — envio real de e-mail SMTP (smtplib stdlib).
+- `migrar_colunas_usuarios()` — adiciona `reset_token` e `reset_token_exp` na tabela `usuarios`.
+- `POST /auth/recuperar-senha` — gera token seguro (expira 1h), envia e-mail em background, resposta sempre neutra.
+- `GET /reset?token=...` — serve pagina HTML inline com formulario de nova senha.
+- `POST /auth/redefinir-senha` — valida token, aplica bcrypt, limpa token do banco.
+- Variaveis SMTP necessarias no `.env`: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, `APP_BASE_URL`.
+
+### Extensao Chrome (V.1.4.1)
+- Bug critico corrigido: `background.js::abrirCenarioComFoto` agora le a foto de `chrome.storage.local['saleia_foto_pendente']` em vez de `msg.foto` (que era sempre undefined).
+- `manifest.json` versao atualizada para `1.4.1`.
+- `popup.js` versao exibida dinamicamente via `chrome.runtime.getManifest().version`.
 
 ### Historico de Uso (V.1.4.0)
 - `GET /historico/uso` — lista reunioes com custo, score final, DISC, num_analises.
@@ -88,6 +101,7 @@ Modelos padrao:
 
 ## Validacoes Recentes
 
+- Visual Scenario fix: webcam espelhada (scaleX -1) + canvas flip + botao Capturar Tela via getDisplayMedia para capturar o cliente do Google Meet.
 - Smoke tests: 8/8 OK em 1.1s (`python -m unittest tests.test_smoke -v`).
 - `/health` publico respondeu `online`.
 - `/dashboard` publico respondeu `200`.
@@ -95,20 +109,50 @@ Modelos padrao:
 
 ## O Que Falta
 
-- Deploy da V.1.4.0 na VPS (SFTP dos arquivos alterados + restart do servico).
+- Deploy da V.1.4.1 na VPS (SFTP + restart do servico).
+- Configurar variaveis SMTP no `.env` da VPS para ativar envio real de e-mail de recuperacao.
 - Testar Visual Scenario em producao com creditos OpenAI ativos.
-- `/auth/recuperar-senha` e stub — envio de email nao implementado (requer SMTP).
-- Filtro por provedor em Reunioes (campo ausente no response de `/relatorios`; requer ajuste de backend).
+- Reinstalar extensao Chrome no navegador (apos deploy) para aplicar correcao do bug de foto.
+- Sem tarefas pendentes criticas. Proxima sugestao: reinstalar extensao Chrome com a correcao do bug de foto (V.1.4.1).
+
+## Concluido (T12 - V.1.4.2)
+
+- `GET /relatorios` agora retorna campo `provedor` extraido de `_provedor_ia` dentro de `dados.recapitulacao` (ou `perfil_disc`/`diagnostico_financeiro` como fallback). Funciona tanto para fonte SQLite quanto para arquivos JSON.
+- Dashboard: `<select id="filtro-provedor">` adicionado ao toolbar de Reunioes com opcoes DeepSeek, OpenAI, Anthropic, Gemini.
+- `filtrarReunioes` filtra por provedor via `r.provedor`.
+- `limparFiltrosReunioes` reseta o select de provedor.
+- Card de reuniao exibe nome do provedor como label discreta ao lado da data/score.
 
 ## Proxima Tarefa Recomendada
 
-- Deploy V.1.4.0 via SFTP para a VPS.
-- Apos deploy, testar Visual Scenario ao vivo em uma reuniao real.
+Deploy V.1.4.1 via SFTP. Arquivos a enviar:
+
+| Arquivo | Motivo |
+|---|---|
+| `api/main.py` | recuperar-senha real, /reset, /redefinir-senha |
+| `agent/sessao_manager.py` | migrar_colunas_usuarios() |
+| `agent/email_service.py` | **novo arquivo** — deve ser criado na VPS |
+| `.env.example` | referencia para vars SMTP |
+| `chrome-extension/background.js` | correcao do bug de foto |
+| `chrome-extension/manifest.json` | versao atualizada |
+| `chrome-extension/popup.html` | versao atualizada |
+| `chrome-extension/popup.js` | versao dinamica |
+
+Apos upload: `pip install -r requirements.txt && systemctl restart saleia && curl https://api.saleia.com.br/health`
+
+Tambem adicionar ao `.env` da VPS:
+```
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=...
+SMTP_PASS=...
+EMAIL_FROM=noreply@saleia.com.br
+APP_BASE_URL=https://api.saleia.com.br
+```
 
 ## Problemas Conhecidos
 
-- `PATCH /admin/api/provedores/{pid}/status` com `ativo=False` nao propaga desativacao ao `ai_router` (design atual).
-- `base_conhecimento` usa coluna `conteudo` na criacao inline mas `texto` nas queries do `/base` — inconsistencia de schema a corrigir.
+Nenhum problema critico pendente.
 
 ## Cuidados
 

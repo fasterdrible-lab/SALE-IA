@@ -286,7 +286,7 @@ def exportar_para_base_conhecimento(sessao_id: int, titulo: str = "", tipo: str 
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     titulo VARCHAR(255) NOT NULL,
                     tipo VARCHAR(50) DEFAULT 'reuniao',
-                    conteudo MEDIUMTEXT NOT NULL,
+                    texto MEDIUMTEXT NOT NULL,
                     embedding JSON,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     INDEX idx_tipo (tipo),
@@ -294,7 +294,7 @@ def exportar_para_base_conhecimento(sessao_id: int, titulo: str = "", tipo: str 
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             """)
             cur.execute(
-                """INSERT INTO base_conhecimento (titulo, tipo, conteudo, embedding)
+                """INSERT INTO base_conhecimento (titulo, tipo, texto, embedding)
                    VALUES (%s, %s, %s, %s)""",
                 (titulo_final, tipo, transcricao, embedding_json),
             )
@@ -302,10 +302,10 @@ def exportar_para_base_conhecimento(sessao_id: int, titulo: str = "", tipo: str 
         conn.commit()
         conn.close()
 
-        # Invalidar cache do RAG se existir
+        # Invalidar cache do RAG
         try:
-            from agent.base_conhecimento import _cache
-            _cache.clear()
+            from agent.base_conhecimento import invalidar_cache
+            invalidar_cache()
         except Exception:
             pass
 
@@ -342,6 +342,28 @@ def criar_tabela_usuarios():
         logger.info("[Auth] Tabela usuarios criada/verificada.")
     except Exception as e:
         logger.error("[Auth] Erro ao criar tabela usuarios: %s", e)
+
+
+def migrar_colunas_usuarios():
+    """Adiciona colunas de reset de senha à tabela usuarios se ainda não existirem."""
+    alteracoes = [
+        "ALTER TABLE usuarios ADD COLUMN reset_token VARCHAR(128) NULL DEFAULT NULL",
+        "ALTER TABLE usuarios ADD COLUMN reset_token_exp DATETIME NULL DEFAULT NULL",
+    ]
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            for sql in alteracoes:
+                try:
+                    cur.execute(sql)
+                    conn.commit()
+                except Exception:
+                    # coluna já existe — ignorar
+                    conn.rollback()
+        conn.close()
+        logger.info("[Auth] Colunas reset_token e reset_token_exp verificadas.")
+    except Exception as e:
+        logger.error("[Auth] Erro ao migrar colunas de reset: %s", e)
 
 
 def buscar_sessao(sessao_id: int) -> dict:

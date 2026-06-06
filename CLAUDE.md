@@ -25,7 +25,7 @@ Os arquivos **não são deployados via git pull** (repo VPS está desatualizado)
 - Nunca commitar `.env`, `data/saleia.db` ou PDFs com nomes de clientes
 - Nunca expor chaves de API no frontend
 - Frontend usa `fetchJsonWithFallback(path, init)` que retorna um `Response` — sempre chamar `.json()` depois
-- Versão atual: **V.1.3.6**
+- Versão atual: **V.1.4.1**
 - Usuário admin: `phpos35@gmail.com`
 
 ## Stack técnica

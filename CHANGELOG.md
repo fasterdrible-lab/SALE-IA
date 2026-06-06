@@ -3,6 +3,206 @@
 
 ---
 
+## V.1.4.4 — Transcrição de Áudio com Whisper e Groq
+> Data: 06/06/2026 | Desenvolvido com Claude Sonnet 4.6
+
+### BACKEND — Roteamento de provedor em `/audio-transcricao`
+
+O endpoint `/audio-transcricao` agora lê `TRANSCRICAO_PROVEDOR` do `.env` para decidir qual API usar:
+
+| Valor | Provedor | Modelo | Chave necessária |
+|---|---|---|---|
+| `whisper` (padrão) | OpenAI Whisper | `whisper-1` | `OPENAI_API_KEY` |
+| `groq` | Groq | `whisper-large-v3-turbo` | `GROQ_API_KEY` |
+
+A Groq usa a mesma interface da OpenAI SDK com `base_url="https://api.groq.com/openai/v1"` — nenhuma dependência nova. O rótulo salvo na transcrição bruta passou de `[Whisper]` para `[Whisper]` ou `[Groq]` conforme o provedor ativo. O response agora inclui `provedor`.
+
+### BACKEND — Novos endpoints de configuração
+
+| Endpoint | Método | Descrição |
+|---|---|---|
+| `/admin/transcricao/config` | GET | Retorna provedores disponíveis, provedor ativo, modelo e se a chave existe |
+| `/admin/transcricao/config` | POST | Define o provedor ativo; aceita `groq_api_key` opcional para salvar a chave Groq |
+
+Ambos exigem JWT admin.
+
+### DASHBOARD — Novo accordion "Transcrição de Áudio"
+
+Adicionado entre "Configuração de APIs" e "Base de Conhecimento" na página Configurações:
+
+- Cards para Whisper (OpenAI) e Groq com nome, modelo e nota informativa
+- Card do Groq exibe campo de senha para colar a `GROQ_API_KEY`
+- Botão "Usar este provedor" envia chave (se preenchida) e ativa o provedor
+- Feedback inline de sucesso/erro; recarrega após ativação para refletir novo estado
+
+### ARQUIVOS ALTERADOS
+
+| Arquivo | Tipo |
+|---|---|
+| `api/main.py` | feat: `_TRANSCRICAO_PROVEDORES`, `GET/POST /admin/transcricao/config`, roteamento em `/audio-transcricao` |
+| `frontend/dashboard.html` | feat: accordion `acc-transcricao`, funções `carregarTranscricaoConfig`, `renderizarTranscricaoConfig`, `ativarTranscricaoProvedor` |
+| `.env.example` | docs: `GROQ_API_KEY` e `TRANSCRICAO_PROVEDOR` |
+
+---
+
+## V.1.4.3 — Correção de Bugs e Refatoração
+> Data: 06/06/2026 | Desenvolvido com Claude Sonnet 4.6
+
+### BUGS CORRIGIDOS
+
+| # | Arquivo | Problema | Solução |
+|---|---|---|---|
+| 1 | `agent/sessao_manager.py` | `exportar_para_base_conhecimento` usava coluna `conteudo` no CREATE TABLE e INSERT — a coluna real é `texto`; toda exportação de sessão para a Base de IA falhava silenciosamente | Renomeado `conteudo` → `texto` na DDL e no INSERT |
+| 2 | `agent/sessao_manager.py` | Invalidação do cache RAG após exportação chamava `_cache.clear()` — isso limpa o dict em memória mas deixa `_cache is not None`, fazendo `_carregar_cache()` retornar `{}` sem recarregar e causando `KeyError` na próxima consulta | Substituído por `invalidar_cache()` (que seta `_cache = None`) |
+| 3 | `api/main.py` | `PATCH /admin/api/provedores/{pid}/status` com `ativo=False` não propagava a desativação ao `os.environ` — provedor continuava sendo usado pelo `ai_router` | Adicionado `os.environ[env_key] = ""` quando `ativo=False` e `os.environ[env_key] = chave` quando `ativo=True` |
+| 4 | `api/main.py` | Importação de `db_salvar`, `db_listar`, `db_ultimo` duplicada nas linhas 33 e 67 | Removida a segunda importação (linha 67) |
+| 5 | `api/main.py` | `admin_definir_principal` setava `os.environ["PROVEDOR_PREFERIDO"]` manualmente logo após chamar `_salvar_env_key` que já faz isso internamente | Removida linha redundante |
+
+### ARQUIVOS ALTERADOS
+
+| Arquivo | Tipo |
+|---|---|
+| `agent/sessao_manager.py` | fix: `conteudo` → `texto` em `exportar_para_base_conhecimento`; `invalidar_cache()` correto |
+| `api/main.py` | fix: propagação de status do provedor; remoção de import duplicado e `os.environ` redundante |
+
+---
+
+## V.1.4.2 — Filtro por Provedor de IA em Reuniões
+> Data: 06/06/2026 | Desenvolvido com Claude Sonnet 4.6
+
+### BACKEND — `GET /relatorios` com campo `provedor`
+
+O endpoint `/relatorios` agora inclui o campo `provedor` em cada item da lista.
+
+**Origem do valor:** extraído de `_provedor_ia` armazenado dentro de `dados.recapitulacao` (ou `dados.perfil_disc` / `dados.diagnostico_financeiro` como fallback). Funciona tanto para a fonte SQLite quanto para o fallback de arquivos JSON.
+
+**Valores possíveis:** `deepseek`, `openai`, `anthropic`, `gemini` ou `""` (vazio para relatórios anteriores que não tinham o campo).
+
+### FRONTEND — Filtro de provedor no toolbar de Reuniões (`frontend/dashboard.html`)
+
+- `<select id="filtro-provedor">` adicionado ao toolbar após o filtro de propensão, com opções: Todos os provedores / DeepSeek / OpenAI / Anthropic / Gemini.
+- `filtrarReunioes()` atualizada para incluir o filtro por `r.provedor`.
+- `limparFiltrosReunioes()` atualizada para resetar o select de provedor.
+- `cardReuniaoHTML()` exibe o nome do provedor como label discreta (`var(--muted)`) ao lado da data/score no card de cada reunião.
+
+### ARQUIVOS ALTERADOS
+
+| Arquivo | Tipo de alteração |
+|---|---|
+| `api/main.py` | feat: campo `provedor` no response de `GET /relatorios` (SQLite + fallback JSON) |
+| `frontend/dashboard.html` | feat: select filtro-provedor, filtrarReunioes, limparFiltrosReunioes, cardReuniaoHTML |
+
+---
+
+## V.1.4.1 — Recuperação de Senha por E-mail + Correção de Bug Crítico na Extensão Chrome
+> Data: 29/05/2026 | Desenvolvido com Claude Sonnet 4.6
+
+---
+
+### RECUPERAÇÃO DE SENHA — IMPLEMENTAÇÃO REAL (`api/main.py`, `agent/sessao_manager.py`, `agent/email_service.py`)
+
+**Problema anterior:** `POST /auth/recuperar-senha` era um stub que apenas confirmava recebimento sem enviar e-mail.
+
+**Solução completa:**
+
+**Novo módulo `agent/email_service.py`:**
+- Envio de e-mail HTML via `smtplib` (stdlib — nenhuma dependência nova)
+- Configurado por variáveis de ambiente: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, `APP_BASE_URL`
+- Link formatado com botão estilizado no tema SALEIA (dark)
+- Retorna `True`/`False` para controle do caller; falha não derruba o endpoint
+
+**Migração de banco — `agent/sessao_manager.py`:**
+- `migrar_colunas_usuarios()` — adiciona `reset_token VARCHAR(128)` e `reset_token_exp DATETIME` via `ALTER TABLE` idempotente (ignora erro se coluna já existe)
+- Chamada no startup junto com `criar_tabela_usuarios()`
+
+**`api/main.py` — 3 novos endpoints + 1 substituição:**
+
+| Endpoint | Método | Descrição |
+|---|---|---|
+| `/auth/recuperar-senha` | POST | **Substituído**: gera token seguro (`secrets.token_urlsafe(32)`), expira em 1h, salva no banco, envia e-mail em `BackgroundTask`. Resposta sempre neutra. |
+| `/reset` | GET | Serve página HTML inline com formulário de nova senha. Retorna 400 se token ausente. |
+| `/auth/redefinir-senha` | POST | Valida token + expiração, aplica `bcrypt`, limpa `reset_token` e `reset_token_exp`. |
+
+**Novo model Pydantic:**
+```python
+class AuthRedefinirSenhaRequest(BaseModel):
+    token: str
+    nova_senha: str
+```
+
+**Fluxo completo:**
+1. Usuário clica "Recuperar senha" no `login.html`
+2. `POST /auth/recuperar-senha { email }` → gera token, salva no banco, envia e-mail em background
+3. Usuário recebe e-mail com link `https://api.saleia.com.br/reset?token=<token>`
+4. `GET /reset?token=...` → página HTML com formulário de nova senha
+5. `POST /auth/redefinir-senha { token, nova_senha }` → valida, aplica hash bcrypt, limpa token
+6. Usuário volta ao login
+
+**`.env.example` atualizado:**
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=seu-email@gmail.com
+SMTP_PASS=sua-senha-de-app-google
+EMAIL_FROM=noreply@saleia.com.br
+APP_BASE_URL=https://api.saleia.com.br
+```
+
+---
+
+### EXTENSÃO CHROME — CORREÇÃO DE BUG CRÍTICO (`chrome-extension/background.js`)
+
+**Problema:** O handler `abrirCenarioComFoto` no `background.js` lia `msg.foto` que sempre era `undefined`. O `content.js` grava a foto em `chrome.storage.local['saleia_foto_pendente']` e **não a inclui na mensagem**. Resultado: `_aplicarDataUrl()` era chamado com `undefined` e a foto do cliente nunca aparecia no Visual Scenario.
+
+**Correção:** O handler agora lê a foto de `chrome.storage.local` após o tab carregar:
+```js
+chrome.storage.local.get(['saleia_foto_pendente'], function (result) {
+    var fotoData = result.saleia_foto_pendente ? result.saleia_foto_pendente.foto : null;
+    if (!fotoData) return;
+    chrome.scripting.executeScript({ ..., args: [fotoData] });
+});
+```
+
+---
+
+### EXTENSÃO CHROME — ATUALIZAÇÕES MENORES
+
+| Arquivo | Alteração |
+|---|---|
+| `chrome-extension/manifest.json` | Versão atualizada: `1.2.0` → `1.4.1` |
+| `chrome-extension/popup.html` | Versão no rodapé atualizada de `v1.0.0` para `v1.4.1` |
+| `chrome-extension/popup.js` | Versão passa a ser lida dinamicamente via `chrome.runtime.getManifest().version` (nunca mais precisa de atualização manual) |
+
+---
+
+### DOCUMENTAÇÃO — CONTEXTO MÍNIMO CRIADO
+
+| Arquivo | Conteúdo |
+|---|---|
+| `docs/CURRENT_STATE.md` | Estado completo do projeto: ambiente, deploy, funcionalidades, provedores, pendências |
+| `docs/TASKS.md` | Fila operacional: T01–T10 concluídas, T11 concluída, T12–T13 pendentes |
+| `docs/ARCHITECTURE.md` | Atualizado com todos os endpoints da V.1.4.0/V.1.4.1 (auth, admin, histórico, cenário, base) |
+
+---
+
+### ARQUIVOS ALTERADOS NESTA VERSÃO
+
+| Arquivo | Tipo de alteração |
+|---|---|
+| `agent/email_service.py` | **novo** — módulo SMTP para recuperação de senha |
+| `agent/sessao_manager.py` | feat: `migrar_colunas_usuarios()` — colunas `reset_token` e `reset_token_exp` |
+| `api/main.py` | feat: `POST /auth/recuperar-senha` real, `GET /reset`, `POST /auth/redefinir-senha`, `AuthRedefinirSenhaRequest`; startup chama `migrar_colunas_usuarios()` |
+| `.env.example` | feat: vars SMTP adicionadas |
+| `chrome-extension/background.js` | fix: `abrirCenarioComFoto` lê foto de `chrome.storage.local` em vez de `msg.foto` |
+| `chrome-extension/manifest.json` | chore: versão `1.2.0` → `1.4.1` |
+| `chrome-extension/popup.html` | chore: versão `v1.0.0` → `v1.4.1` |
+| `chrome-extension/popup.js` | chore: versão dinâmica via `getManifest()` |
+| `docs/CURRENT_STATE.md` | docs: atualizado para V.1.4.1 |
+| `docs/TASKS.md` | docs: T11 concluída, T12–T13 adicionadas |
+| `docs/ARCHITECTURE.md` | docs: endpoints V.1.4.0/V.1.4.1 documentados |
+
+---
+
 ## V.1.4.0 — Auth, Admin, Histórico de Uso, Filtros, Smoke Tests, Visual Scenario DALL-E 3
 > Data: 28/05/2026 | Desenvolvido com Claude Sonnet 4.6
 

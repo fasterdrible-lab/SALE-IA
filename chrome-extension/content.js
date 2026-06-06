@@ -238,6 +238,7 @@
     sidebar.innerHTML = `
       <div id="saleia-header">
         <button id="saleia-toggle-btn" title="Minimizar/Expandir">≡</button>
+        <button id="saleia-btn-foto" title="Capturar foto do cliente para o Visual Scenario">📸</button>
         <span>🤖 SALEIA AO VIVO</span>
       </div>
       <div id="saleia-body">
@@ -351,6 +352,9 @@
       if (!chrome.runtime || !chrome.runtime.id) return;
       chrome.runtime.sendMessage({ tipo: 'abrirCenario', url: CONFIG.backendUrl + '/cenario/' + MEETING_ID });
     });
+
+    var btnFoto = document.getElementById('saleia-btn-foto');
+    if (btnFoto) btnFoto.addEventListener('click', capturarFotoCliente);
     atualizarResumoParticipantes();
     var btnParticipantes = document.getElementById('saleia-btn-participantes');
     if (btnParticipantes) btnParticipantes.addEventListener('click', abrirModalParticipantes);
@@ -1112,6 +1116,122 @@
     } else {
       statusEl.innerHTML = '<span class="saleia-dot saleia-dot-cinza"></span> Pausado';
     }
+  }
+
+  // ── Captura foto do cliente via elemento <video> do Meet ──
+  function capturarFotoCliente() {
+    var btn = document.getElementById('saleia-btn-foto');
+    if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
+
+    try {
+      // Coleta todos os <video> visíveis com conteúdo
+      var videos = Array.from(document.querySelectorAll('video')).filter(function (v) {
+        return v.videoWidth > 0 && v.videoHeight > 0 && !v.paused && v.readyState >= 2;
+      });
+
+      if (videos.length === 0) {
+        _fotoBtnReset(btn, '📸');
+        _fotoToast('Nenhum vídeo encontrado. Aguarde o cliente entrar na chamada.', true);
+        return;
+      }
+
+      // Ordena por área: maior = participante principal (cliente)
+      videos.sort(function (a, b) {
+        return (b.videoWidth * b.videoHeight) - (a.videoWidth * a.videoHeight);
+      });
+
+      // Se houver mais de 1, tenta excluir o self-view (vídeo menor ou em container de self)
+      var alvo = videos[0];
+      if (videos.length > 1) {
+        var remoto = videos.find(function (v) {
+          var el = v;
+          while (el && el !== document.body) {
+            var cls = (el.getAttribute('data-self-name') || '') +
+                      (el.className || '') +
+                      (el.getAttribute('jsname') || '');
+            if (/self|local|you|preview/i.test(cls)) return false;
+            el = el.parentElement;
+          }
+          return true;
+        });
+        if (remoto) alvo = remoto;
+      }
+
+      // Redimensiona para max 800px (evita mensagem gigante)
+      var maxW   = 800;
+      var scale  = Math.min(1, maxW / alvo.videoWidth);
+      var canvas = document.createElement('canvas');
+      canvas.width  = Math.round(alvo.videoWidth  * scale);
+      canvas.height = Math.round(alvo.videoHeight * scale);
+      canvas.getContext('2d').drawImage(alvo, 0, 0, canvas.width, canvas.height);
+
+      var dataURL;
+      try {
+        dataURL = canvas.toDataURL('image/jpeg', 0.82);
+      } catch (e) {
+        // Canvas taint — abre o VS sem foto
+        _fotoBtnReset(btn, '📸');
+        _fotoToast('Captura bloqueada. Use "Fazer Upload" no Visual Scenario.', true);
+        if (chrome.runtime && chrome.runtime.id) {
+          chrome.runtime.sendMessage({ tipo: 'abrirCenario', url: CONFIG.backendUrl + '/visual-scenario?meeting=' + MEETING_ID });
+        }
+        return;
+      }
+
+      // Persiste no storage da extensão (sem limite cross-origin, sobrevive ao SW sleep)
+      chrome.storage.local.set({ saleia_foto_pendente: { foto: dataURL, meetingId: MEETING_ID } }, function () {
+        if (chrome.runtime && chrome.runtime.id) {
+          chrome.runtime.sendMessage({
+            tipo: 'abrirCenarioComFoto',
+            url: CONFIG.backendUrl + '/visual-scenario?meeting=' + MEETING_ID,
+            meetingId: MEETING_ID,
+          });
+        }
+      });
+
+      _fotoBtnReset(btn, '✅');
+      _fotoToast('Foto capturada! Abrindo Visual Scenario...', false);
+      setTimeout(function () { _fotoBtnReset(btn, '📸'); }, 3000);
+
+    } catch (e) {
+      _fotoBtnReset(btn, '📸');
+      _fotoToast('Erro: ' + e.message, true);
+    }
+  }
+
+  function _fotoBtnReset(btn, icon) {
+    if (!btn) return;
+    btn.textContent = icon;
+    btn.disabled = false;
+  }
+
+  function _fotoToast(msg, erro) {
+    var t = document.getElementById('saleia-foto-toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'saleia-foto-toast';
+      t.style.cssText = [
+        'position:fixed', 'bottom:70px', 'right:16px', 'z-index:999999',
+        'background:#252338', 'color:#F8FAFC', 'border-radius:8px',
+        'padding:10px 16px', 'font-size:12px', 'max-width:260px',
+        'box-shadow:0 4px 16px rgba(0,0,0,.5)', 'transition:opacity .3s',
+        'border:1px solid ' + (erro ? 'rgba(239,68,68,.4)' : 'rgba(20,184,166,.4)'),
+      ].join(';');
+      document.body.appendChild(t);
+    }
+    t.style.color = erro ? '#FCA5A5' : '#2DD4BF';
+    t.textContent = msg;
+    t.style.opacity = '1';
+    clearTimeout(t._hide);
+    t._hide = setTimeout(function () { t.style.opacity = '0'; }, 4000);
+  }
+
+  function _fotoAbrirVS() {
+    if (!chrome.runtime || !chrome.runtime.id) return;
+    chrome.runtime.sendMessage({
+      tipo: 'abrirCenario',
+      url: CONFIG.backendUrl + '/visual-scenario?meeting=' + MEETING_ID,
+    });
   }
 
 })();

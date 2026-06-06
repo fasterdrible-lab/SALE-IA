@@ -35,6 +35,40 @@ Rotas principais:
 - `GET /sessoes`
 - `POST /ai/provedor/preferido`
 
+Autenticacao (V.1.3.5+):
+
+- `POST /auth/login`
+- `POST /auth/cadastro`
+- `POST /auth/recuperar-senha` (stub — sem envio real de e-mail)
+
+Admin (exige JWT admin):
+
+- `GET /admin/usuarios`
+- `PATCH /admin/usuarios/{uid}/perfil|plano|status|inativar|reativar|resetar-senha`
+- `DELETE /admin/usuarios/{uid}`
+- `GET /admin/api/provedores`
+- `POST /admin/api/provedores/{pid}/chave`
+- `POST /admin/api/teste`
+- `PATCH /admin/api/provedores/{pid}/status`
+- `POST /admin/api/principal`
+
+Historico (exige JWT):
+
+- `GET /historico/uso`
+- `GET /historico/uso/{meeting_id}`
+
+Cenario / Conducao (exige JWT):
+
+- `POST /cenario/{meeting_id}/conducao`
+- `POST /generate-visual-scenario`
+
+Base de Conhecimento:
+
+- `GET /base`
+- `POST /base`
+- `DELETE /base/{id}`
+- `POST /base/ocr`
+
 ### Meeting Memory
 
 Memoria persistida por `meeting_id`.

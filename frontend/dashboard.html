@@ -1020,6 +1020,13 @@
             <option value="media">Média</option>
             <option value="baixa">Baixa</option>
           </select>
+          <select id="filtro-provedor" onchange="filtrarReunioes()">
+            <option value="">Todos os provedores</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+            <option value="gemini">Gemini</option>
+          </select>
           <input type="date" id="filtro-data-de"  onchange="filtrarReunioes()" title="De (data)" />
           <input type="date" id="filtro-data-ate" onchange="filtrarReunioes()" title="Até (data)" />
           <button class="btn btn-secondary" onclick="limparFiltrosReunioes()" title="Limpar filtros">✕ Limpar</button>
@@ -1329,6 +1336,25 @@
               <div id="cfg-apis-loading" class="cfg-loading">Carregando provedores...</div>
               <div id="cfg-apis-erro" class="cfg-erro hidden"></div>
               <div id="cfg-apis-lista" class="cfg-provedor-lista hidden"></div>
+            </div>
+          </div>
+
+          <!-- Transcrição de Áudio -->
+          <div class="acc-item" id="acc-transcricao">
+            <button class="acc-header" onclick="toggleAcc('transcricao')">
+              <div class="acc-icon" style="background:rgba(139,92,246,.18)">🎙️</div>
+              <div class="acc-label">
+                <h4>Transcrição de Áudio</h4>
+                <p>Provedor para captura de voz (Whisper · Groq)</p>
+              </div>
+              <span class="cfg-admin-badge" style="margin-right:8px">Admin</span>
+              <span class="acc-chevron">▾</span>
+            </button>
+            <div class="acc-body" id="acc-body-transcricao">
+              <hr class="acc-divider">
+              <div id="cfg-tr-loading" class="cfg-loading">Carregando...</div>
+              <div id="cfg-tr-erro" class="cfg-erro hidden"></div>
+              <div id="cfg-tr-conteudo" class="hidden"></div>
             </div>
           </div>
 
@@ -1709,9 +1735,10 @@
     item.classList.toggle('open', opening);
     if (opening && !_accLoaded[id]) {
       _accLoaded[id] = true;
-      if (id === 'usuarios') carregarUsuarios();
-      if (id === 'apis')     carregarProvedoresApi();
-      if (id === 'base')     carregarResumoBase();
+      if (id === 'usuarios')    carregarUsuarios();
+      if (id === 'apis')        carregarProvedoresApi();
+      if (id === 'transcricao') carregarTranscricaoConfig();
+      if (id === 'base')        carregarResumoBase();
     }
   }
 
@@ -1727,6 +1754,92 @@
     } catch {
       if (dot) dot.className = 'dot';
       if (txt) txt.textContent = 'Backend offline';
+    }
+  }
+
+  /* ─── Transcrição de Áudio ────────────────────── */
+  async function carregarTranscricaoConfig() {
+    const loading  = document.getElementById('cfg-tr-loading');
+    const erro     = document.getElementById('cfg-tr-erro');
+    const conteudo = document.getElementById('cfg-tr-conteudo');
+    if (!loading) return;
+    loading.classList.remove('hidden');
+    erro.classList.add('hidden');
+    conteudo.classList.add('hidden');
+    try {
+      const r = await fetch(API + '/admin/transcricao/config', {
+        headers: { Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') }
+      });
+      if (r.status === 401 || r.status === 403) {
+        loading.classList.add('hidden');
+        erro.classList.remove('hidden');
+        erro.textContent = 'Apenas administradores podem configurar a transcrição.';
+        return;
+      }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const dados = await r.json();
+      renderizarTranscricaoConfig(dados);
+      loading.classList.add('hidden');
+      conteudo.classList.remove('hidden');
+    } catch (e) {
+      loading.classList.add('hidden');
+      erro.classList.remove('hidden');
+      erro.textContent = 'Não foi possível carregar configuração de transcrição.';
+    }
+  }
+
+  function renderizarTranscricaoConfig(dados) {
+    const el = document.getElementById('cfg-tr-conteudo');
+    if (!el) return;
+    const provedores = dados.provedores || [];
+    el.innerHTML = provedores.map(p => {
+      const ativoBadge = p.ativo
+        ? '<span class="cfg-badge cfg-badge-ativo" style="margin-left:8px">Ativo</span>'
+        : '';
+      const groqKeyRow = p.id === 'groq' ? `
+        <div class="cfg-provedor-key-row" style="margin-top:10px">
+          <input type="password" id="tr-key-groq" placeholder="${p.tem_chave ? '••••••••••••••••' : 'Cole a GROQ_API_KEY aqui'}" autocomplete="off">
+        </div>` : '';
+      return `<div class="cfg-provedor-card${p.ativo ? ' ativo' : ''}" style="margin-bottom:12px">
+        <div class="cfg-provedor-header">
+          <div>
+            <span class="cfg-provedor-nome">${escHtml(p.nome)}${ativoBadge}</span>
+            <div style="color:var(--muted);font-size:.78rem;margin-top:2px">Modelo: ${escHtml(p.modelo)}</div>
+            <div style="color:var(--muted);font-size:.75rem;margin-top:4px">${escHtml(p.nota)}</div>
+          </div>
+        </div>
+        ${groqKeyRow}
+        <div class="cfg-provedor-acoes" style="margin-top:10px">
+          ${p.ativo
+            ? '<span style="color:#14B8A6;font-size:.85rem">✅ Provedor ativo</span>'
+            : `<button class="cfg-btn-provedor primario" onclick="ativarTranscricaoProvedor('${p.id}')">Usar este provedor</button>`}
+          <span class="cfg-provedor-feedback" id="tr-fb-${p.id}"></span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function ativarTranscricaoProvedor(id) {
+    const fb = document.getElementById('tr-fb-' + id);
+    if (fb) { fb.textContent = 'Salvando...'; fb.style.color = 'var(--muted)'; }
+    const groqKey = id === 'groq' ? (document.getElementById('tr-key-groq')?.value.trim() || '') : '';
+    try {
+      const body = { provedor: id };
+      if (groqKey) body.groq_api_key = groqKey;
+      const r = await fetch(API + '/admin/transcricao/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') },
+        body: JSON.stringify(body),
+      });
+      const json = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        if (fb) { fb.textContent = '❌ ' + (json.detail || 'Erro'); fb.style.color = '#FCA5A5'; }
+        return;
+      }
+      if (fb) { fb.textContent = '✅ Ativado'; fb.style.color = '#14B8A6'; }
+      setTimeout(() => { delete _accLoaded['transcricao']; carregarTranscricaoConfig(); }, 1200);
+    } catch {
+      if (fb) { fb.textContent = '❌ Erro de conexão'; fb.style.color = '#FCA5A5'; }
     }
   }
 
@@ -2134,21 +2247,23 @@
   }
 
   function filtrarReunioes() {
-    const busca = document.getElementById('filtro-busca').value.toLowerCase();
-    const prop  = document.getElementById('filtro-prop').value.toLowerCase();
-    const de    = document.getElementById('filtro-data-de').value;
-    const ate   = document.getElementById('filtro-data-ate').value;
+    const busca    = document.getElementById('filtro-busca').value.toLowerCase();
+    const prop     = document.getElementById('filtro-prop').value.toLowerCase();
+    const provedor = document.getElementById('filtro-provedor').value.toLowerCase();
+    const de       = document.getElementById('filtro-data-de').value;
+    const ate      = document.getElementById('filtro-data-ate').value;
 
     const filtradas = _reunioesCache.filter(function(r) {
       const titulo    = (r.titulo || r.nome_reuniao || '').toLowerCase();
       const p         = norm(r.probabilidade_fechamento);
+      const prov      = (r.provedor || '').toLowerCase();
       const dataStr   = (r.data || r.criado_em || '').slice(0, 10);
       const dentroData = (!de || dataStr >= de) && (!ate || dataStr <= ate);
-      return titulo.includes(busca) && (!prop || p === prop) && dentroData;
+      return titulo.includes(busca) && (!prop || p === prop) && (!provedor || prov === provedor) && dentroData;
     });
 
     const contEl = document.getElementById('filtro-contador');
-    const temFiltro = busca || prop || de || ate;
+    const temFiltro = busca || prop || provedor || de || ate;
     if (contEl) {
       contEl.style.display = temFiltro ? '' : 'none';
       contEl.textContent = filtradas.length + ' de ' + _reunioesCache.length + ' reuniões';
@@ -2157,10 +2272,11 @@
   }
 
   function limparFiltrosReunioes() {
-    document.getElementById('filtro-busca').value     = '';
-    document.getElementById('filtro-prop').value      = '';
-    document.getElementById('filtro-data-de').value   = '';
-    document.getElementById('filtro-data-ate').value  = '';
+    document.getElementById('filtro-busca').value      = '';
+    document.getElementById('filtro-prop').value       = '';
+    document.getElementById('filtro-provedor').value   = '';
+    document.getElementById('filtro-data-de').value    = '';
+    document.getElementById('filtro-data-ate').value   = '';
     const contEl = document.getElementById('filtro-contador');
     if (contEl) contEl.style.display = 'none';
     renderizarReunioes(_reunioesCache);
@@ -2180,11 +2296,14 @@
     const scoreVal = r.dados?.score_compra?.valor;
     const score  = scoreVal !== undefined ? Math.min(98, Math.max(5, Number(scoreVal))) : null;
     const scoreHTML = score !== null ? `<span style="color:${cor};font-weight:700;font-size:.85rem">${score}/100</span>` : '';
+    const prov = (r.provedor || '').toLowerCase();
+    const provLabel = { deepseek: 'DeepSeek', openai: 'OpenAI', anthropic: 'Anthropic', gemini: 'Gemini' }[prov] || '';
+    const provHTML = provLabel ? `<span style="font-size:.72rem;color:var(--muted);margin-left:6px">${escHtml(provLabel)}</span>` : '';
     return `<div class="reuniao-card" onclick='verDetalhe(${JSON.stringify(r)})'>
       <div class="score-circle" style="border-color:${cor};color:${cor}">${score !== null ? score : '?'}</div>
       <div class="reuniao-info">
         <div class="reuniao-titulo">${titulo}</div>
-        <div class="reuniao-meta">${data} ${scoreHTML}</div>
+        <div class="reuniao-meta">${data} ${scoreHTML}${provHTML}</div>
       </div>
       ${badge}
     </div>`;

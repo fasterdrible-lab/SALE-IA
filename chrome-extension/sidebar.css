@@ -55,6 +55,29 @@
   color: #F97316;
 }
 
+#saleia-btn-foto {
+  background: rgba(20, 184, 166, 0.12);
+  border: 1px solid rgba(20, 184, 166, 0.35);
+  color: #14B8A6;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 3px 10px;
+  border-radius: 6px;
+  line-height: 1;
+  transition: background 0.2s, border-color 0.2s;
+  flex-shrink: 0;
+}
+
+#saleia-btn-foto:hover {
+  background: rgba(20, 184, 166, 0.25);
+  border-color: #14B8A6;
+}
+
+#saleia-btn-foto:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* ── Corpo com scroll ── */
 #saleia-body {
   overflow-y: auto;

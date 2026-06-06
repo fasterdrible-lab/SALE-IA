@@ -168,6 +168,7 @@
       width: 100%; height: 100%;
       object-fit: cover;
       display: none;
+      transform: scaleX(-1); /* espelha o preview como um espelho */
     }
     #webcam-canvas { display: none; }
     .webcam-controls {
@@ -315,6 +316,36 @@
     .vs-toast.show { opacity: 1; }
     .vs-toast.ok   { border-color: rgba(20,184,166,.4);  color: #14B8A6; }
     .vs-toast.err  { border-color: rgba(239,68,68,.4);   color: #FCA5A5; }
+
+    /* ── CROP MODAL ── */
+    .vs-crop-modal {
+      display: none; position: fixed; inset: 0; z-index: 1000;
+      background: #07050f; flex-direction: column; align-items: center;
+    }
+    .vs-crop-modal.active { display: flex; }
+    .vs-crop-header {
+      width: 100%; display: flex; align-items: center; gap: 12px;
+      padding: 12px 20px; background: rgba(255,255,255,.04);
+      border-bottom: 1px solid rgba(255,255,255,.1); flex-shrink: 0;
+    }
+    .vs-crop-header span { flex: 1; color: #cbd5e1; font-size: .88rem; }
+    .vs-crop-header span strong { color: #14B8A6; }
+    .vs-crop-header-btn {
+      padding: 8px 18px; border-radius: 8px; font-weight: 700;
+      cursor: pointer; border: none; font-size: .85rem; transition: opacity .15s;
+    }
+    .vs-crop-header-btn:hover { opacity: .85; }
+    .vs-crop-header-btn.cancel { background: rgba(239,68,68,.8); color: #fff; }
+    .vs-crop-header-btn.confirm { background: #14B8A6; color: #022c22; }
+    .vs-crop-container {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      width: 100%; overflow: hidden; padding: 12px; box-sizing: border-box;
+    }
+    #crop-canvas {
+      cursor: crosshair; display: block;
+      max-width: 100%; max-height: 100%;
+      box-shadow: 0 0 0 1px rgba(255,255,255,.1);
+    }
   </style>
 </head>
 <body>
@@ -343,9 +374,6 @@
 
 <!-- ── ACTION BAR ── -->
 <div class="vs-actions">
-  <button class="vs-btn" id="btn-capture" onclick="iniciarCaptura()">
-    📸 Capturar Cliente
-  </button>
   <button class="vs-btn primary" id="btn-generate" onclick="gerarCenarios()">
     🎬 Gerar Cenários
   </button>
@@ -369,22 +397,30 @@
   <!-- Coluna 1: Cliente -->
   <div class="vs-panel" id="panel-cliente">
     <div class="vs-panel-header">
-      <div class="vs-panel-icon icon-photo">📸</div>
+      <div class="vs-panel-icon icon-photo">📷</div>
       <div>
         <div class="vs-panel-title">Cliente</div>
-        <div class="vs-panel-sub">Foto capturada da webcam</div>
+        <div class="vs-panel-sub">Print do cliente no Google Meet</div>
       </div>
     </div>
     <div class="vs-panel-body" id="body-cliente">
-      <video id="webcam-video" autoplay playsinline></video>
       <canvas id="webcam-canvas"></canvas>
-      <div class="webcam-controls hidden" id="webcam-controls">
-        <button class="webcam-btn snap"   onclick="tirarFoto()">📸 Capturar</button>
-        <button class="webcam-btn cancel" onclick="cancelarCaptura()">✕ Cancelar</button>
-      </div>
+      <input type="file" id="foto-upload" accept="image/*" style="display:none">
       <div class="vs-placeholder" id="placeholder-cliente">
-        <div class="vs-placeholder-icon">👤</div>
-        <p>Clique em <strong>Capturar Cliente</strong><br>para tirar uma foto do cliente</p>
+        <div class="vs-placeholder-icon">📷</div>
+        <p style="margin-bottom:14px">
+          <strong>Foto do cliente</strong><br>
+          <span style="font-size:.78rem;color:var(--muted)">Tire um print do cliente no Meet e faça upload</span>
+        </p>
+        <div style="display:flex;flex-direction:column;gap:8px;width:100%;align-items:center">
+          <button class="webcam-btn snap" style="width:170px" onclick="document.getElementById('foto-upload').click()">
+            📁 Fazer Upload
+          </button>
+          <button class="webcam-btn" style="width:170px;background:rgba(20,184,166,.15);color:#14B8A6;border:1px solid rgba(20,184,166,.4)" onclick="abrirSeletorCaptura()">
+            📸 Selecionar Área
+          </button>
+        </div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:12px">ou arraste uma imagem aqui</div>
       </div>
       <img id="foto-cliente" src="" alt="Foto do cliente" class="vs-img hidden"
            onclick="abrirFullscreen('cliente')" style="cursor:zoom-in" />
@@ -458,6 +494,27 @@
 <!-- ── TOAST ── -->
 <div class="vs-toast" id="vs-toast"></div>
 
+<!-- ── CROP MODAL ── -->
+<div class="vs-crop-modal" id="crop-modal">
+  <div class="vs-crop-header">
+    <span><strong>Arraste</strong> para selecionar a área do cliente &nbsp;·&nbsp; solte o mouse para finalizar</span>
+    <button class="vs-crop-header-btn confirm" id="btn-crop-confirm" onclick="confirmarCropCaptura()" disabled>
+      ✅ Confirmar Área
+    </button>
+    <button class="vs-crop-header-btn cancel" onclick="cancelarCropCaptura()">✕ Cancelar</button>
+  </div>
+  <div class="vs-crop-container" id="crop-container">
+    <canvas id="crop-canvas"
+      onmousedown="_cropDown(event)"
+      onmousemove="_cropMove(event)"
+      onmouseup="_cropUp(event)"
+      ontouchstart="_cropTouchStart(event)"
+      ontouchmove="_cropTouchMove(event)"
+      ontouchend="_cropTouchEnd(event)"
+    ></canvas>
+  </div>
+</div>
+
 <script>
   // ── Config ──────────────────────────────────────────
   const API = (() => {
@@ -471,6 +528,13 @@
   let   _stream       = null;
   let   _fotoCapturada = null;
   let   _gerado       = { atual: null, futuro: null };
+
+  // ── Crop state ──────────────────────────────────────
+  let _cropStream = null;
+  let _cropVideo  = null;
+  let _cropAnim   = null;
+  let _cropSel    = null;   // { x1, y1, x2, y2 } em pixels do canvas
+  let _cropDrag   = false;
 
   // ── Inicialização ──────────────────────────────────
   function _initMeeting(mid) {
@@ -506,6 +570,8 @@
   }
 
   _initMeeting(meetingId);
+  _initFotoCliente();
+  if (meetingId) _carregarFotoExtensao(meetingId);
 
   // ── Toast ──────────────────────────────────────────
   function toast(msg, tipo = 'ok', duracao = 3500) {
@@ -536,7 +602,10 @@
     const canvas = document.getElementById('webcam-canvas');
     canvas.width  = video.videoWidth  || 640;
     canvas.height = video.videoHeight || 480;
-    canvas.getContext('2d').drawImage(video, 0, 0);
+    const ctx = canvas.getContext('2d');
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0);
     _fotoCapturada = canvas.toDataURL('image/jpeg', 0.9);
     cancelarCaptura();
     const img = document.getElementById('foto-cliente');
@@ -555,6 +624,247 @@
     if (!_fotoCapturada) {
       document.getElementById('placeholder-cliente').style.display = 'flex';
     }
+  }
+
+  // ── Captura de tela (cliente no Google Meet) ───────
+  async function capturarTela() {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { cursor: 'always' },
+        audio: false,
+      });
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.muted = true;
+      await new Promise(resolve => { video.onloadedmetadata = resolve; });
+      video.play();
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      const canvas = document.createElement('canvas');
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      stream.getTracks().forEach(t => t.stop());
+
+      _aplicarDataUrl(canvas.toDataURL('image/jpeg', 0.92));
+      toast('🖼️ Tela capturada!', 'ok', 4000);
+    } catch (e) {
+      if (e.name !== 'NotAllowedError') {
+        toast('Erro na captura: ' + e.message, 'err');
+      }
+    }
+  }
+
+  // ── Seletor de Região (crop ao vivo) ───────────────
+  async function abrirSeletorCaptura() {
+    try {
+      _cropStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      _cropVideo  = document.createElement('video');
+      _cropVideo.srcObject = _cropStream;
+      _cropVideo.muted = true;
+      await new Promise(r => { _cropVideo.onloadedmetadata = r; });
+      _cropVideo.play();
+
+      const modal     = document.getElementById('crop-modal');
+      const container = document.getElementById('crop-container');
+      const canvas    = document.getElementById('crop-canvas');
+      modal.classList.add('active');
+
+      // Tamanho do canvas = video escalado para caber no container
+      await new Promise(r => setTimeout(r, 60)); // aguarda layout
+      const maxW  = container.clientWidth  - 24;
+      const maxH  = container.clientHeight - 24;
+      const scale = Math.min(maxW / _cropVideo.videoWidth, maxH / _cropVideo.videoHeight, 1);
+      canvas.width  = Math.round(_cropVideo.videoWidth  * scale);
+      canvas.height = Math.round(_cropVideo.videoHeight * scale);
+
+      _cropSel  = null;
+      _cropDrag = false;
+      document.getElementById('btn-crop-confirm').disabled = true;
+      _cropDrawLoop();
+    } catch (e) {
+      if (e.name !== 'NotAllowedError') toast('Erro na captura: ' + e.message, 'err');
+    }
+  }
+
+  function _cropDrawLoop() {
+    const canvas = document.getElementById('crop-canvas');
+    if (!canvas || !_cropVideo) return;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(_cropVideo, 0, 0, canvas.width, canvas.height);
+
+    if (_cropSel) {
+      const x = Math.min(_cropSel.x1, _cropSel.x2);
+      const y = Math.min(_cropSel.y1, _cropSel.y2);
+      const w = Math.abs(_cropSel.x2 - _cropSel.x1);
+      const h = Math.abs(_cropSel.y2 - _cropSel.y1);
+
+      // escurece fora da seleção
+      ctx.fillStyle = 'rgba(0,0,0,.55)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // re-desenha a área selecionada sem escurecimento
+      ctx.drawImage(_cropVideo,
+        x * (_cropVideo.videoWidth  / canvas.width),
+        y * (_cropVideo.videoHeight / canvas.height),
+        w * (_cropVideo.videoWidth  / canvas.width),
+        h * (_cropVideo.videoHeight / canvas.height),
+        x, y, w, h
+      );
+      // borda teal
+      ctx.strokeStyle = '#14B8A6';
+      ctx.lineWidth   = 2;
+      ctx.strokeRect(x, y, w, h);
+      // cantos destacados
+      ctx.fillStyle = '#14B8A6';
+      [[x,y],[x+w,y],[x,y+h],[x+w,y+h]].forEach(function([cx,cy]) {
+        ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI*2); ctx.fill();
+      });
+      // dimensões
+      if (w > 60) {
+        ctx.fillStyle = 'rgba(0,0,0,.75)';
+        ctx.fillRect(x, y > 22 ? y - 22 : y + 4, 80, 18);
+        ctx.fillStyle = '#fff'; ctx.font = '11px sans-serif';
+        ctx.fillText(Math.round(w) + ' × ' + Math.round(h), x + 4, y > 22 ? y - 7 : y + 16);
+      }
+    }
+    _cropAnim = requestAnimationFrame(_cropDrawLoop);
+  }
+
+  function _cropCoords(e) {
+    const r = document.getElementById('crop-canvas').getBoundingClientRect();
+    const scX = document.getElementById('crop-canvas').width  / r.width;
+    const scY = document.getElementById('crop-canvas').height / r.height;
+    return {
+      x: Math.max(0, Math.min((e.clientX - r.left) * scX, document.getElementById('crop-canvas').width)),
+      y: Math.max(0, Math.min((e.clientY - r.top)  * scY, document.getElementById('crop-canvas').height)),
+    };
+  }
+
+  function _cropDown(e) { const c = _cropCoords(e); _cropSel = { x1:c.x, y1:c.y, x2:c.x, y2:c.y }; _cropDrag = true; }
+  function _cropMove(e) { if (!_cropDrag || !_cropSel) return; const c = _cropCoords(e); _cropSel.x2 = c.x; _cropSel.y2 = c.y; }
+  function _cropUp(e)   {
+    _cropDrag = false;
+    const btn = document.getElementById('btn-crop-confirm');
+    if (_cropSel) {
+      const w = Math.abs(_cropSel.x2 - _cropSel.x1);
+      const h = Math.abs(_cropSel.y2 - _cropSel.y1);
+      if (btn) btn.disabled = (w < 20 || h < 20);
+    }
+  }
+
+  // Touch support
+  function _touchPt(e) { return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY }; }
+  function _cropTouchStart(e) { e.preventDefault(); _cropDown(_touchPt(e)); }
+  function _cropTouchMove(e)  { e.preventDefault(); _cropMove(_touchPt(e)); }
+  function _cropTouchEnd(e)   { _cropUp(e); }
+
+  function confirmarCropCaptura() {
+    if (!_cropSel || !_cropVideo) return;
+    const x = Math.min(_cropSel.x1, _cropSel.x2);
+    const y = Math.min(_cropSel.y1, _cropSel.y2);
+    const w = Math.abs(_cropSel.x2 - _cropSel.x1);
+    const h = Math.abs(_cropSel.y2 - _cropSel.y1);
+    if (w < 20 || h < 20) { toast('Selecione uma área maior.', 'err'); return; }
+
+    const canvas = document.getElementById('crop-canvas');
+    const scX = _cropVideo.videoWidth  / canvas.width;
+    const scY = _cropVideo.videoHeight / canvas.height;
+
+    const out = document.createElement('canvas');
+    out.width  = Math.round(w * scX);
+    out.height = Math.round(h * scY);
+    out.getContext('2d').drawImage(_cropVideo, x*scX, y*scY, w*scX, h*scY, 0, 0, out.width, out.height);
+
+    cancelarCropCaptura();
+    _aplicarDataUrl(out.toDataURL('image/jpeg', 0.92));
+    toast('📸 Área capturada com sucesso!', 'ok');
+  }
+
+  function cancelarCropCaptura() {
+    if (_cropAnim)   { cancelAnimationFrame(_cropAnim); _cropAnim = null; }
+    if (_cropStream) { _cropStream.getTracks().forEach(t => t.stop()); _cropStream = null; }
+    _cropVideo = null; _cropSel = null;
+    document.getElementById('crop-modal').classList.remove('active');
+  }
+
+  // ── Upload / Drag-drop foto do cliente ────────────
+  function _aplicarFoto(file) {
+    if (!file || !file.type.startsWith('image/')) {
+      toast('Selecione uma imagem (JPG, PNG, etc.)', 'err');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      _aplicarDataUrl(e.target.result);
+      toast('📷 Foto do cliente carregada!', 'ok');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function _carregarFotoExtensao(mid) {
+    if (!mid) return;
+    try {
+      var stored = localStorage.getItem('saleia_foto_cliente_' + mid);
+      if (!stored || !stored.startsWith('data:image')) return;
+      _aplicarDataUrl(stored);
+      localStorage.removeItem('saleia_foto_cliente_' + mid);
+      toast('📸 Foto do cliente carregada pela extensão!', 'ok', 4000);
+    } catch (e) { /* localStorage indisponível */ }
+  }
+
+  // Reage quando a extensão salva a foto em tempo real (VS já estava aberto)
+  window.addEventListener('storage', function(e) {
+    if (!e.key || !e.newValue) return;
+    if (e.key === 'saleia_foto_cliente_' + meetingId && e.newValue.startsWith('data:image')) {
+      _aplicarDataUrl(e.newValue);
+      try { localStorage.removeItem(e.key); } catch (_) {}
+      toast('📸 Foto do cliente carregada pela extensão!', 'ok', 4000);
+    }
+  });
+
+  function _aplicarDataUrl(dataUrl) {
+    _fotoCapturada = dataUrl;
+    var img = document.getElementById('foto-cliente');
+    var placeholder = document.getElementById('placeholder-cliente');
+    img.src = '';          // reset para forçar reload
+    img.onload = null;
+    img.onerror = function() {
+      img.classList.add('hidden');
+      if (placeholder) placeholder.style.display = 'flex';
+      toast('Imagem inválida recebida da extensão.', 'err');
+    };
+    img.onload = function() {
+      img.onload = null; img.onerror = null;
+      img.classList.remove('hidden');
+      if (placeholder) placeholder.style.display = 'none';
+    };
+    img.src = dataUrl;
+  }
+
+  function _initFotoCliente() {
+    const body  = document.getElementById('body-cliente');
+    const input = document.getElementById('foto-upload');
+    if (!body || !input) return;
+
+    input.addEventListener('change', function(e) {
+      if (e.target.files[0]) _aplicarFoto(e.target.files[0]);
+      input.value = '';
+    });
+
+    body.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      body.style.outline = '2px dashed var(--primary)';
+      body.style.outlineOffset = '-4px';
+    });
+    body.addEventListener('dragleave', function() {
+      body.style.outline = '';
+    });
+    body.addEventListener('drop', function(e) {
+      e.preventDefault();
+      body.style.outline = '';
+      const file = e.dataTransfer.files[0];
+      if (file) _aplicarFoto(file);
+    });
   }
 
   // ── Geração de cenários ────────────────────────────

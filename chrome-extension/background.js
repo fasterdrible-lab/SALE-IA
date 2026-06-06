@@ -137,6 +137,48 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     return false;
   }
 
+  // Abre o Visual Scenario e injeta a foto do cliente diretamente no DOM.
+  // A foto é lida do chrome.storage.local (saleia_foto_pendente) porque o
+  // content.js a grava lá antes de enviar esta mensagem — msg.foto não existe.
+  if (msg.tipo === 'abrirCenarioComFoto') {
+    var targetUrl = msg.url;
+
+    chrome.tabs.create({ url: targetUrl, active: true }, function (tab) {
+      if (!tab) return;
+
+      function onUpdated(tabId, info) {
+        if (tabId !== tab.id || info.status !== 'complete') return;
+        chrome.tabs.onUpdated.removeListener(onUpdated);
+
+        chrome.storage.local.get(['saleia_foto_pendente'], function (result) {
+          var fotoData = result.saleia_foto_pendente ? result.saleia_foto_pendente.foto : null;
+          if (!fotoData) return;
+
+          chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: function (foto) {
+              // Tenta usar a função central da página
+              if (typeof _aplicarDataUrl === 'function') {
+                _aplicarDataUrl(foto);
+                if (typeof toast === 'function') toast('📸 Foto do cliente carregada!', 'ok', 4000);
+                return;
+              }
+              // Fallback direto no DOM
+              var img = document.getElementById('foto-cliente');
+              var ph  = document.getElementById('placeholder-cliente');
+              if (img) { img.src = foto; img.classList.remove('hidden'); }
+              if (ph)  { ph.style.display = 'none'; }
+            },
+            args: [fotoData],
+          });
+        });
+      }
+
+      chrome.tabs.onUpdated.addListener(onUpdated);
+    });
+    return false;
+  }
+
   // Content.js → chunk de áudio do microfone via MediaRecorder (rota direta sem offscreen)
   if (msg.tipo === 'whisperChunk') {
     const url = (msg.backendUrl || estadoExtensao.backendUrl) + '/audio-transcricao';

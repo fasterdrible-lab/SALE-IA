@@ -52,8 +52,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Clientes de IA gerenciados pelo ai_router (com fallback automático)
-
 # Armazenamento em memória do último relatório (cache rápido)
 ultimo_relatorio: dict = {}
 
@@ -61,19 +59,15 @@ ultimo_relatorio: dict = {}
 PASTA_RELATORIOS = Path("data/relatorios")
 PASTA_RELATORIOS.mkdir(parents=True, exist_ok=True)
 
-# ─────────────────────────────────────────────
-# BANCO DE DADOS — SQLite via SQLModel
-# ─────────────────────────────────────────────
-from api.database import criar_tabelas, salvar_relatorio as db_salvar, listar_relatorios as db_listar, buscar_ultimo_relatorio as db_ultimo
-
 @app.on_event("startup")
 def on_startup():
     criar_tabelas()
     logger.info("✅ Banco de dados inicializado.")
     try:
-        from agent.sessao_manager import criar_tabela_sessoes, criar_tabela_usuarios
+        from agent.sessao_manager import criar_tabela_sessoes, criar_tabela_usuarios, migrar_colunas_usuarios
         criar_tabela_sessoes()
         criar_tabela_usuarios()
+        migrar_colunas_usuarios()
     except Exception as e:
         logger.warning("Tabelas MySQL não criadas: %s", e)
     try:
@@ -686,6 +680,12 @@ def listar_relatorios_endpoint():
                         "titulo": r["nome_reuniao"],
                         "data": r["criado_em"],
                         "probabilidade_fechamento": r["dados"].get("recapitulacao", {}).get("probabilidade_fechamento", ""),
+                        "provedor": (
+                            r["dados"].get("recapitulacao", {}).get("_provedor_ia")
+                            or r["dados"].get("perfil_disc", {}).get("_provedor_ia")
+                            or r["dados"].get("diagnostico_financeiro", {}).get("_provedor_ia")
+                            or ""
+                        ),
                     }
                     for r in rows
                 ]}
@@ -705,6 +705,12 @@ def listar_relatorios_endpoint():
                     "gerado_em": dados.get("gerado_em", ""),
                     "probabilidade_fechamento": (
                         dados.get("recapitulacao", {}).get("probabilidade_fechamento", "")
+                    ),
+                    "provedor": (
+                        dados.get("recapitulacao", {}).get("_provedor_ia")
+                        or dados.get("perfil_disc", {}).get("_provedor_ia")
+                        or dados.get("diagnostico_financeiro", {}).get("_provedor_ia")
+                        or ""
                     ),
                 })
             except Exception:
@@ -1236,12 +1242,12 @@ async def cenario_conducao(meeting_id: str, req: ConducaoRequest, authorization:
 async def audio_transcricao(req: AudioTranscricaoRequest):
     """
     Recebe um chunk de áudio (base64, audio/webm) da extensão Chrome,
-    transcreve via OpenAI Whisper-1 e retorna o texto.
+    transcreve via Whisper (OpenAI) ou Groq e retorna o texto.
+    O provedor ativo é controlado pela variável TRANSCRICAO_PROVEDOR no .env.
     Chamado pelo background.js a cada ~15 segundos durante a captura.
     """
     import base64
     import tempfile
-    import re as _re
 
     # Decodifica base64 — aceita tanto data-URL quanto base64 puro
     raw = req.audio_base64
@@ -1255,7 +1261,7 @@ async def audio_transcricao(req: AudioTranscricaoRequest):
     if len(audio_bytes) < 512:
         return {"texto": "", "ok": True, "motivo": "chunk muito pequeno"}
 
-    # Extensão baseada no mime_type
+    provedor_transcricao = os.getenv("TRANSCRICAO_PROVEDOR", "whisper")
     ext = '.webm' if 'webm' in (req.mime_type or '') else '.ogg'
     tmp_path = None
     try:
@@ -1263,38 +1269,46 @@ async def audio_transcricao(req: AudioTranscricaoRequest):
             tmp.write(audio_bytes)
             tmp_path = tmp.name
 
-        openai_key = os.getenv("OPENAI_API_KEY")
-        if not openai_key:
-            raise HTTPException(status_code=500, detail="OPENAI_API_KEY não configurada")
-
         from openai import OpenAI
-        client = OpenAI(api_key=openai_key)
+
+        if provedor_transcricao == "groq":
+            groq_key = os.getenv("GROQ_API_KEY", "")
+            if not groq_key:
+                raise HTTPException(status_code=500, detail="GROQ_API_KEY não configurada. Configure em Configurações > Transcrição de Áudio.")
+            client = OpenAI(api_key=groq_key, base_url="https://api.groq.com/openai/v1")
+            modelo_transcricao = "whisper-large-v3-turbo"
+            label = "[Groq]"
+        else:
+            openai_key = os.getenv("OPENAI_API_KEY", "")
+            if not openai_key:
+                raise HTTPException(status_code=500, detail="OPENAI_API_KEY não configurada. Configure em Configurações > APIs.")
+            client = OpenAI(api_key=openai_key)
+            modelo_transcricao = "whisper-1"
+            label = "[Whisper]"
 
         with open(tmp_path, 'rb') as f:
             transcript = client.audio.transcriptions.create(
-                model="whisper-1",
+                model=modelo_transcricao,
                 file=f,
                 language="pt",
             )
 
         texto = transcript.text.strip() if transcript.text else ""
 
-        # Persiste na transcrição bruta da sessão (mesmo pipeline das legendas CC)
-        # Garante que a sessão exista — registrar_sessao() cria se não houver
         if texto and req.meeting_id and req.meeting_id != "default":
             try:
                 from agent.sessao_manager import registrar_sessao, salvar_transcricao_bruta
-                registrar_sessao(req.meeting_id)  # no-op se já existe
-                salvar_transcricao_bruta(req.meeting_id, f"[Whisper] {texto}")
+                registrar_sessao(req.meeting_id)
+                salvar_transcricao_bruta(req.meeting_id, f"{label} {texto}")
             except Exception as _e:
-                logger.warning("[Whisper] Não foi possível salvar transcrição: %s", _e)
+                logger.warning("[Transcricao] Não foi possível salvar: %s", _e)
 
-        return {"texto": texto, "ok": True}
+        return {"texto": texto, "ok": True, "provedor": provedor_transcricao}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("[Whisper] Erro na transcrição: %s", e)
+        logger.error("[Transcricao/%s] Erro: %s", provedor_transcricao, e)
         return {"texto": "", "ok": False, "error": str(e)}
     finally:
         if tmp_path:
@@ -1409,6 +1423,11 @@ class AuthRecuperarSenhaRequest(BaseModel):
     email: str
 
 
+class AuthRedefinirSenhaRequest(BaseModel):
+    token: str
+    nova_senha: str
+
+
 @app.post("/auth/login")
 def auth_login(req: AuthLoginRequest):
     from agent.sessao_manager import _get_conn
@@ -1489,10 +1508,173 @@ def auth_cadastro(req: AuthCadastroRequest):
     return {"ok": True, "perfil": perfil, "status": status}
 
 
+_RESET_TOKEN_EXP_HORAS = 1
+
+
 @app.post("/auth/recuperar-senha")
-def auth_recuperar_senha(req: AuthRecuperarSenhaRequest):
-    # Stub — apenas confirma recebimento (envio de e-mail não implementado)
-    return {"ok": True, "mensagem": "Se o e-mail estiver cadastrado, você receberá as instruções em breve."}
+def auth_recuperar_senha(req: AuthRecuperarSenhaRequest, background_tasks: BackgroundTasks):
+    import secrets
+    from agent.sessao_manager import _get_conn
+    from agent.email_service import enviar_email_recuperacao
+
+    # Resposta neutra sempre — não vaza se o e-mail existe ou não
+    _resposta_neutra = {"ok": True, "mensagem": "Se o e-mail estiver cadastrado, você receberá as instruções em breve."}
+
+    email = (req.email or "").strip().lower()
+    if not email or "@" not in email:
+        return _resposta_neutra
+
+    try:
+        conn = _get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT id FROM usuarios WHERE email=%s AND status='ativo' LIMIT 1", (email,))
+                row = cur.fetchone()
+                if not row:
+                    return _resposta_neutra
+
+                token = secrets.token_urlsafe(32)
+                exp = datetime.utcnow() + timedelta(hours=_RESET_TOKEN_EXP_HORAS)
+                cur.execute(
+                    "UPDATE usuarios SET reset_token=%s, reset_token_exp=%s WHERE email=%s",
+                    (token, exp, email),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception as e:
+        logger.error("[Auth] Erro ao gerar token de reset: %s", e)
+        return _resposta_neutra
+
+    # Envia e-mail em background para não bloquear a resposta
+    background_tasks.add_task(enviar_email_recuperacao, email, token)
+    return _resposta_neutra
+
+
+_RESET_PAGE_HTML = """<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Redefinir Senha — SALEIA</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0f172a;color:#e2e8f0;font-family:Arial,sans-serif;
+       min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+  .card{background:#1e293b;border-radius:12px;padding:32px;width:100%;max-width:400px}
+  h2{color:#38bdf8;margin-bottom:16px;font-size:1.25rem}
+  label{display:block;font-size:.85rem;color:#94a3b8;margin-bottom:4px;margin-top:16px}
+  input{width:100%;padding:10px 12px;background:#0f172a;border:1px solid #334155;
+        border-radius:8px;color:#e2e8f0;font-size:.95rem;outline:none}
+  input:focus{border-color:#38bdf8}
+  button{width:100%;margin-top:24px;padding:12px;background:#38bdf8;color:#0f172a;
+         border:none;border-radius:8px;font-weight:bold;font-size:1rem;cursor:pointer}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  #msg{margin-top:16px;font-size:.9rem;min-height:20px}
+  .ok{color:#4ade80} .err{color:#f87171}
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Redefinir senha</h2>
+  <div id="form-wrap">
+    <label for="senha">Nova senha</label>
+    <input type="password" id="senha" placeholder="Mínimo 6 caracteres">
+    <label for="confirmar">Confirmar senha</label>
+    <input type="password" id="confirmar" placeholder="Repita a nova senha">
+    <button id="btn" onclick="redefinir()">Salvar nova senha</button>
+    <div id="msg"></div>
+  </div>
+  <div id="ok-wrap" style="display:none">
+    <p class="ok">✅ Senha redefinida com sucesso!</p>
+    <p style="margin-top:12px;font-size:.9rem">
+      <a href="/login" style="color:#38bdf8">Ir para o login</a>
+    </p>
+  </div>
+</div>
+<script>
+  const token = new URLSearchParams(location.search).get('token') || '';
+
+  async function redefinir() {
+    const nova = document.getElementById('senha').value;
+    const conf = document.getElementById('confirmar').value;
+    const msg  = document.getElementById('msg');
+    msg.textContent = '';
+    if (!nova || nova.length < 6) { msg.className='err'; msg.textContent='Mínimo 6 caracteres.'; return; }
+    if (nova !== conf) { msg.className='err'; msg.textContent='As senhas não coincidem.'; return; }
+
+    document.getElementById('btn').disabled = true;
+    msg.className=''; msg.textContent='Aguarde...';
+    try {
+      const r = await fetch('/auth/redefinir-senha', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ token, nova_senha: nova }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) {
+        document.getElementById('form-wrap').style.display='none';
+        document.getElementById('ok-wrap').style.display='block';
+      } else {
+        msg.className='err';
+        msg.textContent = d.detail || d.mensagem || 'Token inválido ou expirado.';
+        document.getElementById('btn').disabled = false;
+      }
+    } catch(e) {
+      msg.className='err'; msg.textContent='Erro de conexão. Tente novamente.';
+      document.getElementById('btn').disabled = false;
+    }
+  }
+</script>
+</body>
+</html>"""
+
+
+@app.get("/reset", response_class=HTMLResponse)
+def pagina_reset_senha(token: str = ""):
+    if not token:
+        return HTMLResponse("<p>Link inválido.</p>", status_code=400)
+    return HTMLResponse(_RESET_PAGE_HTML)
+
+
+@app.post("/auth/redefinir-senha")
+def auth_redefinir_senha(req: AuthRedefinirSenhaRequest):
+    from agent.sessao_manager import _get_conn
+
+    if not req.token or not req.nova_senha or len(req.nova_senha) < 6:
+        raise HTTPException(status_code=400, detail="Senha deve ter pelo menos 6 caracteres.")
+
+    try:
+        conn = _get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT id, reset_token_exp FROM usuarios WHERE reset_token=%s LIMIT 1",
+                    (req.token,),
+                )
+                row = cur.fetchone()
+                if not row:
+                    raise HTTPException(status_code=400, detail="Token inválido ou já utilizado.")
+
+                uid, exp = row
+                if not exp or datetime.utcnow() > exp:
+                    raise HTTPException(status_code=400, detail="Token expirado. Solicite um novo link.")
+
+                novo_hash = _hash_senha(req.nova_senha)
+                cur.execute(
+                    "UPDATE usuarios SET senha_hash=%s, reset_token=NULL, reset_token_exp=NULL WHERE id=%s",
+                    (novo_hash, uid),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("[Auth] Erro ao redefinir senha: %s", e)
+        raise HTTPException(status_code=500, detail="Erro interno. Tente novamente.")
+
+    return {"ok": True, "mensagem": "Senha redefinida com sucesso."}
 
 
 # ─────────────────────────────────────────────
@@ -1879,12 +2061,16 @@ def admin_status_provedor(pid: str, req: AdminStatusRequest, authorization: str 
     _req_admin(authorization)
     if pid not in _PROVEDORES_CONF:
         raise HTTPException(status_code=404, detail="Provedor desconhecido.")
-    # ativo=False → remove chave do env em memória sem apagar o arquivo
-    # ativo=True → apenas confirma (a chave já precisa existir)
+    env_key = _PROVEDORES_CONF[pid]["env_key"]
     env = _ler_env()
-    chave = env.get(_PROVEDORES_CONF[pid]["env_key"], "")
+    chave = env.get(env_key, "")
     if req.ativo and not chave:
         raise HTTPException(status_code=400, detail="Configure a chave de API antes de ativar.")
+    # Propaga ativação/desativação ao processo atual sem alterar o arquivo .env
+    if req.ativo:
+        os.environ[env_key] = chave
+    else:
+        os.environ[env_key] = ""
     return {"ok": True}
 
 
@@ -1897,6 +2083,72 @@ def admin_definir_principal(req: AdminPrincipalRequest, authorization: str | Non
     _req_admin(authorization)
     if req.provedor not in _PROVEDORES_CONF:
         raise HTTPException(status_code=404, detail="Provedor desconhecido.")
-    _salvar_env_key("PROVEDOR_PREFERIDO", req.provedor)
-    os.environ["PROVEDOR_PREFERIDO"] = req.provedor
+    _salvar_env_key("PROVEDOR_PREFERIDO", req.provedor)  # já seta os.environ internamente
     return {"ok": True}
+
+
+# ─────────────────────────────────────────────
+# TRANSCRIÇÃO DE ÁUDIO — configuração
+# ─────────────────────────────────────────────
+
+_TRANSCRICAO_PROVEDORES = {
+    "whisper": {
+        "nome":    "OpenAI Whisper",
+        "modelo":  "whisper-1",
+        "env_key": "OPENAI_API_KEY",
+        "nota":    "Usa a mesma chave configurada nos provedores de IA (OPENAI_API_KEY).",
+    },
+    "groq": {
+        "nome":    "Groq (Whisper Large v3 Turbo)",
+        "modelo":  "whisper-large-v3-turbo",
+        "env_key": "GROQ_API_KEY",
+        "nota":    "Mais rápido e gratuito até o limite da cota Groq. Crie uma chave em console.groq.com.",
+    },
+}
+
+
+@app.get("/admin/transcricao/config")
+def admin_get_transcricao(authorization: str | None = _Header(default=None)):
+    """Retorna configuração atual do provedor de transcrição de áudio."""
+    _req_admin(authorization)
+    env = _ler_env()
+    provedor_atual = env.get("TRANSCRICAO_PROVEDOR", "whisper")
+    provedores = []
+    for pid, conf in _TRANSCRICAO_PROVEDORES.items():
+        chave = env.get(conf["env_key"], "")
+        provedores.append({
+            "id":        pid,
+            "nome":      conf["nome"],
+            "modelo":    conf["modelo"],
+            "nota":      conf["nota"],
+            "ativo":     pid == provedor_atual,
+            "tem_chave": bool(chave and len(chave) > 8),
+        })
+    return {"provedores": provedores, "provedor_atual": provedor_atual}
+
+
+class TranscricaoConfigRequest(BaseModel):
+    provedor: str
+    groq_api_key: Optional[str] = None
+
+
+@app.post("/admin/transcricao/config")
+def admin_set_transcricao(req: TranscricaoConfigRequest, authorization: str | None = _Header(default=None)):
+    """Define o provedor de transcrição de áudio e opcionalmente salva a chave Groq."""
+    _req_admin(authorization)
+    if req.provedor not in _TRANSCRICAO_PROVEDORES:
+        raise HTTPException(status_code=400, detail="Provedor desconhecido.")
+    conf = _TRANSCRICAO_PROVEDORES[req.provedor]
+    # Salvar chave Groq se fornecida
+    if req.provedor == "groq" and req.groq_api_key and len(req.groq_api_key.strip()) > 8:
+        _salvar_env_key("GROQ_API_KEY", req.groq_api_key.strip())
+    # Verificar se a chave necessária existe
+    env = _ler_env()
+    chave = env.get(conf["env_key"], "")
+    if not chave:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Chave de API do {conf['nome']} não configurada. Adicione antes de ativar.",
+        )
+    _salvar_env_key("TRANSCRICAO_PROVEDOR", req.provedor)
+    return {"ok": True, "provedor": req.provedor, "modelo": conf["modelo"]}

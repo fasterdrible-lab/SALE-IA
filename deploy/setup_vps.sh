@@ -84,7 +84,7 @@ server {
 
     # CORS para extensão Chrome e dashboard
     add_header Access-Control-Allow-Origin "*" always;
-    add_header Access-Control-Allow-Methods "GET, POST, OPTIONS" always;
+    add_header Access-Control-Allow-Methods "GET, POST, PATCH, DELETE, OPTIONS" always;
     add_header Access-Control-Allow-Headers "Content-Type, Authorization" always;
 
     location / {

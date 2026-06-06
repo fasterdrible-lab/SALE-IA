@@ -16,6 +16,11 @@ function escaparHtml(str) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+  // Versão dinâmica a partir do manifest.json
+  var versaoEl = document.getElementById('versao');
+  if (versaoEl && chrome.runtime && chrome.runtime.getManifest) {
+    versaoEl.textContent = 'v' + chrome.runtime.getManifest().version;
+  }
   const toggleAtivo = document.getElementById('toggle-ativo');
   const backendUrlInput = document.getElementById('backend-url');
   const btnSalvarUrl = document.getElementById('btn-salvar-url');
