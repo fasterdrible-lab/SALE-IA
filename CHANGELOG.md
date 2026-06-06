@@ -3,6 +3,34 @@
 
 ---
 
+## V.1.4.7 — Visual Cenário: paleta gold/black + correção de nomenclatura
+> Data: 06/06/2026 | Desenvolvido com Claude Sonnet 4.6
+
+### FRONTEND — Padronização visual da tela Visual Cenário
+
+**`frontend/visual-scenario.html` — redesign de cores:**
+- Paleta CSS atualizada para o padrão gold/black do dashboard:
+  - `--bg: #0A0A0A`, `--card: #111111`, `--field: #1A1A1A`
+  - `--border: rgba(212,175,55,0.18)`, `--primary: #D4AF37`, `--secondary: #F5C542`
+  - `--muted: #888`, `--gold: #D4AF37`
+- Header: fundo `#000000` (era `#201E30` roxo)
+- Action bar: fundo `rgba(0,0,0,.4)` (era roxo semi-transparente)
+- Botão primário: gradiente `#A67C00 → #D4AF37 → #F5C542`, texto preto (era teal)
+- Ícones de painel: dourado sutil (era azul/teal)
+- Chips de contexto (`chip-disc`, `chip-maturity`): ouro (era azul/teal)
+- Toast de sucesso: dourado (era teal)
+- Loading overlay: `rgba(0,0,0,.92)` (era roxo escuro)
+- Spinner border: `rgba(212,175,55,.2)` (era teal)
+- Modal fullscreen: fundo `#000000` (era `#0A0914`)
+- Modal crop: fundo `#000000` + botão confirmar em gradiente dourado
+- Hover dos painéis: borda dourada `rgba(212,175,55,.35)`
+- Título `<title>` e `<h1>`: "Visual **Cenário** AI" (era "Visual Scenario AI")
+
+**`frontend/dashboard.html` — correção de nomenclatura:**
+- Item do menu lateral: "Visual Scenario" → "Visual Cenário"
+
+---
+
 ## V.1.4.6 — Redesign Visual Premium (Gold/Black Theme)
 > Data: 06/06/2026 | Desenvolvido com Claude Sonnet 4.6
 
