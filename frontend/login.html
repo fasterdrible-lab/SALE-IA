@@ -8,22 +8,25 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:      #2D2B3D;
-      --card:    #252338;
-      --field:   #1E1C2E;
-      --border:  #3D3B52;
-      --primary: #14B8A6;
-      --secondary:#38BDF8;
-      --text:    #F8FAFC;
-      --muted:   #9D9BB8;
+      --bg:      #050505;
+      --card:    #0f0f0f;
+      --field:   #080808;
+      --border:  #2a1f00;
+      --primary: #C9A227;
+      --secondary:#FFD700;
+      --text:    #F5F0E8;
+      --muted:   #7A6830;
       --alert:   #F97316;
       --danger:  #EF4444;
       --radius:  12px;
+      --gold:    #C9A227;
+      --gold-bright: #FFD700;
+      --gold-dark:   #8B6500;
     }
 
     body {
       min-height: 100vh;
-      background: var(--bg);
+      background: radial-gradient(ellipse at 50% -10%, #1a1200 0%, #050505 55%);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -34,30 +37,90 @@
       padding: 48px 16px 40px;
     }
 
-    /* ── Logo ── */
+    /* ── Brand / Logo ── */
     .logo-wrap {
       text-align: center;
-      margin-bottom: 28px;
+      margin-bottom: 32px;
     }
-    .logo {
-      font-size: 2.2rem;
+
+    .brand-icon {
+      position: relative;
+      width: 86px;
+      height: 86px;
+      margin: 0 auto 18px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #FFD700 0%, #C9A227 45%, #3D2800 100%);
+      border: 2px solid #C9A227;
+      box-shadow: 0 0 40px rgba(201,162,39,.45), 0 0 80px rgba(201,162,39,.15), inset 0 0 20px rgba(0,0,0,.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .brand-icon::before {
+      content: '';
+      position: absolute;
+      width: 106px; height: 106px;
+      border-radius: 50%;
+      border: 1px solid rgba(201,162,39,.25);
+      top: -11px; left: -11px;
+    }
+    .brand-icon::after {
+      content: '';
+      position: absolute;
+      width: 124px; height: 124px;
+      border-radius: 50%;
+      border: 1px dashed rgba(201,162,39,.1);
+      top: -20px; left: -20px;
+    }
+    .brand-s {
+      font-size: 2.8rem;
       font-weight: 900;
-      letter-spacing: 2px;
-      color: var(--text);
+      color: #000;
+      font-style: italic;
+      line-height: 1;
+      user-select: none;
     }
-    .logo span { color: var(--primary); }
-    .logo-sub {
-      font-size: .82rem;
+    .brand-name {
+      font-size: 2.3rem;
+      font-weight: 900;
+      letter-spacing: 10px;
+      background: linear-gradient(135deg, #8B6500 0%, #FFD700 40%, #FFC200 60%, #C9A227 80%, #8B6500 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 6px;
+    }
+    .brand-tagline {
+      font-size: .68rem;
+      letter-spacing: 3px;
+      color: var(--gold);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .brand-by {
+      font-size: .7rem;
       color: var(--muted);
-      margin-top: 4px;
-      letter-spacing: .5px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+    .brand-by strong {
+      color: var(--gold-bright);
+      font-size: .85rem;
+      letter-spacing: 3px;
+    }
+    .brand-sub {
+      font-size: .62rem;
+      letter-spacing: 2px;
+      color: #3A2F10;
+      text-transform: uppercase;
     }
     .version-badge {
       display: inline-block;
-      margin-top: 10px;
-      background: rgba(20,184,166,.12);
-      border: 1px solid rgba(20,184,166,.3);
-      color: var(--primary);
+      margin-top: 12px;
+      background: rgba(201,162,39,.1);
+      border: 1px solid rgba(201,162,39,.25);
+      color: var(--gold);
       padding: 3px 12px;
       border-radius: 20px;
       font-size: .72rem;
@@ -72,7 +135,7 @@
       border-radius: 18px;
       width: 100%;
       max-width: 420px;
-      box-shadow: 0 8px 40px rgba(0,0,0,.35);
+      box-shadow: 0 8px 40px rgba(0,0,0,.7), 0 0 0 1px rgba(201,162,39,.08);
       overflow: hidden;
     }
 
@@ -144,9 +207,9 @@
     }
     .field-input:focus {
       border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(20,184,166,.12);
+      box-shadow: 0 0 0 3px rgba(201,162,39,.12);
     }
-    .field-input::placeholder { color: #4a4860; }
+    .field-input::placeholder { color: #2a2000; }
     .field-input.error { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(239,68,68,.1); }
     .field-input.has-action { padding-right: 46px; }
 
@@ -172,12 +235,12 @@
     .btn-main {
       width: 100%;
       padding: 13px;
-      background: linear-gradient(135deg, var(--primary), #0d9488);
-      color: #022c22;
+      background: linear-gradient(135deg, #8B6500, #FFD700 50%, #C9A227);
+      color: #000;
       border: none;
       border-radius: 10px;
       font-size: 1rem;
-      font-weight: 700;
+      font-weight: 800;
       cursor: pointer;
       transition: opacity .15s, transform .1s;
       margin-top: 8px;
@@ -185,6 +248,8 @@
       align-items: center;
       justify-content: center;
       gap: 8px;
+      letter-spacing: .5px;
+      box-shadow: 0 4px 20px rgba(201,162,39,.3);
     }
     .btn-main:hover:not(:disabled) { opacity: .88; transform: translateY(-1px); }
     .btn-main:disabled { opacity: .5; cursor: not-allowed; transform: none; }
@@ -200,15 +265,15 @@
     }
     .msg.visible { display: block; }
     .msg-error   { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); color: #fca5a5; }
-    .msg-success { background: rgba(20,184,166,.08); border: 1px solid rgba(20,184,166,.2); color: #5eead4; }
+    .msg-success { background: rgba(201,162,39,.08); border: 1px solid rgba(201,162,39,.2); color: #FFD700; }
     .msg-info    { background: rgba(249,115,22,.08); border: 1px solid rgba(249,115,22,.2); color: #fdba74; }
 
     /* ── Loading spinner inline ── */
     .btn-spinner {
       width: 16px;
       height: 16px;
-      border: 2px solid rgba(2,44,34,.3);
-      border-top-color: #022c22;
+      border: 2px solid rgba(0,0,0,.3);
+      border-top-color: #000;
       border-radius: 50%;
       animation: spin .7s linear infinite;
       display: none;
@@ -252,9 +317,12 @@
 <body>
 
   <div class="logo-wrap">
-    <div class="logo">SALE<span>IA</span></div>
-    <div class="logo-sub">Assistente de Vendas com Inteligência Artificial</div>
-    <span class="version-badge">V.1.3.4</span>
+    <div class="brand-icon"><div class="brand-s">S</div></div>
+    <div class="brand-name">SALEIA</div>
+    <div class="brand-tagline">SIMPLES &bull; INTELIGENTE &bull; COMPLETA</div>
+    <div class="brand-by">by <strong>NEX-ALS</strong></div>
+    <div class="brand-sub">INTELIGÊNCIA QUE CONECTA O FUTURO</div>
+    <span class="version-badge">V.1.4.5</span>
   </div>
 
   <div class="card">
@@ -392,7 +460,7 @@
 
   </div><!-- /card -->
 
-  <div class="page-footer">SALEIA V.1.3.4 · Copyright © 2026 HEXAGON TECNOLOGIA. Todos os direitos reservados.</div>
+  <div class="page-footer">SALEIA V.1.4.5 · © 2026 NEX-ALS. Todos os direitos reservados.</div>
 
 <script>
   const API_BASE = (() => {

@@ -70,15 +70,29 @@
     }
 
     .nav-logo {
-      font-size: 1.25rem;
-      font-weight: 800;
-      color: var(--primary);
-      letter-spacing: 1.5px;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
       white-space: nowrap;
       overflow: hidden;
     }
-
-    .nav-logo span { color: var(--secondary); }
+    .nav-logo-name {
+      font-size: 1.25rem;
+      font-weight: 900;
+      letter-spacing: 2px;
+      background: linear-gradient(135deg, #8B6500, #FFD700, #C9A227);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.1;
+    }
+    .nav-logo-by {
+      font-size: .58rem;
+      letter-spacing: 2.5px;
+      color: #7A6830;
+      text-transform: uppercase;
+    }
+    .nav-logo-by strong { color: #C9A227; letter-spacing: 3px; }
 
     .sidebar-toggle {
       background: none;
@@ -142,7 +156,8 @@
     .nav-label { overflow: hidden; text-overflow: ellipsis; transition: opacity .2s; }
 
     .sidebar.collapsed .nav-label { opacity: 0; width: 0; }
-    .sidebar.collapsed .nav-logo-text { display: none; }
+    .sidebar.collapsed .nav-logo-by { display: none; }
+    .sidebar.collapsed .nav-logo-name { font-size: 1rem; letter-spacing: 1px; }
 
     .sidebar-footer {
       padding: 14px 12px;
@@ -943,7 +958,10 @@
   <!-- ── Sidebar ── -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
-      <div class="nav-logo">SALE<span>IA</span></div>
+      <div class="nav-logo">
+        <div class="nav-logo-name">SALEIA</div>
+        <div class="nav-logo-by">by <strong>NEX-ALS</strong></div>
+      </div>
       <button class="sidebar-toggle" id="sidebar-toggle" title="Ocultar menu" onclick="toggleSidebar()">◀</button>
     </div>
 
