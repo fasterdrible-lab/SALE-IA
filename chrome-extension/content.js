@@ -170,14 +170,16 @@
             var palavras = texto.toLowerCase().replace(/[^a-záéíóúãõâêîôûàçü\s]/g, '').split(/\s+/).filter(Boolean);
             var unicas = new Set(palavras);
             if (unicas.size < 3 && palavras.length < 6) {
-              console.log('[SALEIA] Whisper chunk descartado (ruído/repetição):', texto);
+              console.log('[SALEIA] chunk descartado (ruído/repetição):', texto);
               return;
             }
             commitarFrase('Audio', texto);
             setAudioStatus('🎤 ' + texto.slice(0, 50) + '…', '#00d4aa');
             enviarParaBackend();
-          } else if (data && data.error) {
-            console.warn('[SALEIA] Whisper erro:', data.error);
+          } else if (data && (data.ok === false || data.error)) {
+            var msgErro = data.error || 'Erro desconhecido';
+            console.warn('[SALEIA] Transcrição erro:', msgErro);
+            setAudioStatus('⚠️ ' + msgErro.slice(0, 80), '#ff9900');
           }
         });
       };
