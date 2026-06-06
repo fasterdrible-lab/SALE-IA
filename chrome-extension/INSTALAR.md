@@ -1,95 +1,77 @@
-# COMO INSTALAR A EXTENSÃO SALEIA
+# COMO INSTALAR A EXTENSÃO SALEIA — V.1.4.5
 
 ## PRÉ-REQUISITOS
+
 - Google Chrome instalado
-- Backend SALEIA rodando (veja instruções abaixo)
+- Conta SALEIA cadastrada (crie em https://api.saleia.com.br/login)
+- Backend em produção: https://api.saleia.com.br (já configurado)
 
 ---
 
-## INSTALAÇÃO DA EXTENSÃO
+## INSTALAÇÃO
 
-1. Abra o Chrome e acesse: `chrome://extensions`
-2. Ative o **"Modo do desenvolvedor"** (canto superior direito)
-3. Clique em **"Carregar sem compactação"**
+1. Abra `chrome://extensions` no Chrome
+2. Ative o **Modo do desenvolvedor** (canto superior direito)
+3. Clique em **Carregar sem compactação**
 4. Selecione a pasta: `SALEIA/chrome-extension`
-5. A extensão aparece na barra do Chrome com o ícone 🤖
+5. A extensão aparece na barra do Chrome
 
----
-
-## INICIAR O BACKEND SALEIA
-
-```bash
-# Na pasta raiz do projeto SALEIA:
-cd SALEIA
-pip install -r api/requirements.txt
-uvicorn api.main:app --reload --port 8000
-```
-
-O backend estará disponível em: `http://localhost:8000`
+**Após qualquer atualização dos arquivos da extensão**, volte em `chrome://extensions` e clique no botão **🔄 recarregar** na extensão SALEIA para aplicar as mudanças.
 
 ---
 
 ## COMO USAR
 
-1. **Garanta que o backend SALEIA está rodando** (ver acima)
-2. **Abra qualquer reunião no Google Meet**
-3. **Ative as legendas no Meet:**
-   - Clique no botão **"CC"** (Closed Captions) na barra inferior do Meet
-   - Ou pressione `Shift+C` dentro do Meet
-4. **A sidebar SALEIA aparece automaticamente** no lado direito da tela
-5. Aguarde a primeira análise (60 segundos após o início)
-6. **Venda! O resto é com a IA.** 🚀
+### 1. Abrir uma reunião no Google Meet
+
+### 2. Ativar as legendas
+- Clique em **CC** na barra inferior do Meet
+- Ou pressione `Shift+C`
+
+### 3. Fazer login
+- A sidebar SALEIA aparece no lado direito
+- Insira seu e-mail e senha quando solicitado
+
+### 4. Iniciar captura de áudio
+- Clique em **Iniciar captura de áudio** na sidebar
+- O status muda para "gravando..." — o áudio é enviado em chunks de ~15s
+- A transcrição aparece automaticamente no histórico da reunião
+
+### 5. Acompanhar o coach
+- A cada análise, a sidebar atualiza com sugestões em tempo real
+- O contador "Próxima análise em Xs" mostra quando a próxima chamada de IA ocorre
 
 ---
 
-## CONFIGURAR URL DO BACKEND
+## SIDEBAR — O QUE APARECE
 
-- Clique no ícone 🤖 na barra do Chrome
-- Altere a URL se seu servidor estiver em outro endereço
-- Padrão: `http://localhost:8000`
-- Clique em **"Salvar URL"**
-
----
-
-## O QUE A SIDEBAR MOSTRA
-
-| Seção | O que significa |
+| Elemento | Descrição |
 |---|---|
-| 🎯 **Perfil DISC** | Tipo de personalidade do cliente (D/I/S/C) + nível de confiança |
-| 💬 **Próxima Fala** | Sugestão do que dizer agora para avançar a venda |
-| 💰 **Sinal Financeiro** | Indícios de capacidade de investimento detectados na conversa |
-| 📦 **Produto Indicado** | Qual produto recomendar e por quê |
-| ⚡ **Oportunidade** | Oportunidades que podem estar sendo perdidas |
-| 🛡️ **Objeções** | Objeções prováveis + respostas sugeridas |
-| ⚠️ **Alerta Urgente** | Situação crítica que exige ação imediata |
+| Status de áudio | Indica se a captura está ativa, com erro ou aguardando |
+| Coach IA | Sugestões de fala, alertas e perfil DISC do cliente |
+| Recapitulação | Resumo gerado automaticamente por deixa verbal |
+| Botão Cenário | Abre a página de condução/apresentação da reunião |
 
 ---
 
 ## SOLUÇÃO DE PROBLEMAS
 
-**"Backend offline"** aparece na sidebar:
-- Verifique se o backend está rodando: `uvicorn api.main:app --reload`
-- Verifique a URL configurada no popup da extensão
+**"Backend offline":**
+- Verifique https://api.saleia.com.br/health
+- Se retornar 502, aguarde 5-10 segundos e tente novamente
+
+**Sidebar não aparece:**
+- Recarregue o Google Meet (F5)
+- Verifique em `chrome://extensions` se a extensão está ativa
 
 **Não captura legendas:**
-- Certifique-se de que as legendas estão ativas no Meet (botão "CC")
-- A sidebar exibirá: _"⚠️ Ative as legendas no Meet"_
+- As legendas CC devem estar ativas no Meet
+- A sidebar exibe aviso se não estiver detectando texto
 
-**A sidebar não aparece:**
-- Recarregue a página do Google Meet (F5)
-- Verifique se a extensão está ativa em `chrome://extensions`
+**Erro de transcrição ⚠️:**
+- `401 Invalid API Key` → chave Groq inválida no servidor
+- `OPENAI_API_KEY não configurada` → configure no Dashboard
+- Entre em contato com o administrador para corrigir as chaves
 
----
-
-## INTEGRAÇÃO COM TACTIQ (opcional)
-
-Para envio automático de transcrição completa ao final da reunião:
-
-1. Instale o [Tactiq](https://tactiq.io) no Chrome
-2. Após a reunião, o Tactiq pode enviar a transcrição via Webhook
-3. Configure o Webhook no Tactiq: `http://seu-servidor:8000/webhook/tactiq`
-4. O SALEIA processará automaticamente e gerará a recapitulação completa
-
----
-
-*SALEIA — Sistema de Automação de Leads, Engajamento e Inteligência Artificial em Atendimento*
+**Extensão desatualizada após deploy:**
+- Acesse `chrome://extensions` → 🔄 recarregar na extensão SALEIA

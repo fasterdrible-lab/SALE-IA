@@ -23,7 +23,7 @@ Atualizado em: 2026-05-29
 
 ## Versao Atual
 
-`V.1.4.4` — registrada no CHANGELOG.md
+`V.1.4.5` — registrada no CHANGELOG.md
 
 ## Funcionalidades Entregues
 
@@ -149,6 +149,13 @@ SMTP_PASS=...
 EMAIL_FROM=noreply@saleia.com.br
 APP_BASE_URL=https://api.saleia.com.br
 ```
+
+### Transcricao de Audio (V.1.4.5)
+
+- SDK oficial `groq>=0.9.0` instalado na VPS; modelo `whisper-large-v3`
+- Endpoint `POST /admin/transcricao/config` aceita `apenas_salvar: true` para salvar chave sem mudar provedor
+- Dashboard: botao 👁 para mostrar/ocultar chave Groq; `salvarChaveGroq` usa `fetchJsonWithFallback`
+- Extensao Chrome exibe erros de transcricao na barra de status da sidebar
 
 ## Problemas Conhecidos
 

@@ -1269,29 +1269,34 @@ async def audio_transcricao(req: AudioTranscricaoRequest):
             tmp.write(audio_bytes)
             tmp_path = tmp.name
 
-        from openai import OpenAI
-
         if provedor_transcricao == "groq":
             groq_key = os.getenv("GROQ_API_KEY", "")
             if not groq_key:
                 raise HTTPException(status_code=500, detail="GROQ_API_KEY não configurada. Configure em Configurações > Transcrição de Áudio.")
-            client = OpenAI(api_key=groq_key, base_url="https://api.groq.com/openai/v1")
-            modelo_transcricao = "whisper-large-v3-turbo"
+            from groq import Groq as GroqClient
+            groq_client = GroqClient(api_key=groq_key)
+            with open(tmp_path, 'rb') as f:
+                transcript = groq_client.audio.transcriptions.create(
+                    file=(tmp_path, f.read()),
+                    model="whisper-large-v3",
+                    language="pt",
+                    temperature=0,
+                    response_format="verbose_json",
+                )
             label = "[Groq]"
         else:
+            from openai import OpenAI
             openai_key = os.getenv("OPENAI_API_KEY", "")
             if not openai_key:
                 raise HTTPException(status_code=500, detail="OPENAI_API_KEY não configurada. Configure em Configurações > APIs.")
-            client = OpenAI(api_key=openai_key)
-            modelo_transcricao = "whisper-1"
+            openai_client = OpenAI(api_key=openai_key)
+            with open(tmp_path, 'rb') as f:
+                transcript = openai_client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=f,
+                    language="pt",
+                )
             label = "[Whisper]"
-
-        with open(tmp_path, 'rb') as f:
-            transcript = client.audio.transcriptions.create(
-                model=modelo_transcricao,
-                file=f,
-                language="pt",
-            )
 
         texto = transcript.text.strip() if transcript.text else ""
 
@@ -2099,8 +2104,8 @@ _TRANSCRICAO_PROVEDORES = {
         "nota":    "Usa a mesma chave configurada nos provedores de IA (OPENAI_API_KEY).",
     },
     "groq": {
-        "nome":    "Groq (Whisper Large v3 Turbo)",
-        "modelo":  "whisper-large-v3-turbo",
+        "nome":    "Groq (Whisper Large v3)",
+        "modelo":  "whisper-large-v3",
         "env_key": "GROQ_API_KEY",
         "nota":    "Mais rápido e gratuito até o limite da cota Groq. Crie uma chave em console.groq.com.",
     },
@@ -2130,6 +2135,7 @@ def admin_get_transcricao(authorization: str | None = _Header(default=None)):
 class TranscricaoConfigRequest(BaseModel):
     provedor: str
     groq_api_key: Optional[str] = None
+    apenas_salvar: Optional[bool] = False
 
 
 @app.post("/admin/transcricao/config")
@@ -2140,9 +2146,12 @@ def admin_set_transcricao(req: TranscricaoConfigRequest, authorization: str | No
         raise HTTPException(status_code=400, detail="Provedor desconhecido.")
     conf = _TRANSCRICAO_PROVEDORES[req.provedor]
     # Salvar chave Groq se fornecida
-    if req.provedor == "groq" and req.groq_api_key and len(req.groq_api_key.strip()) > 8:
+    if req.provedor == "groq" and req.groq_api_key and req.groq_api_key.strip():
         _salvar_env_key("GROQ_API_KEY", req.groq_api_key.strip())
-    # Verificar se a chave necessária existe
+    # Apenas salvar a chave, sem ativar o provedor
+    if req.apenas_salvar:
+        return {"ok": True, "msg": "Chave salva com sucesso."}
+    # Verificar se a chave necessária existe antes de ativar
     env = _ler_env()
     chave = env.get(conf["env_key"], "")
     if not chave:

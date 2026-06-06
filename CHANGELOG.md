@@ -3,6 +3,57 @@
 
 ---
 
+## V.1.4.5 — SDK Groq Oficial, Toggle de Chave e Separação de Ações
+> Data: 06/06/2026 | Desenvolvido com Claude Sonnet 4.6
+
+### BACKEND — SDK oficial Groq
+
+Substituído o workaround `OpenAI(base_url="https://api.groq.com/openai/v1")` pelo SDK oficial `groq>=0.9.0`:
+
+- Pacote `groq>=0.9.0` adicionado ao `requirements.txt`
+- Modelo atualizado de `whisper-large-v3-turbo` para `whisper-large-v3` (maior qualidade)
+- Arquivo passado como tupla `(caminho, bytes)` conforme documentação oficial Groq
+- Flag `temperature=0` e `response_format="verbose_json"` adicionados
+
+### BACKEND — Flag `apenas_salvar` no endpoint de transcrição
+
+`POST /admin/transcricao/config` aceita novo campo `apenas_salvar: bool`:
+
+- `apenas_salvar: true` → salva a chave Groq no `.env` **sem** mudar o provedor ativo
+- `apenas_salvar: false` (padrão) → comportamento anterior: salva chave e ativa o provedor
+- Validação de tamanho mínimo da chave removida (qualquer string não vazia é aceita)
+
+### DASHBOARD — Botão 👁 mostrar/ocultar chave Groq
+
+- Botão 👁 ao lado do campo de senha: alterna entre `type="password"` e `type="text"`
+- Ícone muda para 🙈 quando a chave está visível
+- Função `toggleVerChaveGroq()` adicionada
+
+### DASHBOARD — Correção crítica em `salvarChaveGroq`
+
+- Substituído `fetch(API + '/admin/...')` por `fetchJsonWithFallback('/admin/...')` — corrige falha silenciosa quando `API` aponta para URL incorreta
+- `apenas_salvar: true` enviado: salvar chave não muda mais o provedor ativo
+- Após salvo com sucesso, recarrega o accordion automaticamente via `carregarTranscricaoConfig()`
+- Mensagem de erro agora inclui o status HTTP (`Erro 401`, `Erro 400`, etc.)
+
+### EXTENSÃO CHROME — Visibilidade de erros de transcrição
+
+`enviarChunkWhisper` em `content.js` agora exibe erros do backend na barra de status da sidebar:
+
+- `data.ok === false` ou `data.error` → `setAudioStatus('⚠️ ' + msgErro, '#ff9900')`
+- Antes: erros apenas no `console.warn`, invisíveis ao usuário
+
+### ARQUIVOS ALTERADOS
+
+| Arquivo | Tipo |
+|---|---|
+| `requirements.txt` | feat: `groq>=0.9.0` |
+| `api/main.py` | feat: SDK Groq oficial; flag `apenas_salvar`; validação de chave relaxada |
+| `frontend/dashboard.html` | feat: toggle 👁; fix `fetchJsonWithFallback`; `apenas_salvar: true` |
+| `chrome-extension/content.js` | fix: erros de transcrição exibidos na sidebar |
+
+---
+
 ## V.1.4.4 — Transcrição de Áudio com Whisper e Groq
 > Data: 06/06/2026 | Desenvolvido com Claude Sonnet 4.6
 
