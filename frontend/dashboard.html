@@ -1796,10 +1796,16 @@
       const ativoBadge = p.ativo
         ? '<span class="cfg-badge cfg-badge-ativo" style="margin-left:8px">Ativo</span>'
         : '';
+      // Campo de chave + botão salvar sempre visível no card Groq
       const groqKeyRow = p.id === 'groq' ? `
         <div class="cfg-provedor-key-row" style="margin-top:10px">
           <input type="password" id="tr-key-groq" placeholder="${p.tem_chave ? '••••••••••••••••' : 'Cole a GROQ_API_KEY aqui'}" autocomplete="off">
+          <button class="cfg-btn-provedor" onclick="salvarChaveGroq()">Salvar chave</button>
         </div>` : '';
+      // Botão de ativar só aparece quando o provedor não está ativo
+      const btnAtivar = p.ativo
+        ? '<span style="color:#14B8A6;font-size:.85rem">✅ Provedor ativo</span>'
+        : `<button class="cfg-btn-provedor primario" onclick="ativarTranscricaoProvedor('${p.id}')">Usar este provedor</button>`;
       return `<div class="cfg-provedor-card${p.ativo ? ' ativo' : ''}" style="margin-bottom:12px">
         <div class="cfg-provedor-header">
           <div>
@@ -1810,18 +1816,43 @@
         </div>
         ${groqKeyRow}
         <div class="cfg-provedor-acoes" style="margin-top:10px">
-          ${p.ativo
-            ? '<span style="color:#14B8A6;font-size:.85rem">✅ Provedor ativo</span>'
-            : `<button class="cfg-btn-provedor primario" onclick="ativarTranscricaoProvedor('${p.id}')">Usar este provedor</button>`}
+          ${btnAtivar}
           <span class="cfg-provedor-feedback" id="tr-fb-${p.id}"></span>
         </div>
       </div>`;
     }).join('');
   }
 
+  async function salvarChaveGroq() {
+    const fb  = document.getElementById('tr-fb-groq');
+    const key = document.getElementById('tr-key-groq')?.value.trim() || '';
+    if (!key) {
+      if (fb) { fb.textContent = 'Cole a chave antes de salvar.'; fb.style.color = '#FCA5A5'; }
+      return;
+    }
+    if (fb) { fb.textContent = 'Salvando...'; fb.style.color = 'var(--muted)'; }
+    try {
+      const r = await fetch(API + '/admin/transcricao/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') },
+        body: JSON.stringify({ provedor: 'groq', groq_api_key: key }),
+      });
+      const json = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        if (fb) { fb.textContent = '❌ ' + (json.detail || 'Erro'); fb.style.color = '#FCA5A5'; }
+        return;
+      }
+      if (fb) { fb.textContent = '✅ Chave salva'; fb.style.color = '#14B8A6'; }
+      document.getElementById('tr-key-groq').value = '';
+      setTimeout(() => { if (fb) fb.textContent = ''; }, 3000);
+    } catch {
+      if (fb) { fb.textContent = '❌ Erro de conexão'; fb.style.color = '#FCA5A5'; }
+    }
+  }
+
   async function ativarTranscricaoProvedor(id) {
     const fb = document.getElementById('tr-fb-' + id);
-    if (fb) { fb.textContent = 'Salvando...'; fb.style.color = 'var(--muted)'; }
+    if (fb) { fb.textContent = 'Ativando...'; fb.style.color = 'var(--muted)'; }
     const groqKey = id === 'groq' ? (document.getElementById('tr-key-groq')?.value.trim() || '') : '';
     try {
       const body = { provedor: id };
