@@ -3,6 +3,54 @@
 
 ---
 
+## V.1.4.6 — Redesign Visual Premium (Gold/Black Theme)
+> Data: 06/06/2026 | Desenvolvido com Claude Sonnet 4.6
+
+### FRONTEND — Redesign completo da identidade visual
+
+Aplicada nova paleta de cores premium em toda a plataforma, sem alteração de funcionalidades.
+
+**Paleta adotada:**
+- Dourado metálico: `#D4AF37` (nova cor primária — substituiu teal `#14B8A6`)
+- Dourado brilhante: `#F5C542` (secundária — substituiu azul `#38BDF8`)
+- Preto absoluto: `#000000` (sidebar)
+- Preto premium: `#0A0A0A` (fundo geral)
+- Cinza grafite: `#111111` (cards)
+- Cinza tecnológico: `#1A1A1A` (inputs/fields)
+
+**`dashboard.html` — mudanças visuais:**
+- Todas as variáveis CSS atualizadas (`--bg`, `--card`, `--field`, `--border`, `--primary`, `--secondary`)
+- Sidebar: fundo `#000000` (antes roxo `#201E30`)
+- Nav itens ativos/hover: dourado `rgba(212,175,55,...)` (antes laranja `rgba(249,115,22,...)`)
+- Botão principal: gradiente dourado `#A67C00 → #D4AF37 → #F5C542` (antes laranja/vermelho)
+- Badges e indicadores: dourado (antes teal/azul)
+- Accordion aberto: borda dourada `rgba(212,175,55,.35)`
+- Ícones de accordion: fundo dourado discreto
+- Background tecnológico: grid de linhas douradas sutis + glow radial no topo
+- Tipografia: `Inter` + `Sora` via Google Fonts (antes Segoe UI)
+- Focus inputs: glow dourado `rgba(212,175,55,.12)`
+
+**`login.html` — mudanças visuais:**
+- Logo SALEIA original (PNG premium 3D dourado) integrado via Nginx static location
+- Imagem exibida com `object-fit: cover` + `object-position: top` mostrando S + SALEIA + tagline
+- Removidos: badge de versão, taglines duplicadas, espaçamentos excessivos
+- Padding do body reduzido para melhor fit em mobile
+
+**Nginx (`/etc/nginx/sites-enabled/saleia`) — nova location:**
+```nginx
+location = /logo-saleia.png {
+    alias /opt/saleia/frontend/logo-saleia.png;
+    add_header Cache-Control "public, max-age=2592000";
+}
+```
+
+**Arquivos alterados:**
+- `frontend/dashboard.html` — redesign CSS completo
+- `frontend/login.html` — logo + layout compacto
+- `frontend/logo-saleia.png` — logo PNG premium adicionado (novo)
+
+---
+
 ## V.1.4.5 — SDK Groq Oficial, Toggle de Chave e Separação de Ações
 > Data: 06/06/2026 | Desenvolvido com Claude Sonnet 4.6
 
