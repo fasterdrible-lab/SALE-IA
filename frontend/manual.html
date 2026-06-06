@@ -18,6 +18,8 @@
       --orange-light: #fff8e6;
       --red:     #ef4444;
       --red-light: #fef2f2;
+      --purple:  #7c3aed;
+      --purple-light: #ede9fe;
       --text:    #1a1a2e;
       --muted:   #64748b;
       --border:  #e2e8f0;
@@ -33,41 +35,36 @@
       line-height: 1.7;
     }
 
-    /* ── Header ── */
     header {
       background: linear-gradient(135deg, #0057ff 0%, #0039cc 100%);
       color: white;
       padding: 60px 24px 40px;
       text-align: center;
     }
-
     .logo { font-size: 2.8rem; font-weight: 800; letter-spacing: -1px; }
     .logo span { opacity: .7; font-weight: 400; }
     .tagline { margin-top: 10px; font-size: 1.1rem; opacity: .85; max-width: 520px; margin-inline: auto; }
     .versao { display: inline-block; margin-top: 16px; background: rgba(255,255,255,.2); padding: 4px 14px; border-radius: 20px; font-size: .82rem; }
 
-    /* ── Nav índice ── */
     .indice {
       background: var(--white);
       border-bottom: 1px solid var(--border);
-      padding: 0;
       position: sticky;
       top: 0;
       z-index: 100;
       box-shadow: 0 2px 8px rgba(0,0,0,.06);
     }
     .indice-inner {
-      max-width: 900px;
+      max-width: 960px;
       margin: 0 auto;
       display: flex;
-      gap: 0;
       overflow-x: auto;
       scrollbar-width: none;
     }
     .indice-inner::-webkit-scrollbar { display: none; }
     .nav-link {
       padding: 14px 18px;
-      font-size: .86rem;
+      font-size: .85rem;
       font-weight: 500;
       color: var(--muted);
       text-decoration: none;
@@ -77,14 +74,12 @@
     }
     .nav-link:hover { color: var(--primary); border-bottom-color: var(--primary); }
 
-    /* ── Layout ── */
-    .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 80px; }
+    .container { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
 
-    /* ── Seções ── */
     section { margin-bottom: 60px; scroll-margin-top: 70px; }
 
     h2 {
-      font-size: 1.6rem;
+      font-size: 1.5rem;
       font-weight: 700;
       color: var(--text);
       margin-bottom: 6px;
@@ -95,16 +90,18 @@
     .section-num {
       background: var(--primary);
       color: white;
-      width: 32px; height: 32px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
       display: inline-flex;
-      align-items: center; justify-content: center;
-      font-size: .9rem; font-weight: 700;
+      align-items: center;
+      justify-content: center;
+      font-size: .88rem;
+      font-weight: 700;
       flex-shrink: 0;
     }
     .section-desc { color: var(--muted); margin-bottom: 24px; font-size: .95rem; }
 
-    /* ── Cards ── */
     .card {
       background: var(--white);
       border: 1px solid var(--border);
@@ -114,19 +111,16 @@
       margin-bottom: 16px;
     }
     .card-title {
-      font-weight: 700; font-size: 1rem;
-      margin-bottom: 8px;
-      display: flex; align-items: center; gap: 8px;
+      font-weight: 700;
+      font-size: 1rem;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
-    /* ── Steps ── */
     .steps { counter-reset: step; display: flex; flex-direction: column; gap: 0; }
-    .step {
-      display: flex;
-      gap: 20px;
-      padding: 24px 0;
-      border-bottom: 1px solid var(--border);
-    }
+    .step { display: flex; gap: 20px; padding: 24px 0; border-bottom: 1px solid var(--border); }
     .step:last-child { border-bottom: none; }
     .step-num {
       counter-increment: step;
@@ -134,16 +128,17 @@
       border-radius: 50%;
       background: var(--primary-light);
       color: var(--primary);
-      font-weight: 800; font-size: 1rem;
+      font-weight: 800;
+      font-size: 1rem;
       display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0; margin-top: 2px;
+      flex-shrink: 0;
+      margin-top: 2px;
     }
     .step-body h3 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
     .step-body p, .step-body li { color: var(--muted); font-size: .95rem; }
-    .step-body ul { padding-left: 18px; margin-top: 6px; }
+    .step-body ul, .step-body ol { padding-left: 18px; margin-top: 6px; }
     .step-body li { margin-bottom: 4px; }
 
-    /* ── Callouts ── */
     .callout {
       border-radius: var(--radius);
       padding: 16px 20px;
@@ -155,12 +150,12 @@
     .callout-icon { font-size: 1.3rem; flex-shrink: 0; }
     .callout-body { flex: 1; }
     .callout-body strong { display: block; margin-bottom: 2px; }
-    .callout-tip    { background: var(--green-light);   border-left: 4px solid var(--green);  }
+    .callout-tip    { background: var(--green-light);   border-left: 4px solid var(--green); }
     .callout-warn   { background: var(--orange-light);  border-left: 4px solid var(--orange); }
-    .callout-danger { background: var(--red-light);     border-left: 4px solid var(--red);    }
+    .callout-danger { background: var(--red-light);     border-left: 4px solid var(--red); }
     .callout-info   { background: var(--primary-light); border-left: 4px solid var(--primary); }
+    .callout-purple { background: var(--purple-light);  border-left: 4px solid var(--purple); }
 
-    /* ── Code ── */
     code {
       background: #f1f5f9;
       border: 1px solid var(--border);
@@ -171,135 +166,45 @@
       color: #c026d3;
     }
 
-    /* ── Grid ── */
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    @media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
+    @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
 
-    /* ── Feature list ── */
-    .feature {
-      display: flex;
-      gap: 16px;
-      align-items: flex-start;
-      padding: 16px;
-      background: var(--white);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-    }
-    .feature-icon {
-      font-size: 2rem; flex-shrink: 0;
-      width: 52px; height: 52px;
-      display: flex; align-items: center; justify-content: center;
-      background: var(--primary-light);
-      border-radius: 10px;
-    }
-    .feature h3 { font-size: .95rem; font-weight: 700; margin-bottom: 4px; }
-    .feature p  { color: var(--muted); font-size: .88rem; }
+    .feature { display: flex; gap: 16px; align-items: flex-start; padding: 16px; background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .feature-icon { font-size: 1.8rem; flex-shrink: 0; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; background: var(--primary-light); border-radius: 10px; }
+    .feature h3 { font-size: .93rem; font-weight: 700; margin-bottom: 4px; }
+    .feature p  { color: var(--muted); font-size: .85rem; }
 
-    /* ── Score visual ── */
     .score-demo { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
-    .score-item { text-align: center; }
-    .score-circle-demo {
-      width: 64px; height: 64px;
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 800; font-size: 1.2rem;
-      border: 4px solid;
-      margin: 0 auto 6px;
-    }
-    .score-label { font-size: .78rem; color: var(--muted); }
+    .score-circle-demo { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.2rem; border: 4px solid; margin: 0 auto 6px; }
+    .score-label { font-size: .78rem; color: var(--muted); text-align: center; }
 
-    /* ── Tabela ── */
     table { width: 100%; border-collapse: collapse; font-size: .92rem; }
     th { background: var(--bg); padding: 10px 14px; text-align: left; font-weight: 600; border-bottom: 2px solid var(--border); }
-    td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+    td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
     tr:last-child td { border-bottom: none; }
 
-    /* ── Badge ── */
-    .badge {
-      display: inline-block;
-      padding: 2px 10px;
-      border-radius: 20px;
-      font-size: .78rem; font-weight: 600;
-    }
-    .badge-green  { background: var(--green-light);   color: var(--green); }
-    .badge-orange { background: var(--orange-light);  color: #b45309; }
-    .badge-red    { background: var(--red-light);     color: var(--red); }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: .78rem; font-weight: 600; }
+    .badge-green  { background: var(--green-light); color: var(--green); }
+    .badge-orange { background: var(--orange-light); color: #b45309; }
+    .badge-red    { background: var(--red-light); color: var(--red); }
     .badge-blue   { background: var(--primary-light); color: var(--primary); }
+    .badge-purple { background: var(--purple-light); color: var(--purple); }
 
-    /* ── Condução visual ── */
-    .cond-demo {
-      background: #2D2B3D;
-      border-radius: 10px;
-      padding: 20px;
-      margin-top: 12px;
-    }
-    .cond-demo-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: #14B8A6;
-      color: #fff;
-      padding: 8px 18px;
-      border-radius: 8px;
-      font-weight: 700;
-      font-size: .9rem;
-      margin-bottom: 12px;
-    }
-    .cond-demo-menu {
-      background: #252338;
-      border: 1px solid #3D3B52;
-      border-radius: 8px;
-      overflow: hidden;
-      display: inline-block;
-      min-width: 220px;
-    }
-    .cond-demo-item {
-      padding: 12px 16px;
-      color: #F8FAFC;
-      font-size: .9rem;
-      border-bottom: 1px solid #3D3B52;
-    }
-    .cond-demo-item:last-child { border-bottom: none; }
-    .cond-demo-sub {
-      background: #1E1C2E;
-      padding: 10px 16px;
-      font-size: .85rem;
-      color: #9D9BB8;
-    }
-
-    /* ── FAQ ── */
-    details {
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      margin-bottom: 8px;
-      background: var(--white);
-    }
-    summary {
-      padding: 16px 20px;
-      font-weight: 600;
-      cursor: pointer;
-      list-style: none;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: .95rem;
-    }
+    details { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; background: var(--white); }
+    summary { padding: 16px 20px; font-weight: 600; cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; font-size: .95rem; }
     summary::after { content: '▾'; color: var(--muted); transition: transform .2s; }
     details[open] summary::after { transform: rotate(180deg); }
     details[open] summary { border-bottom: 1px solid var(--border); }
     .faq-body { padding: 16px 20px; color: var(--muted); font-size: .93rem; }
+    .faq-body ol, .faq-body ul { padding-left: 20px; margin-top: 8px; }
+    .faq-body li { margin-bottom: 6px; }
 
-    /* ── Footer ── */
-    footer {
-      text-align: center;
-      padding: 40px 24px;
-      color: var(--muted);
-      font-size: .85rem;
-      border-top: 1px solid var(--border);
-    }
+    footer { text-align: center; padding: 40px 24px; color: var(--muted); font-size: .85rem; border-top: 1px solid var(--border); }
 
-    /* ── Print ── */
+    .url-box { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 12px 18px; font-family: monospace; font-size: .9rem; margin: 8px 0; display: flex; align-items: center; gap: 12px; }
+    .url-box a { color: #60a5fa; text-decoration: none; }
+    .url-box a:hover { text-decoration: underline; }
+
     @media print {
       .indice { display: none; }
       header { background: var(--primary) !important; -webkit-print-color-adjust: exact; }
@@ -312,20 +217,21 @@
 <header>
   <div class="logo">SALE<span>IA</span></div>
   <p class="tagline">Assistente de Vendas com Inteligência Artificial — Manual do Usuário</p>
-  <div class="versao">Versão 1.3.3 · Maio 2026</div>
+  <div class="versao">Versão 1.4.5 · Junho 2026</div>
 </header>
 
 <nav class="indice">
   <div class="indice-inner">
     <a class="nav-link" href="#visao-geral">Visão Geral</a>
-    <a class="nav-link" href="#acesso">Login e Acesso</a>
-    <a class="nav-link" href="#instalacao">Instalação</a>
-    <a class="nav-link" href="#primeira-reuniao">Primeira Reunião</a>
+    <a class="nav-link" href="#acesso">Acesso</a>
+    <a class="nav-link" href="#extensao">Extensão Chrome</a>
+    <a class="nav-link" href="#reuniao">Na Reunião</a>
+    <a class="nav-link" href="#transcricao">Transcrição</a>
     <a class="nav-link" href="#sidebar">Painel Lateral</a>
-    <a class="nav-link" href="#score">Score de Compra</a>
-    <a class="nav-link" href="#conducao">Condução</a>
+    <a class="nav-link" href="#score">Score</a>
     <a class="nav-link" href="#relatorio">Relatório</a>
     <a class="nav-link" href="#dashboard">Dashboard</a>
+    <a class="nav-link" href="#configuracoes">Configurações</a>
     <a class="nav-link" href="#dicas">Dicas</a>
     <a class="nav-link" href="#faq">Dúvidas</a>
   </div>
@@ -336,300 +242,329 @@
   <!-- ── 1. VISÃO GERAL ── -->
   <section id="visao-geral">
     <h2><span class="section-num">1</span> O que é o SALEIA?</h2>
-    <p class="section-desc">Uma extensão do Chrome que acompanha suas reuniões no Google Meet e te dá inteligência de vendas em tempo real — como ter um coach ao seu lado durante cada conversa.</p>
+    <p class="section-desc">Uma extensão do Chrome que acompanha suas reuniões no Google Meet e oferece inteligência de vendas em tempo real — como ter um coach ao seu lado em cada conversa.</p>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:8px">
       <div class="feature">
         <div class="feature-icon">🎯</div>
-        <div>
-          <h3>Score de Compra</h3>
-          <p>Probabilidade do cliente fechar, de 0 a 100, atualizada em tempo real</p>
-        </div>
+        <div><h3>Score de Compra</h3><p>Probabilidade do cliente fechar, de 0 a 100, atualizada em tempo real pela IA</p></div>
       </div>
       <div class="feature">
-        <div class="feature-icon">💡</div>
-        <div>
-          <h3>Dicas Inteligentes</h3>
-          <p>Sugestões de abordagem baseadas no que o cliente está dizendo agora</p>
-        </div>
+        <div class="feature-icon">🎙️</div>
+        <div><h3>Transcrição de Áudio</h3><p>Captura o microfone em tempo real via Whisper ou Groq — sem depender das legendas do Meet</p></div>
       </div>
       <div class="feature">
         <div class="feature-icon">🧠</div>
-        <div>
-          <h3>Perfil DISC</h3>
-          <p>Identifica o perfil comportamental do cliente para adaptar sua comunicação</p>
-        </div>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">🎯</div>
-        <div>
-          <h3>Condução</h3>
-          <p>Scripts de venda gerados ao vivo: Recapitulação, Apresentação e Fechamento</p>
-        </div>
+        <div><h3>Coach em Tempo Real</h3><p>Sugestões de abordagem, perfil DISC e alertas baseados no que o cliente está dizendo agora</p></div>
       </div>
       <div class="feature">
         <div class="feature-icon">📋</div>
-        <div>
-          <h3>Relatório Pós-Reunião</h3>
-          <p>Recapitulação completa com próximos passos e diagnóstico financeiro</p>
-        </div>
+        <div><h3>Relatório Pós-Reunião</h3><p>Recapitulação com próximos passos, diagnóstico financeiro e histórico de score</p></div>
       </div>
       <div class="feature">
-        <div class="feature-icon">💰</div>
-        <div>
-          <h3>Diagnóstico Financeiro</h3>
-          <p>Identifica capacidade de investimento e produto ideal para o cliente</p>
-        </div>
+        <div class="feature-icon">🖼️</div>
+        <div><h3>Cenário Visual com IA</h3><p>Gera imagens do estado atual e futuro do cliente com DALL-E 3 para apresentações impactantes</p></div>
       </div>
       <div class="feature">
         <div class="feature-icon">📊</div>
-        <div>
-          <h3>Dashboard de Reuniões</h3>
-          <p>Histórico de todas as reuniões com filtros e análise de performance</p>
-        </div>
+        <div><h3>Dashboard Completo</h3><p>Histórico de reuniões com filtros, gráficos de evolução de score e análise de performance</p></div>
       </div>
     </div>
 
     <div class="callout callout-info" style="margin-top:20px">
       <div class="callout-icon">🤖</div>
       <div class="callout-body">
-        <strong>IA com redundância automática</strong>
-        O SALEIA usa DeepSeek como provedor principal. Se houver instabilidade, muda automaticamente para OpenAI GPT-4o, depois Anthropic Claude e por último Google Gemini. Você nunca fica sem suporte de IA.
+        <strong>IA com fallback automático</strong>
+        O SALEIA usa DeepSeek como principal. Se houver instabilidade, muda automaticamente para OpenAI GPT-4o → Anthropic Claude → Google Gemini. Você nunca fica sem suporte de IA.
       </div>
     </div>
   </section>
 
-  <!-- ── 2. LOGIN E ACESSO ── -->
+  <!-- ── 2. ACESSO ── -->
   <section id="acesso">
-    <h2><span class="section-num">2</span> Login e Acesso</h2>
-    <p class="section-desc">O SALEIA exige autenticação. Você precisa de um login cadastrado pelo administrador para acessar qualquer funcionalidade.</p>
+    <h2><span class="section-num">2</span> Acesso ao Sistema</h2>
+    <p class="section-desc">O SALEIA funciona em nuvem — sem instalação de servidor local. Acesse pelo navegador ou pela extensão Chrome.</p>
 
     <div class="card">
-      <div class="card-title">🔐 Como fazer login</div>
-      <div class="steps">
+      <div class="card-title">🌐 URLs principais</div>
+      <div class="url-box">🔐 Login: <a href="https://api.saleia.com.br/login" target="_blank">https://api.saleia.com.br/login</a></div>
+      <div class="url-box">📊 Dashboard: <a href="https://api.saleia.com.br/dashboard" target="_blank">https://api.saleia.com.br/dashboard</a></div>
+      <div class="url-box">📖 Manual: <a href="https://api.saleia.com.br/manual" target="_blank">https://api.saleia.com.br/manual</a></div>
+      <div class="url-box">🩺 Status: <a href="https://api.saleia.com.br/health" target="_blank">https://api.saleia.com.br/health</a></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">🔑 Primeiro acesso — Cadastro</div>
+        <ol style="padding-left:18px;color:var(--muted);font-size:.92rem">
+          <li>Acesse a URL de login acima</li>
+          <li>Clique na aba <strong>Cadastro</strong></li>
+          <li>Preencha nome, e-mail e senha</li>
+          <li>Clique em <strong>Criar conta</strong></li>
+          <li>Aguarde a ativação pelo administrador</li>
+        </ol>
+      </div>
+      <div class="card">
+        <div class="card-title">🔒 Recuperar senha</div>
+        <ol style="padding-left:18px;color:var(--muted);font-size:.92rem">
+          <li>Na tela de login, clique em <strong>Esqueci minha senha</strong></li>
+          <li>Digite seu e-mail cadastrado</li>
+          <li>Clique em <strong>Enviar</strong></li>
+          <li>Acesse o link recebido no e-mail <em>(válido por 1 hora)</em></li>
+          <li>Digite a nova senha e confirme</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <strong>Sessão expira em 72 horas</strong>
+        Após 3 dias sem atividade, você será redirecionado para a tela de login automaticamente. Basta entrar novamente.
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 3. EXTENSÃO CHROME ── -->
+  <section id="extensao">
+    <h2><span class="section-num">3</span> Extensão Chrome</h2>
+    <p class="section-desc">A extensão conecta o Google Meet ao SALEIA. É necessária para análise em tempo real durante as reuniões.</p>
+
+    <div class="card">
+      <div class="card-title">📦 Instalação (uma única vez)</div>
+      <div class="steps" style="margin-top:8px">
         <div class="step">
           <div class="step-num"></div>
           <div class="step-body">
-            <h3>Acesse a plataforma</h3>
-            <p>Abra o navegador e acesse <code>https://api.saleia.com.br/login</code>. Você verá a tela de login com dois campos: e-mail e senha.</p>
+            <h3>Abrir o gerenciador de extensões</h3>
+            <p>No Chrome, acesse <code>chrome://extensions</code></p>
           </div>
         </div>
         <div class="step">
           <div class="step-num"></div>
           <div class="step-body">
-            <h3>Digite suas credenciais</h3>
-            <p>Use o e-mail e senha fornecidos pelo administrador. Clique em <strong>Entrar</strong>. Você será redirecionado ao dashboard automaticamente.</p>
+            <h3>Ativar o Modo desenvolvedor</h3>
+            <p>Chave no canto superior direito — deve ficar azul (ativado).</p>
           </div>
         </div>
         <div class="step">
           <div class="step-num"></div>
           <div class="step-body">
-            <h3>Primeiro acesso — cadastro</h3>
-            <p>Se ainda não tem conta, clique em <strong>Criar conta</strong> na tela de login. Preencha nome, e-mail, senha e código de convite (fornecido pelo admin). Sua conta ficará pendente até aprovação.</p>
+            <h3>Carregar a extensão</h3>
+            <p>Clique em <strong>Carregar sem compactação</strong> e selecione a pasta <code>SALEIA/chrome-extension</code>.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <h3>Confirmar instalação</h3>
+            <p>O ícone SALEIA aparece na barra do Chrome. Clique nele para ver o status de conexão com o servidor.</p>
           </div>
         </div>
       </div>
     </div>
 
     <div class="callout callout-tip">
-      <div class="callout-icon">💡</div>
+      <div class="callout-icon">🔄</div>
       <div class="callout-body">
-        <strong>Esqueceu a senha?</strong>
-        Clique em <strong>Esqueci minha senha</strong> na tela de login. Digite seu e-mail e você receberá um link para redefinir a senha.
+        <strong>Após qualquer atualização do sistema</strong>
+        Vá em <code>chrome://extensions</code> e clique no botão <strong>🔄 recarregar</strong> na extensão SALEIA. Isso aplica as novas versões sem precisar reinstalar.
       </div>
     </div>
 
-    <div class="card" style="margin-top:0">
-      <div class="card-title">👤 Perfis de usuário</div>
+    <div class="card">
+      <div class="card-title">🛡️ Permissões solicitadas</div>
       <table style="margin-top:8px">
-        <tr><th>Perfil</th><th>O que pode fazer</th></tr>
-        <tr><td><strong>Admin</strong></td><td>Tudo: gerenciar usuários, configurar APIs de IA, ver todas as reuniões</td></tr>
-        <tr><td><strong>Gerente</strong></td><td>Ver reuniões da equipe, gerar relatórios, acessar base de conhecimento</td></tr>
-        <tr><td><strong>Usuário</strong></td><td>Ver e analisar apenas as próprias reuniões</td></tr>
+        <tr><th>Permissão</th><th>Para que serve</th></tr>
+        <tr><td>Microfone</td><td>Capturar áudio da reunião para transcrição em tempo real</td></tr>
+        <tr><td>Storage</td><td>Salvar configurações e token de login localmente</td></tr>
+        <tr><td>meet.google.com</td><td>Injetar o painel lateral na página do Meet</td></tr>
+        <tr><td>api.saleia.com.br</td><td>Enviar chunks de áudio e receber análises da IA</td></tr>
       </table>
     </div>
   </section>
 
-  <!-- ── 3. INSTALAÇÃO ── -->
-  <section id="instalacao">
-    <h2><span class="section-num">3</span> Instalação da Extensão</h2>
-    <p class="section-desc">Faça uma vez e esqueça. O SALEIA inicia junto com o Chrome e ativa automaticamente no Google Meet.</p>
-
-    <div class="card">
-      <div class="card-title">📦 Pré-requisitos</div>
-      <ul style="padding-left:18px;color:var(--muted)">
-        <li>Google Chrome (versão 110 ou superior)</li>
-        <li>Login cadastrado no SALEIA (seção anterior)</li>
-        <li>Internet ativa para acessar a IA</li>
-      </ul>
-    </div>
+  <!-- ── 4. REUNIÃO ── -->
+  <section id="reuniao">
+    <h2><span class="section-num">4</span> Usando na Reunião</h2>
+    <p class="section-desc">Do início ao fim de uma reunião de vendas — passo a passo.</p>
 
     <div class="steps">
-      <div class="step">
-        <div class="step-num"></div>
-        <div class="step-body">
-          <h3>Instalar a extensão no Chrome</h3>
-          <ol style="padding-left:20px;color:var(--muted)">
-            <li>Abra o Chrome e acesse: <code>chrome://extensions</code></li>
-            <li>Ative o <strong>Modo desenvolvedor</strong> (canto superior direito)</li>
-            <li>Clique em <strong>Carregar sem compactação</strong></li>
-            <li>Selecione a pasta <code>chrome-extension</code> fornecida pelo admin</li>
-            <li>A extensão aparecerá com o ícone 🤖 na barra do Chrome</li>
-          </ol>
-        </div>
-      </div>
-
-      <div class="step">
-        <div class="step-num"></div>
-        <div class="step-body">
-          <h3>Verificar se está funcionando</h3>
-          <p>Clique no ícone 🤖 na barra do Chrome. O popup deve mostrar um ponto <span style="color:#00a86b">●</span> <strong style="color:#00a86b">verde</strong> com "Backend online". Se aparecer vermelho, verifique sua conexão com internet.</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="callout callout-info">
-      <div class="callout-icon">☁️</div>
-      <div class="callout-body">
-        <strong>Nada para instalar no seu computador</strong>
-        O SALEIA roda na nuvem em <code>api.saleia.com.br</code>. Você não precisa instalar nenhum servidor local — apenas a extensão do Chrome.
-      </div>
-    </div>
-  </section>
-
-  <!-- ── 4. PRIMEIRA REUNIÃO ── -->
-  <section id="primeira-reuniao">
-    <h2><span class="section-num">4</span> Usando na primeira reunião</h2>
-    <p class="section-desc">Do início ao fim de uma reunião de vendas.</p>
-
-    <div class="steps">
-
       <div class="step">
         <div class="step-num"></div>
         <div class="step-body">
           <h3>Entre no Google Meet normalmente</h3>
-          <p>Acesse <code>meet.google.com</code> e entre na reunião. O SALEIA vai detectar automaticamente.</p>
-        </div>
-      </div>
-
-      <div class="step">
-        <div class="step-num"></div>
-        <div class="step-body">
-          <h3>Ative as legendas (CC)</h3>
-          <p>Clique no botão <strong>CC</strong> na barra inferior do Google Meet. O SALEIA lê as legendas para analisar — sem elas, a análise em tempo real não funciona.</p>
-          <div class="callout callout-warn" style="margin-top:12px">
-            <div class="callout-icon">⚠️</div>
-            <div class="callout-body">As legendas precisam estar ativas para o SALEIA funcionar. Esse é o passo mais importante.</div>
+          <p>Acesse <code>meet.google.com</code> e entre na sala. O painel lateral SALEIA aparece automaticamente no lado direito.</p>
+          <div class="callout callout-tip" style="margin-top:10px">
+            <div class="callout-icon">💡</div>
+            <div class="callout-body">Se o painel não aparecer, clique no ícone SALEIA na barra do Chrome ou recarregue a página (F5).</div>
           </div>
         </div>
       </div>
-
       <div class="step">
         <div class="step-num"></div>
         <div class="step-body">
-          <h3>O painel lateral aparece automaticamente</h3>
-          <p>Em alguns segundos, uma barra lateral aparece no lado direito da tela com o SALEIA ativo. Se não aparecer, clique no ícone 🤖 do Chrome e depois em <strong>Ativar SALEIA</strong>.</p>
+          <h3>Faça login na sidebar</h3>
+          <p>Se for a primeira vez (ou após 72h), o painel pede seu e-mail e senha SALEIA. O token fica salvo — na maioria das reuniões você já estará logado.</p>
         </div>
       </div>
-
       <div class="step">
         <div class="step-num"></div>
         <div class="step-body">
-          <h3>Fale normalmente — a IA trabalha em segundo plano</h3>
-          <p>A cada fragmento de conversa captado, o SALEIA analisa e atualiza o painel em tempo real. Você não precisa fazer nada.</p>
+          <h3>Inicie a captura de áudio</h3>
+          <p>Clique em <strong>Iniciar captura de áudio</strong> na sidebar. O Chrome pedirá permissão de microfone — clique em <strong>Permitir</strong>.</p>
+          <p style="margin-top:6px">O status muda para "gravando..." e chunks de ~15 segundos são enviados automaticamente para transcrição.</p>
         </div>
       </div>
-
       <div class="step">
         <div class="step-num"></div>
         <div class="step-body">
-          <h3>Use o menu Condução para guiar a negociação</h3>
-          <p>No painel do cenário, o botão <strong>🎯 Condução ▾</strong> abre um menu com scripts prontos. Veja a seção 7 deste manual para detalhes completos.</p>
+          <h3>Conduza a reunião normalmente</h3>
+          <p>A cada análise, a sidebar atualiza com sugestões em tempo real. O contador "Próxima análise em Xs" mostra quando a IA processará novamente.</p>
+          <p style="margin-top:6px">Use o botão <strong>Cenário</strong> para acessar roteiros de apresentação, recapitulação ao vivo e fechamento gerados pela IA.</p>
         </div>
       </div>
-
       <div class="step">
         <div class="step-num"></div>
         <div class="step-body">
-          <h3>Ao final da reunião — gerar relatório completo</h3>
-          <p>Clique em <strong>Gerar Recapitulação</strong> no painel lateral. O sistema vai processar toda a conversa e gerar um relatório completo com:</p>
-          <ul>
-            <li>Resumo executivo</li>
-            <li>Probabilidade de fechamento</li>
-            <li>Perfil DISC identificado</li>
-            <li>Diagnóstico financeiro</li>
-            <li>Próximos passos sugeridos</li>
-            <li>Dores e objeções mapeadas</li>
-          </ul>
+          <h3>Encerre e consulte o relatório</h3>
+          <p>Clique em <strong>Parar captura</strong> na sidebar. O relatório completo fica disponível imediatamente no Dashboard com score final, perfil DISC, diagnóstico financeiro e próximos passos.</p>
         </div>
       </div>
-
     </div>
   </section>
 
-  <!-- ── 5. PAINEL LATERAL ── -->
+  <!-- ── 5. TRANSCRIÇÃO ── -->
+  <section id="transcricao">
+    <h2><span class="section-num">5</span> Transcrição de Áudio</h2>
+    <p class="section-desc">O SALEIA captura o microfone e converte fala em texto usando IA. Dois provedores disponíveis — configure no Dashboard.</p>
+
+    <div class="grid-2">
+      <div class="card" style="border-top: 3px solid var(--primary)">
+        <div class="card-title">🎵 OpenAI Whisper</div>
+        <table style="margin-top:8px">
+          <tr><td><strong>Modelo</strong></td><td><code>whisper-1</code></td></tr>
+          <tr><td><strong>Chave</strong></td><td>OPENAI_API_KEY</td></tr>
+          <tr><td><strong>Custo</strong></td><td>~$0,006 / min de áudio</td></tr>
+          <tr><td><strong>Qualidade</strong></td><td><span class="badge badge-blue">Alta</span></td></tr>
+        </table>
+      </div>
+      <div class="card" style="border-top: 3px solid var(--purple)">
+        <div class="card-title">⚡ Groq (Whisper Large v3)</div>
+        <table style="margin-top:8px">
+          <tr><td><strong>Modelo</strong></td><td><code>whisper-large-v3</code></td></tr>
+          <tr><td><strong>Chave</strong></td><td>GROQ_API_KEY</td></tr>
+          <tr><td><strong>Custo</strong></td><td>Grátis até ~7.200 min/dia</td></tr>
+          <tr><td><strong>Qualidade</strong></td><td><span class="badge badge-purple">Muito alta</span></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <strong>Recomendação: use o Groq</strong>
+        O <code>whisper-large-v3</code> do Groq é gratuito, mais preciso em português e mais rápido. Configure em Dashboard → Configurações → Transcrição de Áudio.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">⚙️ Como configurar o Groq (gratuito)</div>
+      <div class="steps" style="margin-top:8px">
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <h3>Criar conta no Groq</h3>
+            <p>Acesse <strong>console.groq.com</strong> e crie uma conta gratuita.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <h3>Gerar a chave de API</h3>
+            <p>No painel Groq: <strong>API Keys → Create API key</strong>. A chave começa com <code>gsk_</code> e tem ~54 caracteres.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <h3>Salvar no Dashboard SALEIA</h3>
+            <p>Dashboard → Configurações → Transcrição de Áudio → card <strong>Groq</strong> → cole a chave → clique 👁 para confirmar → <strong>Salvar chave</strong>.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <h3>Ativar o Groq</h3>
+            <p>Após salvar, clique em <strong>Usar este provedor</strong> no card Groq. O status muda para "✅ Provedor ativo".</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <strong>Erro "401 Invalid API Key" na sidebar</strong>
+        A chave Groq salva é inválida. Gere uma nova em console.groq.com e salve novamente. Use o botão 👁 para confirmar que a chave foi digitada corretamente antes de salvar.
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 6. SIDEBAR ── -->
   <section id="sidebar">
-    <h2><span class="section-num">5</span> O Painel Lateral (Sidebar)</h2>
-    <p class="section-desc">Tudo que você vê durante a reunião, explicado.</p>
+    <h2><span class="section-num">6</span> O Painel Lateral (Sidebar)</h2>
+    <p class="section-desc">Tudo que aparece durante a reunião, explicado.</p>
 
     <div class="grid-2">
       <div class="card">
-        <div class="card-title">🟢 Indicador de Status</div>
-        <p style="color:var(--muted);font-size:.92rem">Ponto no topo do painel indica a conexão com o backend:</p>
-        <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div style="width:10px;height:10px;border-radius:50%;background:#00a86b;flex-shrink:0"></div>
-            <span style="font-size:.9rem"><strong>Verde</strong> — IA conectada e funcionando</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:10px">
-            <div style="width:10px;height:10px;border-radius:50%;background:#ef4444;flex-shrink:0"></div>
-            <span style="font-size:.9rem"><strong>Vermelho</strong> — backend offline ou sem internet</span>
-          </div>
+        <div class="card-title">🟢 Status de Conexão</div>
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:10px"><div style="width:10px;height:10px;border-radius:50%;background:#00a86b;flex-shrink:0"></div><span style="font-size:.9rem"><strong>Verde</strong> — servidor conectado e funcionando</span></div>
+          <div style="display:flex;align-items:center;gap:10px"><div style="width:10px;height:10px;border-radius:50%;background:#ef4444;flex-shrink:0"></div><span style="font-size:.9rem"><strong>Vermelho</strong> — servidor offline ou sem internet</span></div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-title">🌡️ Nível de Empolgação</div>
-        <p style="color:var(--muted);font-size:.92rem">Indica o estado emocional do cliente no momento:</p>
-        <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px;font-size:.9rem">
-          <div>🔥 <strong>Alta</strong> — cliente animado, hora de avançar</div>
-          <div>😐 <strong>Média</strong> — cliente neutro, aprofunde as dores</div>
-          <div>❄️ <strong>Baixa</strong> — cliente resistente, mude a abordagem</div>
+        <div class="card-title">🎙️ Status de Transcrição</div>
+        <div style="margin-top:6px;font-size:.88rem;display:flex;flex-direction:column;gap:6px">
+          <div>🎙️ <strong>gravando...</strong> — áudio sendo capturado</div>
+          <div>✅ <strong>Transcrito:</strong> — chunk processado com sucesso</div>
+          <div>⚠️ <strong>Erro: ...</strong> — problema (chave inválida, servidor, etc.)</div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-title">💡 Dica da IA</div>
-        <p style="color:var(--muted);font-size:.92rem">Sugestão prática gerada com base no que o cliente acabou de dizer. Atualizada a cada análise. Ex: <em>"Cliente mencionou custo — apresente o ROI antes do preço."</em></p>
+        <div class="card-title">💡 Coach / Dica da IA</div>
+        <p style="color:var(--muted);font-size:.92rem">Sugestão gerada com base no que o cliente acabou de dizer. Atualizada a cada análise. Ex: <em>"Cliente mencionou custo — apresente o ROI antes do preço."</em></p>
       </div>
 
       <div class="card">
         <div class="card-title">🚨 Alerta Urgente</div>
-        <p style="color:var(--muted);font-size:.92rem">Aparece em vermelho quando a IA detecta um sinal crítico: objeção forte, risco de perda ou oportunidade de fechamento imediato. Prioridade máxima.</p>
+        <p style="color:var(--muted);font-size:.92rem">Destaque em vermelho quando a IA detecta objeção forte, risco de perda ou oportunidade de fechamento imediato. Prioridade máxima.</p>
       </div>
 
       <div class="card">
         <div class="card-title">🎯 Perfil DISC</div>
-        <p style="color:var(--muted);font-size:.92rem">Comportamento identificado do cliente. Cada tipo tem uma estratégia:</p>
-        <div style="margin-top:8px;font-size:.85rem;display:flex;flex-direction:column;gap:4px">
-          <div><strong>D — Dominante:</strong> seja direto, foque em resultados</div>
-          <div><strong>I — Influente:</strong> seja entusiasta, foque em visão</div>
-          <div><strong>S — Estável:</strong> seja calmo, foque em segurança</div>
-          <div><strong>C — Cauteloso:</strong> seja detalhista, foque em dados</div>
+        <div style="margin-top:8px;font-size:.88rem;display:flex;flex-direction:column;gap:4px">
+          <div><strong>D — Dominante:</strong> seja direto, foque em resultados e ROI</div>
+          <div><strong>I — Influente:</strong> seja entusiasta, foque em visão e possibilidades</div>
+          <div><strong>S — Estável:</strong> seja calmo, foque em segurança e suporte</div>
+          <div><strong>C — Cauteloso:</strong> seja detalhista, foque em dados e garantias</div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-title">🎯 Condução</div>
-        <p style="color:var(--muted);font-size:.92rem">Botão no painel de cenário que abre scripts personalizados para guiar a venda. Veja seção 7 para detalhes.</p>
+        <div class="card-title">🔄 Recapitulação Automática</div>
+        <p style="color:var(--muted);font-size:.92rem">Quando o cliente diz frases como <em>"me explica de novo"</em> ou <em>"resume para mim"</em>, a IA gera automaticamente um mapa mental da conversa na sidebar.</p>
       </div>
     </div>
   </section>
 
-  <!-- ── 6. SCORE ── -->
+  <!-- ── 7. SCORE ── -->
   <section id="score">
-    <h2><span class="section-num">6</span> Score de Compra (0 a 100)</h2>
-    <p class="section-desc">O número mais importante: a probabilidade do cliente fechar, calculada em tempo real pela IA.</p>
+    <h2><span class="section-num">7</span> Score de Compra (0 a 100)</h2>
+    <p class="section-desc">A probabilidade do cliente fechar, calculada em tempo real com base nos sinais detectados na conversa.</p>
 
     <div class="card">
       <div class="score-demo">
@@ -639,7 +574,7 @@
         </div>
         <div style="flex:1;min-width:160px">
           <div style="font-weight:700;color:#00a86b;margin-bottom:6px">O que fazer:</div>
-          <p style="color:var(--muted);font-size:.92rem">Avance para o fechamento. Use o menu <strong>Condução → Fechamento</strong> para um script personalizado. Apresente a proposta e peça o compromisso.</p>
+          <p style="color:var(--muted);font-size:.92rem">Avance para o fechamento. Apresente a proposta, mostre opções de pagamento e peça o compromisso diretamente.</p>
         </div>
       </div>
     </div>
@@ -647,12 +582,12 @@
     <div class="card">
       <div class="score-demo">
         <div class="score-item">
-          <div class="score-circle-demo" style="border-color:#f59e0b;color:#f59e0b">55</div>
+          <div class="score-circle-demo" style="border-color:#f59e0b;color:#f59e0b">52</div>
           <div class="score-label">Propensão média<br><span class="badge badge-orange">45–69</span></div>
         </div>
         <div style="flex:1;min-width:160px">
           <div style="font-weight:700;color:#b45309;margin-bottom:6px">O que fazer:</div>
-          <p style="color:var(--muted);font-size:.92rem">Aprofunde as dores. Use <strong>Condução → Apresentação</strong> para mostrar o programa ou a performance esperada. Faça perguntas sobre o problema que ele quer resolver.</p>
+          <p style="color:var(--muted);font-size:.92rem">Aprofunde as dores. Faça perguntas abertas, mostre casos de sucesso similares ao perfil do cliente.</p>
         </div>
       </div>
     </div>
@@ -665,101 +600,16 @@
         </div>
         <div style="flex:1;min-width:160px">
           <div style="font-weight:700;color:#ef4444;margin-bottom:6px">O que fazer:</div>
-          <p style="color:var(--muted);font-size:.92rem">Não force o fechamento. Use <strong>Condução → Recapitulação</strong> para retomar o que foi discutido. Trabalhe objeções ou agende um follow-up.</p>
+          <p style="color:var(--muted);font-size:.92rem">Não force o fechamento. Entenda a resistência, trabalhe objeções específicas ou agende follow-up com mais informações.</p>
         </div>
       </div>
     </div>
-
-    <div class="callout callout-tip">
-      <div class="callout-icon">💡</div>
-      <div class="callout-body">
-        <strong>Como o score é calculado?</strong>
-        A IA considera: temperatura emocional (+/−20), perfil DISC, dados financeiros confirmados (+10 cada), objeções de preço (−20) e perguntas sobre o produto (+10). Começa em 50 e sobe ou desce conforme a conversa evolui.
-      </div>
-    </div>
-  </section>
-
-  <!-- ── 7. CONDUÇÃO ── -->
-  <section id="conducao">
-    <h2><span class="section-num">7</span> Módulo Condução</h2>
-    <p class="section-desc">Scripts personalizados gerados ao vivo para guiar cada etapa da negociação — calibrados ao perfil DISC e à temperatura do cliente.</p>
 
     <div class="callout callout-info">
-      <div class="callout-icon">🎯</div>
+      <div class="callout-icon">ℹ️</div>
       <div class="callout-body">
-        <strong>O que é Condução?</strong>
-        É a terceira aba do painel de cenário (ao lado dos slides da reunião). O botão <strong>🎯 Condução ▾</strong> abre um menu com opções que geram um script de fala — exatamente o que você deve dizer para o cliente agora.
-      </div>
-    </div>
-
-    <div class="card" style="margin-top:16px">
-      <div class="card-title">📋 Menu de opções</div>
-      <div class="cond-demo">
-        <div class="cond-demo-btn">🎯 Condução ▾</div>
-        <div class="cond-demo-menu">
-          <div class="cond-demo-item">🔁 Recapitulação</div>
-          <div class="cond-demo-item">📊 Apresentação ▸
-            <div class="cond-demo-sub">🚀 Programa de Aceleração<br>📈 Performance</div>
-          </div>
-          <div class="cond-demo-item">🤝 Fechamento</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="grid-2" style="margin-top:16px">
-      <div class="card">
-        <div class="card-title">🔁 Recapitulação</div>
-        <p style="color:var(--muted);font-size:.92rem">Gera um resumo oral de até 5 frases do que foi discutido. Ideal para retomar o fio da conversa após uma pausa, ou quando o cliente parece perdido. O tom é adaptado ao perfil DISC.</p>
-        <p style="color:var(--muted);font-size:.85rem;margin-top:8px"><em>Quando usar: no início da parte de proposta, ou quando o cliente desviar do assunto.</em></p>
-      </div>
-      <div class="card">
-        <div class="card-title">🚀 Apresentação — Programa de Aceleração</div>
-        <p style="color:var(--muted);font-size:.92rem">Apresenta o Programa de Aceleração de forma personalizada: benefícios alinhados ao perfil do cliente, como o investimento se encaixa na realidade financeira e chamada para ação.</p>
-        <p style="color:var(--muted);font-size:.85rem;margin-top:8px"><em>Quando usar: quando o cliente já demonstrou interesse e é hora de apresentar a solução.</em></p>
-      </div>
-      <div class="card">
-        <div class="card-title">📈 Apresentação — Performance</div>
-        <p style="color:var(--muted);font-size:.92rem">Mostra três cenários de resultado esperado (conservador, provável, otimista) com base no perfil do cliente. Deixa claro que são estimativas, não garantias.</p>
-        <p style="color:var(--muted);font-size:.85rem;margin-top:8px"><em>Quando usar: quando o cliente pergunta "o que posso esperar de resultado?".</em></p>
-      </div>
-      <div class="card">
-        <div class="card-title">🤝 Fechamento</div>
-        <p style="color:var(--muted);font-size:.92rem">Script de fechamento calibrado pela temperatura: direto e decisivo (score ≥70), com ancoragem emocional (score 40–69), ou consultivo e de baixo risco (score &lt;40).</p>
-        <p style="color:var(--muted);font-size:.85rem;margin-top:8px"><em>Quando usar: quando o cliente sinalizou interesse e é hora de pedir o compromisso.</em></p>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">📌 Como usar a Condução na prática</div>
-      <div class="steps">
-        <div class="step">
-          <div class="step-num"></div>
-          <div class="step-body">
-            <h3>Abra o painel de cenário</h3>
-            <p>No dashboard, acesse a reunião ativa ou em andamento. O painel de cenário tem três abas: visão geral, diagnóstico e Condução.</p>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-num"></div>
-          <div class="step-body">
-            <h3>Clique em "🎯 Condução ▾"</h3>
-            <p>O menu dropdown abre. Escolha a opção adequada ao momento da reunião.</p>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-num"></div>
-          <div class="step-body">
-            <h3>Aguarde o script ser gerado</h3>
-            <p>Em 5–15 segundos, o painel lateral exibe o texto pronto. Use o botão <strong>📋 Copiar</strong> para copiar e, se quiser, colar em outro lugar.</p>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-num"></div>
-          <div class="step-body">
-            <h3>Fale naturalmente</h3>
-            <p>O script é uma sugestão — adapte à sua voz. Não leia roboticamente; internalize a ideia e transmita com naturalidade.</p>
-          </div>
-        </div>
+        <strong>O score começa em 50</strong>
+        Sobe com: temperatura emocional alta, dados financeiros confirmados, perguntas sobre o produto. Cai com: objeções de preço, resistência, sinais negativos. É normal ficar em 50 em reuniões curtas.
       </div>
     </div>
   </section>
@@ -767,252 +617,308 @@
   <!-- ── 8. RELATÓRIO ── -->
   <section id="relatorio">
     <h2><span class="section-num">8</span> Relatório Pós-Reunião</h2>
-    <p class="section-desc">Gerado automaticamente ao final de cada reunião. Salvo no banco de dados e acessível no dashboard.</p>
+    <p class="section-desc">Gerado automaticamente ao final de cada reunião. Salvo no banco de dados e acessível no Dashboard.</p>
 
     <div class="card">
-      <div class="card-title">📄 Como gerar o relatório</div>
-      <ol style="padding-left:20px;color:var(--muted);margin-top:8px">
-        <li style="margin-bottom:8px">Ao final da reunião, clique em <strong>Gerar Recapitulação</strong> no painel lateral <em>(aguarde 15–30 segundos)</em></li>
-        <li style="margin-bottom:8px">Ou acesse o <a href="/dashboard" style="color:var(--primary)">Dashboard</a> → clique na reunião → <strong>Gerar Análise Completa</strong></li>
-        <li>O relatório fica salvo e pode ser acessado a qualquer momento no histórico</li>
-      </ol>
-    </div>
-
-    <div class="card" style="margin-top:0">
       <div class="card-title">📋 O que o relatório contém</div>
       <table style="margin-top:8px">
         <tr><th>Seção</th><th>O que mostra</th></tr>
-        <tr><td>🎯 Score Final</td><td>Probabilidade de fechamento com justificativa</td></tr>
-        <tr><td>📋 Resumo Executivo</td><td>Síntese da conversa em 3–5 linhas</td></tr>
-        <tr><td>💭 Estado Emocional</td><td>Como o cliente saiu da reunião</td></tr>
-        <tr><td>🎯 Perfil DISC</td><td>Tipo comportamental + estratégia recomendada</td></tr>
+        <tr><td>🎯 Score Final</td><td>Probabilidade de fechamento com justificativa detalhada</td></tr>
+        <tr><td>📋 Resumo Executivo</td><td>Síntese da conversa em 3–5 linhas para enviar ao cliente</td></tr>
+        <tr><td>💭 Estado Emocional</td><td>Como o cliente saiu da reunião (animado, neutro, resistente)</td></tr>
+        <tr><td>🎯 Perfil DISC</td><td>Tipo comportamental + estratégia recomendada para o follow-up</td></tr>
         <tr><td>💰 Diagnóstico Financeiro</td><td>Faturamento estimado, capacidade de investimento, produto ideal</td></tr>
-        <tr><td>📌 Próximos Passos</td><td>Ações concretas com prazo e responsável</td></tr>
-        <tr><td>🩹 Dores Identificadas</td><td>Problemas que o cliente revelou durante a conversa</td></tr>
-        <tr><td>🛡️ Objeções Levantadas</td><td>Resistências que precisam ser trabalhadas no follow-up</td></tr>
+        <tr><td>📈 Histórico de Score</td><td>Evolução do score ao longo da reunião com momentos-chave</td></tr>
+        <tr><td>📌 Próximos Passos</td><td>Ações concretas sugeridas com responsável</td></tr>
+        <tr><td>🩹 Dores Identificadas</td><td>Problemas revelados pelo cliente durante a conversa</td></tr>
+        <tr><td>🛡️ Objeções Levantadas</td><td>Resistências a trabalhar no follow-up com contra-argumentos sugeridos</td></tr>
       </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title">✏️ Análise manual (sem extensão)</div>
+      <p style="color:var(--muted);font-size:.92rem;margin-bottom:12px">Tem a transcrição de uma reunião já encerrada? Gere o relatório assim:</p>
+      <ol style="padding-left:20px;color:var(--muted);font-size:.92rem">
+        <li>Acesse Dashboard → aba <strong>Relatórios</strong></li>
+        <li>Cole a transcrição e o nome da reunião</li>
+        <li>Clique em <strong>Analisar</strong> — aguarde 15–30 segundos</li>
+        <li>O relatório aparece na tela e fica salvo no histórico</li>
+      </ol>
     </div>
   </section>
 
   <!-- ── 9. DASHBOARD ── -->
   <section id="dashboard">
-    <h2><span class="section-num">9</span> Dashboard de Reuniões</h2>
-    <p class="section-desc">Visão geral de todas as reuniões realizadas, configurações do sistema e administração de usuários.</p>
+    <h2><span class="section-num">9</span> Dashboard</h2>
+    <p class="section-desc">Central de controle — disponível 24h em <strong>api.saleia.com.br/dashboard</strong>.</p>
 
-    <div class="callout callout-info">
-      <div class="callout-icon">🌐</div>
-      <div class="callout-body">
-        <strong>Acesse em:</strong>
-        <code>https://api.saleia.com.br/dashboard</code> — disponível de qualquer navegador, 24h por dia
-      </div>
-    </div>
-
-    <div class="grid-2" style="margin-top:20px">
+    <div class="grid-2">
       <div class="card">
-        <div class="card-title">📊 Dashboard</div>
-        <p style="color:var(--muted);font-size:.92rem">Métricas gerais: total de reuniões, quantas com alta/média/baixa propensão. As 5 mais recentes aparecem aqui.</p>
+        <div class="card-title">📊 Início</div>
+        <p style="color:var(--muted);font-size:.92rem">Visão geral: custo do período, score médio, reuniões recentes e gráfico de distribuição de propensão.</p>
       </div>
       <div class="card">
         <div class="card-title">📋 Reuniões</div>
-        <p style="color:var(--muted);font-size:.92rem">Lista completa com busca por título e filtro por propensão. Clique em qualquer reunião para ver o relatório completo.</p>
+        <p style="color:var(--muted);font-size:.92rem">Lista completa com filtros por data, provedor de IA e busca por texto. Score, DISC e provedor visíveis em cada card.</p>
       </div>
       <div class="card">
-        <div class="card-title">🔍 Analisar</div>
-        <p style="color:var(--muted);font-size:.92rem">Cole qualquer transcrição para gerar análise completa sem precisar do Google Meet. Útil para reuniões passadas ou gravadas em outras ferramentas.</p>
+        <div class="card-title">📈 Histórico</div>
+        <p style="color:var(--muted);font-size:.92rem">Gráfico de barras com evolução de score por reunião, momentos-chave e eventos estruturados de cada sessão.</p>
       </div>
       <div class="card">
-        <div class="card-title">⚙️ Configurações (Admin)</div>
-        <p style="color:var(--muted);font-size:.92rem">Exclusivo para administradores. Permite gerenciar usuários (ativar, inativar, excluir, alterar perfil/plano) e configurar chaves dos provedores de IA (DeepSeek, OpenAI, Anthropic, Gemini).</p>
+        <div class="card-title">📄 Relatórios</div>
+        <p style="color:var(--muted);font-size:.92rem">Análises manuais e diagnósticos financeiros. Cole uma transcrição para gerar relatório sem precisar da extensão.</p>
       </div>
-    </div>
-
-    <div class="callout callout-tip" style="margin-top:8px">
-      <div class="callout-icon">🔒</div>
-      <div class="callout-body">
-        <strong>Configurações só para admins</strong>
-        Se você tentar acessar o painel de configurações sem ser administrador, verá a mensagem "Apenas administradores podem gerenciar usuários e APIs". Entre em contato com o admin para solicitar permissões.
+      <div class="card">
+        <div class="card-title">🎬 Cenário (Condução)</div>
+        <p style="color:var(--muted);font-size:.92rem">Roteiros de apresentação, recapitulação ao vivo, fechamento e Cenário Visual com imagens DALL-E 3 do estado atual/futuro do cliente.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">⚙️ Configurações</div>
+        <p style="color:var(--muted);font-size:.92rem">Gerenciamento de usuários, chaves de API dos provedores de IA, configuração de transcrição de áudio e base de conhecimento (RAG).</p>
       </div>
     </div>
   </section>
 
-  <!-- ── 10. DICAS ── -->
+  <!-- ── 10. CONFIGURAÇÕES ── -->
+  <section id="configuracoes">
+    <h2><span class="section-num">10</span> Configurações <span style="font-size:.75rem;font-weight:400;color:var(--muted);margin-left:4px">(apenas admin)</span></h2>
+    <p class="section-desc">Dashboard → aba Configurações. Acesso restrito a administradores.</p>
+
+    <div class="card">
+      <div class="card-title">👥 Gerenciamento de Usuários</div>
+      <table style="margin-top:8px">
+        <tr><th>Ação</th><th>Como fazer</th></tr>
+        <tr><td>Ver todos os usuários</td><td>Lista com nome, e-mail, perfil (admin/user) e plano</td></tr>
+        <tr><td>Mudar perfil / plano</td><td>Botão Editar → selecione perfil ou plano → Salvar</td></tr>
+        <tr><td>Resetar senha</td><td>Botão Resetar Senha → nova senha enviada ao usuário</td></tr>
+        <tr><td>Desativar conta</td><td>Botão Desativar → usuário não consegue mais fazer login</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🤖 Provedores de IA</div>
+      <p style="color:var(--muted);font-size:.92rem;margin-bottom:12px">Configure as chaves de cada provedor. Ordem atual de fallback:</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+        <span class="badge badge-blue">1º DeepSeek</span>
+        <span style="color:var(--muted)">→</span>
+        <span class="badge badge-green">2º OpenAI</span>
+        <span style="color:var(--muted)">→</span>
+        <span class="badge badge-orange">3º Anthropic</span>
+        <span style="color:var(--muted)">→</span>
+        <span class="badge badge-purple">4º Gemini</span>
+      </div>
+      <table>
+        <tr><th>Ação</th><th>Descrição</th></tr>
+        <tr><td>Adicionar chave</td><td>Cole a chave de API → Salvar → chave fica mascarada (••••)</td></tr>
+        <tr><td>Testar</td><td>Envia uma chamada de teste para verificar se a chave está válida</td></tr>
+        <tr><td>Inativar</td><td>Remove o provedor da cadeia de fallback sem apagar a chave</td></tr>
+        <tr><td>Definir como principal</td><td>Move o provedor para a primeira posição da cadeia</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🎙️ Transcrição de Áudio</div>
+      <table style="margin-top:8px">
+        <tr><th>Elemento</th><th>Descrição</th></tr>
+        <tr><td>Card Whisper</td><td>Usa <code>OPENAI_API_KEY</code> já configurada — sem configuração extra</td></tr>
+        <tr><td>Card Groq</td><td>Cole a <code>GROQ_API_KEY</code> → 👁 para confirmar → <strong>Salvar chave</strong> → <strong>Usar este provedor</strong></td></tr>
+        <tr><td>Botão 👁 / 🙈</td><td>Mostra ou oculta a chave digitada para confirmar antes de salvar</td></tr>
+        <tr><td>✅ Provedor ativo</td><td>Indica qual está em uso — apenas um pode estar ativo por vez</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🧠 Base de Conhecimento (RAG)</div>
+      <p style="color:var(--muted);font-size:.92rem;margin-bottom:10px">Documentos que a IA usa como contexto extra — scripts de vendas, objeções comuns, cases de sucesso.</p>
+      <table>
+        <tr><th>Ação</th><th>Descrição</th></tr>
+        <tr><td>Adicionar documento</td><td>Título + tipo + texto → Adicionar → embedding gerado automaticamente</td></tr>
+        <tr><td>Exportar sessão</td><td>Converte a transcrição de uma reunião em documento da base</td></tr>
+        <tr><td>Excluir</td><td>Botão 🗑 → remove o documento e invalida o cache de busca</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── 11. DICAS ── -->
   <section id="dicas">
-    <h2><span class="section-num">10</span> Dicas para melhores resultados</h2>
-    <p class="section-desc">Como aproveitar o máximo do SALEIA.</p>
+    <h2><span class="section-num">11</span> Dicas para Melhores Resultados</h2>
+    <p class="section-desc">Como aproveitar o máximo do SALEIA em cada reunião.</p>
 
     <div class="steps">
-
       <div class="step">
         <div class="step-num"></div>
         <div class="step-body">
-          <h3>Ative as legendas automáticas do Google Meet</h3>
-          <p>Clique em <strong>CC</strong> na barra inferior do Meet antes de começar a conversa. Sem legendas, a análise em tempo real não funciona.</p>
+          <h3>Configure o Groq para transcrição gratuita e de alta qualidade</h3>
+          <p>O <code>whisper-large-v3</code> do Groq é gratuito até ~7.200 min/dia e mais preciso que o Whisper padrão. Configure uma vez e esqueça — veja a seção Transcrição para o passo a passo.</p>
         </div>
       </div>
-
       <div class="step">
         <div class="step-num"></div>
         <div class="step-body">
-          <h3>Fale o nome do cliente e a empresa no início</h3>
-          <p>Diga algo como: <em>"Fulano, da Empresa X, vou te contar como funciona..."</em> — a IA usa isso para personalizar as dicas, o relatório e os scripts de Condução.</p>
+          <h3>Diga o nome do cliente e empresa logo no início</h3>
+          <p>Algo como <em>"Fulano, da Empresa X..."</em> nos primeiros minutos. A IA usa isso para personalizar as dicas e o relatório final.</p>
         </div>
       </div>
-
       <div class="step">
         <div class="step-num"></div>
         <div class="step-body">
           <h3>Deixe o cliente falar sobre finanças naturalmente</h3>
-          <p>Quanto mais o cliente revelar sobre faturamento, investimentos e dores, mais preciso fica o diagnóstico financeiro e os scripts do módulo Condução.</p>
+          <p>Quanto mais o cliente revelar sobre faturamento e desafios, mais preciso fica o diagnóstico financeiro. Faça perguntas abertas: <em>"Me conta como está a situação atual..."</em></p>
         </div>
       </div>
-
       <div class="step">
         <div class="step-num"></div>
         <div class="step-body">
-          <h3>Use a Condução no momento certo</h3>
-          <p>Não gere scripts de Fechamento logo no início. Siga a ordem natural: Recapitulação → Apresentação → Fechamento. O score de compra indica quando avançar.</p>
+          <h3>Use a Condução para apresentações impactantes</h3>
+          <p>Durante a reunião, o botão <strong>Cenário</strong> abre roteiros de apresentação gerados pela IA com base no perfil do cliente. O Cenário Visual cria imagens do estado atual/futuro com DALL-E 3.</p>
         </div>
       </div>
-
       <div class="step">
         <div class="step-num"></div>
         <div class="step-body">
-          <h3>Revise o relatório em até 1 hora após a reunião</h3>
-          <p>Use o relatório para enviar um resumo para o cliente ou planejar o follow-up. Quanto mais rápido, mais impacto — o cliente ainda está com a reunião fresca na memória.</p>
+          <h3>Revise o relatório logo após a reunião</h3>
+          <p>Disponível imediatamente no Dashboard. Use-o para enviar um resumo ao cliente enquanto a conversa ainda está fresca — aumenta significativamente a taxa de conversão no follow-up.</p>
         </div>
       </div>
-
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <h3>Exporte reuniões de sucesso para a Base de Conhecimento</h3>
+          <p>Após reuniões que fecharam, exporte a sessão para a Base de IA. Nas próximas análises, o SALEIA usará esse contexto para dar sugestões ainda mais personalizadas ao seu mercado e produto.</p>
+        </div>
+      </div>
     </div>
   </section>
 
-  <!-- ── 11. FAQ ── -->
+  <!-- ── 12. FAQ ── -->
   <section id="faq">
-    <h2><span class="section-num">11</span> Dúvidas Frequentes</h2>
+    <h2><span class="section-num">12</span> Dúvidas Frequentes</h2>
     <p class="section-desc">Problemas comuns e como resolver.</p>
-
-    <details>
-      <summary>Não consigo fazer login</summary>
-      <div class="faq-body">
-        <ol style="padding-left:18px">
-          <li>Verifique se o e-mail e senha estão corretos</li>
-          <li>Clique em <strong>Esqueci minha senha</strong> para redefinir</li>
-          <li>Se sua conta está pendente, aguarde aprovação do administrador</li>
-          <li>Se o problema persistir, contate o administrador do sistema</li>
-        </ol>
-      </div>
-    </details>
 
     <details>
       <summary>O painel lateral não apareceu na reunião</summary>
       <div class="faq-body">
-        <ol style="padding-left:18px">
-          <li>Verifique se você está conectado ao SALEIA (ícone 🤖 verde no Chrome)</li>
-          <li>Clique no ícone 🤖 do Chrome e veja se o status é verde</li>
+        <ol>
+          <li>Verifique o status em <code>https://api.saleia.com.br/health</code></li>
+          <li>Clique no ícone SALEIA na barra do Chrome — verifique se está verde</li>
           <li>Recarregue a página do Google Meet (<code>F5</code>)</li>
-          <li>Se ainda não aparecer, desative e reative a extensão em <code>chrome://extensions</code></li>
+          <li>Se ainda não aparecer: <code>chrome://extensions</code> → botão 🔄 recarregar na extensão SALEIA</li>
         </ol>
       </div>
     </details>
 
     <details>
-      <summary>As dicas em tempo real pararam de atualizar</summary>
+      <summary>Erro "401 Invalid API Key" na barra de status da sidebar</summary>
       <div class="faq-body">
-        <p>Verifique se as <strong>legendas do Meet estão ativas</strong> (botão CC na barra inferior). Se as legendas estiverem ativas mas as dicas pararam, verifique sua conexão com a internet. O ícone 🤖 ficará vermelho se o backend estiver inacessível.</p>
+        <p>A chave Groq salva no servidor é inválida. Para resolver:</p>
+        <ol>
+          <li>Acesse <strong>console.groq.com</strong> → API Keys → Create API key</li>
+          <li>Copie a nova chave (começa com <code>gsk_</code>, ~54 caracteres)</li>
+          <li>Dashboard → Configurações → Transcrição de Áudio → card Groq → cole a chave</li>
+          <li>Clique 👁 para confirmar o valor → <strong>Salvar chave</strong> → <strong>Usar este provedor</strong></li>
+        </ol>
+        <p style="margin-top:10px"><strong>Alternativa rápida:</strong> mude para Whisper no card OpenAI Whisper → <strong>Usar este provedor</strong>.</p>
       </div>
     </details>
 
     <details>
-      <summary>A Condução retornou um erro ou demorou muito</summary>
+      <summary>A captura de áudio inicia mas nada é transcrito</summary>
       <div class="faq-body">
-        <p>O script de Condução depende dos dados da reunião ativa (perfil DISC, score, dados financeiros). Se a análise ainda não gerou esses dados, aguarde alguns segundos para a IA processar mais da conversa e tente novamente. Em caso de erro persistente, a IA pode estar trocando de provedor — aguarde 30 segundos.</p>
+        <ul>
+          <li><strong>Chave de API inválida:</strong> erro aparece na barra de status (⚠️) — veja a FAQ acima</li>
+          <li><strong>Microfone incorreto:</strong> clique no ícone de cadeado/câmera na barra de endereço do Chrome e verifique se o microfone selecionado é o correto</li>
+          <li><strong>Áudio muito baixo:</strong> chunks menores que 512 bytes são descartados — aproxime-se do microfone</li>
+          <li><strong>Servidor reiniciando:</strong> aguarde 5–10 segundos e o próximo chunk será enviado automaticamente</li>
+        </ul>
       </div>
     </details>
 
     <details>
-      <summary>O relatório demorou muito para gerar</summary>
+      <summary>As análises em tempo real pararam de atualizar</summary>
       <div class="faq-body">
-        <p>O relatório completo pode levar de 15 a 45 segundos. Se demorar mais de 1 minuto, o SALEIA vai tentar automaticamente outro provedor de IA (OpenAI, Claude ou Gemini). Se travar, recarregue a página e tente novamente.</p>
+        <p>Verifique o contador "Próxima análise em Xs". Se estiver parado, o backend pode ter tido um pico de uso — aguarde o próximo ciclo automático. Se o problema persistir por mais de 2 minutos, verifique <code>https://api.saleia.com.br/health</code> e recarregue a página do Meet.</p>
       </div>
     </details>
 
     <details>
-      <summary>O score está em 50 durante toda a reunião</summary>
+      <summary>O relatório demorou muito ou travou</summary>
       <div class="faq-body">
-        <p>50 é o score inicial. Ele só sobe ou desce quando a IA identifica sinais claros — temperatura emocional, dados financeiros, objeções. Se o cliente fala pouco ou a reunião é curta, o score pode permanecer neutro. Isso é normal.</p>
+        <p>O relatório completo usa múltiplas análises e pode levar 15–45 segundos. Se demorar mais de 1 minuto, o sistema tentará automaticamente o próximo provedor de IA (DeepSeek → OpenAI → Anthropic → Gemini). Se travar completamente, recarregue a página — o relatório pode já ter sido salvo no Dashboard.</p>
       </div>
     </details>
 
     <details>
-      <summary>A extensão pede permissão para acessar o microfone</summary>
+      <summary>Esqueci a senha e não recebi o e-mail de recuperação</summary>
       <div class="faq-body">
-        <p>O SALEIA <strong>não acessa o microfone</strong>. Ele lê as legendas automáticas geradas pelo próprio Google Meet. Se o Chrome pedir permissão de microfone, é o próprio Meet pedindo para a videochamada — isso é normal e necessário para a reunião.</p>
+        <ol>
+          <li>Verifique a pasta de spam / lixo eletrônico</li>
+          <li>Confirme que o e-mail digitado é o mesmo cadastrado no sistema</li>
+          <li>O link expira em 1 hora — se expirou, clique em "Esqueci minha senha" novamente</li>
+          <li>Se persistir, contate o administrador do sistema</li>
+        </ol>
       </div>
     </details>
 
     <details>
-      <summary>Apareceu "Serviço de IA indisponível" durante a reunião</summary>
+      <summary>A extensão pede permissão de microfone — é seguro?</summary>
       <div class="faq-body">
-        <p>Isso significa que todos os provedores de IA estão com instabilidade simultânea. Situação rara. O SALEIA vai tentar novamente automaticamente na próxima análise. Se persistir, verifique sua conexão com a internet.</p>
+        <p>Sim, é esperado e seguro. O SALEIA precisa do microfone para transcrição de áudio em tempo real. O áudio é enviado em fragmentos de ~15 segundos ao servidor SALEIA para transcrição e <strong>não fica armazenado como áudio</strong> — somente o texto gerado é salvo.</p>
       </div>
     </details>
 
     <details>
-      <summary>Quero usar o SALEIA em reuniões que já aconteceram</summary>
+      <summary>Como usar o SALEIA em reuniões já encerradas?</summary>
       <div class="faq-body">
-        <p>Use a aba <strong>Analisar</strong> no Dashboard. Cole a transcrição (pode copiar do Tactiq, Otter.ai, ou qualquer ferramenta de transcrição) e clique em Analisar. Você terá o relatório completo mesmo sem a extensão ativa.</p>
+        <p>Use o <strong>Dashboard → Relatórios → Análise Manual</strong>. Cole a transcrição (do Tactiq, Otter.ai, gravação do Meet, ou qualquer fonte) e clique em Analisar. Você receberá o relatório completo com DISC, score e diagnóstico financeiro sem precisar da extensão ativa.</p>
       </div>
     </details>
 
     <details>
-      <summary>Como faço para adicionar a extensão em outro computador?</summary>
+      <summary>Como instalar a extensão em outro computador?</summary>
       <div class="faq-body">
-        <p>Copie a pasta <code>chrome-extension</code> para o outro computador e siga os passos da seção de instalação. O backend fica na nuvem (<code>api.saleia.com.br</code>), então não é necessário instalar nada além da extensão. Use as mesmas credenciais de login.</p>
+        <p>Copie a pasta <code>chrome-extension</code> para o outro computador e siga os passos da seção <strong>Extensão Chrome</strong>. O backend já está em nuvem — não é necessário instalar nada mais além da extensão. Faça login com sua conta SALEIA normalmente.</p>
       </div>
     </details>
 
     <details>
-      <summary>Como solicitar acesso para um novo membro da equipe?</summary>
+      <summary>Aparece "Serviço de IA indisponível" durante a reunião</summary>
       <div class="faq-body">
-        <p>O administrador do sistema deve criar a conta pelo painel de <strong>Configurações → Gerenciamento de Usuários</strong> no dashboard, ou o novo membro pode se cadastrar na tela de login e o admin ativa a conta.</p>
+        <p>Todos os provedores de IA (DeepSeek, OpenAI, Anthropic, Gemini) estão com instabilidade simultânea — situação muito rara. O SALEIA tentará novamente automaticamente no próximo ciclo. Se persistir, verifique sua conexão com a internet e o status em <code>https://api.saleia.com.br/health</code>.</p>
       </div>
     </details>
-
   </section>
 
   <!-- ── Contato ── -->
   <div class="card" style="background:var(--primary-light);border-color:var(--primary)33;text-align:center;padding:32px">
     <div style="font-size:2rem;margin-bottom:10px">🤝</div>
     <div style="font-weight:700;font-size:1.1rem;margin-bottom:6px">Precisa de ajuda?</div>
-    <p style="color:var(--muted)">Entre em contato com o administrador do sistema ou acesse o Dashboard para verificar o status dos serviços.</p>
+    <p style="color:var(--muted)">Entre em contato com o administrador ou use os links abaixo para acessar o sistema diretamente.</p>
     <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-      <a href="/dashboard" style="background:var(--primary);color:white;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:600">Abrir Dashboard</a>
-      <a href="/health" style="background:white;color:var(--primary);padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:600;border:1px solid var(--primary)">Status do Sistema</a>
+      <a href="https://api.saleia.com.br/dashboard" style="background:var(--primary);color:white;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:600">Abrir Dashboard</a>
+      <a href="https://api.saleia.com.br/health" style="background:white;color:var(--primary);padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:600;border:1px solid var(--primary)">Status do Sistema</a>
+      <a href="https://api.saleia.com.br/login" style="background:white;color:var(--muted);padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:600;border:1px solid var(--border)">Login</a>
     </div>
   </div>
 
 </div>
 
 <footer>
-  SALEIA v1.3.3 · api.saleia.com.br · Copyright © 2026 HEXAGON TECNOLOGIA. Todos os direitos reservados.
+  SALEIA v1.4.5 · api.saleia.com.br · Junho 2026
 </footer>
 
 <script>
   const sections = document.querySelectorAll('section[id]');
   const links = document.querySelectorAll('.nav-link');
-
   const obs = new IntersectionObserver(entries => {
     entries.forEach(e => {
       if (e.isIntersecting) {
         links.forEach(l => { l.style.color = ''; l.style.borderBottomColor = ''; });
         const active = document.querySelector(`.nav-link[href="#${e.target.id}"]`);
-        if (active) {
-          active.style.color = 'var(--primary)';
-          active.style.borderBottomColor = 'var(--primary)';
-        }
+        if (active) { active.style.color = 'var(--primary)'; active.style.borderBottomColor = 'var(--primary)'; }
       }
     });
   }, { rootMargin: '-60px 0px -80% 0px' });
-
   sections.forEach(s => obs.observe(s));
 </script>
 </body>
