@@ -368,7 +368,7 @@
         onkeydown="if(event.key==='Enter')definirMeeting()" />
       <button class="vs-back" onclick="definirMeeting()">Entrar</button>
     </div>
-    <a class="vs-back" id="btn-back" href="/">← Início</a>
+    <a class="vs-back" id="btn-back" href="/dashboard">← Início</a>
   </div>
 </header>
 
@@ -542,7 +542,8 @@
     const tag  = document.getElementById('meeting-tag');
     const back = document.getElementById('btn-back');
     const wrap = document.getElementById('meeting-input-wrap');
-    back.href = '/';
+    const midCode = mid ? mid.replace(/^https?:\/\/meet\.google\.com\//, '').split('?')[0].replace(/\/$/, '') : '';
+    back.href = midCode ? `/cenario/${midCode}` : '/dashboard';
     if (mid) {
       tag.textContent = `Reunião: ${mid}`;
       tag.style.cursor = 'default';

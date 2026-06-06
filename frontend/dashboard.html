@@ -1140,10 +1140,11 @@
               <input type="text" id="an-vendedor" class="field-input" placeholder="Nome do vendedor" aria-label="Nome do vendedor" />
             </div>
             <div class="field-group" style="margin-bottom:0">
-              <label class="field-label" for="an-cliente">
-                <span class="participant-badge cliente">👤 Cliente</span>
-              </label>
-              <input type="text" id="an-cliente" class="field-input" placeholder="Nome do cliente" aria-label="Nome do cliente" />
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <span class="participant-badge cliente">👤 Clientes</span>
+                <button type="button" class="btn-add-participant" onclick="adicionarCliente()" style="font-size:.75rem;padding:4px 12px">+ Cliente</button>
+              </div>
+              <div id="clientes-lista"></div>
             </div>
           </div>
 
@@ -1448,6 +1449,7 @@
   let _reunioesCache = [];
   let _paginaAnterior = 'reunioes';
   let _participantesExtras = [];
+  let _clientesLista = [{ id: Date.now(), nome: '' }];
 
   function obterApiSalva() {
     const fallback = (_host === 'localhost' || _host === '127.0.0.1')
@@ -2395,7 +2397,9 @@
   /* ─── Detectar falas ──────────────────────────────── */
   function detectarFalas(transcricao, nomes = {}, extras = []) {
     const vendedorNome = (nomes.vendedor || '').trim();
-    const clienteNome  = (nomes.cliente  || '').trim();
+    const clienteNomes = Array.isArray(nomes.clientes)
+      ? nomes.clientes.filter(Boolean).map(n => n.trim())
+      : (nomes.cliente ? [nomes.cliente.trim()] : []);
     const vendedorAliases = ['vendedor', 'consultor', 'paulo', 'paulo henrique', 'voce', 'você'];
     const clienteAliases  = ['cliente', 'participante'];
     const falas = [];
@@ -2415,7 +2419,7 @@
       let role = 'desconhecido';
 
       if (vendedorNome && normalized === norm(vendedorNome)) role = 'vendedor';
-      else if (clienteNome && normalized === norm(clienteNome)) role = 'cliente';
+      else if (clienteNomes.some(n => n && normalized === norm(n))) role = 'cliente';
       else if (extraMap[normalized]) role = extraMap[normalized];
       else if (vendedorAliases.includes(normalized)) role = 'vendedor';
       else if (clienteAliases.includes(normalized)) role = 'cliente';
@@ -2423,7 +2427,7 @@
       const speaker = role === 'vendedor'
         ? (vendedorNome || speakerOriginal || 'Vendedor')
         : role === 'cliente'
-          ? (clienteNome || speakerOriginal || 'Cliente')
+          ? (speakerOriginal || clienteNomes[0] || 'Cliente')
           : (speakerOriginal || 'Participante não identificado');
 
       falas.push({ role, speaker, text });
@@ -2631,6 +2635,44 @@
     document.querySelectorAll('.nav-item')[idx]?.classList.add('active');
   }
 
+  /* ─── Clientes múltiplos ──────────────────────────── */
+  function adicionarCliente() {
+    _clientesLista.push({ id: Date.now(), nome: '' });
+    renderizarClientes();
+  }
+
+  function removerCliente(id) {
+    if (_clientesLista.length <= 1) return;
+    _clientesLista = _clientesLista.filter(c => c.id !== id);
+    renderizarClientes();
+  }
+
+  function atualizarCliente(id, valor) {
+    const c = _clientesLista.find(x => x.id === id);
+    if (c) c.nome = valor;
+  }
+
+  function renderizarClientes() {
+    const container = document.getElementById('clientes-lista');
+    if (!container) return;
+    container.innerHTML = _clientesLista.map((c, idx) => `
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+        <input
+          type="text"
+          class="field-input"
+          placeholder="Nome do cliente${_clientesLista.length > 1 ? ' ' + (idx + 1) : ''}"
+          value="${c.nome.replace(/"/g, '&quot;')}"
+          oninput="atualizarCliente(${c.id}, this.value)"
+          aria-label="Nome do cliente"
+          style="flex:1;margin-bottom:0"
+        />
+        ${_clientesLista.length > 1
+          ? `<button class="btn-remove-participant" onclick="removerCliente(${c.id})" title="Remover cliente" style="height:38px">✕</button>`
+          : ''}
+      </div>
+    `).join('');
+  }
+
   /* ─── Participantes extras ────────────────────────── */
   const PAPEIS = ['vendedor', 'cliente', 'gerente', 'consultor', 'observador'];
 
@@ -2699,7 +2741,7 @@
     const transcricao = document.getElementById('an-transcricao').value.trim();
     const titulo      = document.getElementById('an-titulo').value.trim() || 'Reunião Manual';
     const vendedor    = document.getElementById('an-vendedor')?.value.trim() || '';
-    const cliente     = document.getElementById('an-cliente')?.value.trim() || '';
+    const clientes    = _clientesLista.map(c => c.nome.trim()).filter(Boolean);
     const resultado   = document.getElementById('an-resultado');
     const erroEl      = document.getElementById('an-erro');
     const btn         = document.getElementById('btn-analisar');
@@ -2720,7 +2762,7 @@
     }
 
     // Build participant map
-    const nomes  = { vendedor, cliente };
+    const nomes  = { vendedor, clientes };
     const extras = _participantesExtras.filter(p => p.nome.trim());
     const falasSeparadas = detectarFalas(transcricao, nomes, extras);
     const transcricaoComParticipantes = falasSeparadas.length
@@ -3321,6 +3363,7 @@
 
   /* ─── Init ────────────────────────────────────────── */
   carregarDashboard();
+  renderizarClientes();
   setInterval(verificarBackend, 10000);
 
   document.addEventListener('keydown', e => {

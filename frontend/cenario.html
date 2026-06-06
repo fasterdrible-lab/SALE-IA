@@ -8,17 +8,17 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --verde:   #14B8A6;
-      --azul:    #38BDF8;
-      --roxo:    #A78BFA;
-      --laranja: #F97316;
+      --verde:   #D4AF37;
+      --azul:    #F5C542;
+      --roxo:    #D4AF37;
+      --laranja: #F59E0B;
       --vermelho:#EF4444;
-      --bg:      #2D2B3D;
-      --card:    #252338;
-      --card2:   #201E30;
-      --borda:   #3D3B52;
-      --texto:   #F8FAFC;
-      --muted:   #9D9BB8;
+      --bg:      #0A0A0A;
+      --card:    #111111;
+      --card2:   #000000;
+      --borda:   rgba(212,175,55,0.18);
+      --texto:   #F0F0F0;
+      --muted:   #888;
     }
 
     html, body {
@@ -34,7 +34,7 @@
       position: fixed;
       top: 0; left: 0; right: 0;
       height: 56px;
-      background: rgba(32,30,48,.97);
+      background: rgba(0,0,0,.97);
       border-bottom: 1px solid var(--borda);
       display: flex;
       align-items: center;
@@ -180,7 +180,7 @@
 
     /* ── PRODUTO CARD ─────────────────────────── */
     .produto-hero {
-      background: linear-gradient(135deg, #1E1C2E, #201E30);
+      background: linear-gradient(135deg, #111111, #0A0A0A);
       border: 1px solid var(--verde);
       border-radius: 16px;
       padding: 30px;
@@ -234,7 +234,7 @@
       font-weight: 800; font-size: .9rem;
       text-align: center;
       flex-shrink: 0;
-      box-shadow: 0 0 48px rgba(20,184,166,.25);
+      box-shadow: 0 0 48px rgba(212,175,55,.25);
     }
     .mapa-ramos {
       display: flex;
@@ -266,7 +266,7 @@
       position: fixed;
       bottom: 0; left: 0; right: 0;
       height: 60px;
-      background: rgba(32,30,48,.97);
+      background: rgba(0,0,0,.97);
       border-top: 1px solid var(--borda);
       display: flex;
       align-items: center;
@@ -318,7 +318,7 @@
       position: absolute;
       bottom: 52px; right: 0;
       min-width: 210px;
-      background: rgba(32,30,48,.98);
+      background: rgba(0,0,0,.98);
       border: 1px solid var(--borda);
       border-radius: 10px;
       box-shadow: 0 -8px 32px rgba(0,0,0,.55);
@@ -332,12 +332,12 @@
       color: var(--texto); font-size: .9rem; font-weight: 500;
       transition: background .15s, color .15s; position: relative;
     }
-    .cond-item:hover { background: rgba(20,184,166,.1); color: var(--verde); }
+    .cond-item:hover { background: rgba(212,175,55,.1); color: var(--verde); }
     .cond-submenu {
       position: absolute;
       bottom: 0; right: 100%; margin-right: 6px;
       min-width: 210px;
-      background: rgba(32,30,48,.98);
+      background: rgba(0,0,0,.98);
       border: 1px solid var(--borda);
       border-radius: 10px;
       box-shadow: -8px 0 32px rgba(0,0,0,.5);
@@ -345,7 +345,7 @@
     }
     .cond-overlay {
       position: fixed; inset: 0;
-      background: rgba(30,28,46,.82);
+      background: rgba(0,0,0,.82);
       z-index: 300;
       display: flex; align-items: center; justify-content: center;
       backdrop-filter: blur(4px);
@@ -366,7 +366,7 @@
     .cond-panel-header {
       display: flex; align-items: center; justify-content: space-between;
       padding: 16px 20px; border-bottom: 1px solid var(--borda);
-      background: rgba(32,30,48,.8); flex-shrink: 0;
+      background: rgba(0,0,0,.8); flex-shrink: 0;
     }
     .cond-panel-titulo { font-weight: 700; font-size: 1rem; color: #fff; }
     .cond-panel-fechar {
@@ -383,11 +383,11 @@
       display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;
     }
     .cond-btn-copiar {
-      background: rgba(20,184,166,.12); border: 1px solid rgba(20,184,166,.35);
+      background: rgba(212,175,55,.12); border: 1px solid rgba(212,175,55,.35);
       color: var(--verde); padding: 7px 18px; border-radius: 7px;
       font-size: .85rem; font-weight: 600; cursor: pointer; transition: background .15s;
     }
-    .cond-btn-copiar:hover { background: rgba(20,184,166,.22); }
+    .cond-btn-copiar:hover { background: rgba(212,175,55,.22); }
     .cond-spinner {
       display: flex; flex-direction: column;
       align-items: center; justify-content: center; padding: 40px 0; color: var(--muted);
@@ -428,7 +428,7 @@
       flex-direction: column;
       gap: 3px;
     }
-    .mapa-inline-card.destaque { border-color: rgba(20,184,166,.4); }
+    .mapa-inline-card.destaque { border-color: rgba(212,175,55,.4); }
     .mapa-inline-icone { font-size: 1.2rem; margin-bottom: 4px; }
     .mapa-inline-card strong {
       font-size: .78rem;

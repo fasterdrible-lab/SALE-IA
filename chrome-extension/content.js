@@ -73,7 +73,7 @@
     ultimoIndexEnviado: 0,  // tracks last committed entry sent to DB
     participantes: {
       vendedor: 'Vendedor',
-      cliente: 'Cliente',
+      clientes: ['Cliente'],
     },
   };
 
@@ -82,7 +82,13 @@
     if (result.saleiaAtivo === false) estado.ativo = false;
     chrome.storage.local.get(['saleiaParticipantes'], function (dadosParticipantes) {
       if (dadosParticipantes.saleiaParticipantes) {
-        estado.participantes = Object.assign({}, estado.participantes, dadosParticipantes.saleiaParticipantes);
+        var saved = dadosParticipantes.saleiaParticipantes;
+        estado.participantes.vendedor = saved.vendedor || 'Vendedor';
+        if (Array.isArray(saved.clientes) && saved.clientes.length) {
+          estado.participantes.clientes = saved.clientes;
+        } else if (saved.cliente) {
+          estado.participantes.clientes = [saved.cliente];
+        }
       }
       iniciar();
     });
@@ -333,8 +339,11 @@
           <div class="saleia-modal-title">Participantes</div>
           <label>Nome do vendedor</label>
           <input id="saleia-input-vendedor" type="text" placeholder="Vendedor" />
-          <label>Nome do cliente</label>
-          <input id="saleia-input-cliente" type="text" placeholder="Cliente" />
+          <div style="display:flex;align-items:center;justify-content:space-between;margin:10px 0 5px">
+            <label style="margin:0;color:#888;font-size:12px">Clientes</label>
+            <button id="saleia-btn-add-cliente" style="background:none;border:1px dashed rgba(212,175,55,0.5);color:#D4AF37;padding:2px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:700">+ Adicionar</button>
+          </div>
+          <div id="saleia-clientes-lista"></div>
           <div class="saleia-modal-actions">
             <button id="saleia-btn-salvar-participantes" class="saleia-recap-btn">Salvar</button>
             <button id="saleia-btn-cancelar-participantes" class="saleia-recap-btn">Cancelar</button>
@@ -402,29 +411,67 @@
       .toLowerCase();
   }
 
+  var _clientesModal = [''];
+
+  function renderizarClientesModal() {
+    var container = document.getElementById('saleia-clientes-lista');
+    if (!container) return;
+    container.innerHTML = _clientesModal.map(function(nome, idx) {
+      return '<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">' +
+        '<input type="text" placeholder="Cliente' + (_clientesModal.length > 1 ? ' ' + (idx + 1) : '') + '" ' +
+        'value="' + nome.replace(/"/g, '&quot;') + '" ' +
+        'data-ci="' + idx + '" ' +
+        'style="width:100%;background:#1A1A1A;color:#F0F0F0;border:1px solid rgba(212,175,55,0.25);border-radius:7px;padding:7px 10px;font-size:12px;outline:none;flex:1" />' +
+        (_clientesModal.length > 1
+          ? '<button data-ri="' + idx + '" style="background:none;border:1px solid rgba(239,68,68,.3);color:#EF4444;border-radius:6px;width:28px;height:28px;cursor:pointer;flex-shrink:0;font-size:13px;line-height:1">✕</button>'
+          : '') +
+        '</div>';
+    }).join('');
+
+    container.onclick = function(e) {
+      var ri = e.target.getAttribute('data-ri');
+      if (ri !== null && _clientesModal.length > 1) {
+        _clientesModal.splice(parseInt(ri, 10), 1);
+        renderizarClientesModal();
+      }
+    };
+
+    container.oninput = function(e) {
+      var ci = e.target.getAttribute('data-ci');
+      if (ci !== null) _clientesModal[parseInt(ci, 10)] = e.target.value;
+    };
+  }
+
   function rotuloParticipante(speaker) {
     var nome = String(speaker || '').trim();
     var normalizado = normalizarNomeParticipante(nome);
     var vendedor = estado.participantes.vendedor || 'Vendedor';
-    var cliente = estado.participantes.cliente || 'Cliente';
+    var clientes = estado.participantes.clientes || ['Cliente'];
+    var primeiroCliente = clientes[0] || 'Cliente';
 
-    if (!normalizado || normalizado === 'participante' || normalizado === 'cliente') return cliente;
+    if (!normalizado || normalizado === 'participante' || normalizado === 'cliente') return primeiroCliente;
     if (normalizado === 'voce' || normalizado === 'vendedor' || normalizado === normalizarNomeParticipante(vendedor)) return vendedor;
-    if (normalizado === normalizarNomeParticipante(cliente)) return cliente;
+    for (var i = 0; i < clientes.length; i++) {
+      if (clientes[i] && normalizado === normalizarNomeParticipante(clientes[i])) return clientes[i];
+    }
     return nome;
   }
 
   function atualizarResumoParticipantes() {
     var el = document.getElementById('saleia-participantes-resumo');
     if (!el) return;
-    el.textContent = (estado.participantes.vendedor || 'Vendedor') + ' -> ' + (estado.participantes.cliente || 'Cliente');
+    var clientes = estado.participantes.clientes || ['Cliente'];
+    el.textContent = (estado.participantes.vendedor || 'Vendedor') + ' -> ' + clientes.join(', ');
   }
 
   function abrirModalParticipantes() {
     var modal = document.getElementById('saleia-participantes-modal');
     if (!modal) return;
     document.getElementById('saleia-input-vendedor').value = estado.participantes.vendedor || '';
-    document.getElementById('saleia-input-cliente').value = estado.participantes.cliente || '';
+    _clientesModal = (estado.participantes.clientes || ['Cliente']).slice();
+    renderizarClientesModal();
+    var btnAdd = document.getElementById('saleia-btn-add-cliente');
+    if (btnAdd) btnAdd.onclick = function() { _clientesModal.push(''); renderizarClientesModal(); };
     modal.style.display = 'flex';
   }
 
@@ -434,9 +481,13 @@
   }
 
   function salvarParticipantes() {
+    var inputs = document.querySelectorAll('#saleia-clientes-lista input[data-ci]');
+    var clientes = [];
+    inputs.forEach(function(inp) { var v = inp.value.trim(); if (v) clientes.push(v); });
+    if (!clientes.length) clientes = ['Cliente'];
     estado.participantes = {
       vendedor: document.getElementById('saleia-input-vendedor').value.trim() || 'Vendedor',
-      cliente: document.getElementById('saleia-input-cliente').value.trim() || 'Cliente',
+      clientes: clientes,
     };
     chrome.storage.local.set({ saleiaParticipantes: estado.participantes });
     atualizarResumoParticipantes();

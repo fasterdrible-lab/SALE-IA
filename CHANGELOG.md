@@ -3,6 +3,55 @@
 
 ---
 
+## V.1.4.8 — Multi-clientes, correções de navegação e redesign extensão
+> Data: 06/06/2026 | Desenvolvido com Claude Sonnet 4.6
+
+### FRONTEND — Múltiplos clientes na análise (`dashboard.html`)
+- Campo "Cliente" substituído por lista dinâmica de clientes
+- Botão **+ Cliente** permite adicionar quantos clientes forem necessários
+- Botão ✕ remove clientes extras (mínimo 1 sempre presente)
+- `analisar()` coleta array `clientes[]` de `_clientesLista`
+- `detectarFalas()` atualizado: recebe `nomes.clientes[]` e identifica fala de qualquer cliente pelo nome
+- Speaker das falas preserva nome original (não colapsa tudo em um "Cliente" único)
+
+### FRONTEND — Correção botão "Início" (`visual-scenario.html`)
+- Botão "← Início" corrigido: volta para `/cenario/{meeting_id}` em vez de `/` (que deslogava)
+- Fallback para `/dashboard` quando não há meeting ID
+- Extrai só o código da reunião mesmo que o `meetingId` seja a URL completa do Google Meet (`https://meet.google.com/xxx` → `xxx`)
+
+### FRONTEND — Paleta gold/black na tela Cenário do Cliente (`cenario.html`)
+- Variáveis CSS: `--bg #0A0A0A`, `--card #111111`, `--card2 #000000`, `--borda rgba(212,175,55,0.18)`
+- `--verde/#azul/#roxo` → `#D4AF37`/`#F5C542` (dourado)
+- Header, dropdowns, overlay, painéis, chips e botões atualizados
+
+### EXTENSÃO CHROME — Paleta gold/black
+**`popup.css`:** Background `#0A0A0A`, header gradiente preto, teal `#14B8A6` → `#D4AF37`, laranja → dourado, toggle/inputs/botões/links em ouro
+
+**`sidebar.css`:** Fundo `rgba(0,0,0,0.97)`, bordas douradas, seções/recap/badges/temperatura/modal em ouro, dot pulsante dourado
+
+**`content.css`:** Background, header, cards, hover — padrão preto/dourado
+
+### EXTENSÃO CHROME — Multi-clientes no modal Participantes (`content.js`)
+- Modal "Participantes": campo "Nome do cliente" → lista dinâmica **"Clientes"** com botão **"+ Adicionar"**
+- Botão ✕ por linha remove cliente (mínimo 1)
+- Event delegation via `container.onclick`/`container.oninput` com `data-ri`/`data-ci` (fix: inline `onclick` não funciona no mundo isolado do content script)
+- `salvarParticipantes()`: lê inputs diretamente via `querySelectorAll('[data-ci]')` para garantir valores corretos
+- `rotuloParticipante()`: identifica fala contra todos os clientes do array
+- `atualizarResumoParticipantes()`: exibe `Vendedor -> Cliente1, Cliente2`
+- Migração automática de dados antigos: `{ cliente: "X" }` → `{ clientes: ["X"] }`
+- `estado.participantes.clientes` persiste via `chrome.storage.local`
+
+**Arquivos alterados:**
+- `frontend/dashboard.html` — multi-clientes + menu "Visual Cenário"
+- `frontend/visual-scenario.html` — botão Início corrigido + paleta gold
+- `frontend/cenario.html` — paleta gold/black completa
+- `chrome-extension/popup.css` — paleta gold/black
+- `chrome-extension/sidebar.css` — paleta gold/black
+- `chrome-extension/content.css` — paleta gold/black
+- `chrome-extension/content.js` — multi-clientes com event delegation
+
+---
+
 ## V.1.4.7 — Visual Cenário: paleta gold/black + correção de nomenclatura
 > Data: 06/06/2026 | Desenvolvido com Claude Sonnet 4.6
 

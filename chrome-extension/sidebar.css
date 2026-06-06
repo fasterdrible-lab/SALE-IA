@@ -1,5 +1,5 @@
 /* =====================================================
-   SALEIA — sidebar.css  v1.3.2
+   SALEIA — sidebar.css  v1.4.7
    Painel lateral dentro do Google Meet
    ===================================================== */
 
@@ -10,8 +10,8 @@
   top: 60px;
   width: 280px;
   max-height: calc(100vh - 80px);
-  background: rgba(32, 30, 48, 0.97);
-  color: #F8FAFC;
+  background: rgba(0, 0, 0, 0.97);
+  color: #F0F0F0;
   font-family: 'Segoe UI', Arial, sans-serif;
   font-size: 13px;
   border-radius: 8px 0 0 8px;
@@ -22,7 +22,7 @@
   overflow: hidden;
   transition: width 0.2s ease;
   user-select: none;
-  border-left: 1px solid #3D3B52;
+  border-left: 1px solid rgba(212,175,55,0.18);
 }
 
 /* ── Header ── */
@@ -30,20 +30,20 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(135deg, #201E30, #252338);
+  background: linear-gradient(135deg, #000000, #111111);
   padding: 10px 12px;
   font-weight: 700;
   font-size: 14px;
   letter-spacing: 0.5px;
-  color: #F8FAFC;
+  color: #F0F0F0;
   flex-shrink: 0;
-  border-bottom: 1px solid #3D3B52;
+  border-bottom: 1px solid rgba(212,175,55,0.18);
 }
 
 #saleia-toggle-btn {
   background: none;
   border: none;
-  color: #9D9BB8;
+  color: #888;
   font-size: 18px;
   cursor: pointer;
   padding: 0 4px;
@@ -52,13 +52,13 @@
 }
 
 #saleia-toggle-btn:hover {
-  color: #F97316;
+  color: #D4AF37;
 }
 
 #saleia-btn-foto {
-  background: rgba(20, 184, 166, 0.12);
-  border: 1px solid rgba(20, 184, 166, 0.35);
-  color: #14B8A6;
+  background: rgba(212,175,55,0.12);
+  border: 1px solid rgba(212,175,55,0.35);
+  color: #D4AF37;
   font-size: 15px;
   cursor: pointer;
   padding: 3px 10px;
@@ -69,8 +69,8 @@
 }
 
 #saleia-btn-foto:hover {
-  background: rgba(20, 184, 166, 0.25);
-  border-color: #14B8A6;
+  background: rgba(212,175,55,0.25);
+  border-color: #D4AF37;
 }
 
 #saleia-btn-foto:disabled {
@@ -87,8 +87,8 @@
 
 /* Scrollbar */
 #saleia-body::-webkit-scrollbar { width: 4px; }
-#saleia-body::-webkit-scrollbar-track { background: #1E1C2E; }
-#saleia-body::-webkit-scrollbar-thumb { background: #3D3B52; border-radius: 2px; }
+#saleia-body::-webkit-scrollbar-track { background: #1A1A1A; }
+#saleia-body::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.3); border-radius: 2px; }
 
 /* ── Status ── */
 #saleia-status {
@@ -97,8 +97,8 @@
   gap: 6px;
   padding: 6px 4px;
   font-size: 12px;
-  color: #9D9BB8;
-  border-bottom: 1px solid #3D3B52;
+  color: #888;
+  border-bottom: 1px solid rgba(212,175,55,0.18);
   margin-bottom: 6px;
 }
 
@@ -107,7 +107,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #14B8A6;
+  background: #D4AF37;
   display: inline-block;
   animation: saleia-blink 1.5s infinite;
 }
@@ -118,7 +118,7 @@
 }
 
 .saleia-dot-cinza {
-  background: #6B6A82;
+  background: #555;
   animation: none;
 }
 
@@ -129,8 +129,8 @@
 
 /* ── Seções genéricas ── */
 .saleia-secao {
-  background: rgba(37, 35, 56, 0.88);
-  border: 1px solid #3D3B52;
+  background: rgba(17,17,17,0.88);
+  border: 1px solid rgba(212,175,55,0.18);
   border-radius: 6px;
   padding: 8px 10px;
   margin-bottom: 6px;
@@ -139,7 +139,7 @@
 .saleia-secao-titulo {
   font-size: 11px;
   font-weight: 700;
-  color: #14B8A6;
+  color: #D4AF37;
   text-transform: uppercase;
   letter-spacing: 0.6px;
   margin-bottom: 6px;
@@ -147,14 +147,14 @@
 
 /* ── Recapitulação guiada ── */
 .saleia-recap-viva {
-  background: linear-gradient(180deg, #201E30 0%, #1E1C2E 100%);
-  border: 1px solid #3D3B52;
-  border-left: 3px solid #38BDF8;
+  background: linear-gradient(180deg, #000000 0%, #1A1A1A 100%);
+  border: 1px solid rgba(212,175,55,0.18);
+  border-left: 3px solid #D4AF37;
 }
 
 .saleia-recap-usada {
   opacity: 0.84;
-  border-color: #3D3B52;
+  border-color: rgba(212,175,55,0.18);
 }
 
 .saleia-recap-topo {
@@ -170,8 +170,8 @@
   align-items: center;
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgba(56, 189, 248, 0.14);
-  color: #BAE6FD;
+  background: rgba(212,175,55,0.14);
+  color: #F5C542;
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
@@ -179,7 +179,7 @@
 }
 
 .saleia-recap-texto {
-  color: #F8FAFC;
+  color: #F0F0F0;
   line-height: 1.55;
   font-size: 12px;
   margin-bottom: 8px;
@@ -194,7 +194,7 @@
 .saleia-recap-linha {
   padding: 7px 8px;
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(61, 59, 82, 0.7);
+  border: 1px solid rgba(212,175,55,0.12);
   border-radius: 6px;
   font-size: 12px;
   line-height: 1.4;
@@ -202,7 +202,7 @@
 
 .saleia-recap-linha > span {
   display: block;
-  color: #38BDF8;
+  color: #D4AF37;
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
@@ -217,17 +217,17 @@
   padding: 7px 8px;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(61, 59, 82, 0.5);
+  border: 1px solid rgba(212,175,55,0.12);
   font-size: 12px;
   line-height: 1.45;
 }
 
 .saleia-recap-dica {
-  border-left: 3px solid #14B8A6;
+  border-left: 3px solid #D4AF37;
 }
 
 .saleia-recap-faltantes {
-  border-left: 3px solid #F97316;
+  border-left: 3px solid #F59E0B;
 }
 
 .saleia-recap-lista {
@@ -246,11 +246,11 @@
   margin-top: 8px;
 }
 
-/* Botão com brilho laranja */
+/* Botão com brilho dourado */
 .saleia-recap-btn {
-  border: 1px solid rgba(249, 115, 22, 0.45);
-  background: rgba(249, 115, 22, 0.14);
-  color: #FDBA74;
+  border: 1px solid rgba(212,175,55,0.45);
+  background: rgba(212,175,55,0.14);
+  color: #F5C542;
   border-radius: 6px;
   padding: 7px 6px;
   font-size: 11px;
@@ -260,9 +260,9 @@
 }
 
 .saleia-recap-btn:hover {
-  background: rgba(249, 115, 22, 0.22);
-  border-color: rgba(249, 115, 22, 0.75);
-  box-shadow: 0 0 12px rgba(249, 115, 22, 0.25);
+  background: rgba(212,175,55,0.22);
+  border-color: rgba(212,175,55,0.75);
+  box-shadow: 0 0 12px rgba(212,175,55,0.25);
   transform: translateY(-1px);
 }
 
@@ -307,39 +307,39 @@
 
 /* ── Próxima fala ── */
 #saleia-proxima-fala {
-  background: rgba(56, 189, 248, 0.08);
-  border-left: 3px solid #14B8A6;
+  background: rgba(212,175,55,0.08);
+  border-left: 3px solid #D4AF37;
 }
 
 .saleia-verde {
-  color: #14B8A6;
+  color: #D4AF37;
   font-weight: 600;
   line-height: 1.4;
 }
 
 /* ── Sinal financeiro ── */
 #saleia-sinal-financeiro {
-  background: rgba(20, 184, 166, 0.1);
-  border-left: 3px solid #14B8A6;
+  background: rgba(212,175,55,0.1);
+  border-left: 3px solid #D4AF37;
 }
 
 /* ── Oportunidade perdida ── */
 #saleia-oportunidade {
-  background: rgba(249, 115, 22, 0.1);
-  border-left: 3px solid #F97316;
+  background: rgba(245,158,11,0.1);
+  border-left: 3px solid #F59E0B;
 }
 
 /* ── Produto indicado ── */
 #saleia-produto {
-  background: rgba(20, 184, 166, 0.08);
-  border-left: 3px solid #14B8A6;
+  background: rgba(212,175,55,0.08);
+  border-left: 3px solid #D4AF37;
 }
 
 /* ── Objeções ── */
 .saleia-objecao {
   margin-bottom: 8px;
   padding-bottom: 6px;
-  border-bottom: 1px solid #3D3B52;
+  border-bottom: 1px solid rgba(212,175,55,0.18);
   line-height: 1.4;
 }
 
@@ -349,23 +349,23 @@
 }
 
 .saleia-resposta {
-  color: #9D9BB8;
+  color: #888;
   font-size: 12px;
 }
 
 .saleia-acao {
   display: block;
   margin-top: 4px;
-  color: #FDBA74;
+  color: #F5C542;
   font-size: 12px;
   font-weight: 600;
 }
 
 /* ── Aviso de legenda desativada ── */
 .saleia-aviso {
-  background: rgba(249, 115, 22, 0.1);
-  border: 1px dashed rgba(249, 115, 22, 0.5);
-  color: #FDBA74;
+  background: rgba(245,158,11,0.1);
+  border: 1px dashed rgba(245,158,11,0.5);
+  color: #F5C542;
   line-height: 1.5;
   font-size: 12px;
 }
@@ -374,9 +374,9 @@
 #saleia-contador {
   text-align: center;
   font-size: 11px;
-  color: #6B6A82;
+  color: #555;
   padding: 6px 4px 4px;
-  border-top: 1px solid #3D3B52;
+  border-top: 1px solid rgba(212,175,55,0.18);
   margin-top: 4px;
 }
 
@@ -394,15 +394,15 @@
 
 /* ── Mapa Financeiro ── */
 .saleia-mapa-financeiro {
-  background: rgba(56, 189, 248, 0.08);
-  border-left: 3px solid #38BDF8;
+  background: rgba(212,175,55,0.08);
+  border-left: 3px solid #D4AF37;
 }
 
 .saleia-discreto-btn {
   width: 100%;
-  border: 1px solid rgba(249, 115, 22, 0.35);
-  background: rgba(249, 115, 22, 0.1);
-  color: #FDBA74;
+  border: 1px solid rgba(212,175,55,0.35);
+  background: rgba(212,175,55,0.1);
+  color: #F5C542;
   border-radius: 6px;
   padding: 7px 8px;
   margin: 4px 0 6px;
@@ -413,12 +413,12 @@
 }
 
 .saleia-discreto-btn:hover {
-  border-color: rgba(249, 115, 22, 0.7);
-  box-shadow: 0 0 10px rgba(249, 115, 22, 0.2);
+  border-color: rgba(212,175,55,0.7);
+  box-shadow: 0 0 10px rgba(212,175,55,0.2);
 }
 
 .saleia-participantes-resumo {
-  color: #9D9BB8;
+  color: #888;
   font-size: 11px;
   margin: 0 2px 8px;
 }
@@ -428,14 +428,14 @@
   inset: 0;
   align-items: center;
   justify-content: center;
-  background: rgba(30, 28, 46, 0.75);
+  background: rgba(0, 0, 0, 0.75);
   z-index: 100000;
 }
 
 .saleia-modal-card {
   width: min(320px, calc(100vw - 32px));
-  background: #252338;
-  border: 1px solid #3D3B52;
+  background: #111111;
+  border: 1px solid rgba(212,175,55,0.18);
   border-radius: 10px;
   padding: 16px;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
@@ -444,28 +444,28 @@
 .saleia-modal-title {
   font-weight: 800;
   margin-bottom: 12px;
-  color: #F8FAFC;
+  color: #F0F0F0;
 }
 
 .saleia-modal-card label {
   display: block;
-  color: #9D9BB8;
+  color: #888;
   font-size: 12px;
   margin: 10px 0 5px;
 }
 
 .saleia-modal-card input {
   width: 100%;
-  background: #1E1C2E;
-  color: #F8FAFC;
-  border: 1px solid #3D3B52;
+  background: #1A1A1A;
+  color: #F0F0F0;
+  border: 1px solid rgba(212,175,55,0.18);
   border-radius: 7px;
   padding: 8px 10px;
   transition: border-color 0.2s;
 }
 
 .saleia-modal-card input:focus {
-  border-color: #F97316;
+  border-color: #D4AF37;
   outline: none;
 }
 
@@ -480,13 +480,13 @@
   padding: 3px 0;
   font-size: 12px;
   line-height: 1.5;
-  border-bottom: 1px solid #3D3B52;
+  border-bottom: 1px solid rgba(212,175,55,0.18);
 }
 
 .saleia-mapa-linha:last-child { border-bottom: none; }
 
 .saleia-mapa-label {
-  color: #38BDF8;
+  color: #D4AF37;
   font-weight: 600;
   margin-right: 4px;
 }
@@ -494,47 +494,47 @@
 .saleia-mapa-produto {
   margin-top: 4px;
   padding-top: 4px;
-  border-top: 1px solid #3D3B52;
+  border-top: 1px solid rgba(212,175,55,0.18);
   border-bottom: none;
 }
 
 /* ── Temperatura ── */
 .saleia-temperatura {
-  background: rgba(37, 35, 56, 0.9);
-  border-left: 3px solid #6B6A82;
+  background: rgba(17,17,17,0.9);
+  border-left: 3px solid #555;
   transition: border-color 0.3s, background 0.3s;
 }
 
 .saleia-temperatura-alta {
-  background: rgba(20, 184, 166, 0.1);
-  border-left-color: #14B8A6;
+  background: rgba(212,175,55,0.1);
+  border-left-color: #D4AF37;
 }
 
 .saleia-temperatura-media {
-  background: rgba(249, 115, 22, 0.08);
-  border-left-color: #F97316;
+  background: rgba(245,158,11,0.08);
+  border-left-color: #F59E0B;
 }
 
 .saleia-temperatura-baixa {
-  background: rgba(37, 35, 56, 0.88);
-  border-left-color: #6B6A82;
+  background: rgba(17,17,17,0.88);
+  border-left-color: #555;
 }
 
 /* ── Dado Esquecido ── */
 .saleia-dado-esquecido {
-  background: rgba(249, 115, 22, 0.1);
-  border-left: 3px solid #F97316;
+  background: rgba(245,158,11,0.1);
+  border-left: 3px solid #F59E0B;
 }
 
 .saleia-dado-esquecido .saleia-secao-titulo {
-  color: #FDBA74;
+  color: #F5C542;
 }
 
 /* ── Como Tratar (DISC) ── */
 .saleia-como-tratar {
   display: block;
   margin-top: 4px;
-  color: #C4B5FD;
+  color: #D4AF37;
   font-style: italic;
   font-size: 12px;
   line-height: 1.4;

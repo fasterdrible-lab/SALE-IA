@@ -1,13 +1,13 @@
 /* =====================================================
-   SALEIA — popup.css  v1.3.2
+   SALEIA — popup.css  v1.4.7
    Popup da extensão Chrome
    ===================================================== */
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  background: #2D2B3D;
-  color: #F8FAFC;
+  background: #0A0A0A;
+  color: #F0F0F0;
   font-family: 'Segoe UI', Arial, sans-serif;
   font-size: 13px;
   min-width: 320px;
@@ -21,9 +21,9 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: linear-gradient(135deg, #201E30, #252338);
+  background: linear-gradient(135deg, #000000, #111111);
   padding: 14px 16px;
-  border-bottom: 1px solid #3D3B52;
+  border-bottom: 1px solid rgba(212,175,55,0.18);
 }
 
 .popup-logo { font-size: 28px; line-height: 1; }
@@ -31,13 +31,13 @@ body {
 .popup-title {
   font-size: 16px;
   font-weight: 800;
-  color: #F8FAFC;
+  color: #F0F0F0;
   letter-spacing: 1px;
 }
 
 .popup-subtitle {
   font-size: 11px;
-  color: #14B8A6;
+  color: #D4AF37;
 }
 
 /* ── Toggle ON/OFF ── */
@@ -60,7 +60,7 @@ body {
 .popup-toggle-slider {
   position: absolute;
   inset: 0;
-  background: #3D3B52;
+  background: #2A2A2A;
   border-radius: 24px;
   transition: 0.3s;
 }
@@ -72,20 +72,20 @@ body {
   height: 18px;
   left: 3px;
   top: 3px;
-  background: #9D9BB8;
+  background: #888;
   border-radius: 50%;
   transition: 0.3s;
 }
 
 .popup-toggle input:checked + .popup-toggle-slider {
-  background: rgba(249, 115, 22, 0.4);
-  border: 1px solid rgba(249, 115, 22, 0.6);
-  box-shadow: 0 0 10px rgba(249, 115, 22, 0.25);
+  background: rgba(212,175,55,0.4);
+  border: 1px solid rgba(212,175,55,0.6);
+  box-shadow: 0 0 10px rgba(212,175,55,0.25);
 }
 
 .popup-toggle input:checked + .popup-toggle-slider::before {
   transform: translateX(20px);
-  background: #FDBA74;
+  background: #F5C542;
 }
 
 /* ── Status ── */
@@ -95,23 +95,23 @@ body {
   gap: 8px;
   padding: 8px 16px;
   font-size: 12px;
-  border-bottom: 1px solid #3D3B52;
+  border-bottom: 1px solid rgba(212,175,55,0.18);
 }
 
-.popup-status-aguardando { color: #6B6A82; }
-.popup-status-ativo { color: #14B8A6; }
+.popup-status-aguardando { color: #555; }
+.popup-status-ativo { color: #D4AF37; }
 
 .status-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #14B8A6;
+  background: #D4AF37;
   flex-shrink: 0;
   animation: popup-blink 1.5s infinite;
 }
 
 .popup-status-aguardando .status-dot {
-  background: #6B6A82;
+  background: #555;
   animation: none;
 }
 
@@ -123,13 +123,13 @@ body {
 /* ── Seções ── */
 .popup-secao {
   padding: 12px 16px;
-  border-bottom: 1px solid #3D3B52;
+  border-bottom: 1px solid rgba(212,175,55,0.18);
 }
 
 .popup-secao-titulo {
   font-size: 11px;
   font-weight: 700;
-  color: #14B8A6;
+  color: #D4AF37;
   text-transform: uppercase;
   letter-spacing: 0.6px;
   margin-bottom: 8px;
@@ -137,7 +137,7 @@ body {
 
 /* ── Dicas ── */
 .popup-dicas-vazio {
-  color: #6B6A82;
+  color: #555;
   font-size: 12px;
   line-height: 1.5;
   text-align: center;
@@ -149,10 +149,10 @@ body {
   align-items: flex-start;
   gap: 6px;
   padding: 6px 0;
-  border-bottom: 1px solid #3D3B52;
+  border-bottom: 1px solid rgba(212,175,55,0.18);
   font-size: 12px;
   line-height: 1.4;
-  color: #CBD5E1;
+  color: #D0D0D0;
 }
 
 .popup-dica:last-child { border-bottom: none; }
@@ -160,7 +160,7 @@ body {
 
 .popup-dica-hora {
   font-size: 10px;
-  color: #6B6A82;
+  color: #555;
   margin-top: 4px;
   text-align: right;
 }
@@ -168,10 +168,10 @@ body {
 /* ── Inputs ── */
 .popup-input {
   width: 100%;
-  background: #1E1C2E;
-  border: 1px solid #3D3B52;
+  background: #1A1A1A;
+  border: 1px solid rgba(212,175,55,0.18);
   border-radius: 6px;
-  color: #F8FAFC;
+  color: #F0F0F0;
   padding: 7px 10px;
   font-size: 12px;
   margin-bottom: 8px;
@@ -180,13 +180,13 @@ body {
 }
 
 .popup-input:focus {
-  border-color: #F97316;
-  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.15);
+  border-color: #D4AF37;
+  box-shadow: 0 0 0 2px rgba(212,175,55,0.15);
 }
 
 .popup-label {
   display: block;
-  color: #9D9BB8;
+  color: #888;
   font-size: 11px;
   font-weight: 700;
   margin: 4px 0 6px;
@@ -196,10 +196,10 @@ body {
 
 .popup-select {
   width: 100%;
-  background: #1E1C2E;
-  border: 1px solid #3D3B52;
+  background: #1A1A1A;
+  border: 1px solid rgba(212,175,55,0.18);
   border-radius: 6px;
-  color: #F8FAFC;
+  color: #F0F0F0;
   padding: 7px 10px;
   font-size: 12px;
   margin-bottom: 8px;
@@ -208,9 +208,9 @@ body {
   transition: border-color 0.2s;
 }
 
-.popup-select:focus { border-color: #F97316; }
+.popup-select:focus { border-color: #D4AF37; }
 
-/* ── Botões com brilho laranja ── */
+/* ── Botões com brilho dourado ── */
 .popup-btn {
   width: 100%;
   padding: 8px;
@@ -222,15 +222,15 @@ body {
 }
 
 .popup-btn-primario {
-  background: rgba(249, 115, 22, 0.15);
-  color: #FDBA74;
-  border: 1px solid rgba(249, 115, 22, 0.45);
+  background: rgba(212,175,55,0.15);
+  color: #F5C542;
+  border: 1px solid rgba(212,175,55,0.45);
 }
 
 .popup-btn-primario:hover {
-  background: rgba(249, 115, 22, 0.22);
-  border-color: rgba(249, 115, 22, 0.75);
-  box-shadow: 0 0 14px rgba(249, 115, 22, 0.25);
+  background: rgba(212,175,55,0.22);
+  border-color: rgba(212,175,55,0.75);
+  box-shadow: 0 0 14px rgba(212,175,55,0.25);
   transform: translateY(-1px);
 }
 
@@ -239,16 +239,16 @@ body {
 }
 
 .popup-btn-secundario {
-  background: rgba(37, 35, 56, 0.8);
-  color: #9D9BB8;
-  border: 1px solid #3D3B52;
+  background: rgba(17,17,17,0.8);
+  color: #888;
+  border: 1px solid rgba(212,175,55,0.18);
   margin-top: 4px;
 }
 
 .popup-btn-secundario:hover {
-  border-color: rgba(249, 115, 22, 0.4);
-  color: #FDBA74;
-  box-shadow: 0 0 8px rgba(249, 115, 22, 0.12);
+  border-color: rgba(212,175,55,0.4);
+  color: #F5C542;
+  box-shadow: 0 0 8px rgba(212,175,55,0.12);
 }
 
 /* ── API Status ── */
@@ -256,13 +256,13 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  color: #CBD5E1;
+  color: #D0D0D0;
   font-size: 12px;
   line-height: 1.45;
   margin-bottom: 8px;
 }
 
-.popup-api-summary { color: #14B8A6; font-weight: 600; }
+.popup-api-summary { color: #D4AF37; font-weight: 600; }
 
 .popup-api-list { display: flex; flex-direction: column; gap: 6px; }
 
@@ -272,14 +272,14 @@ body {
   justify-content: space-between;
   gap: 10px;
   padding: 8px 10px;
-  background: #1E1C2E;
-  border: 1px solid #3D3B52;
+  background: #1A1A1A;
+  border: 1px solid rgba(212,175,55,0.18);
   border-radius: 6px;
 }
 
-.popup-api-item strong { color: #F8FAFC; }
+.popup-api-item strong { color: #F0F0F0; }
 
-.popup-api-meta { font-size: 10px; color: #6B6A82; margin-top: 2px; }
+.popup-api-meta { font-size: 10px; color: #555; margin-top: 2px; }
 
 .popup-api-label {
   display: inline-block;
@@ -292,15 +292,15 @@ body {
   white-space: nowrap;
 }
 
-.popup-api-label.ok        { background: rgba(20,184,166,.15); color: #2DD4BF; }
-.popup-api-label.cooldown  { background: rgba(249,115,22,.15); color: #FDBA74; }
-.popup-api-label.degradado { background: rgba(249,115,22,.12); color: #FCA5A5; }
+.popup-api-label.ok        { background: rgba(212,175,55,.15); color: #D4AF37; }
+.popup-api-label.cooldown  { background: rgba(212,175,55,.12); color: #F5C542; }
+.popup-api-label.degradado { background: rgba(245,158,11,.12); color: #F5C542; }
 .popup-api-label.sem_chave,
 .popup-api-label.desconhecido { background: rgba(239,68,68,.12); color: #FCA5A5; }
 
 /* ── Feedback ── */
 .popup-feedback { margin-top: 6px; font-size: 12px; padding: 4px 0; }
-.popup-feedback-success { color: #14B8A6; }
+.popup-feedback-success { color: #D4AF37; }
 .popup-feedback-error   { color: #FCA5A5; }
 
 /* ── Rodapé ── */
@@ -311,8 +311,8 @@ body {
   gap: 8px;
   padding: 10px 16px;
   font-size: 11px;
-  color: #6B6A82;
+  color: #555;
 }
 
-.popup-link { color: #14B8A6; text-decoration: none; }
+.popup-link { color: #D4AF37; text-decoration: none; }
 .popup-link:hover { text-decoration: underline; }
