@@ -7,12 +7,13 @@ Usa MySQL se as variáveis DB_* estiverem no .env, caso contrário SQLite local.
 import json
 import logging
 import os
-from datetime import datetime
+import time
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, List
 
 from dotenv import load_dotenv
-from sqlalchemy import Column, DateTime, Float, String, Text
+from sqlalchemy import Column, DateTime, Float, String, Text, func, text
 from sqlalchemy.engine import URL as SA_URL
 from sqlalchemy.exc import OperationalError
 from sqlmodel import Field, Session, SQLModel, create_engine, select
@@ -95,6 +96,14 @@ def _build_engine_safe():
         return eng
     except Exception as exc:
         logger.warning("⚠️  MySQL indisponível (%s) — usando SQLite local.", exc)
+        try:
+            from agent.alertas import alertar
+            alertar(
+                f"🗄️ MySQL indisponível — fallback para SQLite ativo.\n`{str(exc)[:200]}`",
+                nivel="🔴",
+            )
+        except Exception:
+            pass
         db_path = Path("data/saleia.db")
         db_path.parent.mkdir(parents=True, exist_ok=True)
         return create_engine(f"sqlite:///{db_path}", echo=False)
@@ -528,6 +537,44 @@ def _criar_metadata_tolerante():
             logger.warning("Tabela ja existia durante startup concorrente; seguindo normalmente.")
             return
         raise
+
+
+def db_health() -> dict:
+    """Retorna latência de conexão e tipo de banco ativo."""
+    host = os.getenv("DB_HOST", "")
+    resultado = {"banco": "mysql" if host else "sqlite", "latencia_ms": -1, "erro": None}
+    try:
+        t0 = time.perf_counter()
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        resultado["latencia_ms"] = round((time.perf_counter() - t0) * 1000)
+    except Exception as exc:
+        resultado["erro"] = str(exc)[:200]
+        resultado["banco"] = "sqlite_fallback" if host else "sqlite"
+    return resultado
+
+
+def contar_reunioes_ativas(minutos: int = 5) -> int:
+    """Conta reuniões com atividade nos últimos N minutos."""
+    threshold = datetime.now() - timedelta(minutes=minutos)
+    try:
+        with Session(engine) as session:
+            stmt = select(func.count(MeetingMemory.id)).where(MeetingMemory.updated_at >= threshold)
+            return session.exec(stmt).one() or 0
+    except Exception:
+        return 0
+
+
+def contar_reunioes_hoje() -> int:
+    """Conta reuniões criadas hoje."""
+    from datetime import date
+    hoje = datetime.combine(date.today(), datetime.min.time())
+    try:
+        with Session(engine) as session:
+            stmt = select(func.count(MeetingMemory.id)).where(MeetingMemory.created_at >= hoje)
+            return session.exec(stmt).one() or 0
+    except Exception:
+        return 0
 
 
 def criar_tabelas():

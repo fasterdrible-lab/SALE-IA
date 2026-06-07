@@ -3,6 +3,230 @@
 
 ---
 
+## V.1.4.13 — Observabilidade: OTel fix + Grafana Cloud Tempo ativo + Monitor auth
+> Data: 07/06/2026 | Desenvolvido com Claude Sonnet 4.6
+
+### BACKEND — Fix instrumentação OpenTelemetry (`api/main.py`)
+
+- `_configurar_opentelemetry()` movida do `on_startup` para o **nível do módulo** (chamada imediatamente após o setup de middlewares)
+- Causa do bug: `FastAPIInstrumentor.instrument_app(app)` chamado dentro do `on_startup` era tarde demais — o Starlette já havia finalizado o middleware stack antes da primeira requisição, impedindo a geração de spans para rotas HTTP
+- Resultado: traces de todas as rotas FastAPI (`GET /health`, `POST /tempo-real`, etc.) agora chegam ao **Grafana Cloud Tempo** em tempo real
+- Versão bumped para `1.4.13`
+
+### FRONTEND — Auth interceptor global (`frontend/dashboard.html`)
+
+- Adicionado interceptor de `window.fetch` no topo do script principal
+- Injeta automaticamente `Authorization: Bearer <token>` em todas as requisições para `api.saleia.com.br` ou rotas relativas (`/...`) quando `saleia_token` existe no localStorage
+- Elimina a necessidade de passar headers de auth manualmente em cada chamada `fetchJsonWithFallback()`
+- Corrige o erro `HTTP 401` na aba Monitor (endpoints `/monitor/metricas` e `/monitor/historico`)
+
+### VALIDAÇÕES
+
+- Grafana Cloud Tempo: query `{}` retorna múltiplos traces `saleia` — `GET /health`, `GET /monitor/metricas`, etc. ✅
+- OTel startup log: `"OpenTelemetry ativo → https://otlp-gateway-prod-sa-east-1.grafana.net/otlp"` (2 workers) ✅
+- Serviço ativo após deploy: `systemctl is-active saleia` → `active` ✅
+
+### ARQUIVOS ALTERADOS
+- `api/main.py`
+- `frontend/dashboard.html`
+- `docs/CURRENT_STATE.md`
+- `CHANGELOG.md`
+
+### DEPLOY
+- Arquivos deployados via SCP para `/opt/saleia/`
+- `systemctl restart saleia` executado
+- `GET /health` → `versao: 1.4.13`, `status: online` ✅
+
+---
+
+## V.1.4.12 — Fase 3 Observabilidade: Histórico SQLite + Alertas threshold + Sparklines
+> Data: 07/06/2026 | Desenvolvido com Claude Sonnet 4.6
+
+### BACKEND — Histórico de métricas SQLite (`api/metricas_historico.py` — novo)
+
+- Tabela `metricas_historico` em `data/metricas.db` (SQLite)
+- Colunas: `ts`, `banco_latencia`, `banco_modo`, `reunioes_ativas`, `reunioes_hoje`, `chamadas_ia`, `falhas_ia`
+- `criar_tabela_metricas()` — cria tabela + índice em ts
+- `registrar(banco, ativas, hoje, chamadas, falhas)` — deduplicação por DB: ignora se já existe linha nos últimos 55s (safe com 2 workers uvicorn)
+- `obter(horas=6)` — retorna lista ordenada das últimas N horas (máx 24h)
+- Limpeza automática: deleta linhas com mais de 25h a cada inserção
+
+### BACKEND — Background task e endpoint historico (`api/main.py`)
+
+- `on_startup` convertido de `def` → `async def` para suportar `asyncio.create_task`
+- `_loop_metricas()` async: loop com `asyncio.sleep(60)`, startup delay de 15s
+  - Coleta: `db_health()`, `contar_reunioes_ativas()`, `contar_reunioes_hoje()`, `snapshot_metricas()`
+  - Grava snapshot via `metricas_historico.registrar()`
+  - Chama `alertas.verificar_thresholds(ia_snap, banco)`
+  - Tolerante a erros: nunca derruba o loop
+- `GET /monitor/historico?horas=N` (requer JWT): retorna série temporal das últimas N horas
+
+### BACKEND — Alertas por threshold (`agent/alertas.py`)
+
+- `_last_alerta: dict` e `_COOLDOWN_S = 3600` — cooldown de 1h por tipo
+- `_pode_alertar(chave)` — controla cooldown
+- `verificar_thresholds(metricas_ia, banco)` — verifica:
+  - Banco offline (erro não nulo)
+  - Banco lento (latência > 1500 ms)
+  - Taxa de erro IA > 30% (mínimo 10 chamadas)
+  - Fallback rate > 50% das chamadas com sucesso
+
+### FRONTEND — Sparklines no Monitor tab (`frontend/dashboard.html`)
+
+- Seção "Histórico — últimas 6h" adicionada no Monitor tab
+- `_carregarHistoricoMonitor()` — chama `GET /monitor/historico?horas=6`
+- `_sparklineSVG(values, color, unit)` — SVG polyline com gradient fill, dot no valor atual, label de valor
+- `_renderHistorico(pontos)` — renderiza 4 sparklines:
+  - Latência banco (ms) — amarelo
+  - Reuniões ativas — azul
+  - Chamadas IA (acumulado) — roxo
+  - Reuniões hoje — verde
+- Auto-refresh de 60s (alinhado com o background task) enquanto o Monitor tab está aberto
+
+### INFRA — Templates Grafana Cloud (`infra/`)
+
+- `infra/grafana-alloy.alloy` — config pronta para Grafana Alloy com placeholders GRAFANA_CLOUD_URL / USER / API_KEY
+- `infra/grafana-setup.sh` — script de instalação do Grafana Alloy na VPS
+- Comentários completos com instruções passo a passo
+
+### ARQUIVOS ALTERADOS
+- `api/metricas_historico.py` (novo)
+- `api/main.py`
+- `agent/alertas.py`
+- `frontend/dashboard.html`
+- `infra/grafana-alloy.alloy` (novo)
+- `infra/grafana-setup.sh` (novo)
+- `docs/CURRENT_STATE.md`
+- `CHANGELOG.md`
+
+### DEPLOY
+- 4 arquivos deployados via SCP para `/opt/saleia/`
+- `systemctl restart saleia` executado
+- Validação: `GET /health` → `versao: 1.4.12`, `status: online`
+- Validação: `GET /monitor/historico` → 401 sem token ✅
+- Validação: `data/metricas.db` criado (16K), 1° snapshot com latência 678ms (MySQL) ✅
+
+---
+
+## V.1.4.11 — Fase 2 Observabilidade: Métricas IA + aba Monitor
+> Data: 07/06/2026 | Desenvolvido com Claude Sonnet 4.6
+
+### BACKEND — Contadores de uso da IA em memória (`api/ai_router.py`)
+
+- `import threading` adicionado
+- `_counters_lock = threading.Lock()` + `_counters` dict criados após `_breakers`
+- Contadores: `chamadas_total`, `chamadas_sucesso`, `chamadas_falha`, `fallbacks`, `circuit_breaker_aberturas`, `por_provedor[name]{sucesso, falha, total_ms}`
+- `chamar_ia()` instrumentado: incrementa contadores no início, em cada sucesso/falha de provedor e no 503 final
+- `fallbacks` incrementado quando há ao menos 1 falha antes do sucesso
+- `CircuitBreaker.register_failure()` incrementa `circuit_breaker_aberturas` ao abrir
+- `snapshot_metricas() → dict` exporta cópia thread-safe com `uptime_segundos` e `latencia_media_ms` por provedor
+
+### BACKEND — Endpoint de métricas (`api/main.py`)
+
+- `snapshot_metricas` importado de `ai_router`
+- `GET /monitor/metricas` adicionado após `/health`
+  - Requer JWT (`_req_auth`)
+  - Retorna: `ia` (snapshot_metricas), `banco` (modo/latencia/erro), `reunioes_ativas`, `reunioes_hoje`, `versao`, `timestamp`
+- Versão atualizada para `1.4.11`
+
+### FRONTEND — Aba Monitor (`frontend/dashboard.html`)
+
+- Nav item "📡 Monitor" adicionado antes de "Visual Cenário"
+- `<div id="page-monitor">` adicionado antes de `page-configuracoes`
+  - Cards: Uptime, Chamadas, Sucesso, Falha, Fallbacks, Circuit Breaks, Reuniões Ativas, Reuniões Hoje
+  - Tabela de provedores: Sucesso / Falha / Latência Média / Taxa de Sucesso %
+  - Card de banco: modo, latência, status
+- `mostrarPagina()` atualizado: `_iniciarMonitor()` ao entrar, `_pararMonitor()` ao sair
+- `_iniciarMonitor()` / `_pararMonitor()`: controla `setInterval` de 15 s
+- `carregarMonitor()`: chama `GET /monitor/metricas`, renderiza via `_renderMonitor()`
+- Contadores zerados ficam com cor `var(--muted)` para indicar inatividade
+
+### ARQUIVOS ALTERADOS
+- `api/ai_router.py`
+- `api/main.py`
+- `frontend/dashboard.html`
+- `docs/CURRENT_STATE.md`
+- `CHANGELOG.md`
+
+### DEPLOY
+- 3 arquivos deployados via SCP para `/opt/saleia/`
+- `systemctl restart saleia` executado
+- Validação: `GET /health` → `versao: 1.4.11`, `status: online`
+- Validação: `GET /monitor/metricas` sem token → 401 ✅; módulo `snapshot_metricas()` testado diretamente → retorna estrutura correta ✅
+
+---
+
+## V.1.4.10 — Toggle de chave API e badge de status persistente
+> Data: 07/06/2026 | Desenvolvido com Claude Sonnet 4.6
+
+### DASHBOARD — Botão 👁 nos campos de chave de API (`frontend/dashboard.html`)
+
+**Problema:** Os campos de chave dos provedores (DeepSeek, OpenAI, Anthropic, Gemini) usavam `type="password"` sem toggle de visibilidade. O Chrome tratava o campo como senha e preenchia automaticamente com a última senha salva no gerenciador, sobrepondo a chave real.
+
+**Solução:**
+- `autocomplete="new-password"` substituiu `autocomplete="off"` — instrução efetiva para o Chrome não sugerir senhas salvas nesses campos
+- Botão 👁 adicionado entre o campo de chave e o botão "Salvar" em cada card de provedor
+- Função `toggleVerChave(pid, btn)` adicionada — alterna `input.type` entre `password` e `text`; ícone muda para 🙈 quando visível
+- Mesma lógica já existente no campo Groq (V.1.4.5) aplicada aos 4 provedores principais
+
+### DASHBOARD — Badge de status persistente após teste de conexão (`frontend/dashboard.html`)
+
+**Problema:** O botão "Testar conexão" mostrava "✅ Conectado" no span de feedback mas limpava o texto após 4 segundos via `setTimeout`. Não havia forma de confirmar visualmente que a API estava online após o teste.
+
+**Solução:**
+- `<span id="status-teste-${p.id}">` adicionado na linha de badges de cada card (ao lado de "Ativo/Inativo" e "Principal")
+- `testarProvedor(id)` reescrito:
+  - **Sucesso:** badge `✅ Online` (dourado, estilo gold do tema) inserido permanentemente no `status-teste-${id}`; feedback de texto limpo imediatamente
+  - **Falha / sem resposta:** badge `❌ Offline` inserido no mesmo slot; mensagem de erro no span de feedback desaparece após 4 s
+- O badge persiste até o usuário fechar e reabrir o accordion (quando os cards são re-renderizados)
+
+### ARQUIVOS ALTERADOS
+
+| Arquivo | Tipo |
+|---|---|
+| `frontend/dashboard.html` | feat: toggle 👁 + `autocomplete="new-password"` + badge `status-teste` permanente + `testarProvedor` reescrito |
+
+---
+
+## T18 — Deploy V.1.4.3–V.1.4.9 na VPS
+> Data: 07/06/2026 | Desenvolvido com Claude Sonnet 4.6
+
+### DEPLOY — VPS `204.168.180.25` (`/opt/saleia/`)
+
+17 arquivos enviados via SCP com chave `saleia_vps`:
+
+| Arquivo | Versão |
+|---|---|
+| `api/main.py` | V.1.4.3+ |
+| `agent/sessao_manager.py` | V.1.4.3 |
+| `requirements.txt` | V.1.4.5 |
+| `frontend/dashboard.html` | V.1.4.8 |
+| `frontend/visual-scenario.html` | V.1.4.8 |
+| `frontend/cenario.html` | V.1.4.8 |
+| `frontend/login.html` | V.1.4.6 |
+| `frontend/logo-saleia.png` | V.1.4.6 (novo) |
+| `frontend/manual.html` | V.1.4.9 |
+| `chrome-extension/background.js` | V.1.4.1 |
+| `chrome-extension/manifest.json` | V.1.4.8 |
+| `chrome-extension/popup.html` | V.1.4.8 |
+| `chrome-extension/popup.js` | V.1.4.1 |
+| `chrome-extension/popup.css` | V.1.4.8 |
+| `chrome-extension/sidebar.css` | V.1.4.8 |
+| `chrome-extension/content.css` | V.1.4.8 |
+| `chrome-extension/content.js` | V.1.4.8 |
+
+**Resultado:**
+- `pip install -r requirements.txt` — OK (groq instalado)
+- `systemctl restart saleia` — `active`
+- `GET /health` — `online`, 4 provedores ok (anthropic/openai/gemini/deepseek)
+- `GET /dashboard` — 200
+- `GET /logo-saleia.png` — 200
+
+**Pendente após deploy:**
+- Reinstalar extensão Chrome no navegador (tema gold/black + multi-clientes)
+
+---
+
 ## V.1.4.9 — Manual de instruções atualizado para V.1.4.8
 > Data: 06/06/2026 | Desenvolvido com Claude Sonnet 4.6
 

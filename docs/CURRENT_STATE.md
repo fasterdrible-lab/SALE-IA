@@ -1,6 +1,6 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-05-29
+Atualizado em: 2026-06-07
 
 ## Ambiente
 
@@ -23,7 +23,7 @@ Atualizado em: 2026-05-29
 
 ## Versao Atual
 
-`V.1.4.5` — registrada no CHANGELOG.md
+`V.1.4.13` — registrada no CHANGELOG.md
 
 ## Funcionalidades Entregues
 
@@ -109,11 +109,9 @@ Modelos padrao:
 
 ## O Que Falta
 
-- Deploy da V.1.4.1 na VPS (SFTP + restart do servico).
-- Configurar variaveis SMTP no `.env` da VPS para ativar envio real de e-mail de recuperacao.
-- Testar Visual Scenario em producao com creditos OpenAI ativos.
-- Reinstalar extensao Chrome no navegador (apos deploy) para aplicar correcao do bug de foto.
-- Sem tarefas pendentes criticas. Proxima sugestao: reinstalar extensao Chrome com a correcao do bug de foto (V.1.4.1).
+- Reinstalar extensao Chrome no navegador (novo tema gold/black + multi-clientes — V.1.4.8).
+- Testar Visual Cenario AI em producao com creditos OpenAI ativos.
+- Sem tarefas criticas pendentes.
 
 ## Concluido (T12 - V.1.4.2)
 
@@ -123,31 +121,54 @@ Modelos padrao:
 - `limparFiltrosReunioes` reseta o select de provedor.
 - Card de reuniao exibe nome do provedor como label discreta ao lado da data/score.
 
+## Observabilidade (V.1.4.11–V.1.4.13)
+
+- Contadores IA em memória com lock thread-safe (`api/ai_router.py`)
+- Aba Monitor no dashboard com cards de métricas e sparklines 6h
+- SQLite rolling 24h em `data/metricas.db` + alertas Telegram por threshold
+- OpenTelemetry SDK integrado ao Grafana Cloud Tempo (OTLP/HTTP)
+  - Stack Grafana Cloud: `slimturtle2775` — região `sa-east-1`
+  - Datasource Tempo: `grafanacloud-slimturtle2775-traces`
+  - Traces de todas as rotas FastAPI chegando em tempo real
+- Global fetch interceptor no dashboard.html injeta JWT automaticamente
+
 ## Proxima Tarefa Recomendada
 
-Deploy V.1.4.1 via SFTP. Arquivos a enviar:
+**T18 — Deploy V.1.4.3–V.1.4.9 na VPS** via SCP com chave `saleia_vps`.
 
-| Arquivo | Motivo |
-|---|---|
-| `api/main.py` | recuperar-senha real, /reset, /redefinir-senha |
-| `agent/sessao_manager.py` | migrar_colunas_usuarios() |
-| `agent/email_service.py` | **novo arquivo** — deve ser criado na VPS |
-| `.env.example` | referencia para vars SMTP |
-| `chrome-extension/background.js` | correcao do bug de foto |
-| `chrome-extension/manifest.json` | versao atualizada |
-| `chrome-extension/popup.html` | versao atualizada |
-| `chrome-extension/popup.js` | versao dinamica |
+Arquivos a enviar:
 
-Apos upload: `pip install -r requirements.txt && systemctl restart saleia && curl https://api.saleia.com.br/health`
+| Arquivo | Versao | Motivo |
+|---|---|---|
+| `api/main.py` | V.1.4.3+ | correcoes de bugs e endpoints novos |
+| `agent/sessao_manager.py` | V.1.4.3 | fix exportar_para_base_conhecimento |
+| `requirements.txt` | V.1.4.5 | groq>=0.9.0 |
+| `frontend/dashboard.html` | V.1.4.8 | multi-clientes + redesign gold |
+| `frontend/visual-scenario.html` | V.1.4.8 | botao Inicio corrigido + paleta gold |
+| `frontend/cenario.html` | V.1.4.8 | paleta gold/black |
+| `frontend/login.html` | V.1.4.6 | logo integrado |
+| `frontend/logo-saleia.png` | V.1.4.6 | **novo arquivo** |
+| `frontend/manual.html` | V.1.4.9 | manual V.1.4.8 completo |
+| `chrome-extension/background.js` | V.1.4.1 | bug de foto corrigido |
+| `chrome-extension/manifest.json` | V.1.4.8 | versao atualizada |
+| `chrome-extension/popup.html` | V.1.4.8 | redesign gold |
+| `chrome-extension/popup.js` | V.1.4.1 | versao dinamica |
+| `chrome-extension/popup.css` | V.1.4.8 | paleta gold/black |
+| `chrome-extension/sidebar.css` | V.1.4.8 | paleta gold/black |
+| `chrome-extension/content.css` | V.1.4.8 | paleta gold/black |
+| `chrome-extension/content.js` | V.1.4.8 | multi-clientes |
 
-Tambem adicionar ao `.env` da VPS:
+Apos upload:
+```bash
+pip install -r requirements.txt && systemctl restart saleia && curl https://api.saleia.com.br/health
 ```
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=...
-SMTP_PASS=...
-EMAIL_FROM=noreply@saleia.com.br
-APP_BASE_URL=https://api.saleia.com.br
+
+Adicionar ao Nginx (`/etc/nginx/sites-enabled/saleia`):
+```nginx
+location = /logo-saleia.png {
+    alias /opt/saleia/frontend/logo-saleia.png;
+    add_header Cache-Control "public, max-age=2592000";
+}
 ```
 
 ### Transcricao de Audio (V.1.4.5)
@@ -156,6 +177,35 @@ APP_BASE_URL=https://api.saleia.com.br
 - Endpoint `POST /admin/transcricao/config` aceita `apenas_salvar: true` para salvar chave sem mudar provedor
 - Dashboard: botao 👁 para mostrar/ocultar chave Groq; `salvarChaveGroq` usa `fetchJsonWithFallback`
 - Extensao Chrome exibe erros de transcricao na barra de status da sidebar
+
+### Redesign Visual Gold/Black (V.1.4.6)
+
+- Paleta premium aplicada em toda a plataforma: dourado metalico `#D4AF37`, preto absoluto `#000000`
+- `dashboard.html`: variaveis CSS atualizadas, sidebar preta, botoes e badges dourados, tipografia Inter+Sora
+- `login.html`: logo SALEIA PNG premium integrado via Nginx static location
+- `frontend/logo-saleia.png`: novo arquivo de logo adicionado
+
+### Visual Cenario e Navegacao (V.1.4.7)
+
+- `visual-scenario.html`: paleta gold/black; titulo renomeado para "Visual Cenario AI"
+- `dashboard.html`: item de menu "Visual Scenario" → "Visual Cenario"
+
+### Multi-clientes, Botao Inicio e Extensao Chrome (V.1.4.8)
+
+- `dashboard.html`: campo "Cliente" substituido por lista dinamica — botao `+ Cliente`, botao remove (min 1)
+- `visual-scenario.html`: botao "← Inicio" volta para `/cenario/{meeting_id}` em vez de `/`
+- `cenario.html`: paleta gold/black completa
+- Extensao Chrome: popup.css, sidebar.css, content.css redesenhados em ouro/preto
+- `content.js`: modal Participantes com lista de clientes dinamica (event delegation), migracao de dados antigos
+
+### Manual Atualizado (V.1.4.9)
+
+- `frontend/manual.html`: reescrito de V.1.4.5 para V.1.4.8 — secoes 7 (Cenario do Cliente), 8 (Visual Cenario AI), nav sticky e botoes de acoes rapidas
+
+### UX do Dashboard — Chaves API e Status de Conexão (V.1.4.10)
+
+- Campos de chave dos 4 provedores: `autocomplete="new-password"` bloqueia preenchimento automático do Chrome; botão 👁 (função `toggleVerChave`) alterna visibilidade
+- Botão "Testar conexão": badge `✅ Online` ou `❌ Offline` permanece visível no cabeçalho do card após o teste (não desaparece mais com timeout)
 
 ## Problemas Conhecidos
 

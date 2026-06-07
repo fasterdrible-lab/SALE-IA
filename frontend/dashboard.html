@@ -1003,6 +1003,9 @@
       <button class="nav-item" data-page="base" onclick="mostrarPagina('base', this)">
         <span class="nav-icon">📚</span><span class="nav-label">Base de IA</span>
       </button>
+      <button class="nav-item" data-page="monitor" onclick="mostrarPagina('monitor', this)">
+        <span class="nav-icon">📡</span><span class="nav-label">Monitor</span>
+      </button>
       <a class="nav-item" href="/visual-scenario" target="_blank" rel="noopener">
         <span class="nav-icon">🎬</span><span class="nav-label">Visual Cenário</span>
       </a>
@@ -1324,6 +1327,73 @@
         <div id="hd-conteudo"></div>
       </div>
 
+      <!-- MONITOR -->
+      <div class="page" id="page-monitor">
+        <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:20px">
+          <h1 class="page-title" style="margin:0">📡 Monitor</h1>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span id="mon-last-update" style="color:var(--muted);font-size:.8rem"></span>
+            <button class="btn btn-outline" style="padding:6px 14px;font-size:.85rem" onclick="carregarMonitor()">↺ Atualizar</button>
+          </div>
+        </div>
+        <div id="mon-loading" style="color:var(--muted);text-align:center;padding:40px 0">Carregando métricas...</div>
+        <div id="mon-conteudo" style="display:none">
+          <!-- Cards de resumo -->
+          <div id="mon-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:20px"></div>
+          <!-- Tabela provedores IA -->
+          <div class="card" style="margin-bottom:16px;padding:16px 20px">
+            <div class="cfg-section-header"><h3 style="margin:0;font-size:.95rem">Provedores de IA — desde o último restart</h3></div>
+            <div class="cfg-tabela-wrapper">
+              <table class="cfg-tabela">
+                <thead>
+                  <tr>
+                    <th>Provedor</th>
+                    <th style="text-align:right">Sucesso</th>
+                    <th style="text-align:right">Falha</th>
+                    <th style="text-align:right">Lat. Média</th>
+                    <th>Status Atual</th>
+                  </tr>
+                </thead>
+                <tbody id="mon-provedores-body"></tbody>
+              </table>
+            </div>
+          </div>
+          <!-- Banco -->
+          <div class="card" style="padding:16px 20px;margin-bottom:16px">
+            <div class="cfg-section-header" style="margin-bottom:10px"><h3 style="margin:0;font-size:.95rem">Banco de Dados</h3></div>
+            <div id="mon-banco"></div>
+          </div>
+          <!-- Histórico sparklines -->
+          <div class="card" style="padding:16px 20px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:6px">
+              <h3 style="margin:0;font-size:.95rem">Histórico — últimas 6h</h3>
+              <span style="color:var(--muted);font-size:.78rem">atualizado a cada minuto</span>
+            </div>
+            <div id="mon-hist-loading" style="color:var(--muted);font-size:.85rem;padding:8px 0">aguardando primeiros dados...</div>
+            <div id="mon-hist" style="display:none">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+                <div>
+                  <div style="color:var(--muted);font-size:.73rem;letter-spacing:.5px;margin-bottom:6px">LATÊNCIA BANCO (ms)</div>
+                  <div id="mon-spark-lat"></div>
+                </div>
+                <div>
+                  <div style="color:var(--muted);font-size:.73rem;letter-spacing:.5px;margin-bottom:6px">REUNIÕES ATIVAS</div>
+                  <div id="mon-spark-ativas"></div>
+                </div>
+                <div>
+                  <div style="color:var(--muted);font-size:.73rem;letter-spacing:.5px;margin-bottom:6px">CHAMADAS IA (acumulado)</div>
+                  <div id="mon-spark-ia"></div>
+                </div>
+                <div>
+                  <div style="color:var(--muted);font-size:.73rem;letter-spacing:.5px;margin-bottom:6px">REUNIÕES HOJE</div>
+                  <div id="mon-spark-hoje"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /page-monitor -->
+
       <!-- CONFIGURAÇÕES -->
       <div class="page" id="page-configuracoes">
         <h2>Configurações</h2>
@@ -1437,6 +1507,19 @@
 </div><!-- /layout -->
 
 <script>
+  /* ─── Auth interceptor global ────────────────────── */
+  (function () {
+    const _orig = window.fetch;
+    window.fetch = function (url, opts) {
+      opts = opts || {};
+      const token = localStorage.getItem('saleia_token');
+      if (token && typeof url === 'string' && (url.startsWith('/') || url.includes('api.saleia.com.br'))) {
+        opts.headers = Object.assign({ Authorization: 'Bearer ' + token }, opts.headers || {});
+      }
+      return _orig.call(this, url, opts);
+    };
+  })();
+
   /* ─── Config ─────────────────────────────────────── */
   const _host = window.location.hostname;
   const API_OPTIONS = [
@@ -1481,11 +1564,13 @@
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
     document.getElementById('page-' + nome).classList.add('active');
     if (btn) btn.classList.add('active');
+    if (nome !== 'monitor') _pararMonitor();
     if (nome === 'dashboard')     carregarDashboard();
     if (nome === 'reunioes')      carregarReunioes();
     if (nome === 'sessoes')       carregarSessoes();
     if (nome === 'base')          { carregarBase(); initDropzone(); }
     if (nome === 'historico')     carregarHistorico();
+    if (nome === 'monitor')       _iniciarMonitor();
     if (nome === 'configuracoes') {
       // reset lazy-load flags so sections reload fresh data on next open
       Object.keys(_accLoaded).forEach(k => delete _accLoaded[k]);
@@ -1761,6 +1846,19 @@
 
   /* ─── Configurações — carregamento geral ─────────── */
   const _accLoaded = {};
+  const _testeStatus = {}; // persiste resultado de testarProvedor durante a sessão
+
+  function _aplicarTesteStatus() {
+    Object.entries(_testeStatus).forEach(([id, resultado]) => {
+      const badge = document.getElementById('status-teste-' + id);
+      if (!badge) return;
+      if (resultado === 'online') {
+        badge.innerHTML = '<span class="cfg-badge cfg-badge-ativo" style="background:rgba(212,175,55,.12);border-color:rgba(212,175,55,.4);color:#D4AF37">✅ Online</span>';
+      } else {
+        badge.innerHTML = '<span class="cfg-badge cfg-badge-inativo">❌ Offline</span>';
+      }
+    });
+  }
 
   function toggleAcc(id) {
     const item = document.getElementById('acc-' + id);
@@ -1860,6 +1958,13 @@
 
   function toggleVerChaveGroq(btn) {
     const inp = document.getElementById('tr-key-groq');
+    if (!inp) return;
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+    btn.textContent = inp.type === 'password' ? '👁' : '🙈';
+  }
+
+  function toggleVerChave(pid, btn) {
+    const inp = document.getElementById('key-' + pid);
     if (!inp) return;
     inp.type = inp.type === 'password' ? 'text' : 'password';
     btn.textContent = inp.type === 'password' ? '👁' : '🙈';
@@ -2132,12 +2237,14 @@
       renderizarProvedores(dados.provedores || dados);
       loading.classList.add('hidden');
       lista.classList.remove('hidden');
+      _aplicarTesteStatus();
     } catch {
       loading.classList.add('hidden');
       renderizarProvedores(_provedoresPadrao);
       lista.classList.remove('hidden');
       erro.classList.remove('hidden');
       erro.textContent = 'Usando dados locais — backend indisponível. As alterações não serão salvas.';
+      _aplicarTesteStatus();
     }
   }
 
@@ -2158,10 +2265,11 @@
             <span class="cfg-provedor-nome">${escHtml(p.nome)}</span>
             <div style="color:var(--muted);font-size:.78rem;margin-top:2px">${escHtml(p.modelo)}</div>
           </div>
-          <div class="cfg-provedor-badges">${statusBadge}${principalBadge}</div>
+          <div class="cfg-provedor-badges">${statusBadge}${principalBadge}<span id="status-teste-${p.id}"></span></div>
         </div>
         <div class="cfg-provedor-key-row">
-          <input type="password" id="key-${p.id}" placeholder="${p.tem_chave ? '••••••••••••••••' : 'Cole a chave de API aqui'}" autocomplete="off">
+          <input type="password" id="key-${p.id}" placeholder="${p.tem_chave ? '••••••••••••••••' : 'Cole a chave de API aqui'}" autocomplete="new-password">
+          <button class="cfg-btn-provedor" onclick="toggleVerChave('${p.id}', this)" title="Mostrar/ocultar chave" style="padding:0 10px;font-size:1rem">👁</button>
           <button class="cfg-btn-provedor" onclick="salvarChaveProvedor('${p.id}')">Salvar</button>
         </div>
         <div class="cfg-provedor-acoes">
@@ -2198,7 +2306,8 @@
   }
 
   async function testarProvedor(id) {
-    const fb = document.getElementById('fb-' + id);
+    const fb    = document.getElementById('fb-' + id);
+    const badge = document.getElementById('status-teste-' + id);
     if (fb) { fb.textContent = 'Testando...'; fb.style.color = 'var(--muted)'; }
     try {
       const r = await fetch(API + '/admin/api/teste', {
@@ -2208,12 +2317,21 @@
       });
       const json = await r.json().catch(() => ({}));
       if (r.ok && json.ok) {
-        if (fb) { fb.textContent = '✅ Conectado'; fb.style.color = '#14B8A6'; }
+        _testeStatus[id] = 'online';
+        if (fb) fb.textContent = '';
+        if (badge) badge.innerHTML = '<span class="cfg-badge cfg-badge-ativo" style="background:rgba(212,175,55,.12);border-color:rgba(212,175,55,.4);color:#D4AF37">✅ Online</span>';
       } else {
-        if (fb) { fb.textContent = '❌ Falha: ' + (json.detalhe || json.detail || 'erro'); fb.style.color = '#FCA5A5'; }
+        _testeStatus[id] = 'offline';
+        if (badge) badge.innerHTML = '<span class="cfg-badge cfg-badge-inativo">❌ Offline</span>';
+        if (fb) { fb.textContent = '❌ ' + (json.detalhe || json.detail || 'Falha na conexão'); fb.style.color = '#FCA5A5'; }
+        setTimeout(() => { if (fb) fb.textContent = ''; }, 4000);
       }
-    } catch { if (fb) { fb.textContent = '❌ Sem resposta'; fb.style.color = '#FCA5A5'; } }
-    setTimeout(() => { if (fb) fb.textContent = ''; }, 4000);
+    } catch {
+      _testeStatus[id] = 'offline';
+      if (badge) badge.innerHTML = '<span class="cfg-badge cfg-badge-inativo">❌ Offline</span>';
+      if (fb) { fb.textContent = '❌ Sem resposta do servidor'; fb.style.color = '#FCA5A5'; }
+      setTimeout(() => { if (fb) fb.textContent = ''; }, 4000);
+    }
   }
 
   async function toggleProvedor(id, ativar) {
@@ -3372,6 +3490,173 @@
       if (analisarPage?.classList.contains('active')) analisar();
     }
   });
+
+  /* ─── MONITOR ──────────────────────────────────────── */
+  let _monitorTimer = null;
+
+  function _iniciarMonitor() {
+    carregarMonitor();
+    _carregarHistoricoMonitor();
+    if (!_monitorTimer) _monitorTimer = setInterval(() => {
+      carregarMonitor();
+      _carregarHistoricoMonitor();
+    }, 60000);
+  }
+
+  function _pararMonitor() {
+    if (_monitorTimer) { clearInterval(_monitorTimer); _monitorTimer = null; }
+  }
+
+  async function carregarMonitor() {
+    const auth = { headers: { Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') } };
+    try {
+      const resp = await fetchJsonWithFallback('/monitor/metricas', auth);
+      if (!resp.ok) { _monitorErro('Sem permissão ou erro ' + resp.status); return; }
+      const d = await resp.json();
+      _renderMonitor(d);
+    } catch (e) {
+      _monitorErro('Erro de conexão: ' + e.message);
+    }
+  }
+
+  async function _carregarHistoricoMonitor() {
+    const auth = { headers: { Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') } };
+    try {
+      const resp = await fetchJsonWithFallback('/monitor/historico?horas=6', auth);
+      if (!resp.ok) return;
+      const d = await resp.json();
+      _renderHistorico(d.pontos || []);
+    } catch (_) {}
+  }
+
+  function _monitorErro(msg) {
+    document.getElementById('mon-loading').textContent = '⚠️ ' + msg;
+    document.getElementById('mon-loading').style.display = '';
+    document.getElementById('mon-conteudo').style.display = 'none';
+  }
+
+  function _fmtUptime(s) {
+    if (s < 60)   return s + 's';
+    if (s < 3600) return Math.floor(s / 60) + 'min ' + (s % 60) + 's';
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return h + 'h ' + m + 'min';
+  }
+
+  function _monCard(icon, label, value, color) {
+    color = color || 'var(--primary)';
+    return `<div class="card" style="padding:14px 16px;display:flex;flex-direction:column;gap:4px">
+      <div style="font-size:1.5rem">${icon}</div>
+      <div style="font-size:1.6rem;font-weight:700;color:${color}">${value}</div>
+      <div style="font-size:.78rem;color:var(--muted)">${label}</div>
+    </div>`;
+  }
+
+  function _renderMonitor(d) {
+    document.getElementById('mon-loading').style.display = 'none';
+    document.getElementById('mon-conteudo').style.display = '';
+    const ia = d.ia || {};
+    const banco = d.banco || {};
+
+    // Cards
+    const cards = [
+      _monCard('⏱️', 'Uptime', _fmtUptime(ia.uptime_segundos || 0)),
+      _monCard('📨', 'Chamadas IA', ia.chamadas_total || 0),
+      _monCard('✅', 'Sucesso', ia.chamadas_sucesso || 0, '#4ade80'),
+      _monCard('❌', 'Falha', ia.chamadas_falha || 0, ia.chamadas_falha > 0 ? '#f87171' : 'var(--muted)'),
+      _monCard('🔄', 'Fallbacks', ia.fallbacks || 0, ia.fallbacks > 0 ? '#fbbf24' : 'var(--muted)'),
+      _monCard('⚡', 'Circuit Breaks', ia.circuit_breaker_aberturas || 0, ia.circuit_breaker_aberturas > 0 ? '#f87171' : 'var(--muted)'),
+      _monCard('🔴', 'Reuniões Ativas', d.reunioes_ativas ?? '—'),
+      _monCard('📅', 'Reuniões Hoje', d.reunioes_hoje ?? '—'),
+    ];
+    document.getElementById('mon-cards').innerHTML = cards.join('');
+
+    // Tabela provedores
+    const por = ia.por_provedor || {};
+    const statusAtual = d.ia && d.ia.por_provedor ? {} : {};
+    const nomes = { deepseek: 'DeepSeek', openai: 'OpenAI', anthropic: 'Anthropic', gemini: 'Gemini' };
+    let linhas = '';
+    for (const [pid, stats] of Object.entries(por)) {
+      const latStr = stats.latencia_media_ms != null ? stats.latencia_media_ms + ' ms' : '—';
+      const total = (stats.sucesso || 0) + (stats.falha || 0);
+      const taxa = total > 0 ? Math.round((stats.sucesso / total) * 100) : null;
+      const taxaStr = taxa != null ? `<span style="color:${taxa >= 80 ? '#4ade80' : '#fbbf24'}">${taxa}%</span>` : '—';
+      linhas += `<tr>
+        <td><strong>${nomes[pid] || pid}</strong></td>
+        <td style="text-align:right">${stats.sucesso || 0}</td>
+        <td style="text-align:right">${stats.falha || 0}</td>
+        <td style="text-align:right">${latStr}</td>
+        <td>${taxaStr}</td>
+      </tr>`;
+    }
+    document.getElementById('mon-provedores-body').innerHTML = linhas || '<tr><td colspan="5" style="color:var(--muted);text-align:center">Nenhuma chamada registrada ainda.</td></tr>';
+
+    // Banco
+    const bancoCorLatencia = (banco.latencia_ms || 0) > 500 ? '#fbbf24' : '#4ade80';
+    const bancoStatus = banco.erro
+      ? `<span style="color:#f87171">⚠️ ${banco.erro}</span>`
+      : `<span style="color:#4ade80">✅ Online</span>`;
+    document.getElementById('mon-banco').innerHTML = `
+      <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:.88rem">
+        <div><span style="color:var(--muted)">Modo:</span> <strong style="text-transform:uppercase">${banco.modo || '—'}</strong></div>
+        <div><span style="color:var(--muted)">Latência:</span> <strong style="color:${bancoCorLatencia}">${banco.latencia_ms != null ? banco.latencia_ms + ' ms' : '—'}</strong></div>
+        <div><span style="color:var(--muted)">Status:</span> ${bancoStatus}</div>
+      </div>`;
+
+    // Timestamp
+    const ts = d.timestamp ? new Date(d.timestamp).toLocaleTimeString('pt-BR') : '';
+    document.getElementById('mon-last-update').textContent = ts ? 'Atualizado às ' + ts : '';
+  }
+
+  function _sparklineSVG(values, color, unit) {
+    const w = 220, h = 48;
+    const valid = values.map(v => v == null ? 0 : v);
+    if (valid.length < 2) return '<span style="color:var(--muted);font-size:.8rem">aguardando dados...</span>';
+    const mx = Math.max(...valid, 1);
+    const mn = Math.min(...valid, 0);
+    const rng = mx - mn || 1;
+    const pts = valid.map((v, i) => {
+      const x = (i / (valid.length - 1)) * (w - 6) + 3;
+      const y = h - 4 - ((v - mn) / rng) * (h - 12);
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    }).join(' ');
+    const last = valid[valid.length - 1];
+    const lx = (w - 3).toFixed(1);
+    const ly = (h - 4 - ((last - mn) / rng) * (h - 12)).toFixed(1);
+    const fmt = unit === 'ms' ? last.toFixed(0) : last;
+    return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;overflow:visible">
+      <defs><linearGradient id="sg_${color.replace('#','')}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${color}" stop-opacity=".18"/>
+        <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+      </linearGradient></defs>
+      <polygon points="${pts} ${(w-3)},${h} 3,${h}" fill="url(#sg_${color.replace('#','')})" />
+      <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="${lx}" cy="${ly}" r="3.5" fill="${color}"/>
+      <text x="${w}" y="${h}" text-anchor="end" fill="${color}" font-size="12" font-weight="700">${fmt}${unit ? ' ' + unit : ''}</text>
+    </svg>`;
+  }
+
+  function _renderHistorico(pontos) {
+    const loading = document.getElementById('mon-hist-loading');
+    const hist    = document.getElementById('mon-hist');
+    if (!pontos || pontos.length < 2) {
+      if (loading) loading.textContent = 'aguardando primeiros dados (disponível após ~2 min)...';
+      return;
+    }
+    if (loading) loading.style.display = 'none';
+    if (hist)    hist.style.display = '';
+
+    const lat    = pontos.map(p => p.banco_latencia);
+    const ativas = pontos.map(p => p.reunioes_ativas);
+    const ia     = pontos.map(p => p.chamadas_ia);
+    const hoje   = pontos.map(p => p.reunioes_hoje);
+
+    const el = id => document.getElementById(id);
+    if (el('mon-spark-lat'))    el('mon-spark-lat').innerHTML    = _sparklineSVG(lat,    '#fbbf24', 'ms');
+    if (el('mon-spark-ativas')) el('mon-spark-ativas').innerHTML = _sparklineSVG(ativas, '#60a5fa', '');
+    if (el('mon-spark-ia'))     el('mon-spark-ia').innerHTML     = _sparklineSVG(ia,     '#a78bfa', '');
+    if (el('mon-spark-hoje'))   el('mon-spark-hoje').innerHTML   = _sparklineSVG(hoje,   '#4ade80', '');
+  }
 </script>
 </body>
 </html>

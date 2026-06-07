@@ -14,9 +14,11 @@ Endpoints:
 
 import os
 import json
+import uuid
 import asyncio
 import html as html_module
 import logging
+from contextvars import ContextVar
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
@@ -28,11 +30,69 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocke
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
+from starlette.middleware.base import BaseHTTPMiddleware
 
-from api.ai_router import chamar_ia, definir_provedor_preferido, rotacionar_provedor_preferido, snapshot_provedores
-from api.database import criar_tabelas, salvar_relatorio as db_salvar, listar_relatorios as db_listar, buscar_ultimo_relatorio as db_ultimo, obter_meeting_memory
+from api.ai_router import chamar_ia, definir_provedor_preferido, rotacionar_provedor_preferido, snapshot_provedores, snapshot_metricas
+from api.database import (
+    criar_tabelas,
+    salvar_relatorio as db_salvar,
+    listar_relatorios as db_listar,
+    buscar_ultimo_relatorio as db_ultimo,
+    obter_meeting_memory,
+    db_health,
+    contar_reunioes_ativas,
+    contar_reunioes_hoje,
+)
 
-logger = logging.getLogger(__name__)
+# ─────────────────────────────────────────────
+# LOGGING ESTRUTURADO JSON
+# ─────────────────────────────────────────────
+_cid_var: ContextVar[str] = ContextVar("cid", default="-")
+
+
+class _JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        doc: dict = {
+            "ts":     self.formatTime(record, "%Y-%m-%dT%H:%M:%S"),
+            "level":  record.levelname,
+            "logger": record.name,
+            "msg":    record.getMessage(),
+            "cid":    _cid_var.get("-"),
+        }
+        if record.exc_info:
+            doc["exc"] = self.formatException(record.exc_info)
+        return json.dumps(doc, ensure_ascii=False)
+
+
+def _configurar_logging() -> None:
+    fmt = _JsonFormatter()
+    saleia_log = logging.getLogger("saleia")
+    saleia_log.setLevel(logging.INFO)
+    if not saleia_log.handlers:
+        h = logging.StreamHandler()
+        h.setFormatter(fmt)
+        saleia_log.addHandler(h)
+    else:
+        for h in saleia_log.handlers:
+            h.setFormatter(fmt)
+
+
+logger = logging.getLogger("saleia.main")
+
+
+# ─────────────────────────────────────────────
+# MIDDLEWARE — CORRELATION ID
+# ─────────────────────────────────────────────
+class _CorrelationMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        cid = request.headers.get("X-Request-ID") or str(uuid.uuid4())[:8]
+        token = _cid_var.set(cid)
+        try:
+            response = await call_next(request)
+        finally:
+            _cid_var.reset(token)
+        response.headers["X-Request-ID"] = cid
+        return response
 
 # ─────────────────────────────────────────────
 # CONFIGURAÇÃO
@@ -40,8 +100,10 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="SALEIA — Assistente de Vendas IA",
     description="Backend para o assistente de vendas em tempo real no Google Meet",
-    version="1.0.0",
+    version="1.4.13",
 )
+
+app.add_middleware(_CorrelationMiddleware)
 
 # CORS — permite requisições da extensão Chrome (chrome-extension://)
 app.add_middleware(
@@ -52,6 +114,40 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# OpenTelemetry — chamado no nível do módulo para que o middleware
+# seja registrado antes da primeira requisição (instrument_app em
+# on_startup é tarde demais em algumas versões do Starlette).
+def _configurar_opentelemetry() -> None:
+    endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+    if not endpoint:
+        return
+    try:
+        from opentelemetry import trace
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+        from opentelemetry.sdk.resources import Resource
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+        headers_raw = os.getenv("OTEL_EXPORTER_OTLP_HEADERS", "")
+        headers: dict = {}
+        for part in headers_raw.split(","):
+            if "=" in part:
+                k, _, v = part.strip().partition("=")
+                headers[k.strip()] = v.strip()
+
+        resource = Resource.create({"service.name": os.getenv("OTEL_SERVICE_NAME", "saleia")})
+        provider = TracerProvider(resource=resource)
+        exporter = OTLPSpanExporter(endpoint=endpoint + "/v1/traces", headers=headers)
+        provider.add_span_processor(BatchSpanProcessor(exporter))
+        trace.set_tracer_provider(provider)
+        FastAPIInstrumentor.instrument_app(app)
+        logging.getLogger("saleia.main").info("OpenTelemetry ativo → %s", endpoint)
+    except Exception as _e:
+        logging.getLogger("saleia.main").warning("OpenTelemetry não configurado: %s", _e)
+
+_configurar_opentelemetry()
+
 # Armazenamento em memória do último relatório (cache rápido)
 ultimo_relatorio: dict = {}
 
@@ -59,8 +155,31 @@ ultimo_relatorio: dict = {}
 PASTA_RELATORIOS = Path("data/relatorios")
 PASTA_RELATORIOS.mkdir(parents=True, exist_ok=True)
 
+async def _loop_metricas() -> None:
+    """Background task: grava snapshot de métricas a cada 60s e verifica thresholds."""
+    from api.metricas_historico import registrar
+    from agent.alertas import verificar_thresholds
+    await asyncio.sleep(15)  # aguarda startup completo
+    while True:
+        try:
+            banco   = await asyncio.to_thread(db_health)
+            ativas  = await asyncio.to_thread(contar_reunioes_ativas)
+            hoje    = await asyncio.to_thread(contar_reunioes_hoje)
+            ia_snap = snapshot_metricas()
+            await asyncio.to_thread(
+                registrar, banco, ativas, hoje,
+                ia_snap.get("chamadas_total", 0),
+                ia_snap.get("chamadas_falha", 0),
+            )
+            await asyncio.to_thread(verificar_thresholds, ia_snap, banco)
+        except Exception as _e:
+            logger.warning("Erro no loop de métricas: %s", _e)
+        await asyncio.sleep(60)
+
+
 @app.on_event("startup")
-def on_startup():
+async def on_startup():
+    _configurar_logging()
     criar_tabelas()
     logger.info("✅ Banco de dados inicializado.")
     try:
@@ -75,6 +194,12 @@ def on_startup():
         criar_tabela_visual_scenarios()
     except Exception as e:
         logger.warning("Tabela visual_scenarios não criada: %s", e)
+    try:
+        from api.metricas_historico import criar_tabela_metricas
+        criar_tabela_metricas()
+    except Exception as e:
+        logger.warning("Tabela metricas_historico não criada: %s", e)
+    asyncio.create_task(_loop_metricas())
 
 # ─────────────────────────────────────────────
 # TABELA DE PREÇOS DOS PRODUTOS
@@ -326,23 +451,58 @@ def chamar_gpt(system_prompt: str, user_content: str, modelo: str = "gpt-4o") ->
 
 @app.get("/health")
 def health_check():
-    """Verificação de saúde do serviço — inclui status dos provedores de IA."""
-    snapshot = snapshot_provedores()
+    """Verificação de saúde do serviço — provedores de IA, banco e reuniões ativas."""
+    snapshot  = snapshot_provedores()
     provedores = snapshot["ia"]
+    banco     = db_health()
     ia_ok = any(
         p.get("status") == "ok" or p.get("status", "").startswith("degradado")
         for p in provedores.values()
     )
+    status = "online" if ia_ok and banco.get("erro") is None else "degradado"
     return {
-        "status": "online" if ia_ok else "degradado",
-        "servico": "SALEIA Backend",
-        "versao": "1.3.0",
-        "timestamp": datetime.now().isoformat(),
-        "ia": provedores,
-        "ordem_ia": snapshot["ordem_ia"],
-        "provedor_preferido": snapshot["provedor_preferido"],
-        "banco": "mysql" if os.environ.get("DB_HOST") else "sqlite",
+        "status":              status,
+        "servico":             "SALEIA Backend",
+        "versao":              "1.4.12",
+        "timestamp":           datetime.now().isoformat(),
+        "ia":                  provedores,
+        "ordem_ia":            snapshot["ordem_ia"],
+        "provedor_preferido":  snapshot["provedor_preferido"],
+        "banco":               banco["banco"],
+        "banco_latencia_ms":   banco["latencia_ms"],
+        "banco_erro":          banco["erro"],
+        "reunioes_ativas":     contar_reunioes_ativas(minutos=5),
+        "reunioes_hoje":       contar_reunioes_hoje(),
     }
+
+
+@app.get("/monitor/metricas")
+def monitor_metricas(authorization: str | None = Header(default=None)):
+    """Métricas de uso da IA em memória desde o último restart do serviço."""
+    _req_auth(authorization)
+    metricas = snapshot_metricas()
+    banco = db_health()
+    return {
+        "ia": metricas,
+        "banco": {
+            "modo":        banco["banco"],
+            "latencia_ms": banco["latencia_ms"],
+            "erro":        banco["erro"],
+        },
+        "reunioes_ativas": contar_reunioes_ativas(minutos=5),
+        "reunioes_hoje":   contar_reunioes_hoje(),
+        "versao":          "1.4.12",
+        "timestamp":       datetime.now().isoformat(),
+    }
+
+
+@app.get("/monitor/historico")
+def monitor_historico(horas: int = 6, authorization: str | None = Header(default=None)):
+    """Série temporal das métricas das últimas N horas (máx 24h). Requer JWT."""
+    _req_auth(authorization)
+    from api.metricas_historico import obter
+    pontos = obter(min(max(horas, 1), 24))
+    return {"pontos": pontos, "total": len(pontos), "horas": horas}
 
 
 @app.post("/ai/provedor/proximo")

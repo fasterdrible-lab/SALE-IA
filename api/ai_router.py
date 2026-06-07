@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import re
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -111,6 +112,20 @@ class CircuitBreaker:
                 self.name,
                 COOLDOWN_SECONDS,
             )
+            try:
+                with _counters_lock:
+                    _counters["circuit_breaker_aberturas"] += 1
+            except Exception:
+                pass
+            try:
+                from agent.alertas import alertar
+                alertar(
+                    f"🤖 Circuit breaker aberto: *{self.name}*\n"
+                    f"Cooldown: {COOLDOWN_SECONDS}s — fallback para próximo provedor.",
+                    nivel="🟠",
+                )
+            except Exception:
+                pass
 
 
 def _extract_json(text: str) -> dict:
@@ -306,6 +321,23 @@ _breakers: dict[str, CircuitBreaker] = {
     name: CircuitBreaker(name) for name in PROVIDERS
 }
 
+# ─────────────────────────────────────────────
+# MÉTRICAS EM MEMÓRIA — Fase 2 Observabilidade
+# ─────────────────────────────────────────────
+_counters_lock = threading.Lock()
+_counters: dict = {
+    "chamadas_total": 0,
+    "chamadas_sucesso": 0,
+    "chamadas_falha": 0,
+    "fallbacks": 0,
+    "circuit_breaker_aberturas": 0,
+    "por_provedor": {
+        name: {"sucesso": 0, "falha": 0, "total_ms": 0}
+        for name in ("deepseek", "openai", "anthropic", "gemini")
+    },
+    "inicio": time.time(),
+}
+
 
 def _provider_order() -> list[Provider]:
     saved_order = _load_saved_provider_order()
@@ -393,6 +425,28 @@ def snapshot_provedores() -> dict:
     }
 
 
+def snapshot_metricas() -> dict:
+    """Retorna cópia thread-safe dos contadores de uso da IA desde o último restart."""
+    with _counters_lock:
+        snap = {
+            "chamadas_total": _counters["chamadas_total"],
+            "chamadas_sucesso": _counters["chamadas_sucesso"],
+            "chamadas_falha": _counters["chamadas_falha"],
+            "fallbacks": _counters["fallbacks"],
+            "circuit_breaker_aberturas": _counters["circuit_breaker_aberturas"],
+            "uptime_segundos": int(time.time() - _counters["inicio"]),
+            "por_provedor": {
+                name: dict(stats)
+                for name, stats in _counters["por_provedor"].items()
+            },
+        }
+    for stats in snap["por_provedor"].values():
+        stats["latencia_media_ms"] = (
+            round(stats["total_ms"] / stats["sucesso"]) if stats["sucesso"] > 0 else None
+        )
+    return snap
+
+
 def chamar_ia(system_prompt: str, user_content: str) -> dict:
     """
     Calls the configured AI providers in order until one returns valid JSON.
@@ -401,6 +455,9 @@ def chamar_ia(system_prompt: str, user_content: str) -> dict:
     """
     attempts: list[dict] = []
     system_prompt = f"{system_prompt or ''}{FORBIDDEN_TRIGGER_RULE}"
+
+    with _counters_lock:
+        _counters["chamadas_total"] += 1
 
     for provider in _provider_order():
         breaker = _breakers[provider.name]
@@ -438,6 +495,14 @@ def chamar_ia(system_prompt: str, user_content: str) -> dict:
                 "custo_estimado_usd": metrica_custo["_custo_estimado_ia"],
             })
 
+            failed_before = sum(1 for a in attempts[:-1] if a.get("status") == "failed")
+            with _counters_lock:
+                _counters["chamadas_sucesso"] += 1
+                _counters["por_provedor"][provider.name]["sucesso"] += 1
+                _counters["por_provedor"][provider.name]["total_ms"] += elapsed_ms
+                if failed_before > 0:
+                    _counters["fallbacks"] += 1
+
             result.setdefault("_provedor_ia", provider.name)
             result.setdefault("_modelo_ia", model)
             result.setdefault("_tentativas_ia", attempts)
@@ -459,8 +524,12 @@ def chamar_ia(system_prompt: str, user_content: str) -> dict:
                 "error": safe_error,
             })
             logger.warning("AI provider %s failed: %s", provider.name, safe_error)
+            with _counters_lock:
+                _counters["por_provedor"][provider.name]["falha"] += 1
 
     logger.error("All AI providers failed or were unavailable: %s", attempts)
+    with _counters_lock:
+        _counters["chamadas_falha"] += 1
     raise HTTPException(
         status_code=503,
         detail={

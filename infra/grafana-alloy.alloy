@@ -1,0 +1,61 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// SALEIA — Grafana Alloy config (Prometheus → Grafana Cloud)
+//
+// SETUP (executar na VPS):
+//   1. Instalar Grafana Alloy:
+//        wget -q -O - https://apt.grafana.com/gpg.key | apt-key add -
+//        echo "deb https://apt.grafana.com stable main" > /etc/apt/sources.list.d/grafana.list
+//        apt update && apt install alloy
+//
+//   2. Criar conta Grafana Cloud gratuita: https://grafana.com/
+//      - My Account → Prometheus → "Details" → copie:
+//          Prometheus remote_write URL  → GRAFANA_CLOUD_URL abaixo
+//          Username (User ID)           → GRAFANA_CLOUD_USER
+//          Password (API Key)           → GRAFANA_CLOUD_API_KEY
+//
+//   3. Copiar este arquivo para /etc/alloy/config.alloy
+//      Substituir os três placeholders abaixo pelos valores reais.
+//
+//   4. Habilitar e iniciar:
+//        systemctl enable alloy
+//        systemctl start alloy
+//        systemctl status alloy
+//
+//   5. No Grafana Cloud, importar o dashboard de infra/grafana-dashboard.json
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Scrape do endpoint /metrics da API SALEIA ─────────────────────────────────
+prometheus.scrape "saleia" {
+  targets = [
+    { "__address__" = "127.0.0.1:8000", "__metrics_path__" = "/metrics" },
+  ]
+  scrape_interval = "30s"
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+// ── Scrape de métricas do próprio sistema (CPU, RAM, disco) ──────────────────
+prometheus.exporter.unix "host" {}
+
+prometheus.scrape "host_metrics" {
+  targets         = prometheus.exporter.unix.host.targets
+  scrape_interval = "60s"
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+// ── Remote write para Grafana Cloud ─────────────────────────────────────────
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = "GRAFANA_CLOUD_URL"  // ex: https://prometheus-prod-XX.grafana.net/api/prom/push
+
+    basic_auth {
+      username = "GRAFANA_CLOUD_USER"      // User ID numérico
+      password = "GRAFANA_CLOUD_API_KEY"   // API Key do Grafana Cloud
+    }
+  }
+
+  external_labels = {
+    servico  = "saleia",
+    ambiente = "producao",
+    vps      = "hetzner",
+  }
+}
