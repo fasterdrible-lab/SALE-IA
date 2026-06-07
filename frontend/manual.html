@@ -20,6 +20,8 @@
       --red-light: #fef2f2;
       --purple:  #7c3aed;
       --purple-light: #ede9fe;
+      --gold:    #b8860b;
+      --gold-light: #fffbea;
       --text:    #1a1a2e;
       --muted:   #64748b;
       --border:  #e2e8f0;
@@ -155,6 +157,7 @@
     .callout-danger { background: var(--red-light);     border-left: 4px solid var(--red); }
     .callout-info   { background: var(--primary-light); border-left: 4px solid var(--primary); }
     .callout-purple { background: var(--purple-light);  border-left: 4px solid var(--purple); }
+    .callout-gold   { background: var(--gold-light);    border-left: 4px solid var(--gold); }
 
     code {
       background: #f1f5f9;
@@ -167,7 +170,8 @@
     }
 
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    @media (max-width: 700px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
 
     .feature { display: flex; gap: 16px; align-items: flex-start; padding: 16px; background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
     .feature-icon { font-size: 1.8rem; flex-shrink: 0; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; background: var(--primary-light); border-radius: 10px; }
@@ -189,6 +193,7 @@
     .badge-red    { background: var(--red-light); color: var(--red); }
     .badge-blue   { background: var(--primary-light); color: var(--primary); }
     .badge-purple { background: var(--purple-light); color: var(--purple); }
+    .badge-gold   { background: var(--gold-light); color: var(--gold); }
 
     details { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; background: var(--white); }
     summary { padding: 16px 20px; font-weight: 600; cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; font-size: .95rem; }
@@ -205,6 +210,22 @@
     .url-box a { color: #60a5fa; text-decoration: none; }
     .url-box a:hover { text-decoration: underline; }
 
+    .screen-demo {
+      background: #0A0A0A;
+      border-radius: 10px;
+      padding: 16px;
+      margin: 12px 0;
+      color: #F0F0F0;
+      font-size: .85rem;
+      border: 1px solid rgba(212,175,55,0.3);
+    }
+    .screen-demo-header {
+      color: #D4AF37;
+      font-weight: 700;
+      margin-bottom: 8px;
+      font-size: .9rem;
+    }
+
     @media print {
       .indice { display: none; }
       header { background: var(--primary) !important; -webkit-print-color-adjust: exact; }
@@ -217,7 +238,7 @@
 <header>
   <div class="logo">SALE<span>IA</span></div>
   <p class="tagline">Assistente de Vendas com Inteligência Artificial — Manual do Usuário</p>
-  <div class="versao">Versão 1.4.5 · Junho 2026</div>
+  <div class="versao">Versão 1.4.8 · Junho 2026</div>
 </header>
 
 <nav class="indice">
@@ -228,6 +249,8 @@
     <a class="nav-link" href="#reuniao">Na Reunião</a>
     <a class="nav-link" href="#transcricao">Transcrição</a>
     <a class="nav-link" href="#sidebar">Painel Lateral</a>
+    <a class="nav-link" href="#cenario-cliente">Cenário do Cliente</a>
+    <a class="nav-link" href="#visual-cenario">Visual Cenário AI</a>
     <a class="nav-link" href="#score">Score</a>
     <a class="nav-link" href="#relatorio">Relatório</a>
     <a class="nav-link" href="#dashboard">Dashboard</a>
@@ -262,8 +285,16 @@
         <div><h3>Relatório Pós-Reunião</h3><p>Recapitulação com próximos passos, diagnóstico financeiro e histórico de score</p></div>
       </div>
       <div class="feature">
+        <div class="feature-icon">🎬</div>
+        <div><h3>Cenário do Cliente</h3><p>Slides interativos com perfil DISC, score, diagnóstico financeiro e roteiros de condução gerados pela IA</p></div>
+      </div>
+      <div class="feature">
         <div class="feature-icon">🖼️</div>
-        <div><h3>Cenário Visual com IA</h3><p>Gera imagens do estado atual e futuro do cliente com DALL-E 3 para apresentações impactantes</p></div>
+        <div><h3>Visual Cenário AI</h3><p>Gera imagens do estado atual e futuro do cliente com DALL-E 3 para apresentações impactantes</p></div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">👥</div>
+        <div><h3>Multi-Clientes</h3><p>Suporte a reuniões com mais de um decisor — cadastre múltiplos clientes na análise e na extensão</p></div>
       </div>
       <div class="feature">
         <div class="feature-icon">📊</div>
@@ -289,6 +320,7 @@
       <div class="card-title">🌐 URLs principais</div>
       <div class="url-box">🔐 Login: <a href="https://api.saleia.com.br/login" target="_blank">https://api.saleia.com.br/login</a></div>
       <div class="url-box">📊 Dashboard: <a href="https://api.saleia.com.br/dashboard" target="_blank">https://api.saleia.com.br/dashboard</a></div>
+      <div class="url-box">🖼️ Visual Cenário: <a href="https://api.saleia.com.br/visual-scenario" target="_blank">https://api.saleia.com.br/visual-scenario</a></div>
       <div class="url-box">📖 Manual: <a href="https://api.saleia.com.br/manual" target="_blank">https://api.saleia.com.br/manual</a></div>
       <div class="url-box">🩺 Status: <a href="https://api.saleia.com.br/health" target="_blank">https://api.saleia.com.br/health</a></div>
     </div>
@@ -373,11 +405,32 @@
     </div>
 
     <div class="card">
+      <div class="card-title">👥 Configurar Participantes (multi-clientes)</div>
+      <p style="color:var(--muted);font-size:.92rem;margin-bottom:12px">
+        Na sidebar do Meet, clique em <strong>Participantes</strong> para identificar quem está na reunião.
+        É possível cadastrar <strong>múltiplos clientes</strong> — útil quando há mais de um decisor na chamada.
+      </p>
+      <table>
+        <tr><th>Campo</th><th>O que fazer</th></tr>
+        <tr><td>Nome do vendedor</td><td>Seu nome — a IA filtrará suas falas das falas dos clientes</td></tr>
+        <tr><td>Clientes</td><td>Nome(s) do(s) cliente(s). Clique <strong>+ Adicionar</strong> para incluir mais de um</td></tr>
+        <tr><td>Botão ✕</td><td>Remove um cliente da lista (mínimo 1 sempre ativo)</td></tr>
+        <tr><td>Salvar</td><td>Persiste os nomes — ficam salvos mesmo após fechar e reabrir o Meet</td></tr>
+      </table>
+      <div class="callout callout-tip" style="margin-top:12px">
+        <div class="callout-icon">💡</div>
+        <div class="callout-body">
+          Quanto mais preciso o nome do cliente, melhor a separação de falas na transcrição. Ex: <em>"João Silva"</em> em vez de <em>"João"</em>.
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
       <div class="card-title">🛡️ Permissões solicitadas</div>
       <table style="margin-top:8px">
         <tr><th>Permissão</th><th>Para que serve</th></tr>
         <tr><td>Microfone</td><td>Capturar áudio da reunião para transcrição em tempo real</td></tr>
-        <tr><td>Storage</td><td>Salvar configurações e token de login localmente</td></tr>
+        <tr><td>Storage</td><td>Salvar configurações, participantes e token de login localmente</td></tr>
         <tr><td>meet.google.com</td><td>Injetar o painel lateral na página do Meet</td></tr>
         <tr><td>api.saleia.com.br</td><td>Enviar chunks de áudio e receber análises da IA</td></tr>
       </table>
@@ -404,6 +457,13 @@
       <div class="step">
         <div class="step-num"></div>
         <div class="step-body">
+          <h3>Configure os participantes</h3>
+          <p>Clique em <strong>Participantes</strong> na sidebar. Informe seu nome (vendedor) e o(s) nome(s) do(s) cliente(s). Se houver dois decisores, clique <strong>+ Adicionar</strong> e informe o segundo. Clique <strong>Salvar</strong>.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
           <h3>Faça login na sidebar</h3>
           <p>Se for a primeira vez (ou após 72h), o painel pede seu e-mail e senha SALEIA. O token fica salvo — na maioria das reuniões você já estará logado.</p>
         </div>
@@ -421,7 +481,7 @@
         <div class="step-body">
           <h3>Conduza a reunião normalmente</h3>
           <p>A cada análise, a sidebar atualiza com sugestões em tempo real. O contador "Próxima análise em Xs" mostra quando a IA processará novamente.</p>
-          <p style="margin-top:6px">Use o botão <strong>Cenário</strong> para acessar roteiros de apresentação, recapitulação ao vivo e fechamento gerados pela IA.</p>
+          <p style="margin-top:6px">Use o botão <strong>🎬 Cenário</strong> para abrir a tela <em>Cenário do Cliente</em> — slides interativos com perfil DISC, score, diagnóstico financeiro e roteiros gerados pela IA.</p>
         </div>
       </div>
       <div class="step">
@@ -558,12 +618,167 @@
         <div class="card-title">🔄 Recapitulação Automática</div>
         <p style="color:var(--muted);font-size:.92rem">Quando o cliente diz frases como <em>"me explica de novo"</em> ou <em>"resume para mim"</em>, a IA gera automaticamente um mapa mental da conversa na sidebar.</p>
       </div>
+
+      <div class="card">
+        <div class="card-title">🎬 Botão Cenário</div>
+        <p style="color:var(--muted);font-size:.92rem">Abre a tela <strong>Cenário do Cliente</strong> em uma nova aba — slides interativos com análise completa e roteiros de condução para a reunião atual.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">👥 Botão Participantes</div>
+        <p style="color:var(--muted);font-size:.92rem">Abre o modal para identificar vendedor e clientes. Suporta <strong>múltiplos clientes</strong> — use <strong>+ Adicionar</strong> para reuniões com mais de um decisor.</p>
+      </div>
     </div>
   </section>
 
-  <!-- ── 7. SCORE ── -->
+  <!-- ── 7. CENÁRIO DO CLIENTE ── -->
+  <section id="cenario-cliente">
+    <h2><span class="section-num">7</span> Cenário do Cliente</h2>
+    <p class="section-desc">Tela de slides interativos aberta durante a reunião. Acesso via botão 🎬 na sidebar ou pelo link <code>/cenario/{meeting_id}</code>.</p>
+
+    <div class="callout callout-gold">
+      <div class="callout-icon">🎬</div>
+      <div class="callout-body">
+        <strong>O que é</strong>
+        Uma apresentação gerada pela IA com os dados da reunião atual — perfil DISC do cliente, score, diagnóstico financeiro e roteiros de fechamento. Atualiza automaticamente a cada 60 segundos enquanto a reunião acontece.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📑 Slides disponíveis</div>
+      <table style="margin-top:8px">
+        <tr><th>Slide</th><th>O que mostra</th></tr>
+        <tr><td>🧑 Seu Perfil</td><td>Análise comportamental DISC + situação financeira do cliente</td></tr>
+        <tr><td>💰 Diagnóstico</td><td>Faturamento estimado, capacidade de investimento, produto ideal</td></tr>
+        <tr><td>📈 Score</td><td>Probabilidade de fechamento com barra visual e justificativa</td></tr>
+        <tr><td>🗺️ Mapa Mental</td><td>Mapa visual com dores, desejos e objeções identificadas</td></tr>
+        <tr><td>📌 Próximos Passos</td><td>Ações concretas sugeridas para avanço do negócio</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🎮 Botões de Condução</div>
+      <table style="margin-top:8px">
+        <tr><th>Botão</th><th>O que gera</th></tr>
+        <tr><td>🎯 Abordagem DISC</td><td>Roteiro personalizado de apresentação baseado no perfil comportamental</td></tr>
+        <tr><td>🔄 Recapitulação</td><td>Resumo falável da conversa + mapa mental inline para apresentar ao cliente</td></tr>
+        <tr><td>💰 Diagnóstico</td><td>Roteiro de perguntas para aprofundar o diagnóstico financeiro</td></tr>
+        <tr><td>🚀 Fechamento</td><td>Script de fechamento adaptado ao perfil e score atual do cliente</td></tr>
+        <tr><td>📋 Copiar texto</td><td>Copia o roteiro gerado para a área de transferência</td></tr>
+      </table>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <strong>Use em segundo monitor</strong>
+        Abra o Cenário do Cliente em um segundo monitor enquanto compartilha o Meet no principal. Você vê os roteiros e análises sem que o cliente perceba.
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 8. VISUAL CENÁRIO AI ── -->
+  <section id="visual-cenario">
+    <h2><span class="section-num">8</span> Visual Cenário AI</h2>
+    <p class="section-desc">Gera imagens do estado atual e futuro do cliente com DALL-E 3. Acesse pelo menu lateral do Dashboard → <strong>Visual Cenário</strong> ou pelo botão na extensão.</p>
+
+    <div class="callout callout-gold">
+      <div class="callout-icon">🖼️</div>
+      <div class="callout-body">
+        <strong>O que é</strong>
+        Ferramenta de apresentação visual — você mostra ao cliente como está a situação atual (com os problemas identificados) e como ficará após a solução. Imagens geradas por IA com base no contexto real da reunião.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🖥️ As três colunas</div>
+      <div class="grid-3" style="margin-top:12px">
+        <div style="background:#111;border:1px solid rgba(212,175,55,.3);border-radius:10px;padding:16px;color:#F0F0F0">
+          <div style="color:#D4AF37;font-weight:700;margin-bottom:8px">📷 Cliente</div>
+          <p style="font-size:.85rem;color:#888">Foto do cliente capturada pela extensão ou feita upload manualmente. Contexto visual para a geração de cenários.</p>
+        </div>
+        <div style="background:#111;border:1px solid rgba(212,175,55,.3);border-radius:10px;padding:16px;color:#F0F0F0">
+          <div style="color:#D4AF37;font-weight:700;margin-bottom:8px">🏚️ Cenário Atual</div>
+          <p style="font-size:.85rem;color:#888">Imagem da operação do cliente com os desafios identificados na reunião. Gerada com base na transcrição e perfil DISC.</p>
+        </div>
+        <div style="background:#111;border:1px solid rgba(212,175,55,.3);border-radius:10px;padding:16px;color:#F0F0F0">
+          <div style="color:#D4AF37;font-weight:700;margin-bottom:8px">🚀 Cenário Futuro</div>
+          <p style="font-size:.85rem;color:#888">Imagem da operação transformada após a solução. Crescimento, escala e resultados visualizados com impacto.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">⚡ Como usar</div>
+      <div class="steps" style="margin-top:8px">
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <h3>Acesse o Visual Cenário AI</h3>
+            <p>No Dashboard → menu lateral → <strong>Visual Cenário</strong>. A tela abre em nova aba.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <h3>Vincule à reunião</h3>
+            <p>O campo <strong>Reunião</strong> no cabeçalho aparece preenchido automaticamente se você acessou pelo botão 🎬 da extensão. Caso contrário, cole o link do Google Meet (ex: <code>https://meet.google.com/abc-defg-hij</code>) ou apenas o código (<code>abc-defg-hij</code>) e clique <strong>Entrar</strong>.</p>
+            <div class="callout callout-info" style="margin-top:8px">
+              <div class="callout-icon">ℹ️</div>
+              <div class="callout-body">Vincular à reunião carrega automaticamente o contexto (DISC, score, mapa financeiro, transcrição) para gerar cenários personalizados.</div>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <h3>Adicione a foto do cliente (opcional)</h3>
+            <p>Na coluna <strong>Cliente</strong>: clique <strong>Fazer Upload</strong> para enviar uma imagem, <strong>Selecionar Área</strong> para capturar da tela do Meet, ou arraste uma imagem direto para o painel.</p>
+            <p style="margin-top:4px">Se a extensão capturou a foto automaticamente durante a reunião, ela aparecerá nesta coluna.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <h3>Clique em Gerar Cenários</h3>
+            <p>A IA usa os dados da reunião e gera as imagens. Aguarde 15–30 segundos. Quando prontas, aparecem nas colunas Cenário Atual e Cenário Futuro.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <h3>Apresente ao cliente</h3>
+            <p>Clique <strong>Apresentar Atual</strong> ou <strong>Apresentar Futuro</strong> para exibir a imagem em fullscreen. Use <strong>Comparar Cenários</strong> para mostrar as duas imagens lado a lado.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🎮 Botões da barra de ações</div>
+      <table style="margin-top:8px">
+        <tr><th>Botão</th><th>O que faz</th></tr>
+        <tr><td>🎬 Gerar Cenários</td><td>Dispara a geração de ambas as imagens com DALL-E 3</td></tr>
+        <tr><td>📊 Comparar Cenários</td><td>Exibe Atual e Futuro lado a lado em fullscreen</td></tr>
+        <tr><td>🖥️ Apresentar Atual</td><td>Mostra o Cenário Atual em fullscreen para apresentar ao cliente</td></tr>
+        <tr><td>🚀 Apresentar Futuro</td><td>Mostra o Cenário Futuro em fullscreen</td></tr>
+        <tr><td>🕒 Histórico</td><td>Lista cenários gerados anteriormente para a mesma reunião</td></tr>
+        <tr><td>← Início</td><td>Volta para a tela Cenário do Cliente da reunião vinculada</td></tr>
+      </table>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <strong>Requer chave OpenAI (DALL-E 3)</strong>
+        A geração de imagens usa o DALL-E 3 da OpenAI. Configure a <code>OPENAI_API_KEY</code> em Dashboard → Configurações → Provedores de IA.
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 9. SCORE ── -->
   <section id="score">
-    <h2><span class="section-num">7</span> Score de Compra (0 a 100)</h2>
+    <h2><span class="section-num">9</span> Score de Compra (0 a 100)</h2>
     <p class="section-desc">A probabilidade do cliente fechar, calculada em tempo real com base nos sinais detectados na conversa.</p>
 
     <div class="card">
@@ -614,9 +829,9 @@
     </div>
   </section>
 
-  <!-- ── 8. RELATÓRIO ── -->
+  <!-- ── 10. RELATÓRIO ── -->
   <section id="relatorio">
-    <h2><span class="section-num">8</span> Relatório Pós-Reunião</h2>
+    <h2><span class="section-num">10</span> Relatório Pós-Reunião</h2>
     <p class="section-desc">Gerado automaticamente ao final de cada reunião. Salvo no banco de dados e acessível no Dashboard.</p>
 
     <div class="card">
@@ -636,20 +851,29 @@
     </div>
 
     <div class="card">
-      <div class="card-title">✏️ Análise manual (sem extensão)</div>
+      <div class="card-title">✏️ Análise manual (sem extensão) — Multi-clientes</div>
       <p style="color:var(--muted);font-size:.92rem;margin-bottom:12px">Tem a transcrição de uma reunião já encerrada? Gere o relatório assim:</p>
-      <ol style="padding-left:20px;color:var(--muted);font-size:.92rem">
+      <ol style="padding-left:20px;color:var(--muted);font-size:.92rem;margin-bottom:16px">
         <li>Acesse Dashboard → aba <strong>Relatórios</strong></li>
-        <li>Cole a transcrição e o nome da reunião</li>
-        <li>Clique em <strong>Analisar</strong> — aguarde 15–30 segundos</li>
+        <li>Preencha o título da reunião</li>
+        <li>No campo <strong>🎙 Vendedor</strong>, informe seu nome</li>
+        <li>No campo <strong>👤 Clientes</strong>, informe o(s) nome(s) do(s) cliente(s). Para reuniões com mais de um decisor, clique <strong>+ Cliente</strong> e preencha o segundo nome</li>
+        <li>Cole a transcrição e clique em <strong>Analisar</strong> — aguarde 15–30 segundos</li>
         <li>O relatório aparece na tela e fica salvo no histórico</li>
       </ol>
+      <div class="callout callout-tip" style="margin-top:0">
+        <div class="callout-icon">👥</div>
+        <div class="callout-body">
+          <strong>Por que informar múltiplos clientes?</strong>
+          A IA identifica as falas de cada participante na transcrição e atribui corretamente as dores, objeções e sinais de compra a cada cliente — gerando um relatório mais preciso quando há dois ou mais decisores.
+        </div>
+      </div>
     </div>
   </section>
 
-  <!-- ── 9. DASHBOARD ── -->
+  <!-- ── 11. DASHBOARD ── -->
   <section id="dashboard">
-    <h2><span class="section-num">9</span> Dashboard</h2>
+    <h2><span class="section-num">11</span> Dashboard</h2>
     <p class="section-desc">Central de controle — disponível 24h em <strong>api.saleia.com.br/dashboard</strong>.</p>
 
     <div class="grid-2">
@@ -667,11 +891,19 @@
       </div>
       <div class="card">
         <div class="card-title">📄 Relatórios</div>
-        <p style="color:var(--muted);font-size:.92rem">Análises manuais e diagnósticos financeiros. Cole uma transcrição para gerar relatório sem precisar da extensão.</p>
+        <p style="color:var(--muted);font-size:.92rem">Análises manuais com suporte a <strong>múltiplos clientes</strong>. Cole uma transcrição e informe todos os participantes para gerar relatório sem precisar da extensão.</p>
       </div>
       <div class="card">
-        <div class="card-title">🎬 Cenário (Condução)</div>
-        <p style="color:var(--muted);font-size:.92rem">Roteiros de apresentação, recapitulação ao vivo, fechamento e Cenário Visual com imagens DALL-E 3 do estado atual/futuro do cliente.</p>
+        <div class="card-title">🎬 Cenário do Cliente</div>
+        <p style="color:var(--muted);font-size:.92rem">Slides interativos com análise completa da reunião: DISC, score, diagnóstico financeiro e roteiros de condução gerados pela IA em tempo real.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">🖼️ Visual Cenário AI</div>
+        <p style="color:var(--muted);font-size:.92rem">Geração de imagens com DALL-E 3 mostrando o estado atual e futuro do cliente. Acessível pelo menu lateral do Dashboard.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">📖 Manual</div>
+        <p style="color:var(--muted);font-size:.92rem">Este manual — sempre atualizado com a versão mais recente do sistema.</p>
       </div>
       <div class="card">
         <div class="card-title">⚙️ Configurações</div>
@@ -680,9 +912,9 @@
     </div>
   </section>
 
-  <!-- ── 10. CONFIGURAÇÕES ── -->
+  <!-- ── 12. CONFIGURAÇÕES ── -->
   <section id="configuracoes">
-    <h2><span class="section-num">10</span> Configurações <span style="font-size:.75rem;font-weight:400;color:var(--muted);margin-left:4px">(apenas admin)</span></h2>
+    <h2><span class="section-num">12</span> Configurações <span style="font-size:.75rem;font-weight:400;color:var(--muted);margin-left:4px">(apenas admin)</span></h2>
     <p class="section-desc">Dashboard → aba Configurações. Acesso restrito a administradores.</p>
 
     <div class="card">
@@ -740,9 +972,9 @@
     </div>
   </section>
 
-  <!-- ── 11. DICAS ── -->
+  <!-- ── 13. DICAS ── -->
   <section id="dicas">
-    <h2><span class="section-num">11</span> Dicas para Melhores Resultados</h2>
+    <h2><span class="section-num">13</span> Dicas para Melhores Resultados</h2>
     <p class="section-desc">Como aproveitar o máximo do SALEIA em cada reunião.</p>
 
     <div class="steps">
@@ -751,6 +983,13 @@
         <div class="step-body">
           <h3>Configure o Groq para transcrição gratuita e de alta qualidade</h3>
           <p>O <code>whisper-large-v3</code> do Groq é gratuito até ~7.200 min/dia e mais preciso que o Whisper padrão. Configure uma vez e esqueça — veja a seção Transcrição para o passo a passo.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <h3>Cadastre todos os participantes antes de começar</h3>
+          <p>Na sidebar, clique em <strong>Participantes</strong> e informe o nome de todos os decisores. Se houver dois clientes (ex: casal, sócios), use <strong>+ Adicionar</strong>. A precisão do relatório aumenta significativamente com os nomes corretos.</p>
         </div>
       </div>
       <div class="step">
@@ -770,8 +1009,15 @@
       <div class="step">
         <div class="step-num"></div>
         <div class="step-body">
-          <h3>Use a Condução para apresentações impactantes</h3>
-          <p>Durante a reunião, o botão <strong>Cenário</strong> abre roteiros de apresentação gerados pela IA com base no perfil do cliente. O Cenário Visual cria imagens do estado atual/futuro com DALL-E 3.</p>
+          <h3>Use o Visual Cenário AI para apresentações impactantes</h3>
+          <p>Durante ou após a reunião, acesse <strong>Visual Cenário</strong> pelo menu do Dashboard. Vincule ao meeting ID, gere as imagens e apresente o contraste Atual x Futuro em fullscreen. Use <strong>Comparar Cenários</strong> para o maior impacto visual.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <h3>Use o Cenário do Cliente em segundo monitor</h3>
+          <p>Abra o Cenário do Cliente (<code>/cenario/{meeting_id}</code>) em um segundo monitor para ver roteiros de abordagem, recapitulação e fechamento gerados pela IA sem que o cliente perceba.</p>
         </div>
       </div>
       <div class="step">
@@ -791,9 +1037,9 @@
     </div>
   </section>
 
-  <!-- ── 12. FAQ ── -->
+  <!-- ── 14. FAQ ── -->
   <section id="faq">
-    <h2><span class="section-num">12</span> Dúvidas Frequentes</h2>
+    <h2><span class="section-num">14</span> Dúvidas Frequentes</h2>
     <p class="section-desc">Problemas comuns e como resolver.</p>
 
     <details>
@@ -835,6 +1081,45 @@
     </details>
 
     <details>
+      <summary>Como adicionar mais de um cliente na reunião?</summary>
+      <div class="faq-body">
+        <p><strong>Na extensão Chrome (durante a reunião):</strong></p>
+        <ol>
+          <li>Clique em <strong>Participantes</strong> na sidebar</li>
+          <li>No campo <strong>Clientes</strong>, preencha o primeiro cliente</li>
+          <li>Clique <strong>+ Adicionar</strong> para incluir o segundo cliente</li>
+          <li>Clique <strong>Salvar</strong> — os nomes ficam salvos para a próxima reunião</li>
+        </ol>
+        <p style="margin-top:10px"><strong>Na análise manual (Dashboard → Relatórios):</strong></p>
+        <ol>
+          <li>No campo <strong>Clientes</strong>, preencha o primeiro nome</li>
+          <li>Clique <strong>+ Cliente</strong> para adicionar mais</li>
+          <li>Preencha cada nome e prossiga com a análise normalmente</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary>O botão "Início" do Visual Cenário abre a tela errada</summary>
+      <div class="faq-body">
+        <p>O botão <strong>← Início</strong> deve retornar para a tela <strong>Cenário do Cliente</strong> da reunião vinculada (<code>/cenario/{meeting_id}</code>).</p>
+        <p style="margin-top:8px">Se isso não acontecer, verifique se a reunião está corretamente vinculada no campo <strong>Reunião</strong> do cabeçalho. Cole o link completo do Meet ou apenas o código da reunião e clique <strong>Entrar</strong>.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>O Visual Cenário mostra "Sem meeting_id" no cabeçalho</summary>
+      <div class="faq-body">
+        <p>A página foi aberta diretamente, sem vínculo com uma reunião. Para vincular:</p>
+        <ol>
+          <li>Clique no tag <strong>Sem meeting_id</strong> no cabeçalho, ou</li>
+          <li>Cole o link da reunião no campo que aparece (ex: <code>https://meet.google.com/abc-defg-hij</code>) e clique <strong>Entrar</strong></li>
+        </ol>
+        <p style="margin-top:8px">Você ainda pode gerar cenários sem vincular — mas as imagens não serão personalizadas com os dados da reunião.</p>
+      </div>
+    </details>
+
+    <details>
       <summary>As análises em tempo real pararam de atualizar</summary>
       <div class="faq-body">
         <p>Verifique o contador "Próxima análise em Xs". Se estiver parado, o backend pode ter tido um pico de uso — aguarde o próximo ciclo automático. Se o problema persistir por mais de 2 minutos, verifique <code>https://api.saleia.com.br/health</code> e recarregue a página do Meet.</p>
@@ -870,7 +1155,7 @@
     <details>
       <summary>Como usar o SALEIA em reuniões já encerradas?</summary>
       <div class="faq-body">
-        <p>Use o <strong>Dashboard → Relatórios → Análise Manual</strong>. Cole a transcrição (do Tactiq, Otter.ai, gravação do Meet, ou qualquer fonte) e clique em Analisar. Você receberá o relatório completo com DISC, score e diagnóstico financeiro sem precisar da extensão ativa.</p>
+        <p>Use o <strong>Dashboard → Relatórios → Análise Manual</strong>. Cole a transcrição (do Tactiq, Otter.ai, gravação do Meet, ou qualquer fonte), informe o(s) nome(s) do(s) cliente(s) e clique em Analisar. Você receberá o relatório completo com DISC, score e diagnóstico financeiro sem precisar da extensão ativa.</p>
       </div>
     </details>
 
@@ -896,6 +1181,7 @@
     <p style="color:var(--muted)">Entre em contato com o administrador ou use os links abaixo para acessar o sistema diretamente.</p>
     <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
       <a href="https://api.saleia.com.br/dashboard" style="background:var(--primary);color:white;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:600">Abrir Dashboard</a>
+      <a href="https://api.saleia.com.br/visual-scenario" style="background:white;color:var(--primary);padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:600;border:1px solid var(--primary)">Visual Cenário AI</a>
       <a href="https://api.saleia.com.br/health" style="background:white;color:var(--primary);padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:600;border:1px solid var(--primary)">Status do Sistema</a>
       <a href="https://api.saleia.com.br/login" style="background:white;color:var(--muted);padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:600;border:1px solid var(--border)">Login</a>
     </div>
@@ -904,7 +1190,7 @@
 </div>
 
 <footer>
-  SALEIA v1.4.5 · api.saleia.com.br · Junho 2026
+  SALEIA v1.4.8 · api.saleia.com.br · Junho 2026
 </footer>
 
 <script>

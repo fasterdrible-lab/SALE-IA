@@ -3,6 +3,28 @@
 
 ---
 
+## V.1.4.9 — Manual de instruções atualizado para V.1.4.8
+> Data: 06/06/2026 | Desenvolvido com Claude Sonnet 4.6
+
+### DOCS — Reescrita completa do manual (`frontend/manual.html`)
+
+Manual atualizado de V.1.4.5 para V.1.4.8 com todas as funcionalidades documentadas:
+
+- **Versão** atualizada para 1.4.8 no badge do cabeçalho e rodapé
+- **Nova seção 7 — Cenário do Cliente:** slides interativos, botões de condução (DISC, Recapitulação, Diagnóstico, Fechamento), uso em segundo monitor
+- **Nova seção 8 — Visual Cenário AI:** as três colunas (Cliente / Cenário Atual / Cenário Futuro), como vincular à reunião (link completo ou só o código), passo a passo de uso, tabela de botões, fullscreen e comparação, histórico, aviso DALL-E 3
+- **Seção 3 — Extensão Chrome:** documentado suporte a múltiplos clientes no modal Participantes (botão **+ Adicionar**, botão ✕, persistência via `chrome.storage.local`)
+- **Seção 10 — Relatório:** documentado campo multi-clientes na análise manual (Dashboard → Relatórios) com explicação de por que informar vários nomes melhora a precisão
+- **Seção 11 — Dashboard:** adicionados links para Cenário do Cliente e Visual Cenário AI
+- **Seção 14 — FAQ:** novas entradas para multi-clientes, botão Início do Visual Cenário, Visual Cenário sem meeting_id, análise de reuniões já encerradas
+- **Nav sticky:** link "Visual Cenário" adicionado na barra de navegação
+- **Bloco de ações rápidas** no rodapé: botões diretos para Dashboard, Visual Cenário AI, Status e Login
+
+**Arquivo alterado:**
+- `frontend/manual.html` — reescrita completa, V.1.4.5 → V.1.4.8
+
+---
+
 ## V.1.4.8 — Multi-clientes, correções de navegação e redesign extensão
 > Data: 06/06/2026 | Desenvolvido com Claude Sonnet 4.6
 
