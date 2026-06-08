@@ -32,7 +32,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from api.ai_router import chamar_ia, definir_provedor_preferido, rotacionar_provedor_preferido, snapshot_provedores, snapshot_metricas
+from api.ai_router import chamar_ia, definir_provedor_preferido, rotacionar_provedor_preferido, snapshot_provedores, snapshot_metricas, status_provedores
 from api.database import (
     criar_tabelas,
     salvar_relatorio as db_salvar,
@@ -484,6 +484,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
     banco = db_health()
     return {
         "ia": metricas,
+        "provedores_status": status_provedores(),
         "banco": {
             "modo":        banco["banco"],
             "latencia_ms": banco["latencia_ms"],

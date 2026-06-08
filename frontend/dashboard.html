@@ -3578,7 +3578,7 @@
 
     // Tabela provedores
     const por = ia.por_provedor || {};
-    const statusAtual = d.ia && d.ia.por_provedor ? {} : {};
+    const provStatus = d.provedores_status || {};
     const nomes = { deepseek: 'DeepSeek', openai: 'OpenAI', anthropic: 'Anthropic', gemini: 'Gemini' };
     let linhas = '';
     for (const [pid, stats] of Object.entries(por)) {
@@ -3587,13 +3587,22 @@
       const taxa = total > 0 ? Math.round((stats.sucesso / total) * 100) : null;
       const taxaStr = taxa != null ? `<span style="color:${taxa >= 80 ? '#4ade80' : '#fbbf24'}">${taxa}%</span>` : '—';
       const custo = stats.custo_usd > 0 ? '<span style="color:#D4AF37">$' + stats.custo_usd.toFixed(4) + '</span>' : '—';
+      const ps = provStatus[pid] || {};
+      const st = ps.status || '';
+      let statusHtml = '—';
+      if (st === 'ok')           statusHtml = '<span style="color:#4ade80">✅ Online</span>';
+      else if (st === 'sem_chave') statusHtml = '<span style="color:#f87171">❌ Sem chave</span>';
+      else if (st.startsWith('cooldown')) statusHtml = `<span style="color:#fbbf24">⏳ ${st}</span>`;
+      else if (st.startsWith('degradado')) statusHtml = `<span style="color:#fbbf24">⚠️ ${st}</span>`;
+      else if (st) statusHtml = `<span style="color:var(--muted)">${st}</span>`;
+      if (taxa != null) statusHtml += ' ' + taxaStr;
       linhas += `<tr>
         <td><strong>${nomes[pid] || pid}</strong></td>
         <td style="text-align:right">${stats.sucesso || 0}</td>
         <td style="text-align:right">${stats.falha || 0}</td>
         <td style="text-align:right">${latStr}</td>
         <td style="text-align:right">${custo}</td>
-        <td>${taxaStr}</td>
+        <td>${statusHtml}</td>
       </tr>`;
     }
     document.getElementById('mon-provedores-body').innerHTML = linhas || '<tr><td colspan="6" style="color:var(--muted);text-align:center">Nenhuma chamada registrada ainda.</td></tr>';
