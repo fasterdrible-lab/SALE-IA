@@ -3,1053 +3,649 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SALEIA — Manual Técnico</title>
+  <title>SALEIA — Dev Manual</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg:      #2D2B3D;
-      --surface: #252338;
-      --surface2:#1E1C2E;
-      --border:  #3D3B52;
-      --primary: #14B8A6;
-      --primary-dark: #0D9488;
-      --blue:    #38BDF8;
-      --purple:  #A78BFA;
-      --orange:  #F97316;
-      --red:     #EF4444;
-      --green:   #22C55E;
-      --text:    #F8FAFC;
-      --muted:   #9D9BB8;
-      --radius:  12px;
+      --gold:    #D4AF37;
+      --gold-dim: rgba(212,175,55,.15);
+      --gold-border: rgba(212,175,55,.35);
+      --bg:      #000;
+      --surface: #0d0d0d;
+      --surface2: #141414;
+      --border:  #1f1f1f;
+      --text:    #f0f0f0;
+      --muted:   #666;
+      --green:   #22c55e;
+      --red:     #ef4444;
+      --blue:    #38bdf8;
+      --orange:  #f97316;
+      --radius:  10px;
     }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; line-height: 1.7; }
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-      font-size: 15px;
-      line-height: 1.75;
-    }
+    /* NAV */
+    nav { position: sticky; top: 0; z-index: 100; background: rgba(0,0,0,.92); border-bottom: 1px solid var(--border); backdrop-filter: blur(8px); padding: 0 32px; display: flex; align-items: center; gap: 0; height: 52px; }
+    .nav-logo { font-weight: 900; font-size: 1.1rem; color: var(--gold); letter-spacing: 2px; margin-right: 32px; flex-shrink: 0; }
+    .nav-links { display: flex; gap: 4px; overflow-x: auto; }
+    .nav-links a { color: var(--muted); text-decoration: none; padding: 6px 12px; border-radius: 6px; font-size: .8rem; white-space: nowrap; transition: color .15s; }
+    .nav-links a:hover { color: var(--gold); }
+    .nav-back { margin-left: auto; color: var(--muted); text-decoration: none; font-size: .8rem; padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; flex-shrink: 0; }
+    .nav-back:hover { border-color: var(--gold-border); color: var(--gold); }
 
-    /* ── HERO ── */
-    .hero {
-      background: linear-gradient(135deg, #1E1C2E 0%, #252338 50%, #2D2B3D 100%);
-      padding: 80px 24px 60px;
-      text-align: center;
-      border-bottom: 1px solid var(--border);
-      position: relative;
-      overflow: hidden;
-    }
-    .hero::before {
-      content: '';
-      position: absolute;
-      top: -50%; left: -50%;
-      width: 200%; height: 200%;
-      background: radial-gradient(ellipse at center, rgba(20,184,166,.06) 0%, transparent 60%);
-      pointer-events: none;
-    }
-    .hero-logo {
-      font-size: 3.5rem;
-      font-weight: 900;
-      letter-spacing: -2px;
-      background: linear-gradient(135deg, #14B8A6, #38BDF8);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    .hero-sub {
-      font-size: 1.2rem;
-      color: var(--muted);
-      margin-top: 10px;
-      max-width: 600px;
-      margin-inline: auto;
-    }
-    .hero-badges {
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-top: 28px;
-    }
-    .badge {
-      background: rgba(255,255,255,.07);
-      border: 1px solid var(--border);
-      padding: 6px 16px;
-      border-radius: 20px;
-      font-size: .8rem;
-      color: var(--muted);
-    }
-    .badge.green  { border-color: var(--primary); color: var(--primary); }
-    .badge.blue   { border-color: var(--blue);    color: var(--blue); }
-    .badge.purple { border-color: var(--purple);  color: var(--purple); }
-    .badge.orange { border-color: var(--orange);  color: var(--orange); }
+    /* HERO */
+    .hero { padding: 56px 32px 40px; border-bottom: 1px solid var(--border); }
+    .hero-title { font-size: 2rem; font-weight: 900; color: var(--gold); letter-spacing: -1px; }
+    .hero-sub { color: var(--muted); margin-top: 6px; font-size: .95rem; }
+    .hero-badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+    .badge { padding: 3px 12px; border-radius: 99px; font-size: .75rem; font-weight: 700; border: 1px solid; }
+    .badge-gold   { border-color: var(--gold-border); color: var(--gold); background: var(--gold-dim); }
+    .badge-green  { border-color: rgba(34,197,94,.4); color: var(--green); background: rgba(34,197,94,.08); }
+    .badge-blue   { border-color: rgba(56,189,248,.4); color: var(--blue); background: rgba(56,189,248,.08); }
+    .badge-orange { border-color: rgba(249,115,22,.4); color: var(--orange); background: rgba(249,115,22,.08); }
 
-    /* ── LAYOUT ── */
-    .container { max-width: 960px; margin: 0 auto; padding: 0 24px 80px; }
+    /* LAYOUT */
+    .layout { display: grid; grid-template-columns: 220px 1fr; gap: 0; min-height: calc(100vh - 52px); }
+    .sidebar { border-right: 1px solid var(--border); padding: 24px 0; position: sticky; top: 52px; height: calc(100vh - 52px); overflow-y: auto; }
+    .sidebar a { display: block; padding: 7px 20px; color: var(--muted); text-decoration: none; font-size: .82rem; border-left: 2px solid transparent; transition: all .15s; }
+    .sidebar a:hover { color: var(--gold); border-left-color: var(--gold-border); background: var(--gold-dim); }
+    .sidebar-group { padding: 16px 20px 4px; font-size: .7rem; text-transform: uppercase; letter-spacing: 1px; color: #333; font-weight: 700; }
+    .content { padding: 40px 48px 80px; max-width: 900px; }
 
-    /* ── SEÇÕES ── */
-    .section { margin-top: 60px; }
-    .section-title {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: var(--text);
-      border-left: 4px solid var(--primary);
-      padding-left: 16px;
-      margin-bottom: 24px;
-    }
-    .section-title span { color: var(--primary); }
+    /* SECTIONS */
+    .section { margin-bottom: 56px; scroll-margin-top: 72px; }
+    .section-title { font-size: 1.3rem; font-weight: 800; color: var(--gold); border-bottom: 1px solid var(--gold-border); padding-bottom: 10px; margin-bottom: 24px; }
 
-    /* ── CARDS ── */
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 24px;
-      margin-bottom: 16px;
-    }
-    .card-title {
-      font-size: 1rem;
-      font-weight: 700;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .card-title .icon { font-size: 1.3rem; }
-    .card p, .card li { color: var(--muted); font-size: .9rem; }
-    .card ul { padding-left: 20px; }
-    .card ul li { margin-bottom: 4px; }
+    /* CARDS */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 12px; }
+    .card-title { font-weight: 700; font-size: .9rem; margin-bottom: 8px; color: var(--text); }
+    .card p, .card li { color: var(--muted); font-size: .85rem; }
+    .card ul { padding-left: 18px; }
+    .card li { margin-bottom: 3px; }
 
-    /* ── GRID ── */
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-    .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; }
-    @media (max-width: 700px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+    /* CODE */
+    pre { background: #0a0a0a; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; overflow-x: auto; margin: 12px 0; }
+    code { font-family: 'Cascadia Code', 'Fira Code', 'Courier New', monospace; font-size: .82rem; color: #e0e0e0; }
+    pre code { color: #ccc; }
+    .cmd { color: var(--gold); }
+    .cmt { color: #444; }
+    .str { color: var(--green); }
+    .kw  { color: var(--blue); }
 
-    /* ── TECH STACK ── */
-    .tech-item {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .tech-name  { font-weight: 700; font-size: .95rem; }
-    .tech-role  { font-size: .78rem; color: var(--primary); text-transform: uppercase; letter-spacing: .5px; }
-    .tech-desc  { font-size: .83rem; color: var(--muted); line-height: 1.5; }
-
-    /* ── FLUXO ── */
-    .flow { display: flex; flex-direction: column; gap: 0; }
-    .flow-step {
-      display: flex;
-      gap: 16px;
-      align-items: flex-start;
-      padding: 16px 0;
-      border-bottom: 1px solid var(--border);
-    }
-    .flow-step:last-child { border-bottom: none; }
-    .flow-num {
-      width: 32px; height: 32px;
-      border-radius: 50%;
-      background: var(--primary);
-      color: #000;
-      font-weight: 800; font-size: .85rem;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0; margin-top: 2px;
-    }
-    .flow-content h4 { font-size: .95rem; margin-bottom: 4px; }
-    .flow-content p  { font-size: .85rem; color: var(--muted); }
-
-    /* ── FUNCIONALIDADES ── */
-    .feature {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 20px 24px;
-      margin-bottom: 12px;
-      display: flex;
-      gap: 16px;
-      align-items: flex-start;
-    }
-    .feature-icon { font-size: 1.8rem; flex-shrink: 0; margin-top: 2px; }
-    .feature h3   { font-size: .95rem; margin-bottom: 6px; }
-    .feature p    { font-size: .85rem; color: var(--muted); }
-
-    /* ── TABELA ── */
-    table { width: 100%; border-collapse: collapse; font-size: .88rem; }
-    th {
-      background: var(--surface2);
-      padding: 10px 14px;
-      text-align: left;
-      font-size: .8rem;
-      text-transform: uppercase;
-      letter-spacing: .5px;
-      color: var(--muted);
-      border-bottom: 1px solid var(--border);
-    }
-    td {
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--border);
-      vertical-align: top;
-    }
+    /* TABLE */
+    table { width: 100%; border-collapse: collapse; font-size: .83rem; margin: 12px 0; }
+    th { background: var(--surface2); color: var(--gold); font-weight: 700; padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--gold-border); }
+    td { padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--muted); vertical-align: top; }
     tr:last-child td { border-bottom: none; }
-    .tag {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 6px;
-      font-size: .75rem;
-      font-weight: 600;
-    }
-    .tag-green  { background: rgba(20,184,166,.15);  color: var(--primary); }
-    .tag-blue   { background: rgba(56,189,248,.15);  color: var(--blue); }
-    .tag-orange { background: rgba(249,115,22,.15);  color: var(--orange); }
-    .tag-red    { background: rgba(239,68,68,.15);   color: var(--red); }
-    .tag-purple { background: rgba(167,139,250,.15); color: var(--purple); }
+    td code { background: var(--surface2); padding: 1px 6px; border-radius: 4px; color: var(--text); font-size: .8rem; }
 
-    /* ── CODE ── */
-    code {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-family: 'Cascadia Code', 'Fira Code', monospace;
-      font-size: .82rem;
-      color: var(--primary);
-    }
-    pre {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 20px;
-      overflow-x: auto;
-      font-size: .82rem;
-      line-height: 1.6;
-      font-family: 'Cascadia Code', 'Fira Code', monospace;
-      color: #c8d3f5;
-      margin-top: 12px;
-    }
-    pre .c { color: var(--muted); }
-    pre .k { color: #89ddff; }
-    pre .s { color: #c3e88d; }
-    pre .f { color: #82aaff; }
+    /* ALERT */
+    .alert { border-radius: var(--radius); padding: 12px 16px; margin: 12px 0; font-size: .85rem; border-left: 3px solid; }
+    .alert-red    { background: rgba(239,68,68,.07);   border-color: var(--red);    color: #fca5a5; }
+    .alert-gold   { background: var(--gold-dim);        border-color: var(--gold);   color: var(--gold); }
+    .alert-green  { background: rgba(34,197,94,.07);   border-color: var(--green);  color: #86efac; }
+    .alert-blue   { background: rgba(56,189,248,.07);  border-color: var(--blue);   color: #7dd3fc; }
 
-    /* ── DISC ── */
-    .disc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .disc-card { border-radius: var(--radius); padding: 18px; border: 1px solid; }
-    .disc-d { background: rgba(239,68,68,.1);   border-color: rgba(239,68,68,.3); }
-    .disc-i { background: rgba(249,115,22,.1);  border-color: rgba(249,115,22,.3); }
-    .disc-s { background: rgba(20,184,166,.1);  border-color: rgba(20,184,166,.3); }
-    .disc-c { background: rgba(56,189,248,.1);  border-color: rgba(56,189,248,.3); }
-    .disc-letter { font-size: 2rem; font-weight: 900; margin-bottom: 6px; }
-    .disc-d .disc-letter { color: #EF4444; }
-    .disc-i .disc-letter { color: #F97316; }
-    .disc-s .disc-letter { color: #14B8A6; }
-    .disc-c .disc-letter { color: #38BDF8; }
-    .disc-card h4 { font-size: .95rem; margin-bottom: 6px; }
-    .disc-card p  { font-size: .82rem; color: var(--muted); }
+    /* FLOW */
+    .flow-step { display: flex; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+    .flow-step:last-child { border-bottom: none; }
+    .flow-num { width: 28px; height: 28px; border-radius: 50%; background: var(--gold); color: #000; font-weight: 800; font-size: .8rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+    .flow-content h4 { font-size: .88rem; margin-bottom: 3px; }
+    .flow-content p  { font-size: .82rem; color: var(--muted); }
+    .flow-content code { background: var(--surface2); padding: 1px 6px; border-radius: 4px; font-size: .78rem; }
 
-    /* ── CHANGELOG ── */
-    .changelog-item {
-      display: flex;
-      gap: 14px;
-      padding: 14px 0;
-      border-bottom: 1px solid var(--border);
-    }
-    .changelog-item:last-child { border-bottom: none; }
-    .changelog-ver {
-      font-size: .72rem;
-      font-weight: 700;
-      background: rgba(20,184,166,.15);
-      color: var(--primary);
-      border: 1px solid rgba(20,184,166,.3);
-      border-radius: 6px;
-      padding: 2px 8px;
-      white-space: nowrap;
-      height: fit-content;
-      margin-top: 2px;
-    }
-    .changelog-desc h4 { font-size: .9rem; margin-bottom: 4px; }
-    .changelog-desc p  { font-size: .82rem; color: var(--muted); }
+    /* GRID */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 720px) { .layout { grid-template-columns: 1fr; } .sidebar { display: none; } .grid-2 { grid-template-columns: 1fr; } .content { padding: 24px 20px 60px; } }
 
-    /* ── SEPARADOR ── */
-    hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
-
-    /* ── RODAPÉ ── */
-    footer {
-      text-align: center;
-      padding: 40px 24px;
-      color: var(--muted);
-      font-size: .82rem;
-      border-top: 1px solid var(--border);
-    }
+    .tag { display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: .72rem; font-weight: 700; margin-left: 6px; }
+    .tag-get    { background: rgba(34,197,94,.15); color: var(--green); }
+    .tag-post   { background: rgba(56,189,248,.15); color: var(--blue); }
+    .tag-patch  { background: rgba(249,115,22,.15); color: var(--orange); }
+    .tag-delete { background: rgba(239,68,68,.15); color: var(--red); }
+    .tag-auth   { background: var(--gold-dim); color: var(--gold); }
   </style>
 </head>
 <body>
 
-<!-- HERO -->
-<div class="hero">
-  <div class="hero-logo">SALEIA</div>
-  <p class="hero-sub">Sistema de Assistência a Líderes Empresariais com Inteligência Artificial<br>Manual Técnico — Versão 1.3.3</p>
+<nav>
+  <div class="nav-logo">SALEIA</div>
+  <div class="nav-links">
+    <a href="#arquitetura">Arquitetura</a>
+    <a href="#infra">VPS / Infra</a>
+    <a href="#deploy">Deploy</a>
+    <a href="#env">Variáveis</a>
+    <a href="#arquivos">Arquivos</a>
+    <a href="#endpoints">Endpoints</a>
+    <a href="#ia">IA / Roteador</a>
+    <a href="#banco">Banco</a>
+    <a href="#monitor">Monitor</a>
+    <a href="#seguranca">Segurança</a>
+    <a href="#troubleshoot">Troubleshoot</a>
+  </div>
+  <a class="nav-back" href="/dashboard">← Dashboard</a>
+</nav>
+
+<div class="hero" style="padding-left:48px">
+  <div class="hero-title">Dev Manual — SALEIA</div>
+  <div class="hero-sub">Referência técnica para manutenção, deploy e operação em produção.</div>
   <div class="hero-badges">
-    <span class="badge green">IA Generativa</span>
-    <span class="badge blue">Google Meet</span>
-    <span class="badge purple">Tempo Real</span>
-    <span class="badge orange">DeepSeek</span>
-    <span class="badge">FastAPI + Python</span>
-    <span class="badge">Cloud VPS</span>
-    <span class="badge">DISC</span>
+    <span class="badge badge-gold">V.1.4.14</span>
+    <span class="badge badge-green">FastAPI + Python 3.12</span>
+    <span class="badge badge-blue">MySQL + SQLite</span>
+    <span class="badge badge-orange">Hetzner VPS</span>
   </div>
 </div>
 
-<div class="container">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-group">Sistema</div>
+    <a href="#arquitetura">Arquitetura</a>
+    <a href="#infra">VPS / Infra</a>
+    <a href="#deploy">Deploy</a>
+    <a href="#env">Variáveis de Ambiente</a>
+    <div class="sidebar-group">Código</div>
+    <a href="#arquivos">Estrutura de Arquivos</a>
+    <a href="#endpoints">Endpoints API</a>
+    <a href="#ia">Roteador de IA</a>
+    <a href="#banco">Banco de Dados</a>
+    <div class="sidebar-group">Operação</div>
+    <a href="#monitor">Monitor / Métricas</a>
+    <a href="#seguranca">Segurança / Auth</a>
+    <a href="#troubleshoot">Troubleshoot</a>
+  </aside>
 
-  <!-- O QUE É -->
-  <div class="section">
-    <div class="section-title">O que é o <span>SALEIA</span></div>
-    <div class="card">
-      <p>O SALEIA é um <strong>assistente de vendas com inteligência artificial que opera em tempo real durante reuniões no Google Meet</strong>. Ele escuta a conversa com o cliente, analisa o comportamento e o perfil do comprador, extrai informações financeiras, detecta objeções e sugere ao vendedor a próxima fala — tudo isso enquanto a reunião acontece, sem interromper a conversa.</p>
-      <br>
-      <p>Ao final de cada reunião, gera automaticamente um relatório completo com recapitulação emocional, diagnóstico financeiro, perfil comportamental DISC e probabilidade de fechamento. Na versão 1.3.3, o sistema conta também com autenticação de usuários, painel administrativo e o módulo <strong>Condução</strong> — que gera scripts de venda ao vivo diretamente no cenário da reunião.</p>
-    </div>
-  </div>
+  <main class="content">
 
-  <!-- COMO FUNCIONA -->
-  <div class="section">
-    <div class="section-title">Como <span>Funciona</span></div>
-    <div class="card">
-      <div class="flow">
-        <div class="flow-step">
-          <div class="flow-num">1</div>
-          <div class="flow-content">
-            <h4>Acesso via login autenticado</h4>
-            <p>O vendedor acessa a plataforma pelo navegador, faz login com e-mail e senha, e é redirecionado para o dashboard. Cada usuário tem um perfil (admin, gerente ou usuário) que define o que pode acessar.</p>
-          </div>
-        </div>
-        <div class="flow-step">
-          <div class="flow-num">2</div>
-          <div class="flow-content">
-            <h4>Extensão Chrome instalada no navegador do vendedor</h4>
-            <p>A extensão SALEIA é ativada automaticamente ao entrar no Google Meet — aparece uma barra lateral discreta na lateral da tela com o painel ao vivo.</p>
-          </div>
-        </div>
-        <div class="flow-step">
-          <div class="flow-num">3</div>
-          <div class="flow-content">
-            <h4>Captura das legendas em tempo real</h4>
-            <p>A extensão utiliza o sistema de legendas nativo do Google Meet (botão "CC") para capturar o que é falado. Nenhum áudio é gravado — apenas o texto das legendas já geradas pelo Meet.</p>
-          </div>
-        </div>
-        <div class="flow-step">
-          <div class="flow-num">4</div>
-          <div class="flow-content">
-            <h4>Envio ao backend a cada 60 segundos</h4>
-            <p>A cada minuto, o trecho de conversa capturado é enviado ao servidor do SALEIA (VPS em nuvem). O servidor processa com DeepSeek e retorna uma análise completa em segundos.</p>
-          </div>
-        </div>
-        <div class="flow-step">
-          <div class="flow-num">5</div>
-          <div class="flow-content">
-            <h4>Cenário ao vivo com módulo Condução</h4>
-            <p>O vendedor acessa o painel de cenário da reunião em tempo real. O menu <strong>Condução</strong> permite gerar scripts personalizados — Recapitulação, Apresentação (Programa de Aceleração ou Performance) e Fechamento — adaptados ao perfil DISC e temperatura do cliente.</p>
-          </div>
-        </div>
-        <div class="flow-step">
-          <div class="flow-num">6</div>
-          <div class="flow-content">
-            <h4>Sessão salva automaticamente no banco de dados</h4>
-            <p>Toda a transcrição e análise ficam salvas. Após a reunião, o vendedor acessa o dashboard para revisar, copiar a transcrição, gerar análise completa ou adicionar à base de conhecimento.</p>
-          </div>
-        </div>
-        <div class="flow-step">
-          <div class="flow-num">7</div>
-          <div class="flow-content">
-            <h4>Base de conhecimento que aprende com o tempo</h4>
-            <p>O vendedor pode exportar qualquer reunião para a Base de IA. O sistema gera um embedding vetorial da conversa. Nas próximas reuniões, a IA consulta reuniões similares para contextualizar melhor as dicas.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- FUNCIONALIDADES -->
-  <div class="section">
-    <div class="section-title"><span>Funcionalidades</span> Principais</div>
-
-    <div class="feature">
-      <div class="feature-icon">🔐</div>
-      <div>
-        <h3>Autenticação e Controle de Acesso</h3>
-        <p>Login com e-mail e senha. Cadastro de novos usuários com aprovação. Recuperação de senha por e-mail. Três perfis: <strong>admin</strong> (acesso total), <strong>gerente</strong> (relatórios + equipe) e <strong>usuário</strong> (apenas próprias reuniões). Bearer token JWT armazenado em localStorage.</p>
-      </div>
-    </div>
-
-    <div class="feature">
-      <div class="feature-icon">👥</div>
-      <div>
-        <h3>Gerenciamento de Usuários (Admin)</h3>
-        <p>Painel exclusivo para administradores com tabela de todos os usuários. Ações disponíveis: ativar, inativar, redefinir senha, excluir, alterar perfil e alterar plano. Qualquer tentativa de acesso sem token de admin retorna 401/403 com mensagem amigável.</p>
-      </div>
-    </div>
-
-    <div class="feature">
-      <div class="feature-icon">🔌</div>
-      <div>
-        <h3>Configuração de Provedores de IA (Admin)</h3>
-        <p>Painel para cadastrar e gerenciar chaves de API de cada provedor (DeepSeek, OpenAI, Anthropic, Gemini). Permite testar conexão, ativar/desativar e definir qual é o provedor principal. Chaves salvas no backend; o frontend nunca recebe o valor real — apenas mascara a existência.</p>
-      </div>
-    </div>
-
-    <div class="feature">
-      <div class="feature-icon">🎯</div>
-      <div>
-        <h3>Módulo Condução (Cenário ao Vivo)</h3>
-        <p>No slide de Condução do painel de cenário, o vendedor abre um menu dropdown com três opções: <strong>Recapitulação</strong>, <strong>Apresentação</strong> (Programa de Aceleração ou Performance) e <strong>Fechamento</strong>. Cada opção dispara uma chamada ao backend que preenche o template de prompt correspondente com os dados do cliente e retorna o script de fala calibrado ao perfil DISC e à temperatura da negociação.</p>
-      </div>
-    </div>
-
-    <div class="feature">
-      <div class="feature-icon">🎯</div>
-      <div>
-        <h3>Perfil DISC em Tempo Real</h3>
-        <p>A IA identifica o perfil comportamental do cliente (Dominante, Influente, Estável ou Consciente) analisando palavras, ritmo e padrão de resposta. O vendedor recebe orientações específicas: como se comunicar, o que evitar, gatilhos emocionais que funcionam para aquele perfil.</p>
-      </div>
-    </div>
-
-    <div class="feature">
-      <div class="feature-icon">💰</div>
-      <div>
-        <h3>Diagnóstico Financeiro Automático</h3>
-        <p>Extrai da conversa dados como faturamento mensal, salário CLT, limite de cartão de crédito, capacidade de investimento — e recomenda automaticamente qual produto oferecer (Base, Intermediário ou Completo) com justificativa.</p>
-      </div>
-    </div>
-
-    <div class="feature">
-      <div class="feature-icon">🌡️</div>
-      <div>
-        <h3>Temperatura de Negociação</h3>
-        <p>Indica se o cliente está Frio, Morno, Quente ou Pronto para Fechar. Atualiza a cada análise conforme a conversa evolui. A temperatura alimenta diretamente a calibração do módulo Condução.</p>
-      </div>
-    </div>
-
-    <div class="feature">
-      <div class="feature-icon">💬</div>
-      <div>
-        <h3>Próxima Fala Sugerida</h3>
-        <p>A IA sugere exatamente o que o vendedor deve falar a seguir, adaptado ao perfil DISC identificado e ao momento da negociação (abertura, desenvolvimento, fechamento, tratamento de objeção).</p>
-      </div>
-    </div>
-
-    <div class="feature">
-      <div class="feature-icon">🛡️</div>
-      <div>
-        <h3>Detecção e Resposta a Objeções</h3>
-        <p>Identifica objeções do tipo "está caro", "preciso pensar", "não tenho dinheiro" e sugere a resposta ideal com base no perfil do cliente e nas técnicas de vendas consultivas.</p>
-      </div>
-    </div>
-
-    <div class="feature">
-      <div class="feature-icon">⚠️</div>
-      <div>
-        <h3>Alertas Urgentes</h3>
-        <p>Quando o cliente dá um sinal de compra forte ou diz algo crítico que pode custar o fechamento, a IA exibe um alerta destacado para o vendedor agir imediatamente.</p>
-      </div>
-    </div>
-
-    <div class="feature">
-      <div class="feature-icon">📊</div>
-      <div>
-        <h3>Score de Compra (0–100)</h3>
-        <p>Pontuação que indica a probabilidade de fechamento com base no comportamento, engajamento e sinais financeiros captados durante a reunião. O score alimenta a calibração do Fechamento no módulo Condução.</p>
-      </div>
-    </div>
-
-    <div class="feature">
-      <div class="feature-icon">📚</div>
-      <div>
-        <h3>Base de Conhecimento com RAG</h3>
-        <p>Reuniões exportadas para a base ficam disponíveis para a IA consultar. O sistema usa busca semântica vetorial (RAG) para encontrar reuniões similares e contextualizar melhor as análises futuras.</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- MÉTODO DISC -->
-  <div class="section">
-    <div class="section-title">Metodologia <span>DISC</span></div>
-    <p style="color:var(--muted);margin-bottom:20px;font-size:.9rem">O DISC é uma das metodologias comportamentais mais utilizadas no mundo para vendas consultivas. O SALEIA identifica o perfil automaticamente durante a conversa e adapta todas as sugestões e scripts do módulo Condução para o perfil detectado.</p>
-    <div class="disc-grid">
-      <div class="disc-card disc-d">
-        <div class="disc-letter">D</div>
-        <h4>Dominante</h4>
-        <p>Direto, orientado a resultados, impaciente. Quer ver ROI rápido. Decisor rápido. Não gosta de rodeios. Scripts Condução: objetivo, foco em números e velocidade.</p>
-      </div>
-      <div class="disc-card disc-i">
-        <div class="disc-letter">I</div>
-        <h4>Influente</h4>
-        <p>Emotivo, sociável, gosta de histórias de sucesso. Precisa de entusiasmo e conexão pessoal. Scripts Condução: animado, foco em transformação e reconhecimento.</p>
-      </div>
-      <div class="disc-card disc-s">
-        <div class="disc-letter">S</div>
-        <h4>Estável</h4>
-        <p>Cauteloso, leal, resistente a mudanças. Precisa de segurança, garantias e tempo para decidir. Scripts Condução: acolhedor, foco em suporte e progressão gradual.</p>
-      </div>
-      <div class="disc-card disc-c">
-        <div class="disc-letter">C</div>
-        <h4>Consciente</h4>
-        <p>Analítico, detalhista, compara tudo. Precisa de dados concretos, provas e lógica. Scripts Condução: lógico, foco em métricas e previsibilidade do processo.</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- TECNOLOGIAS -->
-  <div class="section">
-    <div class="section-title"><span>Tecnologias</span> Utilizadas</div>
-    <p style="color:var(--muted);margin-bottom:20px;font-size:.9rem">Stack atual da versão 1.3.3 com DeepSeek como provedor primário de IA.</p>
-
-    <div class="grid-3">
-
-      <div class="tech-item">
-        <div class="tech-role">IA Principal</div>
-        <div class="tech-name">DeepSeek Chat V3</div>
-        <div class="tech-desc">Modelo de linguagem primário do SALEIA. Responsável por todas as análises, perfil DISC, diagnóstico financeiro e módulo Condução. Custo significativamente menor que GPT-4o mantendo qualidade comparável.</div>
-      </div>
-
-      <div class="tech-item">
-        <div class="tech-role">IA Fallback 1</div>
-        <div class="tech-name">OpenAI GPT-4o</div>
-        <div class="tech-desc">Ativa automaticamente se o DeepSeek estiver indisponível. Circuit breaker monitora falhas consecutivas e faz a troca sem intervenção manual.</div>
-      </div>
-
-      <div class="tech-item">
-        <div class="tech-role">IA Fallback 2</div>
-        <div class="tech-name">Anthropic Claude</div>
-        <div class="tech-desc">Terceiro provedor na cadeia de fallback. Ativa após falhas consecutivas do OpenAI. Cooldown de 60s por provedor antes de nova tentativa.</div>
-      </div>
-
-      <div class="tech-item">
-        <div class="tech-role">IA Fallback 3</div>
-        <div class="tech-name">Google Gemini</div>
-        <div class="tech-desc">Quarto e último provedor na cadeia de resiliência. O sistema garante continuidade enquanto ao menos um provedor estiver disponível.</div>
-      </div>
-
-      <div class="tech-item">
-        <div class="tech-role">Embeddings / RAG</div>
-        <div class="tech-name">text-embedding-3-small</div>
-        <div class="tech-desc">Modelo da OpenAI para geração de vetores semânticos. Permite busca por similaridade na base de conhecimento histórica.</div>
-      </div>
-
-      <div class="tech-item">
-        <div class="tech-role">Backend / API</div>
-        <div class="tech-name">FastAPI + Python</div>
-        <div class="tech-desc">Framework web Python de alta performance. Processamento assíncrono nativo para atender múltiplos vendedores simultaneamente.</div>
-      </div>
-
-      <div class="tech-item">
-        <div class="tech-role">Servidor de Aplicação</div>
-        <div class="tech-name">Uvicorn</div>
-        <div class="tech-desc">Servidor ASGI ultra-rápido. Roda com 2 workers gerenciados pelo systemd, com reinicialização automática em caso de falha.</div>
-      </div>
-
-      <div class="tech-item">
-        <div class="tech-role">Banco de Dados</div>
-        <div class="tech-name">MySQL</div>
-        <div class="tech-desc">Armazena sessões, transcrições, análises, usuários, configurações de API e a base de conhecimento com embeddings vetoriais.</div>
-      </div>
-
-      <div class="tech-item">
-        <div class="tech-role">Proxy Reverso</div>
-        <div class="tech-name">Nginx</div>
-        <div class="tech-desc">Recebe requisições externas e encaminha para o backend. Gerencia conexões simultâneas de forma eficiente.</div>
-      </div>
-
-      <div class="tech-item">
-        <div class="tech-role">CDN + HTTPS</div>
-        <div class="tech-name">Cloudflare</div>
-        <div class="tech-desc">HTTPS automático, proteção DDoS, cache e DNS gerenciado. O domínio api.saleia.com.br fica protegido sem configuração manual de certificados.</div>
-      </div>
-
-      <div class="tech-item">
-        <div class="tech-role">Infraestrutura</div>
-        <div class="tech-name">VPS Hetzner</div>
-        <div class="tech-desc">Servidor dedicado na Europa com alta disponibilidade. O serviço roda 24/7 via systemd com logs persistentes e monitoramento.</div>
-      </div>
-
-      <div class="tech-item">
-        <div class="tech-role">Extensão do Navegador</div>
-        <div class="tech-name">Chrome Extension MV3</div>
-        <div class="tech-desc">Manifest V3. Injeta a sidebar no Google Meet, captura legendas via MutationObserver e delega fetch ao service worker para contornar bloqueios do Meet.</div>
-      </div>
-
-      <div class="tech-item">
-        <div class="tech-role">Busca Vetorial</div>
-        <div class="tech-name">NumPy (cosine similarity)</div>
-        <div class="tech-desc">Matriz de embeddings carregada em RAM. Busca por similaridade cosseno em milissegundos sem necessidade de banco vetorial externo.</div>
-      </div>
-
-      <div class="tech-item">
-        <div class="tech-role">Auth</div>
-        <div class="tech-name">JWT Bearer Token</div>
-        <div class="tech-desc">Tokens JWT armazenados em localStorage do browser. Endpoints protegidos com middleware de verificação de perfil (admin, gerente, usuário).</div>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- ARQUITETURA -->
-  <div class="section">
-    <div class="section-title">Arquitetura do <span>Sistema</span></div>
-    <div class="card">
-      <pre><span class="c">┌─────────────────────────────────────────────────────────────┐
-│                     GOOGLE MEET (Browser)                   │
-│                                                             │
-│  ┌─────────────┐    Legendas (MutationObserver)             │
-│  │   Vendedor  │ ──────────────────────────────►  content.js│
-│  └─────────────┘                                     │      │
-│                                                      │ Proxy │
-│  ┌─────────────┐◄── Dicas/Análise ──── background.js◄┘      │
-│  │   Sidebar   │                           Service Worker   │
-│  │  SALEIA AO  │                                            │
-│  │    VIVO     │                                            │
-│  └─────────────┘                                            │
-└────────────────────────────────────┬────────────────────────┘
-                                     │ HTTPS / Cloudflare
-                    ┌────────────────▼────────────────┐
-                    │       api.saleia.com.br          │
-                    │          Nginx (porta 80)        │
-                    └────────────────┬────────────────┘
-                                     │
-                    ┌────────────────▼────────────────┐
-                    │     FastAPI + Uvicorn            │
-                    │         porta 8000               │
-                    │                                  │
-                    │  ┌──────────┐  ┌─────────────┐  │
-                    │  │ ai_router│  │sessao_manager│  │
-                    │  │ DeepSeek │  │   MySQL      │  │
-                    │  │ GPT-4o   │  └─────────────┘  │
-                    │  │ Claude   │                    │
-                    │  │ Gemini   │  ┌─────────────┐  │
-                    │  └──────────┘  │base_conhecim.│  │
-                    │                │  RAG + NumPy │  │
-                    │  ┌──────────┐  └─────────────┘  │
-                    │  │auth_mgr  │                    │
-                    │  │JWT+perfis│  ┌─────────────┐  │
-                    │  └──────────┘  │prompt_tmplts│  │
-                    │                │ agent/*.txt  │  │
-                    │                └─────────────┘  │
-                    └──────────────────────────────────┘
-                                     │
-                    ┌────────────────▼────────────────┐
-                    │   MySQL · 177.104.186.227        │
-                    │   · sessoes                      │
-                    │   · usuarios                     │
-                    │   · base_conhecimento            │
-                    └──────────────────────────────────┘</span></pre>
-    </div>
-  </div>
-
-  <!-- PROMPT FILES -->
-  <div class="section">
-    <div class="section-title">Templates de <span>Prompt</span> (Condução)</div>
-    <div class="card">
-      <p>Os scripts do módulo Condução são gerados a partir de arquivos <code>.txt</code> localizados em <code>agent/prompt_templates/</code>. O backend carrega esses arquivos com <code>open().read()</code>, substitui os placeholders <code>{variavel}</code> com os dados do cliente e envia o prompt preenchido ao provedor de IA.</p>
-      <br>
-      <table>
-        <thead>
-          <tr>
-            <th>Arquivo</th>
-            <th>Aciona quando</th>
-            <th>Variáveis esperadas</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><code>conducao_recapitulacao.txt</code></td>
-            <td>Menu Condução → Recapitulação</td>
-            <td>perfil_disc_tipo, perfil_disc_descricao, faturamento, capacidade_investimento, produto_nome, score, temperatura</td>
-          </tr>
-          <tr>
-            <td><code>conducao_programa_aceleracao.txt</code></td>
-            <td>Condução → Apresentação → Programa de Aceleração</td>
-            <td>Idem + produto_justificativa</td>
-          </tr>
-          <tr>
-            <td><code>conducao_performance.txt</code></td>
-            <td>Condução → Apresentação → Performance</td>
-            <td>Idem + produto_justificativa</td>
-          </tr>
-          <tr>
-            <td><code>conducao_fechamento.txt</code></td>
-            <td>Menu Condução → Fechamento</td>
-            <td>Idem — calibra tom por temperatura: Alta ≥70 / Média 40–69 / Baixa &lt;40</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="card" style="margin-top:0">
-      <div class="card-title"><span class="icon">⚠️</span> Regras invioláveis dos prompts</div>
-      <ul>
-        <li>Nunca inventar informações que não estejam na transcrição ou nos dados do cliente</li>
-        <li>Nunca expor chaves de API, tokens ou dados de infraestrutura</li>
-        <li>Nunca fabricar projeções financeiras sem base nos dados fornecidos</li>
-        <li>Nunca pressionar o cliente de forma agressiva no fechamento</li>
-        <li>Sempre responder em português do Brasil</li>
-        <li>Gerar apenas o texto da fala do vendedor — sem títulos ou explicações adicionais</li>
-      </ul>
-    </div>
-  </div>
-
-  <!-- ENDPOINTS DA API -->
-  <div class="section">
-    <div class="section-title">Endpoints da <span>API</span></div>
-    <div class="card" style="padding:0;overflow:hidden">
-      <table>
-        <thead>
-          <tr>
-            <th>Método</th>
-            <th>Rota</th>
-            <th>Descrição</th>
-            <th>Usado por</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><span class="tag tag-blue">GET</span></td>
-            <td><code>/health</code></td>
-            <td>Status do backend e provedores de IA</td>
-            <td>Dashboard / Monitoramento</td>
-          </tr>
-          <tr>
-            <td><span class="tag tag-green">POST</span></td>
-            <td><code>/auth/login</code></td>
-            <td>Autenticação — retorna JWT Bearer token</td>
-            <td>login.html</td>
-          </tr>
-          <tr>
-            <td><span class="tag tag-green">POST</span></td>
-            <td><code>/auth/cadastro</code></td>
-            <td>Cadastro de novo usuário</td>
-            <td>login.html</td>
-          </tr>
-          <tr>
-            <td><span class="tag tag-green">POST</span></td>
-            <td><code>/auth/recuperar-senha</code></td>
-            <td>Envia link de recuperação de senha por e-mail</td>
-            <td>login.html</td>
-          </tr>
-          <tr>
-            <td><span class="tag tag-blue">GET</span></td>
-            <td><code>/admin/usuarios</code></td>
-            <td>Lista todos os usuários (requer perfil admin)</td>
-            <td>dashboard.html Config</td>
-          </tr>
-          <tr>
-            <td><span class="tag tag-orange">DELETE</span></td>
-            <td><code>/admin/usuarios/{id}/excluir</code></td>
-            <td>Remove um usuário</td>
-            <td>dashboard.html Config</td>
-          </tr>
-          <tr>
-            <td><span class="tag tag-blue">GET</span></td>
-            <td><code>/admin/api/provedores</code></td>
-            <td>Lista provedores de IA e status de configuração</td>
-            <td>dashboard.html Config</td>
-          </tr>
-          <tr>
-            <td><span class="tag tag-green">POST</span></td>
-            <td><code>/admin/api/provedores/{id}/chave</code></td>
-            <td>Salva ou atualiza chave de API do provedor</td>
-            <td>dashboard.html Config</td>
-          </tr>
-          <tr>
-            <td><span class="tag tag-green">POST</span></td>
-            <td><code>/admin/api/teste</code></td>
-            <td>Testa conectividade com o provedor</td>
-            <td>dashboard.html Config</td>
-          </tr>
-          <tr>
-            <td><span class="tag tag-green">POST</span></td>
-            <td><code>/admin/api/principal</code></td>
-            <td>Define provedor primário da cadeia de IA</td>
-            <td>dashboard.html Config</td>
-          </tr>
-          <tr>
-            <td><span class="tag tag-green">POST</span></td>
-            <td><code>/cenario/{id}/conducao</code></td>
-            <td>Gera script de Condução (recapitulacao, programa-aceleracao, performance, fechamento)</td>
-            <td>cenario.html</td>
-          </tr>
-          <tr>
-            <td><span class="tag tag-green">POST</span></td>
-            <td><code>/tempo-real</code></td>
-            <td>Análise de fragmento de transcrição em tempo real</td>
-            <td>Extensão Chrome</td>
-          </tr>
-          <tr>
-            <td><span class="tag tag-green">POST</span></td>
-            <td><code>/iniciar-sessao</code></td>
-            <td>Registra sessão ao entrar no Meet</td>
-            <td>Extensão Chrome</td>
-          </tr>
-          <tr>
-            <td><span class="tag tag-blue">GET</span></td>
-            <td><code>/sessoes</code></td>
-            <td>Lista todas as sessões gravadas</td>
-            <td>Dashboard</td>
-          </tr>
-          <tr>
-            <td><span class="tag tag-blue">GET</span></td>
-            <td><code>/sessoes/{id}</code></td>
-            <td>Detalhes de uma sessão (transcrição + análise)</td>
-            <td>Dashboard</td>
-          </tr>
-          <tr>
-            <td><span class="tag tag-green">POST</span></td>
-            <td><code>/sessoes/{id}/exportar-base</code></td>
-            <td>Exporta sessão para a base de conhecimento da IA</td>
-            <td>Dashboard</td>
-          </tr>
-          <tr>
-            <td><span class="tag tag-orange">DELETE</span></td>
-            <td><code>/sessoes/{id}</code></td>
-            <td>Remove uma sessão</td>
-            <td>Dashboard</td>
-          </tr>
-          <tr>
-            <td><span class="tag tag-green">POST</span></td>
-            <td><code>/recapitulacao-completa</code></td>
-            <td>Gera recapitulação + DISC + diagnóstico financeiro</td>
-            <td>Dashboard</td>
-          </tr>
-          <tr>
-            <td><span class="tag tag-green">POST</span></td>
-            <td><code>/diagnostico-financeiro</code></td>
-            <td>Extrai dados financeiros da transcrição</td>
-            <td>Dashboard</td>
-          </tr>
-          <tr>
-            <td><span class="tag tag-green">POST</span></td>
-            <td><code>/perfil-disc</code></td>
-            <td>Identifica perfil DISC do cliente</td>
-            <td>Dashboard</td>
-          </tr>
-          <tr>
-            <td><span class="tag tag-green">POST</span></td>
-            <td><code>/webhook/tactiq</code></td>
-            <td>Recebe transcrição completa do Tactiq</td>
-            <td>Integração externa</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- CIRCUIT BREAKER -->
-  <div class="section">
-    <div class="section-title">Resiliência: <span>Circuit Breaker</span> de IA</div>
-    <div class="card">
-      <p>O SALEIA nunca fica sem resposta por falha de um único provedor de IA. O sistema implementa um <strong>circuit breaker automático</strong> com quatro provedores na cadeia:</p>
-      <br>
-      <div class="grid-4">
-        <div style="text-align:center;padding:16px;background:var(--surface2);border-radius:8px">
-          <div style="font-size:1.5rem;margin-bottom:8px">🥇</div>
-          <strong>DeepSeek V3</strong>
-          <p style="color:var(--muted);font-size:.8rem;margin-top:6px">Primário — custo otimizado e alta qualidade</p>
-        </div>
-        <div style="text-align:center;padding:16px;background:var(--surface2);border-radius:8px">
-          <div style="font-size:1.5rem;margin-bottom:8px">🥈</div>
-          <strong>OpenAI GPT-4o</strong>
-          <p style="color:var(--muted);font-size:.8rem;margin-top:6px">Ativa após 3 falhas consecutivas do DeepSeek</p>
-        </div>
-        <div style="text-align:center;padding:16px;background:var(--surface2);border-radius:8px">
-          <div style="font-size:1.5rem;margin-bottom:8px">🥉</div>
-          <strong>Anthropic Claude</strong>
-          <p style="color:var(--muted);font-size:.8rem;margin-top:6px">Ativa após falhas do OpenAI. Cooldown de 60s.</p>
-        </div>
-        <div style="text-align:center;padding:16px;background:var(--surface2);border-radius:8px">
-          <div style="font-size:1.5rem;margin-bottom:8px">4️⃣</div>
-          <strong>Google Gemini</strong>
-          <p style="color:var(--muted);font-size:.8rem;margin-top:6px">Última linha de defesa na cadeia de fallback.</p>
-        </div>
-      </div>
-      <br>
-      <p style="font-size:.85rem;color:var(--muted)">O provedor primário pode ser alterado pelo administrador no painel de Configuração de APIs do dashboard, sem necessidade de reiniciar o servidor.</p>
-    </div>
-  </div>
-
-  <!-- BASE DE CONHECIMENTO RAG -->
-  <div class="section">
-    <div class="section-title">Base de Conhecimento com <span>RAG</span></div>
-    <div class="card">
-      <p>RAG (Retrieval-Augmented Generation) é uma técnica onde a IA, antes de responder, <strong>consulta uma base de dados própria</strong> para enriquecer o contexto. No SALEIA funciona assim:</p>
-      <br>
-      <div class="flow">
-        <div class="flow-step">
-          <div class="flow-num">1</div>
-          <div class="flow-content">
-            <h4>Vendedor exporta uma reunião bem-sucedida</h4>
-            <p>No dashboard, clica em "📚 Adicionar à Base de IA". O sistema gera um vetor semântico (embedding) de 1536 dimensões representando o conteúdo da reunião.</p>
-          </div>
-        </div>
-        <div class="flow-step">
-          <div class="flow-num">2</div>
-          <div class="flow-content">
-            <h4>Vetor é salvo no banco MySQL</h4>
-            <p>O embedding fica armazenado na tabela <code>base_conhecimento</code> junto com o texto original.</p>
-          </div>
-        </div>
-        <div class="flow-step">
-          <div class="flow-num">3</div>
-          <div class="flow-content">
-            <h4>Em novas reuniões, busca semântica é feita</h4>
-            <p>A cada análise em tempo real, o sistema busca as 3 reuniões mais similares (por similaridade cosseno com NumPy). Os trechos mais relevantes são injetados no prompt da IA.</p>
-          </div>
-        </div>
-        <div class="flow-step">
-          <div class="flow-num">4</div>
-          <div class="flow-content">
-            <h4>A IA responde com contexto histórico</h4>
-            <p>A IA analisa a conversa atual já sabendo "o que funcionou em situações similares antes", gerando dicas mais precisas e personalizadas para a realidade do negócio.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- SEGURANÇA -->
-  <div class="section">
-    <div class="section-title"><span>Segurança</span> e Privacidade</div>
-    <div class="grid-2">
+    <!-- ARQUITETURA -->
+    <section class="section" id="arquitetura">
+      <div class="section-title">Arquitetura</div>
       <div class="card">
-        <div class="card-title"><span class="icon">🔒</span> HTTPS em toda comunicação</div>
-        <p>Todo tráfego entre a extensão Chrome, o vendedor e o servidor é protegido por TLS/HTTPS via Cloudflare. Nenhuma informação trafega em texto puro.</p>
+        <div class="card-title">Visão Geral do Sistema</div>
+        <p>Fluxo: Chrome Extension → Nginx (SSL) → Uvicorn (FastAPI) → MySQL + IA providers</p>
       </div>
-      <div class="card">
-        <div class="card-title"><span class="icon">🎤</span> Nenhum áudio gravado</div>
-        <p>O SALEIA não acessa o microfone. Utiliza apenas as legendas de texto já geradas pelo Google Meet — dados que o usuário já optou por ativar.</p>
-      </div>
-      <div class="card">
-        <div class="card-title"><span class="icon">🔑</span> Chaves de API nunca no frontend</div>
-        <p>As chaves de API dos provedores de IA são armazenadas exclusivamente no backend. O dashboard exibe apenas se a chave existe (mascarada) — o valor nunca trafega para o browser.</p>
-      </div>
-      <div class="card">
-        <div class="card-title"><span class="icon">👤</span> Controle de acesso por perfil</div>
-        <p>Endpoints de gerenciamento de usuários e configuração de APIs exigem perfil admin. Token JWT é verificado em cada requisição protegida. Sem token válido: 401. Sem perfil adequado: 403.</p>
-      </div>
-      <div class="card">
-        <div class="card-title"><span class="icon">🏠</span> Dados no banco do cliente</div>
-        <p>Todas as transcrições e análises são salvas no banco MySQL configurado pelo cliente. Nenhum dado de reunião fica armazenado em servidores de terceiros.</p>
-      </div>
-      <div class="card">
-        <div class="card-title"><span class="icon">⚡</span> XSS e Injeção bloqueados</div>
-        <p>Todo conteúdo dinâmico exibido no dashboard é escapado com <code>escHtml()</code>. A API usa Pydantic para validação de entrada em todos os endpoints.</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- REQUISITOS -->
-  <div class="section">
-    <div class="section-title"><span>Requisitos</span> para Uso</div>
-    <div class="grid-2">
-      <div class="card">
-        <div class="card-title"><span class="icon">💻</span> Para o Vendedor</div>
-        <ul>
-          <li>Google Chrome (versão atual)</li>
-          <li>Extensão SALEIA instalada</li>
-          <li>Conta de acesso (login/senha cadastrados pelo admin)</li>
-          <li>Reuniões no Google Meet</li>
-          <li>Legendas ativadas no Meet (botão CC)</li>
-          <li>Conexão com internet</li>
-        </ul>
-      </div>
-      <div class="card">
-        <div class="card-title"><span class="icon">🖥️</span> Infraestrutura (já inclusa)</div>
-        <ul>
-          <li>VPS Hetzner 24/7 (dedicado)</li>
-          <li>Banco MySQL em nuvem</li>
-          <li>Domínio api.saleia.com.br com HTTPS</li>
-          <li>Chaves de API: DeepSeek (primário), OpenAI, Anthropic, Gemini (fallback)</li>
-          <li>Monitoramento automático (systemd)</li>
-          <li>Templates de prompt em <code>agent/prompt_templates/</code></li>
-        </ul>
-      </div>
-    </div>
-  </div>
-
-  <!-- CHANGELOG -->
-  <div class="section">
-    <div class="section-title">Histórico de <span>Versões</span></div>
-    <div class="card">
-      <div class="changelog-item">
-        <div class="changelog-ver">v1.3.3</div>
-        <div class="changelog-desc">
-          <h4>Autenticação, Admin e Módulo Condução</h4>
-          <p>Login/cadastro com JWT; painel de gerenciamento de usuários; configuração de provedores de IA pelo admin; módulo Condução no cenário (Recapitulação, Apresentação, Fechamento); DeepSeek como IA primária; copyright HEXAGON TECNOLOGIA.</p>
-        </div>
-      </div>
-      <div class="changelog-item">
-        <div class="changelog-ver">v1.3.0</div>
-        <div class="changelog-desc">
-          <h4>Dashboard e RAG</h4>
-          <p>Dashboard web completo com histórico de reuniões, filtros e busca. Base de conhecimento com RAG e NumPy. Geração de relatório completo pós-reunião.</p>
-        </div>
-      </div>
-      <div class="changelog-item">
-        <div class="changelog-ver">v1.2.0</div>
-        <div class="changelog-desc">
-          <h4>Extensão Chrome MV3 + Circuit Breaker</h4>
-          <p>Extensão Manifest V3 com service worker para proxy de requisições. Circuit breaker com três provedores. Integração com Tactiq via webhook.</p>
-        </div>
-      </div>
-      <div class="changelog-item">
-        <div class="changelog-ver">v1.0.0</div>
-        <div class="changelog-desc">
-          <h4>MVP — Análise em tempo real</h4>
-          <p>Backend FastAPI + MySQL. Análise de transcrição com DISC, score e próxima fala. Sidebar básica no Meet.</p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <hr>
-
-  <!-- RESUMO EXECUTIVO -->
-  <div class="section">
-    <div class="section-title">Resumo para <span>Tomada de Decisão</span></div>
-    <div class="card">
-      <p style="margin-bottom:16px">O SALEIA entrega, em linguagem de negócio:</p>
       <div class="grid-2">
-        <div>
-          <p><strong style="color:var(--primary)">✓ Menos erros do vendedor</strong><br>
-          <span style="font-size:.85rem;color:var(--muted)">A IA detecta quando o vendedor está perdendo o cliente e avisa em tempo real, antes que o erro aconteça.</span></p>
-          <br>
-          <p><strong style="color:var(--primary)">✓ Scripts de venda ao vivo</strong><br>
-          <span style="font-size:.85rem;color:var(--muted)">O módulo Condução gera falas prontas calibradas ao perfil e temperatura — o vendedor só precisa falar.</span></p>
-          <br>
-          <p><strong style="color:var(--primary)">✓ Qualificação automática</strong><br>
-          <span style="font-size:.85rem;color:var(--muted)">Diagnóstico financeiro automático elimina o risco de oferecer o produto errado para o perfil do cliente.</span></p>
+        <div class="card">
+          <div class="card-title">Backend</div>
+          <ul>
+            <li>FastAPI + Python 3.12</li>
+            <li>Uvicorn com 1 worker</li>
+            <li>Porta interna: <code>127.0.0.1:8000</code></li>
+            <li>Systemd service: <code>saleia.service</code></li>
+            <li>JWT auth (PyJWT + bcrypt)</li>
+          </ul>
         </div>
-        <div>
-          <p><strong style="color:var(--primary)">✓ Controle centralizado</strong><br>
-          <span style="font-size:.85rem;color:var(--muted)">Admin gerencia usuários, planos e provedores de IA diretamente pelo dashboard — sem acesso ao servidor.</span></p>
-          <br>
-          <p><strong style="color:var(--primary)">✓ Escalável</strong><br>
-          <span style="font-size:.85rem;color:var(--muted)">Múltiplos vendedores simultâneos. O backend foi desenhado para processar várias reuniões ao mesmo tempo.</span></p>
-          <br>
-          <p><strong style="color:var(--primary)">✓ IA que aprende com a equipe</strong><br>
-          <span style="font-size:.85rem;color:var(--muted)">A base de conhecimento acumula o histórico de vendas da empresa — quanto mais reuniões exportadas, mais precisa fica a IA.</span></p>
+        <div class="card">
+          <div class="card-title">Frontend</div>
+          <ul>
+            <li>HTML/CSS/JS vanilla (sem framework)</li>
+            <li>Servido pelo próprio FastAPI</li>
+            <li>Dashboard: <code>/dashboard</code></li>
+            <li>Cenário: <code>/cenario/{meeting_id}</code></li>
+            <li>Interceptor global JWT no fetch</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">Banco de Dados</div>
+          <ul>
+            <li>MySQL remoto: <code>fast5342_AV3D</code></li>
+            <li>SQLite local: <code>data/metricas.db</code> (métricas rolling 24h)</li>
+            <li>Conexão MySQL via PyMySQL</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">Proxy / SSL</div>
+          <ul>
+            <li>Nginx em <code>80/443</code></li>
+            <li>Certbot SSL (Let's Encrypt)</li>
+            <li>Domínio: <code>api.saleia.com.br</code></li>
+            <li>Proxy pass: <code>127.0.0.1:8000</code></li>
+          </ul>
         </div>
       </div>
-    </div>
-  </div>
 
+      <div class="card" style="margin-top:12px">
+        <div class="card-title">Fluxo de uma reunião</div>
+        <div class="flow">
+          <div class="flow-step"><div class="flow-num">1</div><div class="flow-content"><h4>Extensão Chrome captura áudio</h4><p>Content script detecta Google Meet → grava fragmentos de áudio a cada ~4s.</p></div></div>
+          <div class="flow-step"><div class="flow-num">2</div><div class="flow-content"><h4>POST /audio-transcricao</h4><p>Fragmento enviado para Groq Whisper Large v3 → retorna texto transcrito.</p></div></div>
+          <div class="flow-step"><div class="flow-num">3</div><div class="flow-content"><h4>POST /tempo-real</h4><p>Transcrição + contexto enviados para <code>agente_tempo_real.analisar_fragmento()</code> → chama <code>chamar_ia_async()</code> com fallback.</p></div></div>
+          <div class="flow-step"><div class="flow-num">4</div><div class="flow-content"><h4>RAG (base de conhecimento)</h4><p>Antes de chamar a IA, busca contexto similar via embedding OpenAI <code>text-embedding-3-small</code>. Injeta no prompt.</p></div></div>
+          <div class="flow-step"><div class="flow-num">5</div><div class="flow-content"><h4>Resposta para a sidebar</h4><p>Dicas retornadas pela IA → sidebar da extensão Chrome exibe em tempo real.</p></div></div>
+          <div class="flow-step"><div class="flow-num">6</div><div class="flow-content"><h4>Finalização: POST /recapitulacao-manual</h4><p>Ao encerrar a reunião → gera recapitulação, DISC, diagnóstico financeiro e salva no MySQL.</p></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- INFRA -->
+    <section class="section" id="infra">
+      <div class="section-title">VPS / Infraestrutura</div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Acesso</div>
+          <ul>
+            <li>IP: <code>204.168.180.25</code></li>
+            <li>Provider: Hetzner</li>
+            <li>OS: Ubuntu 22.04 LTS</li>
+            <li>SSH: <code>ssh root@204.168.180.25</code></li>
+            <li>App path: <code>/opt/saleia/</code></li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">Serviço Systemd</div>
+          <pre><code><span class="cmd">systemctl status saleia</span>
+<span class="cmd">systemctl restart saleia</span>
+<span class="cmd">systemctl stop saleia</span>
+<span class="cmd">journalctl -u saleia -n 50 --no-pager</span></code></pre>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Estrutura na VPS</div>
+        <pre><code>/opt/saleia/
+├── api/           <span class="cmt"># Backend FastAPI</span>
+├── agent/         <span class="cmt"># Agentes de IA</span>
+├── frontend/      <span class="cmt"># HTML/CSS/JS</span>
+├── data/          <span class="cmt"># ⚠️ NÃO sobrescrever em deploy</span>
+│   ├── metricas.db
+│   └── ai_provider_order.json
+├── logs/          <span class="cmt"># ⚠️ NÃO sobrescrever em deploy</span>
+│   └── saleia.log
+├── venv/          <span class="cmt"># ⚠️ NÃO sobrescrever em deploy</span>
+├── .env           <span class="cmt"># ⚠️ NÃO sobrescrever em deploy</span>
+└── requirements.txt</code></pre>
+      </div>
+      <div class="alert alert-red">
+        <strong>Nunca sobrescrever em deploy:</strong> <code>.env</code>, <code>venv/</code>, <code>data/</code>, <code>logs/</code>. Esses diretórios contêm estado de produção.
+      </div>
+      <div class="card" style="margin-top:12px">
+        <div class="card-title">Logs em tempo real</div>
+        <pre><code><span class="cmd">tail -f /opt/saleia/logs/saleia.log</span>
+<span class="cmt"># Filtrar por categoria:</span>
+<span class="cmd">tail -f /opt/saleia/logs/saleia.log | grep -i "error\|warning"</span>
+<span class="cmd">tail -f /opt/saleia/logs/saleia.log | grep "RAG\|embedding"</span></code></pre>
+      </div>
+    </section>
+
+    <!-- DEPLOY -->
+    <section class="section" id="deploy">
+      <div class="section-title">Deploy</div>
+      <div class="alert alert-gold">
+        Deploy é via <strong>SCP</strong> (cópia direta de arquivos). O repo Git na VPS está desatualizado — não usar <code>git pull</code> na VPS.
+      </div>
+      <div class="card" style="margin-top:12px">
+        <div class="card-title">Comando padrão de deploy (PowerShell local)</div>
+        <pre><code><span class="cmt"># Deploy de um arquivo</span>
+<span class="cmd">scp "C:\Users\phpos\OneDrive\SALE-IA\SALEIA\api\main.py" root@204.168.180.25:/opt/saleia/api/main.py</span>
+
+<span class="cmt"># Deploy de múltiplos arquivos</span>
+<span class="cmd">scp "C:\...\api\main.py" "C:\...\api\ai_router.py" root@204.168.180.25:/opt/saleia/api/</span>
+
+<span class="cmt"># Reiniciar após deploy</span>
+<span class="cmd">ssh root@204.168.180.25 "systemctl restart saleia && sleep 4 && curl -s https://api.saleia.com.br/health"</span></code></pre>
+      </div>
+      <div class="card">
+        <div class="card-title">Checklist de deploy</div>
+        <div class="flow">
+          <div class="flow-step"><div class="flow-num">1</div><div class="flow-content"><h4>Verificar arquivos alterados</h4><p><code>git diff --name-only HEAD</code> no repo local.</p></div></div>
+          <div class="flow-step"><div class="flow-num">2</div><div class="flow-content"><h4>SCP dos arquivos</h4><p>Copiar apenas os arquivos da tarefa. Nunca copiar <code>.env</code>, <code>data/</code>, <code>venv/</code>.</p></div></div>
+          <div class="flow-step"><div class="flow-num">3</div><div class="flow-content"><h4>Se requirements.txt mudou</h4><p><code>ssh root@204.168.180.25 "cd /opt/saleia && venv/bin/pip install -r requirements.txt"</code></p></div></div>
+          <div class="flow-step"><div class="flow-num">4</div><div class="flow-content"><h4>Reiniciar serviço</h4><p><code>systemctl restart saleia</code></p></div></div>
+          <div class="flow-step"><div class="flow-num">5</div><div class="flow-content"><h4>Validar health</h4><p><code>curl -s https://api.saleia.com.br/health</code> → verificar <code>versao</code> e <code>status: online</code>.</p></div></div>
+          <div class="flow-step"><div class="flow-num">6</div><div class="flow-content"><h4>Commit + push</h4><p>Commitar os arquivos alterados + CHANGELOG.md + CURRENT_STATE.md no repo local, depois push.</p></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Instalar dependência nova</div>
+        <pre><code><span class="cmt"># 1. Adicionar ao requirements.txt local
+# 2. SCP do requirements.txt
+</span><span class="cmd">scp "C:\...\requirements.txt" root@204.168.180.25:/opt/saleia/requirements.txt</span>
+<span class="cmt"># 3. Instalar na venv da VPS</span>
+<span class="cmd">ssh root@204.168.180.25 "cd /opt/saleia && venv/bin/pip install -r requirements.txt && systemctl restart saleia"</span></code></pre>
+      </div>
+    </section>
+
+    <!-- ENV -->
+    <section class="section" id="env">
+      <div class="section-title">Variáveis de Ambiente (.env)</div>
+      <div class="alert alert-red">O arquivo <code>.env</code> fica em <code>/opt/saleia/.env</code> na VPS. <strong>Nunca commitar, nunca expor no frontend.</strong></div>
+      <table>
+        <tr><th>Variável</th><th>Descrição</th><th>Obrigatória</th></tr>
+        <tr><td><code>JWT_SECRET</code></td><td>Chave secreta para assinar tokens JWT. Mínimo 32 caracteres.</td><td>✅</td></tr>
+        <tr><td><code>DB_HOST / DB_NAME / DB_USER / DB_PASS</code></td><td>Credenciais MySQL remoto.</td><td>✅</td></tr>
+        <tr><td><code>DEEPSEEK_API_KEY</code></td><td>Chave DeepSeek (provedor preferido).</td><td>✅</td></tr>
+        <tr><td><code>OPENAI_API_KEY</code></td><td>Chave OpenAI — usada para RAG (embeddings) + fallback gpt-4o.</td><td>✅</td></tr>
+        <tr><td><code>ANTHROPIC_API_KEY</code></td><td>Chave Anthropic — fallback claude-sonnet.</td><td>Recomendada</td></tr>
+        <tr><td><code>GEMINI_API_KEY</code></td><td>Chave Google Gemini — último fallback.</td><td>Recomendada</td></tr>
+        <tr><td><code>GROQ_API_KEY</code></td><td>Chave Groq — transcrição de áudio (Whisper Large v3).</td><td>✅</td></tr>
+        <tr><td><code>GEMINI_MODEL</code></td><td>Modelo Gemini ativo. Padrão: <code>gemini-2.5-flash</code>.</td><td>Opcional</td></tr>
+        <tr><td><code>AI_PROVIDER_ORDER</code></td><td>Ordem dos provedores (fallback via env). Preferir editar <code>data/ai_provider_order.json</code>.</td><td>Opcional</td></tr>
+        <tr><td><code>SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS</code></td><td>SMTP para envio de e-mail (recuperação de senha).</td><td>Opcional</td></tr>
+        <tr><td><code>TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID</code></td><td>Bot Telegram para alertas do Monitor.</td><td>Opcional</td></tr>
+        <tr><td><code>OTEL_EXPORTER_OTLP_ENDPOINT / OTEL_EXPORTER_OTLP_HEADERS</code></td><td>Grafana Cloud Tempo (OpenTelemetry traces).</td><td>Opcional</td></tr>
+        <tr><td><code>OTEL_SERVICE_NAME</code></td><td>Nome do serviço no Grafana. Padrão: <code>saleia</code>.</td><td>Opcional</td></tr>
+      </table>
+      <div class="card" style="margin-top:12px">
+        <div class="card-title">Verificar chaves configuradas (sem expor valores)</div>
+        <pre><code><span class="cmd">ssh root@204.168.180.25 "python3 -c \"
+from dotenv import dotenv_values
+env = dotenv_values('/opt/saleia/.env')
+for k in ['DEEPSEEK_API_KEY','OPENAI_API_KEY','ANTHROPIC_API_KEY','GEMINI_API_KEY','GROQ_API_KEY','JWT_SECRET']:
+    val = env.get(k, '')
+    print(k, '✅' if val and len(val) > 10 else '❌')
+\""</span></code></pre>
+      </div>
+    </section>
+
+    <!-- ARQUIVOS -->
+    <section class="section" id="arquivos">
+      <div class="section-title">Estrutura de Arquivos</div>
+      <table>
+        <tr><th>Arquivo</th><th>Responsabilidade</th></tr>
+        <tr><td><code>api/main.py</code></td><td>App FastAPI — todos os endpoints, startup, middleware, auth, admin, monitor.</td></tr>
+        <tr><td><code>api/ai_router.py</code></td><td>Roteador central de IA — fallback chain, circuit breaker, contadores em memória, custo estimado.</td></tr>
+        <tr><td><code>api/metricas_historico.py</code></td><td>SQLite rolling 24h para sparklines do Monitor. Tabela <code>metricas_historico</code>.</td></tr>
+        <tr><td><code>agent/agente_tempo_real.py</code></td><td>Analisa fragmentos de transcrição em tempo real. Usa <code>chamar_ia_async()</code>.</td></tr>
+        <tr><td><code>agent/base_conhecimento.py</code></td><td>RAG — embeddings OpenAI, cosine similarity, cache em memória, busca top-k.</td></tr>
+        <tr><td><code>agent/sessao_manager.py</code></td><td>Gerencia <code>MeetingMemory</code> — transcrição, buffer, resumo, DISC, score, key moments.</td></tr>
+        <tr><td><code>agent/recapitulacao.py</code></td><td>Gera recapitulação pós-reunião via IA.</td></tr>
+        <tr><td><code>agent/diagnostico.py</code></td><td>Diagnóstico emocional e score da reunião.</td></tr>
+        <tr><td><code>agent/perfil_disc.py</code></td><td>Perfil DISC do cliente.</td></tr>
+        <tr><td><code>agent/visual_scenario.py</code></td><td>Gera imagens DALL-E 3 (Visual Cenário AI). Requer créditos OpenAI.</td></tr>
+        <tr><td><code>agent/alertas.py</code></td><td>Alertas Telegram por threshold (taxa de falha, latência, circuit breaker).</td></tr>
+        <tr><td><code>agent/email_service.py</code></td><td>Envio de e-mail SMTP (recuperação de senha).</td></tr>
+        <tr><td><code>data/ai_provider_order.json</code></td><td>Ordem ativa dos provedores de IA. Editável via painel admin ou SSH.</td></tr>
+        <tr><td><code>data/metricas.db</code></td><td>SQLite com histórico de métricas (24h rolling). Não commitar.</td></tr>
+        <tr><td><code>frontend/dashboard.html</code></td><td>Dashboard principal — métricas, reuniões, admin, monitor, configurações.</td></tr>
+        <tr><td><code>frontend/cenario.html</code></td><td>Página de cenário ativo da reunião.</td></tr>
+        <tr><td><code>frontend/login.html</code></td><td>Tela de login JWT.</td></tr>
+        <tr><td><code>chrome-extension/</code></td><td>Extensão Chrome — popup, content script, background, sidebar.</td></tr>
+      </table>
+    </section>
+
+    <!-- ENDPOINTS -->
+    <section class="section" id="endpoints">
+      <div class="section-title">Endpoints API</div>
+      <div class="card">
+        <div class="card-title">Públicos (sem auth)</div>
+        <table>
+          <tr><th>Método</th><th>Rota</th><th>Descrição</th></tr>
+          <tr><td><span class="tag tag-get">GET</span></td><td><code>/health</code></td><td>Status + versão do serviço.</td></tr>
+          <tr><td><span class="tag tag-get">GET</span></td><td><code>/dashboard</code></td><td>Serve dashboard.html.</td></tr>
+          <tr><td><span class="tag tag-post">POST</span></td><td><code>/auth/login</code></td><td>Retorna JWT. Body: <code>{email, senha}</code>.</td></tr>
+          <tr><td><span class="tag tag-post">POST</span></td><td><code>/auth/cadastro</code></td><td>Cria usuário. Body: <code>{nome, email, senha}</code>.</td></tr>
+          <tr><td><span class="tag tag-post">POST</span></td><td><code>/auth/recuperar-senha</code></td><td>Envia e-mail de reset.</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">Reunião (requer JWT) <span class="tag tag-auth">AUTH</span></div>
+        <table>
+          <tr><th>Método</th><th>Rota</th><th>Descrição</th></tr>
+          <tr><td><span class="tag tag-post">POST</span></td><td><code>/tempo-real</code></td><td>Analisa fragmento de transcrição em tempo real.</td></tr>
+          <tr><td><span class="tag tag-post">POST</span></td><td><code>/audio-transcricao</code></td><td>Transcreve fragmento de áudio via Groq.</td></tr>
+          <tr><td><span class="tag tag-post">POST</span></td><td><code>/recapitulacao-manual</code></td><td>Gera recapitulação completa da reunião.</td></tr>
+          <tr><td><span class="tag tag-get">GET</span></td><td><code>/relatorios</code></td><td>Lista reuniões com score, custo, DISC.</td></tr>
+          <tr><td><span class="tag tag-get">GET</span></td><td><code>/historico/uso</code></td><td>Histórico de uso por reunião.</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">Monitor (requer JWT) <span class="tag tag-auth">AUTH</span></div>
+        <table>
+          <tr><th>Método</th><th>Rota</th><th>Descrição</th></tr>
+          <tr><td><span class="tag tag-get">GET</span></td><td><code>/monitor/metricas</code></td><td>Snapshot atual — uptime, chamadas IA, por provedor, DB, reuniões.</td></tr>
+          <tr><td><span class="tag tag-get">GET</span></td><td><code>/monitor/historico?horas=6</code></td><td>Série histórica SQLite (sparklines). Máx 24h.</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">Admin (requer JWT admin) <span class="tag tag-auth">ADMIN</span></div>
+        <table>
+          <tr><th>Método</th><th>Rota</th><th>Descrição</th></tr>
+          <tr><td><span class="tag tag-get">GET</span></td><td><code>/admin/usuarios</code></td><td>Lista todos os usuários.</td></tr>
+          <tr><td><span class="tag tag-patch">PATCH</span></td><td><code>/admin/usuarios/{uid}</code></td><td>Altera perfil/plano/status do usuário.</td></tr>
+          <tr><td><span class="tag tag-get">GET</span></td><td><code>/admin/api/provedores</code></td><td>Lista provedores IA com status runtime.</td></tr>
+          <tr><td><span class="tag tag-post">POST</span></td><td><code>/admin/api/provedores/{pid}/chave</code></td><td>Salva chave de API de um provedor.</td></tr>
+          <tr><td><span class="tag tag-patch">PATCH</span></td><td><code>/admin/api/provedores/{pid}/status</code></td><td>Ativa/inativa provedor em memória.</td></tr>
+          <tr><td><span class="tag tag-post">POST</span></td><td><code>/admin/api/principal</code></td><td>Define provedor preferido.</td></tr>
+          <tr><td><span class="tag tag-post">POST</span></td><td><code>/admin/api/teste</code></td><td>Testa conexão de um provedor.</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- IA -->
+    <section class="section" id="ia">
+      <div class="section-title">Roteador de IA (ai_router.py)</div>
+      <div class="card">
+        <div class="card-title">Cadeia de fallback</div>
+        <pre><code><span class="str">deepseek</span> → <span class="str">openai</span> → <span class="str">anthropic</span> → <span class="str">gemini</span>
+
+<span class="cmt"># Ordem salva em: /opt/saleia/data/ai_provider_order.json
+# Corrigir ordem via SSH:</span>
+<span class="cmd">ssh root@204.168.180.25 "python3 -c \"import json,time; \
+open('/opt/saleia/data/ai_provider_order.json','w').write(\
+json.dumps({'order':['deepseek','openai','anthropic','gemini'],'updated_at':time.time()},indent=2))\""</span></code></pre>
+      </div>
+      <div class="card">
+        <div class="card-title">Circuit Breaker</div>
+        <ul>
+          <li>Abre após <strong>3 falhas consecutivas</strong> (variável <code>AI_PROVIDER_FAILURES_TO_OPEN</code>)</li>
+          <li>Cooldown: <strong>60 segundos</strong> (variável <code>AI_PROVIDER_COOLDOWN_SECONDS</code>)</li>
+          <li>Durante cooldown, provedor é pulado automaticamente</li>
+          <li>Alerta Telegram enviado ao abrir o circuit breaker</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">Contadores em memória</div>
+        <p>Resetam a cada restart do serviço. Visíveis na aba Monitor do dashboard.</p>
+        <ul style="margin-top:8px">
+          <li><code>chamadas_total / sucesso / falha</code></li>
+          <li><code>fallbacks</code> — quantas vezes caiu para o próximo provedor</li>
+          <li><code>por_provedor[name].sucesso / falha / total_ms</code></li>
+          <li>Provedor sem chave configurada → incrementa <code>falha</code> (desde V.1.4.14)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">RAG — Base de Conhecimento</div>
+        <ul>
+          <li>Arquivo: <code>agent/base_conhecimento.py</code></li>
+          <li>Embedding: <code>text-embedding-3-small</code> via OpenAI (1536 dimensões)</li>
+          <li>Cache em memória carregado no primeiro acesso</li>
+          <li>49+ transcrições indexadas no banco MySQL</li>
+          <li>Busca cosine similarity para top-k contextos similares</li>
+          <li>Falha silenciosa: se embedding falhar, IA responde sem contexto RAG</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">Transcrição de áudio</div>
+        <ul>
+          <li>Provider: Groq (<code>whisper-large-v3</code>)</li>
+          <li>Configurado via <code>GROQ_API_KEY</code></li>
+          <li>Endpoint: <code>POST /audio-transcricao</code></li>
+          <li>Alternativa anterior (desativada por quota): OpenAI Whisper</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- BANCO -->
+    <section class="section" id="banco">
+      <div class="section-title">Banco de Dados</div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">MySQL — Tabelas principais</div>
+          <ul>
+            <li><code>usuarios</code> — auth, perfil, plano, reset_token</li>
+            <li><code>reunioes</code> — meeting_id, dados da sessão</li>
+            <li><code>base_conhecimento</code> — textos + embeddings para RAG</li>
+            <li><code>relatorios</code> — recapitulações, DISC, score history</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">SQLite — Métricas</div>
+          <ul>
+            <li>Path: <code>data/metricas.db</code></li>
+            <li>Tabela: <code>metricas_historico</code></li>
+            <li>Colunas: <code>ts, banco_latencia, reunioes_ativas, chamadas_ia, falhas_ia</code></li>
+            <li>Retenção: 24 horas (limpeza automática)</li>
+            <li>Escrita a cada 60 segundos via background task</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Migrations automáticas no startup</div>
+        <p>A função <code>migrar_colunas_usuarios()</code> em <code>main.py</code> roda no startup e adiciona colunas faltantes na tabela <code>usuarios</code> sem recriar a tabela. Seguro para produção.</p>
+      </div>
+    </section>
+
+    <!-- MONITOR -->
+    <section class="section" id="monitor">
+      <div class="section-title">Monitor / Observabilidade</div>
+      <div class="card">
+        <div class="card-title">Aba Monitor no Dashboard</div>
+        <ul>
+          <li>Uptime, chamadas IA, sucesso/falha, fallbacks, circuit breaks</li>
+          <li>Reuniões ativas e hoje</li>
+          <li>Tabela por provedor: sucesso, falha, latência média, status%</li>
+          <li>Sparklines de 6h via histórico SQLite</li>
+          <li>Banco de dados: latência, modo (mysql/fallback)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">Grafana Cloud Tempo (OpenTelemetry)</div>
+        <ul>
+          <li>Stack: <code>slimturtle2775</code> — região <code>sa-east-1</code></li>
+          <li>Traces de todas as rotas FastAPI chegam em tempo real</li>
+          <li>Datasource: <code>grafanacloud-slimturtle2775-traces</code></li>
+          <li>Configuração via <code>OTEL_EXPORTER_OTLP_ENDPOINT</code> e <code>OTEL_EXPORTER_OTLP_HEADERS</code></li>
+          <li>Instrumentação em nível de módulo — <code>FastAPIInstrumentor.instrument_app(app)</code></li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">Alertas Telegram</div>
+        <ul>
+          <li>Disparado por: circuit breaker aberto, taxa de falha alta, latência alta</li>
+          <li>Configurar: <code>TELEGRAM_BOT_TOKEN</code> + <code>TELEGRAM_CHAT_ID</code> no <code>.env</code></li>
+          <li>Arquivo: <code>agent/alertas.py</code></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- SEGURANÇA -->
+    <section class="section" id="seguranca">
+      <div class="section-title">Segurança / Auth</div>
+      <div class="card">
+        <div class="card-title">JWT</div>
+        <ul>
+          <li>Algoritmo: HS256</li>
+          <li>Secret: <code>JWT_SECRET</code> no <code>.env</code> — mínimo 32 caracteres</li>
+          <li>Payload: <code>{sub: email, role: admin|gerente|usuario, exp}</code></li>
+          <li>Header: <code>Authorization: Bearer &lt;token&gt;</code></li>
+          <li>Interceptado automaticamente pelo fetch global no dashboard</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">Perfis de acesso</div>
+        <table>
+          <tr><th>Perfil</th><th>Acesso</th></tr>
+          <tr><td><code>admin</code></td><td>Tudo — admin de usuários, APIs, monitor, configurações.</td></tr>
+          <tr><td><code>gerente</code></td><td>Monitor + relatórios. Sem gestão de usuários/APIs.</td></tr>
+          <tr><td><code>usuario</code></td><td>Reuniões e relatórios próprios.</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">Admin padrão</div>
+        <p>Email: <code>phpos35@gmail.com</code> — cadastrado via <code>POST /auth/cadastro</code> e promovido para admin direto no MySQL.</p>
+      </div>
+      <div class="alert alert-red">
+        <strong>Nunca expor no frontend:</strong> chaves de API, JWT_SECRET, credenciais de banco. O frontend nunca recebe segredos — apenas tokens JWT de curta duração.
+      </div>
+    </section>
+
+    <!-- TROUBLESHOOT -->
+    <section class="section" id="troubleshoot">
+      <div class="section-title">Troubleshoot</div>
+
+      <div class="card">
+        <div class="card-title">Serviço não sobe</div>
+        <pre><code><span class="cmt"># Ver erro de startup</span>
+<span class="cmd">journalctl -u saleia -n 50 --no-pager</span>
+<span class="cmd">tail -50 /opt/saleia/logs/saleia.log</span>
+<span class="cmt"># Testar manualmente</span>
+<span class="cmd">cd /opt/saleia && venv/bin/uvicorn api.main:app --host 127.0.0.1 --port 8001</span></code></pre>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Monitor retorna 401</div>
+        <p>O fetch interceptor global injeta o token automaticamente. Se falhar:</p>
+        <ul style="margin-top:8px">
+          <li>Verificar se <code>saleia_token</code> existe no localStorage</li>
+          <li>Verificar se o token não expirou</li>
+          <li>Fazer logout e login novamente</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-title">DeepSeek não aparece no Monitor (0/0)</div>
+        <ul>
+          <li>Verificar ordem em <code>data/ai_provider_order.json</code> na VPS</li>
+          <li>Se Anthropic/OpenAI estiverem antes, resolvem tudo antes do DeepSeek ser tentado</li>
+          <li>Corrigir ordem via SSH (ver seção Roteador de IA)</li>
+          <li>Verificar se <code>DEEPSEEK_API_KEY</code> está no <code>.env</code></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Provedor retorna 429 (quota)</div>
+        <ul>
+          <li>OpenAI: verificar quota em platform.openai.com</li>
+          <li>Anthropic: verificar créditos em console.anthropic.com</li>
+          <li>O roteador faz fallback automaticamente após 3 falhas (circuit breaker)</li>
+          <li>Groq (transcrição): verificar limits em console.groq.com</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-title">RAG não funciona (embedding 401)</div>
+        <ul>
+          <li>A chave <code>OPENAI_API_KEY</code> está inválida ou expirada</li>
+          <li>Atualizar via painel admin → APIs → OpenAI → Salvar</li>
+          <li>Testar: <code>ssh root@204.168.180.25 "cd /opt/saleia && venv/bin/python3 -c \"from openai import OpenAI; import os; from dotenv import load_dotenv; load_dotenv('.env'); r=OpenAI(api_key=os.environ.get('OPENAI_API_KEY')).embeddings.create(model='text-embedding-3-small',input='teste'); print('OK',len(r.data[0].embedding))\""</code></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Gemini retorna 404 (modelo descontinuado)</div>
+        <pre><code><span class="cmt"># Atualizar modelo no .env da VPS</span>
+<span class="cmd">ssh root@204.168.180.25 "sed -i 's/GEMINI_MODEL=.*/GEMINI_MODEL=gemini-2.5-flash/' /opt/saleia/.env && systemctl restart saleia"</span></code></pre>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Serviço fica em stop-sigterm (timeout 90s)</div>
+        <p>Uvicorn não finaliza limpo — ocorre quando há conexões pendentes. Causa comum: 2 workers com estado compartilhado.</p>
+        <ul style="margin-top:8px">
+          <li>VPS configurada com <code>--workers 1</code> para evitar isolamento de contadores</li>
+          <li>Se ocorrer: <code>systemctl kill -s SIGKILL saleia && systemctl start saleia</code></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Comandos de diagnóstico rápido</div>
+        <pre><code><span class="cmt"># Health</span>
+<span class="cmd">curl -s https://api.saleia.com.br/health | python3 -m json.tool</span>
+
+<span class="cmt"># Status do serviço</span>
+<span class="cmd">ssh root@204.168.180.25 "systemctl status saleia --no-pager -l"</span>
+
+<span class="cmt"># Últimas 30 linhas de log</span>
+<span class="cmd">ssh root@204.168.180.25 "tail -30 /opt/saleia/logs/saleia.log"</span>
+
+<span class="cmt"># Ordem dos provedores</span>
+<span class="cmd">ssh root@204.168.180.25 "cat /opt/saleia/data/ai_provider_order.json"</span>
+
+<span class="cmt"># Verificar chaves</span>
+<span class="cmd">ssh root@204.168.180.25 "python3 -c \"from dotenv import dotenv_values; env=dotenv_values('/opt/saleia/.env'); [print(k,'✅' if env.get(k,'') else '❌') for k in ['DEEPSEEK_API_KEY','OPENAI_API_KEY','ANTHROPIC_API_KEY','GROQ_API_KEY']]\""</span></code></pre>
+      </div>
+    </section>
+
+  </main>
 </div>
-
-<footer>
-  SALEIA — Sistema de Assistência a Líderes Empresariais com Inteligência Artificial<br>
-  <span style="opacity:.5">Versão 1.3.3 · api.saleia.com.br · Copyright © 2026 HEXAGON TECNOLOGIA. Todos os direitos reservados.</span>
-</footer>
 
 </body>
 </html>
