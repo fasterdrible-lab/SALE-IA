@@ -331,8 +331,9 @@ _counters: dict = {
     "chamadas_falha": 0,
     "fallbacks": 0,
     "circuit_breaker_aberturas": 0,
+    "custo_total_usd": 0.0,
     "por_provedor": {
-        name: {"sucesso": 0, "falha": 0, "total_ms": 0}
+        name: {"sucesso": 0, "falha": 0, "total_ms": 0, "custo_usd": 0.0}
         for name in ("deepseek", "openai", "anthropic", "gemini")
     },
     "inicio": time.time(),
@@ -434,6 +435,7 @@ def snapshot_metricas() -> dict:
             "chamadas_falha": _counters["chamadas_falha"],
             "fallbacks": _counters["fallbacks"],
             "circuit_breaker_aberturas": _counters["circuit_breaker_aberturas"],
+            "custo_total_usd": round(_counters["custo_total_usd"], 6),
             "uptime_segundos": int(time.time() - _counters["inicio"]),
             "por_provedor": {
                 name: dict(stats)
@@ -444,6 +446,7 @@ def snapshot_metricas() -> dict:
         stats["latencia_media_ms"] = (
             round(stats["total_ms"] / stats["sucesso"]) if stats["sucesso"] > 0 else None
         )
+        stats["custo_usd"] = round(stats["custo_usd"], 6)
     return snap
 
 
@@ -499,10 +502,13 @@ def chamar_ia(system_prompt: str, user_content: str) -> dict:
             })
 
             failed_before = sum(1 for a in attempts[:-1] if a.get("status") == "failed")
+            custo = metrica_custo["_custo_estimado_ia"]
             with _counters_lock:
                 _counters["chamadas_sucesso"] += 1
+                _counters["custo_total_usd"] += custo
                 _counters["por_provedor"][provider.name]["sucesso"] += 1
                 _counters["por_provedor"][provider.name]["total_ms"] += elapsed_ms
+                _counters["por_provedor"][provider.name]["custo_usd"] += custo
                 if failed_before > 0:
                     _counters["fallbacks"] += 1
 

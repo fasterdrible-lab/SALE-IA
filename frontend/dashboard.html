@@ -1354,6 +1354,7 @@
                     <th style="text-align:right">Sucesso</th>
                     <th style="text-align:right">Falha</th>
                     <th style="text-align:right">Lat. Média</th>
+                    <th style="text-align:right">Custo (USD)</th>
                     <th>Status Atual</th>
                   </tr>
                 </thead>
@@ -3571,6 +3572,7 @@
       _monCard('⚡', 'Circuit Breaks', ia.circuit_breaker_aberturas || 0, ia.circuit_breaker_aberturas > 0 ? '#f87171' : 'var(--muted)'),
       _monCard('🔴', 'Reuniões Ativas', d.reunioes_ativas ?? '—'),
       _monCard('📅', 'Reuniões Hoje', d.reunioes_hoje ?? '—'),
+      _monCard('💰', 'Gasto (USD)', ia.custo_total_usd != null ? '$' + (ia.custo_total_usd).toFixed(4) : '$0.0000', '#D4AF37'),
     ];
     document.getElementById('mon-cards').innerHTML = cards.join('');
 
@@ -3584,15 +3586,17 @@
       const total = (stats.sucesso || 0) + (stats.falha || 0);
       const taxa = total > 0 ? Math.round((stats.sucesso / total) * 100) : null;
       const taxaStr = taxa != null ? `<span style="color:${taxa >= 80 ? '#4ade80' : '#fbbf24'}">${taxa}%</span>` : '—';
+      const custo = stats.custo_usd > 0 ? '<span style="color:#D4AF37">$' + stats.custo_usd.toFixed(4) + '</span>' : '—';
       linhas += `<tr>
         <td><strong>${nomes[pid] || pid}</strong></td>
         <td style="text-align:right">${stats.sucesso || 0}</td>
         <td style="text-align:right">${stats.falha || 0}</td>
         <td style="text-align:right">${latStr}</td>
+        <td style="text-align:right">${custo}</td>
         <td>${taxaStr}</td>
       </tr>`;
     }
-    document.getElementById('mon-provedores-body').innerHTML = linhas || '<tr><td colspan="5" style="color:var(--muted);text-align:center">Nenhuma chamada registrada ainda.</td></tr>';
+    document.getElementById('mon-provedores-body').innerHTML = linhas || '<tr><td colspan="6" style="color:var(--muted);text-align:center">Nenhuma chamada registrada ainda.</td></tr>';
 
     // Banco
     const bancoCorLatencia = (banco.latencia_ms || 0) > 500 ? '#fbbf24' : '#4ade80';
