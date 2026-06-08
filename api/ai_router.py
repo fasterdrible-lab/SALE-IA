@@ -471,6 +471,9 @@ def chamar_ia(system_prompt: str, user_content: str) -> dict:
         key = _api_key(provider)
         if not key:
             attempts.append({"provider": provider.name, "status": "missing_api_key"})
+            with _counters_lock:
+                _counters["por_provedor"][provider.name]["falha"] += 1
+            logger.warning("Skipping %s: API key not configured", provider.name)
             continue
 
         started_at = time.perf_counter()

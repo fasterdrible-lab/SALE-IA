@@ -100,7 +100,7 @@ class _CorrelationMiddleware(BaseHTTPMiddleware):
 app = FastAPI(
     title="SALEIA — Assistente de Vendas IA",
     description="Backend para o assistente de vendas em tempo real no Google Meet",
-    version="1.4.13",
+    version="1.4.14",
 )
 
 app.add_middleware(_CorrelationMiddleware)
@@ -463,7 +463,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.12",
+        "versao":              "1.4.14",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -491,7 +491,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.12",
+        "versao":          "1.4.14",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -2150,9 +2150,10 @@ def admin_listar_provedores(authorization: str | None = _Header(default=None)):
     principal = env.get("PROVEDOR_PREFERIDO", "deepseek")
     provedores = []
     for pid, conf in _PROVEDORES_CONF.items():
-        chave = env.get(conf["env_key"], "")
-        tem_chave = bool(chave and len(chave) > 8)
-        ativo = tem_chave
+        chave_arquivo = env.get(conf["env_key"], "")
+        tem_chave = bool(chave_arquivo and len(chave_arquivo) > 8)
+        chave_runtime = os.environ.get(conf["env_key"], "")
+        ativo = bool(chave_runtime and len(chave_runtime) > 8)
         provedores.append({
             "id": pid,
             "nome": conf["nome"],

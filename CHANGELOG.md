@@ -3,6 +3,58 @@
 
 ---
 
+## V.1.4.14 — Fix monitor provedores + inativar API + ordem DeepSeek + RAG restaurado
+> Data: 08/06/2026 | Desenvolvido com Claude Sonnet 4.6
+
+### BACKEND — Monitor: contador de provedores sem chave (`api/ai_router.py`)
+
+- Provedores pulados por `missing_api_key` agora incrementam `_counters["por_provedor"][name]["falha"]`
+- Antes: provedor sem chave aparecia como 0/0 no Monitor (invisível, sem diagnóstico)
+- Após: exibe falha no Monitor com log `WARNING: Skipping {name}: API key not configured`
+
+### BACKEND — Fix botão "Inativar" na gestão de APIs (`api/main.py`)
+
+- `admin_listar_provedores`: campo `ativo` agora lê `os.environ.get(env_key)` (estado em runtime) em vez de `_ler_env().get(env_key)` (arquivo .env)
+- Causa do bug: ao inativar, o backend zerova `os.environ[env_key]` em memória, mas ao recarregar a lista o endpoint lia o arquivo .env (que ainda tinha a chave) e devolvia `ativo: true` — o botão revertia imediatamente
+- Separação: `tem_chave` continua lendo do arquivo (indica se existe chave salva); `ativo` reflete o estado de execução
+
+### VPS — Ordem dos provedores corrigida
+
+- `data/ai_provider_order.json` ajustado para `deepseek → openai → anthropic → gemini`
+- Estava `anthropic → openai → gemini → deepseek` — Anthropic resolvia tudo, DeepSeek nunca era chamado
+- Monitor agora exibe contadores corretos por provedor
+
+### VPS — Modelo Gemini atualizado
+
+- `GEMINI_MODEL` atualizado de `gemini-2.0-flash` (retornava 404 — modelo descontinuado) para `gemini-2.5-flash`
+
+### VPS — RAG restaurado (OpenAI embeddings)
+
+- Chave `OPENAI_API_KEY` renovada via painel admin
+- Embedding `text-embedding-3-small` testado: 1536 dimensões ✅
+- Base de conhecimento com 49 transcrições indexadas
+
+### VALIDAÇÕES
+
+- DeepSeek: ✅ Online, PRINCIPAL — primeiro na cadeia
+- OpenAI: ✅ Online — fallback + RAG/embeddings funcionando
+- Embedding test: `OK dimensoes: 1536` ✅
+- Botão "Inativar" atualiza corretamente o estado visual após click ✅
+
+### ARQUIVOS ALTERADOS
+- `api/ai_router.py`
+- `api/main.py`
+- `docs/CURRENT_STATE.md`
+- `CHANGELOG.md`
+
+### DEPLOY
+- `api/ai_router.py` e `api/main.py` deployados via SCP para `/opt/saleia/`
+- `data/ai_provider_order.json` corrigido diretamente na VPS
+- `GEMINI_MODEL` atualizado no `.env` da VPS via `sed`
+- `systemctl restart saleia` executado
+
+---
+
 ## V.1.4.13 — Observabilidade: OTel fix + Grafana Cloud Tempo ativo + Monitor auth
 > Data: 07/06/2026 | Desenvolvido com Claude Sonnet 4.6
 

@@ -23,7 +23,7 @@ Atualizado em: 2026-06-07
 
 ## Versao Atual
 
-`V.1.4.13` — registrada no CHANGELOG.md
+`V.1.4.14` — registrada no CHANGELOG.md
 
 ## Funcionalidades Entregues
 
@@ -131,6 +131,17 @@ Modelos padrao:
   - Datasource Tempo: `grafanacloud-slimturtle2775-traces`
   - Traces de todas as rotas FastAPI chegando em tempo real
 - Global fetch interceptor no dashboard.html injeta JWT automaticamente
+
+## Estado dos Provedores (V.1.4.14)
+
+Ordem ativa (ai_provider_order.json na VPS):
+
+1. `deepseek` — PRINCIPAL ✅ Online
+2. `openai` — ✅ Online (+ RAG embeddings text-embedding-3-small)
+3. `anthropic` — ❌ Sem créditos (chave válida, saldo zerado)
+4. `gemini` — modelo `gemini-2.5-flash` (atualizado de gemini-2.0-flash)
+
+RAG: 49 transcrições indexadas, embeddings 1536 dimensões funcionando.
 
 ## Proxima Tarefa Recomendada
 
