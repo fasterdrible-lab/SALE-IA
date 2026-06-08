@@ -23,7 +23,7 @@ Atualizado em: 2026-06-07
 
 ## Versao Atual
 
-`V.1.4.14` — registrada no CHANGELOG.md
+`V.1.4.15` — registrada no CHANGELOG.md
 
 ## Funcionalidades Entregues
 
@@ -132,7 +132,7 @@ Modelos padrao:
   - Traces de todas as rotas FastAPI chegando em tempo real
 - Global fetch interceptor no dashboard.html injeta JWT automaticamente
 
-## Estado dos Provedores (V.1.4.14)
+## Estado dos Provedores (V.1.4.15)
 
 Ordem ativa (ai_provider_order.json na VPS):
 

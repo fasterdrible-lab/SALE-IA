@@ -3,6 +3,61 @@
 
 ---
 
+## V.1.4.15 — Monitor: gastos USD, status real, Dev Manual
+> Data: 08/06/2026 | Desenvolvido com Claude Sonnet 4.6
+
+### BACKEND — Cache de resultado de teste por provedor (`api/main.py`)
+
+- `_ultimo_teste: dict` — cache em memória que armazena `{ok, ts, detalhe}` por provedor após cada "Testar conexão"
+- `POST /admin/api/teste` salva o resultado no cache após cada chamada
+- `GET /monitor/metricas` expõe `ultimo_teste` para o frontend
+- `admin_testar_provedor`: modelo Gemini corrigido — usa `os.environ.get("GEMINI_MODEL")` em vez de `"gemini-2.0-flash"` hardcoded
+- `GET /monitor/metricas` inclui `provedores_status` (circuit breaker + chave) em resposta ao endpoint
+
+### BACKEND — Monitoramento de gastos (`api/ai_router.py`)
+
+- `_counters` ampliado com `custo_total_usd` (global) e `custo_usd` por provedor
+- `chamar_ia()` acumula custo estimado USD a cada chamada bem-sucedida
+- `snapshot_metricas()` expõe `custo_total_usd` e `custo_usd` por provedor com arredondamento 6 casas
+
+### FRONTEND — Monitor atualizado (`frontend/dashboard.html`)
+
+- Card **💰 Gasto (USD)** com total acumulado desde o último restart
+- Coluna **Custo (USD)** na tabela de provedores (valores em dourado)
+- Coluna **STATUS ATUAL** usa `ultimo_teste` como fonte principal:
+  - ✅ Online / ❌ Offline com tempo decorrido ("agora", "5min atrás")
+  - Fallback para status do circuit breaker se nenhum teste foi realizado
+- `Sem chave` / `cooldown` / `degradado` exibidos com cores distintas
+
+### FRONTEND — Dev Manual (`frontend/manual_tecnico.html`)
+
+- Reescrito com tema gold/black do sistema
+- Seções: Arquitetura, VPS/Infra, Deploy, Variáveis de Ambiente, Estrutura de Arquivos, Endpoints, Roteador de IA, Banco de Dados, Monitor, Segurança, Troubleshoot
+- Comandos prontos para copiar (SSH, SCP, diagnóstico)
+- Link **🛠️ Dev Manual** adicionado na sidebar do dashboard
+- Acessível em `/manual-tecnico` (rota já existia em `main.py`)
+
+### VALIDAÇÕES
+
+- Gasto USD acumulando corretamente por provedor ✅
+- STATUS ATUAL reflete resultado do último teste real ✅
+- Dev Manual acessível em produção ✅
+- Modelo Gemini no teste usa variável de ambiente ✅
+
+### ARQUIVOS ALTERADOS
+- `api/main.py`
+- `api/ai_router.py`
+- `frontend/dashboard.html`
+- `frontend/manual_tecnico.html`
+- `docs/CURRENT_STATE.md`
+- `CHANGELOG.md`
+
+### DEPLOY
+- Todos os arquivos deployados via SCP para `/opt/saleia/`
+- `systemctl restart saleia` executado
+
+---
+
 ## V.1.4.14 — Fix monitor provedores + inativar API + ordem DeepSeek + RAG restaurado
 > Data: 08/06/2026 | Desenvolvido com Claude Sonnet 4.6
 

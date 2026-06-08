@@ -100,7 +100,7 @@ class _CorrelationMiddleware(BaseHTTPMiddleware):
 app = FastAPI(
     title="SALEIA — Assistente de Vendas IA",
     description="Backend para o assistente de vendas em tempo real no Google Meet",
-    version="1.4.14",
+    version="1.4.15",
 )
 
 app.add_middleware(_CorrelationMiddleware)
@@ -493,7 +493,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.14",
+        "versao":          "1.4.15",
         "timestamp":       datetime.now().isoformat(),
     }
 
