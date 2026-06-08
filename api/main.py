@@ -485,6 +485,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
     return {
         "ia": metricas,
         "provedores_status": status_provedores(),
+        "ultimo_teste": _ultimo_teste,
         "banco": {
             "modo":        banco["banco"],
             "latencia_ms": banco["latencia_ms"],
@@ -2102,6 +2103,8 @@ def _admin_set_status(uid: str, status: str):
 
 # ── APIs / Provedores ─────────────────────────
 
+_ultimo_teste: dict[str, dict] = {}  # {pid: {"ok": bool, "ts": float, "detalhe": str}}
+
 _PROVEDORES_CONF = {
     "deepseek":  {"nome": "DeepSeek",   "modelo": "deepseek-chat",   "env_key": "DEEPSEEK_API_KEY"},
     "openai":    {"nome": "OpenAI",     "modelo": "gpt-4o",          "env_key": "OPENAI_API_KEY"},
@@ -2196,6 +2199,7 @@ async def admin_testar_provedor(req: AdminTesteRequest, authorization: str | Non
     chave = env.get(_PROVEDORES_CONF[pid]["env_key"], "")
     if not chave:
         return {"ok": False, "detalhe": "Chave não configurada."}
+    import time as _time
     try:
         if pid == "openai":
             from openai import AsyncOpenAI as _OAI
@@ -2212,11 +2216,15 @@ async def admin_testar_provedor(req: AdminTesteRequest, authorization: str | Non
         elif pid == "gemini":
             import google.generativeai as _gem
             _gem.configure(api_key=chave)
-            m = _gem.GenerativeModel("gemini-2.0-flash")
+            modelo_gemini = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+            m = _gem.GenerativeModel(modelo_gemini)
             await asyncio.to_thread(m.generate_content, "ping")
+        _ultimo_teste[pid] = {"ok": True, "ts": _time.time(), "detalhe": ""}
         return {"ok": True}
     except Exception as e:
-        return {"ok": False, "detalhe": str(e)[:120]}
+        detalhe = str(e)[:120]
+        _ultimo_teste[pid] = {"ok": False, "ts": _time.time(), "detalhe": detalhe}
+        return {"ok": False, "detalhe": detalhe}
 
 
 class AdminStatusRequest(BaseModel):

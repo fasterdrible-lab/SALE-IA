@@ -3589,12 +3589,18 @@
       const custo = stats.custo_usd > 0 ? '<span style="color:#D4AF37">$' + stats.custo_usd.toFixed(4) + '</span>' : '—';
       const ps = provStatus[pid] || {};
       const st = ps.status || '';
+      const teste = (d.ultimo_teste || {})[pid];
       let statusHtml = '—';
-      if (st === 'ok')           statusHtml = '<span style="color:#4ade80">✅ Online</span>';
-      else if (st === 'sem_chave') statusHtml = '<span style="color:#f87171">❌ Sem chave</span>';
-      else if (st.startsWith('cooldown')) statusHtml = `<span style="color:#fbbf24">⏳ ${st}</span>`;
+      if (teste) {
+        const mins = Math.round((Date.now()/1000 - teste.ts) / 60);
+        const tempo = mins < 1 ? 'agora' : mins + 'min atrás';
+        if (teste.ok) statusHtml = `<span style="color:#4ade80">✅ Online</span> <span style="color:var(--muted);font-size:.75rem">${tempo}</span>`;
+        else          statusHtml = `<span style="color:#f87171">❌ Offline</span> <span style="color:var(--muted);font-size:.75rem">${tempo}</span>`;
+      } else if (st === 'ok')              statusHtml = '<span style="color:#4ade80">✅ Online</span>';
+      else if (st === 'sem_chave')         statusHtml = '<span style="color:#f87171">❌ Sem chave</span>';
+      else if (st.startsWith('cooldown'))  statusHtml = `<span style="color:#fbbf24">⏳ ${st}</span>`;
       else if (st.startsWith('degradado')) statusHtml = `<span style="color:#fbbf24">⚠️ ${st}</span>`;
-      else if (st) statusHtml = `<span style="color:var(--muted)">${st}</span>`;
+      else if (st)                         statusHtml = `<span style="color:var(--muted)">${st}</span>`;
       if (taxa != null) statusHtml += ' ' + taxaStr;
       linhas += `<tr>
         <td><strong>${nomes[pid] || pid}</strong></td>
