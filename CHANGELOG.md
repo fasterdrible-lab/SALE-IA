@@ -3,6 +3,38 @@
 
 ---
 
+## V.1.4.22 — Refatoração: 6 bugs corrigidos (transcrição + provedores + Monitor)
+> Data: 09/06/2026 | Bug fix (refatoração profunda)
+
+### BUGS CORRIGIDOS
+
+**Bug #1 — RAIZ: "Atualizar muda API de transcrição"**
+- `GET /monitor/metricas` usava `os.getenv("TRANSCRICAO_PROVEDOR", "groq")` enquanto `GET /admin/transcricao/config` usava `env.get(..., "whisper")` (padrões diferentes, fontes diferentes: `os.environ` vs arquivo `.env`). Monitor mostrava Groq como ativo, Config mostrava Whisper — parecendo que "Atualizar" trocou o provedor. Fix: alinhar padrão para `"whisper"` em ambos endpoints
+
+**Bug #2 — Double-reload na transcrição**
+- `salvarChaveGroq` e `ativarTranscricaoProvedor` disparavam `setTimeout(() => carregarTranscricaoConfig(), ...)` independentes. Se chamados em sequência (salvar chave → ativar), dois reloads corriam em paralelo. Fix: `_trReloadTimer` cancela reload anterior antes de agendar novo
+
+**Bug #3 — `delete _accLoaded['transcricao']` incorreto**
+- `ativarTranscricaoProvedor` deletava `_accLoaded['transcricao']` antes de recarregar, fazendo o accordion recarregar novamente ao ser reaberto desnecessariamente. Fix: removido — o reload direto via `carregarTranscricaoConfig()` é suficiente
+
+**Bug #4 — Provedores com status desatualizado após toggle**
+- `toggleProvedor` chamava `carregarProvedoresApi()` sem `await` e sem limpar `_testeStatus[id]`. Resultado: re-render corria em background, e o badge do provedor mostrava status antigo (cacheado). Fix: limpa `_testeStatus[id]` + `_testePendente.delete(id)` + `await carregarProvedoresApi()` → aciona re-teste automático pós-reload
+
+**Bug #5 — `_autoTestarProvedores` não mostrava `⏳ Testando...` para pré-testes**
+- Quando `_preTestarProvedores` iniciava um teste em background e o accordion abria antes do término, `_autoTestarProvedores` via `_testePendente.has(pid)` e pulava sem setar o badge — ficava em branco. Fix: exibe `⏳ Testando...` mesmo para testes já em andamento
+
+**Bug #6 — Monitor: múltiplos timers**
+- `_iniciarMonitor` usava `if (!_monitorTimer)` que poderia falhar em edge cases (navegação rápida). Fix: sempre chama `_pararMonitor()` antes de iniciar novo timer
+
+**Bônus: `fetchJsonWithFallback`**
+- Ao mudar URL de API (fallback para produção), `_accLoaded` não era invalidado. Fix: limpa flags de cache ao trocar de URL
+
+### ARQUIVOS ALTERADOS
+- `api/main.py` (`1.4.21` → `1.4.22`, padrão `TRANSCRICAO_PROVEDOR` alinhado para `"whisper"`)
+- `frontend/dashboard.html` (6 correções acima + variável `_trReloadTimer`)
+
+---
+
 ## V.1.4.21 — Config APIs: pré-teste em background + badge de carregamento
 > Data: 09/06/2026 | UX fix
 

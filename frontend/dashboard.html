@@ -1856,8 +1856,9 @@
 
   /* ─── Configurações — carregamento geral ─────────── */
   const _accLoaded = {};
-  const _testeStatus   = {}; // persiste resultado de testarProvedor durante a sessão
-  const _testePendente = new Set(); // evita disparar teste duplicado enquanto já está rodando
+  const _testeStatus       = {};       // persiste resultado de testarProvedor durante a sessão
+  const _testePendente     = new Set(); // evita disparar teste duplicado enquanto já está rodando
+  let   _trReloadTimer     = null;     // timer de recarga da config de transcrição
 
   function _aplicarTesteStatus() {
     Object.entries(_testeStatus).forEach(([id, resultado]) => {
@@ -1873,10 +1874,12 @@
 
   function _autoTestarProvedores() {
     for (const pid of ['deepseek', 'openai', 'anthropic', 'gemini']) {
-      if (_testeStatus[pid] || _testePendente.has(pid)) continue;
+      if (_testeStatus[pid]) continue; // resultado já salvo — _aplicarTesteStatus cuida
       const badge = document.getElementById('status-teste-' + pid);
       if (!badge) continue;
+      // Mostra "Testando..." independente de quem iniciou o teste
       badge.innerHTML = '<span class="cfg-badge" style="color:var(--muted);border-color:rgba(255,255,255,.1)">⏳ Testando...</span>';
+      if (_testePendente.has(pid)) continue; // já está em andamento, só exibe o badge
       testarProvedor(pid);
     }
   }
@@ -2020,7 +2023,8 @@
       }
       if (fb) { fb.textContent = '✅ Chave salva'; fb.style.color = '#14B8A6'; }
       document.getElementById('tr-key-groq').value = '';
-      setTimeout(() => carregarTranscricaoConfig(), 1500);
+      if (_trReloadTimer) clearTimeout(_trReloadTimer);
+      _trReloadTimer = setTimeout(() => { _trReloadTimer = null; carregarTranscricaoConfig(); }, 1500);
     } catch (e) {
       if (fb) { fb.textContent = '❌ Erro: ' + e.message; fb.style.color = '#FCA5A5'; }
     }
@@ -2044,7 +2048,8 @@
         return;
       }
       if (fb) { fb.textContent = '✅ Ativado'; fb.style.color = '#14B8A6'; }
-      setTimeout(() => { delete _accLoaded['transcricao']; carregarTranscricaoConfig(); }, 1200);
+      if (_trReloadTimer) clearTimeout(_trReloadTimer);
+      _trReloadTimer = setTimeout(() => { _trReloadTimer = null; carregarTranscricaoConfig(); }, 1200);
     } catch {
       if (fb) { fb.textContent = '❌ Erro de conexão'; fb.style.color = '#FCA5A5'; }
     }
@@ -2377,7 +2382,10 @@
         body: JSON.stringify({ ativo: ativar })
       });
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      carregarProvedoresApi();
+      // Limpa status cacheado para forçar re-teste após reload
+      delete _testeStatus[id];
+      _testePendente.delete(id);
+      await carregarProvedoresApi();
     } catch { if (fb) { fb.textContent = 'Erro.'; fb.style.color = '#FCA5A5'; } }
   }
 
@@ -2391,7 +2399,7 @@
         body: JSON.stringify({ provedor: id })
       });
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      carregarProvedoresApi();
+      await carregarProvedoresApi();
     } catch { if (fb) { fb.textContent = 'Erro.'; fb.style.color = '#FCA5A5'; } }
   }
 
@@ -2403,7 +2411,12 @@
       try {
         const response = await fetch(candidate + path, init);
         if (!response.ok) { lastError = new Error('HTTP ' + response.status); continue; }
-        if (candidate !== API) { API = candidate; localStorage.setItem(API_STORAGE_KEY, candidate); }
+        if (candidate !== API) {
+          API = candidate;
+          localStorage.setItem(API_STORAGE_KEY, candidate);
+          // Invalida cache de accordions — URL mudou, dados podem ser diferentes
+          Object.keys(_accLoaded).forEach(k => delete _accLoaded[k]);
+        }
         return response;
       } catch (error) {
         lastError = error;
@@ -3528,9 +3541,10 @@
   let _monitorTimer = null;
 
   function _iniciarMonitor() {
+    _pararMonitor(); // garante apenas um timer ativo
     carregarMonitor();
     _carregarHistoricoMonitor();
-    if (!_monitorTimer) _monitorTimer = setInterval(() => {
+    _monitorTimer = setInterval(() => {
       carregarMonitor();
       _carregarHistoricoMonitor();
     }, 15000);

@@ -100,7 +100,7 @@ class _CorrelationMiddleware(BaseHTTPMiddleware):
 app = FastAPI(
     title="SALEIA — Assistente de Vendas IA",
     description="Backend para o assistente de vendas em tempo real no Google Meet",
-    version="1.4.21",
+    version="1.4.22",
 )
 
 app.add_middleware(_CorrelationMiddleware)
@@ -463,7 +463,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.21",
+        "versao":              "1.4.22",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -482,7 +482,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
     _req_auth(authorization)
     metricas = snapshot_metricas()
     banco = db_health()
-    prov_transc = os.getenv("TRANSCRICAO_PROVEDOR", "groq")
+    prov_transc = os.getenv("TRANSCRICAO_PROVEDOR", "whisper")
     groq_ok     = bool(os.getenv("GROQ_API_KEY", ""))
     whisper_ok  = bool(os.getenv("OPENAI_API_KEY", ""))
     return {
@@ -501,7 +501,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.21",
+        "versao":          "1.4.22",
         "timestamp":       datetime.now().isoformat(),
     }
 
