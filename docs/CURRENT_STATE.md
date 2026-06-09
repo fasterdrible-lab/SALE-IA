@@ -1,6 +1,6 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-06-07
+Atualizado em: 2026-06-09 (V.1.4.16 local)
 
 ## Ambiente
 
@@ -23,7 +23,7 @@ Atualizado em: 2026-06-07
 
 ## Versao Atual
 
-`V.1.4.15` — registrada no CHANGELOG.md
+`V.1.4.16` — local | `V.1.4.15` — produção (VPS)
 
 ## Funcionalidades Entregues
 
@@ -109,9 +109,10 @@ Modelos padrao:
 
 ## O Que Falta
 
-- Reinstalar extensao Chrome no navegador (novo tema gold/black + multi-clientes — V.1.4.8).
-- Testar Visual Cenario AI em producao com creditos OpenAI ativos.
-- Sem tarefas criticas pendentes.
+- Reinstalar extensao Chrome no navegador (novo tema gold/black + multi-clientes — V.1.4.8). *(tarefa manual do usuario)*
+- Testar Visual Cenario AI em producao com creditos OpenAI ativos. *(aguarda saldo)*
+- Deploy de V.1.4.16 na VPS (programado pelo usuário).
+- Sem tarefas de desenvolvimento pendentes.
 
 ## Concluido (T12 - V.1.4.2)
 
@@ -142,45 +143,6 @@ Ordem ativa (ai_provider_order.json na VPS):
 4. `gemini` — modelo `gemini-2.5-flash` (atualizado de gemini-2.0-flash)
 
 RAG: 49 transcrições indexadas, embeddings 1536 dimensões funcionando.
-
-## Proxima Tarefa Recomendada
-
-**T18 — Deploy V.1.4.3–V.1.4.9 na VPS** via SCP com chave `saleia_vps`.
-
-Arquivos a enviar:
-
-| Arquivo | Versao | Motivo |
-|---|---|---|
-| `api/main.py` | V.1.4.3+ | correcoes de bugs e endpoints novos |
-| `agent/sessao_manager.py` | V.1.4.3 | fix exportar_para_base_conhecimento |
-| `requirements.txt` | V.1.4.5 | groq>=0.9.0 |
-| `frontend/dashboard.html` | V.1.4.8 | multi-clientes + redesign gold |
-| `frontend/visual-scenario.html` | V.1.4.8 | botao Inicio corrigido + paleta gold |
-| `frontend/cenario.html` | V.1.4.8 | paleta gold/black |
-| `frontend/login.html` | V.1.4.6 | logo integrado |
-| `frontend/logo-saleia.png` | V.1.4.6 | **novo arquivo** |
-| `frontend/manual.html` | V.1.4.9 | manual V.1.4.8 completo |
-| `chrome-extension/background.js` | V.1.4.1 | bug de foto corrigido |
-| `chrome-extension/manifest.json` | V.1.4.8 | versao atualizada |
-| `chrome-extension/popup.html` | V.1.4.8 | redesign gold |
-| `chrome-extension/popup.js` | V.1.4.1 | versao dinamica |
-| `chrome-extension/popup.css` | V.1.4.8 | paleta gold/black |
-| `chrome-extension/sidebar.css` | V.1.4.8 | paleta gold/black |
-| `chrome-extension/content.css` | V.1.4.8 | paleta gold/black |
-| `chrome-extension/content.js` | V.1.4.8 | multi-clientes |
-
-Apos upload:
-```bash
-pip install -r requirements.txt && systemctl restart saleia && curl https://api.saleia.com.br/health
-```
-
-Adicionar ao Nginx (`/etc/nginx/sites-enabled/saleia`):
-```nginx
-location = /logo-saleia.png {
-    alias /opt/saleia/frontend/logo-saleia.png;
-    add_header Cache-Control "public, max-age=2592000";
-}
-```
 
 ### Transcricao de Audio (V.1.4.5)
 

@@ -292,9 +292,14 @@
           <div id="saleia-temperatura-texto">Aguardando análise...</div>
         </div>
 
-        <div id="saleia-proxima-fala" class="saleia-secao">
-          <div class="saleia-secao-titulo">💬 PRÓXIMA FALA</div>
-          <div id="saleia-proxima-fala-texto">Aguardando...</div>
+        <div id="saleia-nbq" class="saleia-secao saleia-nbq-box">
+          <div class="saleia-secao-titulo">🎯 PRÓXIMA MELHOR PERGUNTA</div>
+          <div id="saleia-nbq-badges"></div>
+          <div id="saleia-nbq-objetivo" class="saleia-nbq-objetivo"></div>
+          <div id="saleia-nbq-pergunta" class="saleia-nbq-pergunta">Aguardando análise...</div>
+          <div id="saleia-nbq-motivo" class="saleia-nbq-motivo"></div>
+          <div id="saleia-nbq-impacto" class="saleia-nbq-impacto"></div>
+          <button id="saleia-nbq-copiar" class="saleia-discreto-btn" style="margin-top:6px;display:none">📋 Copiar pergunta</button>
         </div>
 
         <div id="saleia-objecao" class="saleia-secao" style="display:none">
@@ -1102,12 +1107,8 @@
         '<span class="saleia-acao">' + escaparHtml(temp.acao) + '</span>';
     }
 
-    // 💬 PRÓXIMA FALA
-    const proximaFala = dados.texto_falavel || dados.proxima_fala || dados.acao_recomendada || dados.dica_vendedor;
-    if (proximaFala) {
-      document.getElementById('saleia-proxima-fala-texto').innerHTML =
-        '<span class="saleia-verde">' + escaparHtml(proximaFala) + '</span>';
-    }
+    // 🎯 PRÓXIMA MELHOR PERGUNTA
+    renderizarNBQ(dados);
 
     // 🛡️ OBJEÇÃO DETECTADA
     const objecaoEl = document.getElementById('saleia-objecao');
@@ -1146,6 +1147,75 @@
     }
 
     animarAtualizacao();
+  }
+
+  var _NBQ_CATEGORY_LABEL = {
+    descoberta_dor: 'Descoberta',
+    amplificacao_dor: 'Amplificar dor',
+    impacto_financeiro: 'Impacto $',
+    urgencia: 'Urgência',
+    prioridade: 'Prioridade',
+    autoridade: 'Autoridade',
+    objecao: 'Objeção',
+    fechamento: 'Fechamento',
+    recapitulacao: 'Recapitulação',
+  };
+
+  var _NBQ_URGENCY_COLOR = { high: '#EF4444', medium: '#F59E0B', low: '#888' };
+
+  function renderizarNBQ(dados) {
+    var nbq = dados.next_best_question;
+    var perguntaEl = document.getElementById('saleia-nbq-pergunta');
+    var badgesEl = document.getElementById('saleia-nbq-badges');
+    var objetivoEl = document.getElementById('saleia-nbq-objetivo');
+    var motivoEl = document.getElementById('saleia-nbq-motivo');
+    var impactoEl = document.getElementById('saleia-nbq-impacto');
+    var copiarBtn = document.getElementById('saleia-nbq-copiar');
+    if (!perguntaEl) return;
+
+    // Fallback: usa proxima_pergunta se next_best_question ausente
+    if (!nbq || !nbq.question) {
+      var fallback = dados.proxima_pergunta || dados.proxima_fala || dados.texto_falavel || dados.acao_recomendada;
+      if (fallback) {
+        badgesEl.innerHTML = '';
+        objetivoEl.textContent = '';
+        perguntaEl.innerHTML = '<span class="saleia-verde">' + escaparHtml(fallback) + '</span>';
+        motivoEl.textContent = '';
+        impactoEl.textContent = '';
+        if (copiarBtn) { copiarBtn.style.display = 'block'; copiarBtn.onclick = function () { navigator.clipboard.writeText(fallback).catch(function () {}); }; }
+      } else {
+        perguntaEl.textContent = 'Aguardando análise...';
+        if (copiarBtn) copiarBtn.style.display = 'none';
+      }
+      return;
+    }
+
+    // Badges: categoria + urgência
+    var catLabel = _NBQ_CATEGORY_LABEL[nbq.category] || nbq.category || '';
+    var urgColor = _NBQ_URGENCY_COLOR[nbq.urgency_level] || '#888';
+    badgesEl.innerHTML =
+      (catLabel ? '<span class="saleia-nbq-badge">' + escaparHtml(catLabel) + '</span>' : '') +
+      (nbq.urgency_level ? '<span class="saleia-nbq-urgency" style="background:' + urgColor + '22;color:' + urgColor + '">' + escaparHtml(nbq.urgency_level) + '</span>' : '');
+
+    // Objetivo
+    objetivoEl.textContent = nbq.objective ? 'Objetivo: ' + nbq.objective : '';
+
+    // Pergunta principal
+    perguntaEl.innerHTML = '<span class="saleia-verde">"' + escaparHtml(nbq.question) + '"</span>';
+
+    // Motivo
+    motivoEl.textContent = nbq.reason || '';
+
+    // Impacto esperado
+    impactoEl.textContent = nbq.expected_score_impact ? 'Score: ' + nbq.expected_score_impact : '';
+
+    // Botão copiar
+    if (copiarBtn) {
+      copiarBtn.style.display = 'block';
+      copiarBtn.onclick = function () {
+        navigator.clipboard.writeText(nbq.question).catch(function () {});
+      };
+    }
   }
 
   function animarAtualizacao() {

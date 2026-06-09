@@ -434,6 +434,7 @@ def registrar_analise_meeting(meeting_id: str, analise: dict) -> dict:
         "objecao_detectada": analise.get("objecao_detectada"),
         "dado_esquecido": analise.get("dado_esquecido"),
         "score_compra": analise.get("score_compra"),
+        "next_best_question": analise.get("next_best_question"),
     }
 
     score_history = list(memoria.get("score_history") or [])

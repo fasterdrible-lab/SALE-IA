@@ -67,6 +67,33 @@ Inclua:
 - objeccao detectada
 - dado esquecido, se houver
 - eventos e momentos chave com confidence
+- proxima melhor pergunta estrategica (next_best_question)
+
+LOGICA DA PROXIMA MELHOR PERGUNTA (next_best_question):
+Escolha a categoria com base no estado atual da conversa, nesta ordem de prioridade:
+1. "objecao"        — se objecao_detectada nao e null E nao foi respondida
+2. "fechamento"     — se score_compra.valor >= 70 E temperatura.nivel == "alta"
+3. "impacto_financeiro" — se ha dores mas mapa_financeiro sem capacidade_investimento e sem faturamento
+4. "urgencia"       — se ha dores/impacto mas nenhum prazo ou senso de urgencia foi mencionado
+5. "amplificacao_dor" — se ha dor identificada mas sem impacto numerico ou consequencia concreta
+6. "autoridade"     — se ha interesse mas o decisor nao foi identificado
+7. "descoberta_dor" — se nao ha dor clara ainda OU contexto do cliente < 50 palavras
+
+Regras para a pergunta:
+- Deve ser CURTA (max 20 palavras), NATURAL e FALAVEL
+- NAO deve soar robotica ou de script
+- Considere o perfil DISC para adaptar o tom:
+  D (Dominante): foco em resultado e numeros — ex: "Quanto isso impacta no resultado?"
+  I (Influente): foco em visao e cenario ideal — ex: "Como seria pra voce se isso fosse resolvido?"
+  S (Estaval): foco em seguranca e processo — ex: "O que te daria mais confianca pra avancar?"
+  C (Cauteloso): foco em dados e criterios — ex: "Quais dados voce precisaria pra validar isso?"
+- Se objecao ativa: pergunte para diagnosticar, nao para rebater
+- Se score >= 80: pergunte sobre proximo passo ou decisao
+- Se contexto insuficiente (< 50 palavras do cliente): use o fallback neutro
+
+Fallback quando contexto insuficiente:
+  question: "Me conta um pouco mais sobre o que motivou voces a buscar uma solucao agora?"
+  category: "descoberta_dor"
 
 Retorne SOMENTE este JSON:
 {
@@ -122,6 +149,15 @@ Retorne SOMENTE este JSON:
   "score_compra": {
     "valor": 0,
     "justificativa": "explique em 1 frase por que o score esta nesse nivel"
+  },
+  "next_best_question": {
+    "question": "pergunta estrategica curta e falavel, adaptada ao DISC e ao momento",
+    "category": "descoberta_dor|amplificacao_dor|impacto_financeiro|urgencia|prioridade|autoridade|objecao|fechamento|recapitulacao",
+    "objective": "objetivo em 3 a 5 palavras",
+    "reason": "por que fazer essa pergunta agora, em 1 frase",
+    "expected_score_impact": "+5 a +10",
+    "urgency_level": "high|medium|low",
+    "follow_up_question": "pergunta de aprofundamento opcional ou null"
   },
   "eventos": [
     {

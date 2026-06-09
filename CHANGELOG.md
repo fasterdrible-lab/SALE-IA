@@ -3,6 +3,64 @@
 
 ---
 
+## V.1.4.16 — Próxima Melhor Pergunta (next_best_question)
+> Data: 09/06/2026 | Desenvolvido com Claude Sonnet 4.6
+
+### BACKEND — Prompt da IA (`agent/prompt_templates/agente_tempo_real.txt`)
+
+- Seção **LOGICA DA PROXIMA MELHOR PERGUNTA** adicionada ao prompt de tempo real
+- 9 categorias de pergunta definidas com lógica de prioridade explícita: `descoberta_dor`, `amplificacao_dor`, `impacto_financeiro`, `urgencia`, `prioridade`, `autoridade`, `objecao`, `fechamento`, `recapitulacao`
+- Adaptação por perfil DISC: D (resultado/números), I (visão/cenário), S (segurança/processo), C (dados/critérios)
+- Campo `next_best_question` adicionado ao schema JSON de resposta com 7 subcampos: `question`, `category`, `objective`, `reason`, `expected_score_impact`, `urgency_level`, `follow_up_question`
+- Fallback neutro para contexto insuficiente (< 50 palavras do cliente)
+
+### BACKEND — Processador tempo real (`api/processador_tempo_real.py`)
+
+- `_FALLBACK_NBQ_QUESTION` e `_fallback_next_best_question()` adicionados ao módulo
+- `_normalizar_resposta_realtime`: preenche `next_best_question` com fallback se ausente, não-dict ou question vazia
+- `_extrair_ultima_analise_memoria`: propaga `next_best_question` do cache persistido
+- `analyzeRealtimeMeeting`: acumula cada `next_best_question` real (não-fallback) como `key_moment` com `type="next_best_question"` — aparecem no relatório pós-reunião em `/historico/uso/{meeting_id}`
+
+### BACKEND — Banco de dados (`api/database.py`)
+
+- `registrar_analise_meeting`: `diagnostico_atual` inclui `next_best_question` — persiste junto ao `current_diagnosis` do `MeetingMemory`
+
+### EXTENSÃO CHROME — Sidebar (`chrome-extension/content.js`, `sidebar.css`)
+
+- Seção `#saleia-proxima-fala` substituída por `#saleia-nbq` com bloco estruturado:
+  - Badge de categoria + badge de urgência colorido (vermelho/amarelo/cinza)
+  - Label "Objetivo:" em 3–5 palavras
+  - Pergunta em destaque dourado entre aspas
+  - Motivo (por que perguntar agora) em itálico
+  - Impacto esperado no score
+  - Botão "📋 Copiar pergunta" (usa `navigator.clipboard`)
+- Fallback: se `next_best_question` ausente, exibe `proxima_pergunta` / `proxima_fala` / `texto_falavel` sem badges
+- Função `renderizarNBQ(dados)` com mapa de labels por categoria e cores por urgência
+- CSS: `.saleia-nbq-box`, `.saleia-nbq-badge`, `.saleia-nbq-urgency`, `.saleia-nbq-objetivo`, `.saleia-nbq-pergunta`, `.saleia-nbq-motivo`, `.saleia-nbq-impacto`
+
+### TESTES (`tests/test_next_best_question.py`)
+
+- 20 testes em 4 suítes: `TestNBQFallback`, `TestNBQNormalizacao`, `TestNBQCenariosNegocio`, `TestNBQPersistencia`
+- 8 cenários de negócio: sem dor, dor operacional, objeção de preço, urgência alta, score baixo, score alto, DISC C analítico, decisor ausente
+- Resultado: **20/20 OK** em 0.2s — sem chamadas reais de IA ou banco
+
+### ARQUIVOS ALTERADOS
+- `agent/prompt_templates/agente_tempo_real.txt`
+- `api/processador_tempo_real.py`
+- `api/database.py`
+- `api/main.py` (versão `1.4.15` → `1.4.16`)
+- `chrome-extension/content.js`
+- `chrome-extension/sidebar.css`
+- `tests/test_next_best_question.py` (novo)
+- `docs/CURRENT_STATE.md`
+- `docs/TASKS.md`
+- `CHANGELOG.md`
+
+### DEPLOY
+Não deployado — apenas local + GitHub (produção programada).
+
+---
+
 ## V.1.4.15 — Monitor: gastos USD, status real, Dev Manual
 > Data: 08/06/2026 | Desenvolvido com Claude Sonnet 4.6
 

@@ -43,6 +43,20 @@ def _limpar_transcricao(texto: str) -> str:
 logger = logging.getLogger(__name__)
 
 _MIN_NEW_CHARS = int(os.getenv("SALEIA_REALTIME_MIN_NEW_CHARS", "120"))
+
+_FALLBACK_NBQ_QUESTION = "Me conta um pouco mais sobre o que motivou voces a buscar uma solucao agora?"
+
+
+def _fallback_next_best_question() -> dict:
+    return {
+        "question": _FALLBACK_NBQ_QUESTION,
+        "category": "descoberta_dor",
+        "objective": "Entender motivacao",
+        "reason": "Contexto insuficiente para sugerir pergunta estrategica.",
+        "expected_score_impact": "+5",
+        "urgency_level": "low",
+        "follow_up_question": None,
+    }
 _MIN_NEW_WORDS = int(os.getenv("SALEIA_REALTIME_MIN_NEW_WORDS", "18"))
 _MIN_INTERVAL_SECONDS = int(os.getenv("SALEIA_REALTIME_MIN_INTERVAL_SECONDS", "35"))
 _MAX_CONTEXT_CHARS = int(os.getenv("SALEIA_REALTIME_MAX_CONTEXT_CHARS", "6000"))
@@ -166,6 +180,7 @@ def _extrair_ultima_analise_memoria(memoria: Optional[dict], cache: dict) -> dic
     resposta.setdefault("proxima_fala", resposta.get("proxima_fala") or resposta.get("texto_falavel") or resposta.get("acao_recomendada"))
     resposta.setdefault("texto_falavel", resposta.get("texto_falavel") or resposta.get("proxima_fala"))
     resposta.setdefault("current_diagnosis", resposta.get("current_diagnosis") or {})
+    resposta.setdefault("next_best_question", _fallback_next_best_question())
 
     if memoria.get("score_history"):
         score_history = memoria.get("score_history") or []
@@ -361,6 +376,13 @@ def _normalizar_resposta_realtime(resultado: dict | str | None, memoria: Optiona
         resultado["texto_falavel"] = resultado.get("proxima_fala")
     if not resultado.get("proxima_pergunta"):
         resultado["proxima_pergunta"] = resultado.get("pergunta_sugerida") or resultado.get("pergunta_confirmacao")
+
+    if not resultado.get("next_best_question"):
+        resultado["next_best_question"] = _fallback_next_best_question()
+    elif not isinstance(resultado["next_best_question"], dict):
+        resultado["next_best_question"] = _fallback_next_best_question()
+    elif not resultado["next_best_question"].get("question"):
+        resultado["next_best_question"]["question"] = _FALLBACK_NBQ_QUESTION
 
     if not resultado.get("current_diagnosis"):
         resultado["current_diagnosis"] = {
@@ -582,6 +604,26 @@ async def analyzeRealtimeMeeting(
             resultado["recap_trigger"] = trigger_recap
     except Exception as _e:
         logger.warning("[TempoReal] Nao foi possivel gerar recapitulacao viva: %s", _e)
+
+    # T7: Adiciona next_best_question como key_moment para aparecer no relatório
+    nbq = resultado.get("next_best_question") or {}
+    if nbq.get("question") and nbq["question"] != _FALLBACK_NBQ_QUESTION:
+        nbq_moment = {
+            "type": "next_best_question",
+            "quote": nbq["question"],
+            "speaker": "vendedor",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "importance": "high" if nbq.get("urgency_level") == "high" else "medium",
+            "confidence": "high",
+            "fact_or_inference": "inference",
+            "category": nbq.get("category"),
+            "objective": nbq.get("objective"),
+            "reason": nbq.get("reason"),
+            "expected_score_impact": nbq.get("expected_score_impact"),
+        }
+        key_moments_atual = list(resultado.get("key_moments") or [])
+        key_moments_atual.append(nbq_moment)
+        resultado["key_moments"] = key_moments_atual
 
     try:
         from agent.sessao_manager import salvar_analise
