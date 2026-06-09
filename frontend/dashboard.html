@@ -1960,13 +1960,16 @@
       const ativoBadge = p.ativo
         ? '<span class="cfg-badge cfg-badge-ativo" style="margin-left:8px">Ativo</span>'
         : '';
-      // Campo de chave + botão salvar sempre visível no card Groq
-      const groqKeyRow = p.id === 'groq' ? `
-        <div class="cfg-provedor-key-row" style="margin-top:10px;display:flex;gap:6px;align-items:center">
-          <input type="password" id="tr-key-groq" placeholder="${p.tem_chave ? '••••••••••••••••' : 'Cole a GROQ_API_KEY aqui'}" autocomplete="new-password" style="flex:1">
-          <button class="cfg-btn-provedor" onclick="toggleVerChaveGroq(this)" title="Mostrar/ocultar chave" style="padding:0 10px;font-size:1rem">👁</button>
-          <button class="cfg-btn-provedor" onclick="salvarChaveGroq()">Salvar chave</button>
-        </div>` : '';
+      // Campo de chave + botão salvar (Groq) ou nota de redirecionamento (Whisper)
+      const groqKeyRow = p.id === 'groq'
+        ? `<div class="cfg-provedor-key-row" style="margin-top:10px;display:flex;gap:6px;align-items:center">
+            <input type="password" id="tr-key-groq" placeholder="${p.tem_chave ? '••••••••••••••••' : 'Cole a GROQ_API_KEY aqui'}" autocomplete="new-password" style="flex:1">
+            <button class="cfg-btn-provedor" onclick="toggleVerChaveGroq(this)" title="Mostrar/ocultar chave" style="padding:0 10px;font-size:1rem">👁</button>
+            <button class="cfg-btn-provedor" onclick="salvarChaveGroq()">Salvar chave</button>
+           </div>`
+        : `<div style="margin-top:8px;font-size:.78rem;color:var(--muted)">
+            🔑 Chave configurada em <strong style="color:var(--text)">Configuração de APIs</strong> (accordion acima).
+           </div>`;
       // Botão de ativar só aparece quando o provedor não está ativo
       const btnAtivar = p.ativo
         ? '<span style="color:#14B8A6;font-size:.85rem">✅ Provedor ativo</span>'
