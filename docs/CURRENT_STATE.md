@@ -25,7 +25,7 @@ Atualizado em: 2026-06-09 (V.1.4.19)
 
 ## Versao Atual
 
-`V.1.4.20` — local | `V.1.4.19` — nova VPS (aguarda deploy) | `V.1.4.14` — VPS antiga (deprecada)
+`V.1.4.20` — local + GitHub | `V.1.4.19` — nova VPS (aguarda `git pull`) | `V.1.4.14` — VPS antiga (deprecada)
 
 ## Funcionalidades Entregues
 
@@ -111,11 +111,11 @@ Modelos padrao:
 
 ## O Que Falta
 
-- Reinstalar extensao Chrome no navegador (novo tema gold/black + multi-clientes — V.1.4.8). *(tarefa manual do usuario)*
-- Testar Visual Cenario AI em producao (DALL-E 3). OpenAI Online — pendente de validacao manual.
-- Aguardar propagacao DNS de `api.saleia.app.br` (~2h apos 09/06/2026 16h UTC) e rodar `certbot --nginx -d api.saleia.app.br`.
+- Deploy V.1.4.20 na nova VPS: `cd /opt/saleia && git pull origin main && systemctl restart saleia`
+- Reinstalar extensao Chrome no navegador (tema gold/black + multi-clientes — V.1.4.8). *(tarefa manual)*
+- Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI Online).
 - Descomissionar VPS antiga (`204.168.180.25`) apos validar nova VPS em producao.
-- Criar usuario admin na nova VPS (tabela `usuarios` criada no startup — nenhum usuario existe ainda).
+- Alterar senha do admin `phpos@gmail.com` (atual: `NovaSenha2026`) via dashboard.
 - Sem tarefas de desenvolvimento pendentes.
 
 ## Infraestrutura (V.1.4.17 — 09/06/2026)

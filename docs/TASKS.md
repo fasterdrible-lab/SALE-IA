@@ -240,17 +240,38 @@ EMAIL_FROM=noreply@saleia.com.br
 
 ## Concluido (V.1.4.17)
 
-- [x] V.1.4.17 - Migração para VPS dedicada Hetzner CPX32 (`37.27.214.33`, Helsinki): MySQL movido de servidor remoto compartilhado (676ms) para instância local (2ms, redução 338x); novo domínio `api.saleia.app.br` (Cloudflare proxy); deploy via git clone + Python 3.14 venv + systemd `TimeoutStopSec=30`; bug de versão hardcoded no `/health` corrigido (1.4.14→1.4.17). Dados migrados: 5 tabelas SALEIA preservadas incluindo base_conhecimento (49 docs RAG).
+- [x] V.1.4.17 - Migracao para VPS dedicada Hetzner CPX32 (`37.27.214.33`, Helsinki): MySQL movido de servidor remoto compartilhado (676ms) para instancia local (2ms, reducao 338x); novo dominio `api.saleia.app.br` (Cloudflare proxy); deploy via git clone + Python 3.14 venv + systemd `TimeoutStopSec=30`; bug de versao hardcoded no `/health` corrigido (1.4.14 -> 1.4.17). Dados migrados: 5 tabelas SALEIA preservadas incluindo base_conhecimento (49 docs RAG).
+
+## Concluido (V.1.4.18)
+
+- [x] V.1.4.18 - Fix compatibilidade openai + httpx (09/06/2026): `openai==1.35.7` incompativel com `httpx>=0.28.0` causava `AsyncClient.__init__() got an unexpected keyword argument 'proxies'` ao testar conexao no dashboard. Corrigido com `openai>=1.52.0` em `requirements.txt`.
+
+## Concluido (V.1.4.19)
+
+- [x] V.1.4.19 - Monitor melhorado (09/06/2026): (1) Tabela de provedores sempre exibe os 4 provedores (DeepSeek/OpenAI/Anthropic/Gemini) mesmo sem chamadas registradas; (2) Card "Transcricao de Audio" adicionado ao Monitor com status de Groq e OpenAI Whisper; (3) Backend: campo `transcricao` adicionado ao endpoint `/monitor/metricas`. (4) Auto-refresh do Monitor: timer `60s` → `15s`.
+
+## Concluido (V.1.4.20)
+
+- [x] V.1.4.20 - Config APIs: status automatico real ao abrir accordion (09/06/2026): `_autoTestarProvedores()` dispara `testarProvedor()` em background para cada provedor ao carregar a aba — mostra Online/Offline/Sem chave sem precisar clicar em "Testar conexao". Substituiu abordagem anterior que usava circuit breaker (mostrava todos como Online incorretamente).
+
+---
+
+## Concluido — Infraestrutura Nova VPS
+
+- [x] DNS `api.saleia.app.br` propagado (09/06/2026).
+- [x] Certbot SSL configurado — cert valido ate 2026-09-07.
+- [x] Admin `phpos@gmail.com` criado e ativado na nova VPS.
+- [x] App validado em `https://api.saleia.app.br` (health, dashboard, login, APIs online).
+- [x] Frontend: todos os URLs `api.saleia.com.br` → `api.saleia.app.br` atualizados.
 
 ---
 
 ## Pendente
 
-- [ ] Aguardar propagação DNS `api.saleia.app.br` e rodar `certbot --nginx -d api.saleia.app.br` na nova VPS.
-- [ ] Criar usuário admin na nova VPS (`POST /auth/cadastro` ou direto no banco).
-- [ ] Validar app completo em `https://api.saleia.app.br` (health, dashboard, login, extensão Chrome).
-- [ ] Testar Visual Cenário AI em produção (DALL-E 3 + OpenAI).
-- [ ] Reinstalar extensão Chrome (tema gold/black + multi-clientes — V.1.4.8). *(manual)*
-- [ ] Descomissionar VPS antiga `204.168.180.25` após validação.
+- [ ] Deploy V.1.4.20 na VPS: `cd /opt/saleia && git pull origin main && systemctl restart saleia`
+- [ ] Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI).
+- [ ] Reinstalar extensao Chrome (tema gold/black + multi-clientes — V.1.4.8). *(manual)*
+- [ ] Descomissionar VPS antiga `204.168.180.25` apos validacao.
+- [ ] Alterar senha do admin `phpos@gmail.com` via dashboard.
 
-Projeto em V.1.4.18 local + nova VPS | V.1.4.14 em VPS antiga (deprecada).
+Projeto em V.1.4.20 local + GitHub | V.1.4.19 nova VPS (aguarda deploy) | V.1.4.14 VPS antiga (deprecada).

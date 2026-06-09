@@ -3,18 +3,19 @@
 
 ---
 
-## V.1.4.20 — Config APIs: status automático ao abrir accordion
-> Data: 09/06/2026 | Bug fix
+## V.1.4.20 — Config APIs: status real automático ao abrir accordion
+> Data: 09/06/2026 | Bug fix (2 iterações)
 
 ### DASHBOARD — Aba Configuração de APIs
 
-- **Status automático**: ao abrir o accordion "Configuração de APIs", os badges Online/Offline/Sem chave agora são preenchidos automaticamente consultando `/monitor/metricas`
-- **Prioridade manual**: resultados de "Testar conexão" ainda sobrescrevem o status automático (comportamento preservado via `_aplicarTesteStatus`)
-- **Mapeamento de status**: `ok` → ✅ Online (gold); `sem_chave` → ❌ Sem chave; `degradado*` → ⚠️ Degradado; outros → ❌ Offline
+- **Teste automático real**: ao abrir o accordion "Configuração de APIs", `_autoTestarProvedores()` dispara `testarProvedor()` para cada um dos 4 provedores em background — os mesmos testes do botão "Testar conexão", sem interação do usuário
+- **Status preciso**: abordagem anterior usava `/monitor/metricas` (circuit breaker), que mostrava todos como ✅ Online mesmo quando Anthropic/Gemini estavam sem créditos; substituída por chamadas reais à API de cada provedor
+- **Prioridade manual**: provedores já testados manualmente na sessão (`_testeStatus`) são ignorados — não duplica chamadas
+- **Sessão preservada**: resultado dos testes persiste na sessão via `_testeStatus`; ao re-renderizar a lista (toggle/inativar/ativar), `_aplicarTesteStatus` restaura os badges
 
 ### ARQUIVOS ALTERADOS
 - `api/main.py` (versão `1.4.19` → `1.4.20`)
-- `frontend/dashboard.html` (função `_preencherStatusProvedores` + chamadas em `carregarProvedoresApi`)
+- `frontend/dashboard.html` (`_preencherStatusProvedores` substituída por `_autoTestarProvedores`; chamadas em `carregarProvedoresApi` atualizadas)
 
 ---
 
