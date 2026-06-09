@@ -1,15 +1,15 @@
 {
   "manifest_version": 3,
   "name": "SALEIA — Assistente de Vendas em Tempo Real",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Monitora reuniões do Google Meet e fornece dicas de vendas em tempo real usando IA",
   "permissions": ["activeTab", "storage", "alarms", "scripting", "offscreen", "tabs"],
   "host_permissions": [
     "https://meet.google.com/*",
     "http://localhost/*",
     "http://127.0.0.1/*",
-    "http://api.saleia.com.br/*",
-    "https://api.saleia.com.br/*",
+    "http://api.saleia.app.br/*",
+    "https://api.saleia.app.br/*",
     "https://*.ngrok-free.app/*",
     "https://*.ngrok-free.dev/*"
   ],

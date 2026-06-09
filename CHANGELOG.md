@@ -3,6 +3,29 @@
 
 ---
 
+## Extensão Chrome V.1.4.2 — Migração de domínio para api.saleia.app.br
+> Data: 09/06/2026 | Fix
+
+### CORREÇÃO
+
+Todos os arquivos da extensão Chrome ainda apontavam para `api.saleia.com.br` (VPS antiga). Substituído por `api.saleia.app.br` (nova VPS Hetzner) em:
+
+- `background.js` — `estadoExtensao.backendUrl` e `BACKEND_URL_CANONICAL`
+- `content.js` — `CONFIG.backendUrl`
+- `popup.js` — fallback de `backendAtual()`
+- `popup.html` — `placeholder` e `value` do campo de URL
+- `manifest.json` — `host_permissions` (removida entrada HTTP, mantida HTTPS)
+- `INSTALAR.md` — URLs de documentação
+
+Versão da extensão: `1.4.1` → `1.4.2`
+
+**Para aplicar:** reinstalar a extensão (`chrome://extensions` → remover → carregar sem compactação) ou clicar em 🔄 recarregar se já estiver instalada.
+
+### ARQUIVOS ALTERADOS
+- `chrome-extension/background.js`, `content.js`, `popup.js`, `popup.html`, `manifest.json`, `INSTALAR.md`
+
+---
+
 ## V.1.4.23 — Fix crítico: status de provedores oscilando com 2 workers uvicorn
 > Data: 09/06/2026 | Bug fix crítico
 

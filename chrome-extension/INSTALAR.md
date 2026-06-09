@@ -1,10 +1,10 @@
-# COMO INSTALAR A EXTENSÃO SALEIA — V.1.4.5
+# COMO INSTALAR A EXTENSÃO SALEIA — V.1.4.2
 
 ## PRÉ-REQUISITOS
 
 - Google Chrome instalado
-- Conta SALEIA cadastrada (crie em https://api.saleia.com.br/login)
-- Backend em produção: https://api.saleia.com.br (já configurado)
+- Conta SALEIA cadastrada (crie em https://api.saleia.app.br/login)
+- Backend em produção: https://api.saleia.app.br (já configurado)
 
 ---
 
@@ -57,7 +57,7 @@
 ## SOLUÇÃO DE PROBLEMAS
 
 **"Backend offline":**
-- Verifique https://api.saleia.com.br/health
+- Verifique https://api.saleia.app.br/health
 - Se retornar 502, aguarde 5-10 segundos e tente novamente
 
 **Sidebar não aparece:**

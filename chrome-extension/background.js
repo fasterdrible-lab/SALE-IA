@@ -16,7 +16,7 @@
 // ─────────────────────────────────────────────
 let estadoExtensao = {
   ativo: true,
-  backendUrl: 'https://api.saleia.com.br',
+  backendUrl: 'https://api.saleia.app.br',
 };
 
 // Estado da captura de áudio (Whisper)
@@ -24,7 +24,7 @@ let capturaAtiva = false;
 let captaMeetingId = 'default';
 
 // URL canônica do backend — sempre usar esta
-const BACKEND_URL_CANONICAL = 'https://api.saleia.com.br';
+const BACKEND_URL_CANONICAL = 'https://api.saleia.app.br';
 
 // ─────────────────────────────────────────────
 // INICIALIZAÇÃO — carregar configurações salvas

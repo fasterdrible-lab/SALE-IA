@@ -39,7 +39,7 @@
   }
 
   const CONFIG = {
-    backendUrl: 'https://api.saleia.com.br',
+    backendUrl: 'https://api.saleia.app.br',
     intervaloAnalise: 60,
     maxTranscricaoRecente: 2 * 60,
     maxHistorico: 5 * 60,

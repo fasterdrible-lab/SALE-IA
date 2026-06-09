@@ -169,7 +169,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function backendAtual() {
-    return backendUrlInput.value.trim().replace(/\/$/, '') || 'https://api.saleia.com.br';
+    return backendUrlInput.value.trim().replace(/\/$/, '') || 'https://api.saleia.app.br';
   }
 
   function requisitarBackend(path, method, payload) {
