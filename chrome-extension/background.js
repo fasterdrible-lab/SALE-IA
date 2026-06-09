@@ -45,7 +45,11 @@ chrome.runtime.onInstalled.addListener(function () {
 chrome.storage.local.get(['saleiaBackendUrl'], function (result) {
   // Se estiver com IP direto, corrigir para o domínio canônico
   const stored = result.saleiaBackendUrl || '';
-  if (!stored || stored.includes('204.168.180.25') || stored.includes('127.0.0.1')) {
+  const urlObsoleta = !stored
+    || stored.includes('204.168.180.25')
+    || stored.includes('127.0.0.1')
+    || stored.includes('api.saleia.com.br');
+  if (urlObsoleta) {
     chrome.storage.local.set({ saleiaBackendUrl: BACKEND_URL_CANONICAL });
     estadoExtensao.backendUrl = BACKEND_URL_CANONICAL;
   } else {
