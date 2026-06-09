@@ -1,6 +1,6 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-06-09 (V.1.4.18)
+Atualizado em: 2026-06-09 (V.1.4.19)
 
 ## Ambiente
 
@@ -25,7 +25,7 @@ Atualizado em: 2026-06-09 (V.1.4.18)
 
 ## Versao Atual
 
-`V.1.4.18` — local + nova VPS | `V.1.4.14` — VPS antiga (deprecada)
+`V.1.4.19` — local + nova VPS | `V.1.4.14` — VPS antiga (deprecada)
 
 ## Funcionalidades Entregues
 

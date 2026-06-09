@@ -3,6 +3,25 @@
 
 ---
 
+## V.1.4.19 — Monitor: provedores sempre visíveis + status transcrição
+> Data: 09/06/2026 | Feature + Bug fix
+
+### DASHBOARD — Aba Monitor
+
+- **Tabela de Provedores**: sempre exibe os 4 provedores (DeepSeek, OpenAI, Anthropic, Gemini) mesmo sem chamadas registradas — antes exibia "Nenhuma chamada registrada" quando nenhuma análise tinha sido feita após o restart
+- **Status real-time**: status usa `provedores_status` do router como fallback quando não há teste manual recente — reflete estado correto sem precisar clicar em "Testar conexão"
+- **Transcrição de Áudio**: novo card no Monitor mostrando status de Groq (Whisper Large v3) e OpenAI Whisper, com badge "ATIVO" no provedor em uso
+
+### BACKEND — `/monitor/metricas`
+
+- Campo `transcricao` adicionado ao response: `provedor_ativo`, `groq.status`, `openai_whisper.status` (derivados de presença de chave no `.env`)
+
+### ARQUIVOS ALTERADOS
+- `api/main.py` (versão `1.4.18` → `1.4.19`, campo `transcricao` no endpoint)
+- `frontend/dashboard.html` (tabela fixa de 4 provedores, card de transcrição)
+
+---
+
 ## V.1.4.18 — Fix compatibilidade openai + httpx
 > Data: 09/06/2026 | Bug fix
 

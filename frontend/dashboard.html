@@ -1362,6 +1362,11 @@
               </table>
             </div>
           </div>
+          <!-- Transcrição de Áudio -->
+          <div class="card" style="padding:16px 20px;margin-bottom:16px">
+            <div class="cfg-section-header" style="margin-bottom:10px"><h3 style="margin:0;font-size:.95rem">Transcrição de Áudio</h3></div>
+            <div id="mon-transcricao"></div>
+          </div>
           <!-- Banco -->
           <div class="card" style="padding:16px 20px;margin-bottom:16px">
             <div class="cfg-section-header" style="margin-bottom:10px"><h3 style="margin:0;font-size:.95rem">Banco de Dados</h3></div>
@@ -3576,12 +3581,13 @@
     ];
     document.getElementById('mon-cards').innerHTML = cards.join('');
 
-    // Tabela provedores
+    // Tabela provedores — sempre exibe os 4, mesmo sem chamadas
     const por = ia.por_provedor || {};
     const provStatus = d.provedores_status || {};
     const nomes = { deepseek: 'DeepSeek', openai: 'OpenAI', anthropic: 'Anthropic', gemini: 'Gemini' };
     let linhas = '';
-    for (const [pid, stats] of Object.entries(por)) {
+    for (const pid of ['deepseek', 'openai', 'anthropic', 'gemini']) {
+      const stats = por[pid] || {};
       const latStr = stats.latencia_media_ms != null ? stats.latencia_media_ms + ' ms' : '—';
       const total = (stats.sucesso || 0) + (stats.falha || 0);
       const taxa = total > 0 ? Math.round((stats.sucesso / total) * 100) : null;
@@ -3612,6 +3618,25 @@
       </tr>`;
     }
     document.getElementById('mon-provedores-body').innerHTML = linhas || '<tr><td colspan="6" style="color:var(--muted);text-align:center">Nenhuma chamada registrada ainda.</td></tr>';
+
+    // Transcrição de Áudio
+    const tr = d.transcricao || {};
+    const trProv = tr.provedor_ativo || 'groq';
+    const trRows = [
+      { id: 'groq',           nome: 'Groq (Whisper Large v3)', info: tr.groq           || {} },
+      { id: 'openai_whisper', nome: 'OpenAI Whisper',          info: tr.openai_whisper || {} },
+    ].map(({ id, nome, info }) => {
+      const ativo = trProv === id || (id === 'openai_whisper' && trProv === 'whisper');
+      const ativoBadge = ativo ? '<span style="background:#D4AF37;color:#000;font-size:.7rem;padding:1px 6px;border-radius:4px;margin-left:6px">ATIVO</span>' : '';
+      let stHtml;
+      if (info.status === 'ok')        stHtml = '<span style="color:#4ade80">✅ Configurado</span>';
+      else if (info.status === 'sem_chave') stHtml = '<span style="color:#f87171">❌ Sem chave</span>';
+      else                              stHtml = '<span style="color:var(--muted)">—</span>';
+      return `<tr><td><strong>${nome}</strong>${ativoBadge}</td><td>${stHtml}</td></tr>`;
+    }).join('');
+    document.getElementById('mon-transcricao').innerHTML = `
+      <table class="cfg-tabela"><thead><tr><th>Provedor</th><th>Status</th></tr></thead>
+      <tbody>${trRows}</tbody></table>`;
 
     // Banco
     const bancoCorLatencia = (banco.latencia_ms || 0) > 500 ? '#fbbf24' : '#4ade80';

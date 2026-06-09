@@ -100,7 +100,7 @@ class _CorrelationMiddleware(BaseHTTPMiddleware):
 app = FastAPI(
     title="SALEIA — Assistente de Vendas IA",
     description="Backend para o assistente de vendas em tempo real no Google Meet",
-    version="1.4.18",
+    version="1.4.19",
 )
 
 app.add_middleware(_CorrelationMiddleware)
@@ -463,7 +463,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.18",
+        "versao":              "1.4.19",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -482,6 +482,9 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
     _req_auth(authorization)
     metricas = snapshot_metricas()
     banco = db_health()
+    prov_transc = os.getenv("TRANSCRICAO_PROVEDOR", "groq")
+    groq_ok     = bool(os.getenv("GROQ_API_KEY", ""))
+    whisper_ok  = bool(os.getenv("OPENAI_API_KEY", ""))
     return {
         "ia": metricas,
         "provedores_status": status_provedores(),
@@ -491,9 +494,14 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
             "latencia_ms": banco["latencia_ms"],
             "erro":        banco["erro"],
         },
+        "transcricao": {
+            "provedor_ativo": prov_transc,
+            "groq":           {"configurado": groq_ok,    "status": "ok" if groq_ok    else "sem_chave"},
+            "openai_whisper": {"configurado": whisper_ok, "status": "ok" if whisper_ok else "sem_chave"},
+        },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.18",
+        "versao":          "1.4.19",
         "timestamp":       datetime.now().isoformat(),
     }
 
