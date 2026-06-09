@@ -3,6 +3,32 @@
 
 ---
 
+## V.1.4.23 — Fix crítico: status de provedores oscilando com 2 workers uvicorn
+> Data: 09/06/2026 | Bug fix crítico
+
+### CAUSA RAIZ — Bug "Atualizar troca status das APIs no Monitor"
+
+Com `--workers 2`, o uvicorn cria **2 processos independentes**, cada um com sua própria cópia de `_ultimo_teste` (dict in-memory). Quando o usuário clicava "Testar conexão" na aba Config APIs, o resultado era salvo apenas no worker que atendeu aquela requisição. Ao clicar "↺ Atualizar" no Monitor, a request podia cair no outro worker (com `_ultimo_teste` vazio) → mostrava "✅ Online" via circuit breaker "ok". Na próxima atualização caía no primeiro worker → mostrava "❌ Offline". Status **alternava a cada clique** dependendo de qual worker atendia.
+
+### CORREÇÃO
+
+- **`api/metricas_historico.py`**: novas funções `criar_tabela_teste_provedores()`, `salvar_teste_provedor(pid, ok, ts, detalhe)`, `ler_testes_provedores()` — tabela SQLite `teste_provedores` com `ON CONFLICT ... DO UPDATE` (upsert atômico)
+- **`api/main.py`**: 
+  - `_ler_testes_compartilhados()` — lê do SQLite e mescla com in-memory (o mais recente vence)
+  - `on_startup`: chama `criar_tabela_teste_provedores()` junto com outras tabelas
+  - `admin_testar_provedor`: persiste resultado em SQLite além do dict in-memory
+  - `/monitor/metricas`: substitui `_ultimo_teste` por `_ler_testes_compartilhados()`
+
+### POR QUE FUNCIONA
+
+SQLite usa WAL mode — múltiplos leitores simultâneos, escritas serializadas e atômicas. Todos os workers leem da mesma `metricas.db` em disco. O upsert garante que o resultado mais recente de qualquer worker fique disponível para todos.
+
+### ARQUIVOS ALTERADOS
+- `api/metricas_historico.py` (3 novas funções)
+- `api/main.py` (`1.4.22` → `1.4.23`, `_ler_testes_compartilhados`, persistência de testes)
+
+---
+
 ## V.1.4.22 — Refatoração: 6 bugs corrigidos (transcrição + provedores + Monitor)
 > Data: 09/06/2026 | Bug fix (refatoração profunda)
 

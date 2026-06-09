@@ -94,3 +94,37 @@ def obter(horas: int = 6) -> list[dict]:
             (limite,),
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+# ── Resultados de teste de provedores (compartilhado entre workers) ─────────
+
+def criar_tabela_teste_provedores() -> None:
+    with _conn() as db:
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS teste_provedores (
+                pid     TEXT PRIMARY KEY,
+                ok      INTEGER NOT NULL,
+                ts      REAL    NOT NULL,
+                detalhe TEXT    NOT NULL DEFAULT ''
+            )
+        """)
+
+
+def salvar_teste_provedor(pid: str, ok: bool, ts: float, detalhe: str) -> None:
+    with _conn() as db:
+        db.execute(
+            """INSERT INTO teste_provedores (pid, ok, ts, detalhe)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(pid) DO UPDATE SET ok=excluded.ok, ts=excluded.ts, detalhe=excluded.detalhe""",
+            (pid, 1 if ok else 0, ts, detalhe),
+        )
+
+
+def ler_testes_provedores() -> dict:
+    """Retorna {pid: {"ok": bool, "ts": float, "detalhe": str}} de todos os workers."""
+    try:
+        with _conn() as db:
+            rows = db.execute("SELECT pid, ok, ts, detalhe FROM teste_provedores").fetchall()
+        return {r["pid"]: {"ok": bool(r["ok"]), "ts": r["ts"], "detalhe": r["detalhe"]} for r in rows}
+    except Exception:
+        return {}

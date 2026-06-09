@@ -1,6 +1,6 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-06-09 (V.1.4.19)
+Atualizado em: 2026-06-09 (V.1.4.23)
 
 ## Ambiente
 
@@ -25,7 +25,7 @@ Atualizado em: 2026-06-09 (V.1.4.19)
 
 ## Versao Atual
 
-`V.1.4.22` — local + GitHub | `V.1.4.19` — nova VPS (aguarda `git pull`) | `V.1.4.14` — VPS antiga (deprecada)
+`V.1.4.23` — local + GitHub | `V.1.4.19` — nova VPS (aguarda `git pull`) | `V.1.4.14` — VPS antiga (deprecada)
 
 ## Funcionalidades Entregues
 
@@ -111,7 +111,7 @@ Modelos padrao:
 
 ## O Que Falta
 
-- Deploy V.1.4.20 na nova VPS: `cd /opt/saleia && git pull origin main && systemctl restart saleia`
+- **DEPLOY PENDENTE** — V.1.4.23 na nova VPS: `cd /opt/saleia && git pull origin main && systemctl restart saleia`
 - Reinstalar extensao Chrome no navegador (tema gold/black + multi-clientes — V.1.4.8). *(tarefa manual)*
 - Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI Online).
 - Descomissionar VPS antiga (`204.168.180.25`) apos validar nova VPS em producao.
@@ -196,7 +196,7 @@ RAG: 49 transcrições indexadas, embeddings 1536 dimensões funcionando.
 
 ## Problemas Conhecidos
 
-Nenhum problema critico pendente.
+Nenhum problema crítico pendente. (V.1.4.23 corrige o último crítico: status oscilando no Monitor com 2 workers)
 
 ## Cuidados
 

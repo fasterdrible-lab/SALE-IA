@@ -258,6 +258,14 @@ EMAIL_FROM=noreply@saleia.com.br
 
 - [x] V.1.4.21 - Config APIs: pre-teste em background + badge de carregamento (09/06/2026): `_preTestarProvedores()` e `_testePendente` adicionados — testes disparam ao navegar para Configuracoes, antes do accordion abrir; quando accordion abre, badges mostram resultado instantaneo via `_aplicarTesteStatus`. Badge "⏳ Testando..." exibido se accordion abrir antes do teste concluir. Sem chamadas duplicadas.
 
+## Concluido (V.1.4.22)
+
+- [x] V.1.4.22 - Refatoracao profunda (09/06/2026): 6 bugs corrigidos — (1) padrao TRANSCRICAO_PROVEDOR alinhado para "whisper" em ambos endpoints; (2) double-reload transcricao corrigido com `_trReloadTimer`; (3) `delete _accLoaded['transcricao']` incorreto removido; (4) `toggleProvedor` agora limpa status cacheado e aguarda reload; (5) `_autoTestarProvedores` exibe badge de loading para testes pendentes; (6) `_iniciarMonitor` sempre chama `_pararMonitor()` antes de iniciar.
+
+## Concluido (V.1.4.23)
+
+- [x] V.1.4.23 - Fix critico: status de provedores oscilando no Monitor (09/06/2026). Causa: `_ultimo_teste` in-memory por worker com `--workers 2` — requests alternavam entre Worker A (com resultado) e Worker B (sem resultado), fazendo status flutuar entre Online e Offline a cada clique em "Atualizar". Correcao: `_ultimo_teste` agora persistido em tabela SQLite `teste_provedores` em `metricas.db` (compartilhado entre todos os workers). `_ler_testes_compartilhados()` mescla DB + in-memory (mais recente vence). Startup cria tabela automaticamente. `salvar_teste_provedor()` chamado em todo `POST /admin/api/teste`. Arquivos: `api/metricas_historico.py` (3 novas funcoes) + `api/main.py`.
+
 ---
 
 ## Concluido — Infraestrutura Nova VPS
@@ -272,10 +280,10 @@ EMAIL_FROM=noreply@saleia.com.br
 
 ## Pendente
 
-- [ ] Deploy V.1.4.20 na VPS: `cd /opt/saleia && git pull origin main && systemctl restart saleia`
+- [ ] **DEPLOY V.1.4.23 na VPS**: `cd /opt/saleia && git pull origin main && systemctl restart saleia` — corrige bug critico do Monitor
 - [ ] Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI).
 - [ ] Reinstalar extensao Chrome (tema gold/black + multi-clientes — V.1.4.8). *(manual)*
 - [ ] Descomissionar VPS antiga `204.168.180.25` apos validacao.
 - [ ] Alterar senha do admin `phpos@gmail.com` via dashboard.
 
-Projeto em V.1.4.20 local + GitHub | V.1.4.19 nova VPS (aguarda deploy) | V.1.4.14 VPS antiga (deprecada).
+Projeto em V.1.4.23 local + GitHub | V.1.4.19 nova VPS (aguarda deploy) | V.1.4.14 VPS antiga (deprecada).

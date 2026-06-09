@@ -100,7 +100,7 @@ class _CorrelationMiddleware(BaseHTTPMiddleware):
 app = FastAPI(
     title="SALEIA — Assistente de Vendas IA",
     description="Backend para o assistente de vendas em tempo real no Google Meet",
-    version="1.4.22",
+    version="1.4.23",
 )
 
 app.add_middleware(_CorrelationMiddleware)
@@ -195,8 +195,9 @@ async def on_startup():
     except Exception as e:
         logger.warning("Tabela visual_scenarios não criada: %s", e)
     try:
-        from api.metricas_historico import criar_tabela_metricas
+        from api.metricas_historico import criar_tabela_metricas, criar_tabela_teste_provedores
         criar_tabela_metricas()
+        criar_tabela_teste_provedores()
     except Exception as e:
         logger.warning("Tabela metricas_historico não criada: %s", e)
     asyncio.create_task(_loop_metricas())
@@ -463,7 +464,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.22",
+        "versao":              "1.4.23",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -488,7 +489,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
     return {
         "ia": metricas,
         "provedores_status": status_provedores(),
-        "ultimo_teste": _ultimo_teste,
+        "ultimo_teste": _ler_testes_compartilhados(),
         "banco": {
             "modo":        banco["banco"],
             "latencia_ms": banco["latencia_ms"],
@@ -501,7 +502,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.22",
+        "versao":          "1.4.23",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -2111,7 +2112,22 @@ def _admin_set_status(uid: str, status: str):
 
 # ── APIs / Provedores ─────────────────────────
 
-_ultimo_teste: dict[str, dict] = {}  # {pid: {"ok": bool, "ts": float, "detalhe": str}}
+_ultimo_teste: dict[str, dict] = {}  # {pid: {"ok": bool, "ts": float, "detalhe": str}} — cache local do worker
+
+
+def _ler_testes_compartilhados() -> dict:
+    """Lê resultados de teste do SQLite (compartilhado entre todos os workers uvicorn)."""
+    try:
+        from api.metricas_historico import ler_testes_provedores
+        db_testes = ler_testes_provedores()
+        # Mescla com in-memory: o mais recente vence
+        resultado = dict(db_testes)
+        for pid, v in _ultimo_teste.items():
+            if pid not in resultado or v["ts"] > resultado[pid]["ts"]:
+                resultado[pid] = v
+        return resultado
+    except Exception:
+        return dict(_ultimo_teste)
 
 _PROVEDORES_CONF = {
     "deepseek":  {"nome": "DeepSeek",   "modelo": "deepseek-chat",   "env_key": "DEEPSEEK_API_KEY"},
@@ -2227,11 +2243,23 @@ async def admin_testar_provedor(req: AdminTesteRequest, authorization: str | Non
             modelo_gemini = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
             m = _gem.GenerativeModel(modelo_gemini)
             await asyncio.to_thread(m.generate_content, "ping")
-        _ultimo_teste[pid] = {"ok": True, "ts": _time.time(), "detalhe": ""}
+        ts_ok = _time.time()
+        _ultimo_teste[pid] = {"ok": True, "ts": ts_ok, "detalhe": ""}
+        try:
+            from api.metricas_historico import salvar_teste_provedor
+            salvar_teste_provedor(pid, True, ts_ok, "")
+        except Exception:
+            pass
         return {"ok": True}
     except Exception as e:
         detalhe = str(e)[:120]
-        _ultimo_teste[pid] = {"ok": False, "ts": _time.time(), "detalhe": detalhe}
+        ts_fail = _time.time()
+        _ultimo_teste[pid] = {"ok": False, "ts": ts_fail, "detalhe": detalhe}
+        try:
+            from api.metricas_historico import salvar_teste_provedor
+            salvar_teste_provedor(pid, False, ts_fail, detalhe)
+        except Exception:
+            pass
         return {"ok": False, "detalhe": detalhe}
 
 
