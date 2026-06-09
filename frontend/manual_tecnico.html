@@ -198,7 +198,7 @@
           <ul>
             <li>Nginx em <code>80/443</code></li>
             <li>Certbot SSL (Let's Encrypt)</li>
-            <li>Domínio: <code>api.saleia.com.br</code></li>
+            <li>Domínio: <code>api.saleia.app.br</code></li>
             <li>Proxy pass: <code>127.0.0.1:8000</code></li>
           </ul>
         </div>
@@ -281,7 +281,7 @@
 <span class="cmd">scp "C:\...\api\main.py" "C:\...\api\ai_router.py" root@204.168.180.25:/opt/saleia/api/</span>
 
 <span class="cmt"># Reiniciar após deploy</span>
-<span class="cmd">ssh root@204.168.180.25 "systemctl restart saleia && sleep 4 && curl -s https://api.saleia.com.br/health"</span></code></pre>
+<span class="cmd">ssh root@204.168.180.25 "systemctl restart saleia && sleep 4 && curl -s https://api.saleia.app.br/health"</span></code></pre>
       </div>
       <div class="card">
         <div class="card-title">Checklist de deploy</div>
@@ -290,7 +290,7 @@
           <div class="flow-step"><div class="flow-num">2</div><div class="flow-content"><h4>SCP dos arquivos</h4><p>Copiar apenas os arquivos da tarefa. Nunca copiar <code>.env</code>, <code>data/</code>, <code>venv/</code>.</p></div></div>
           <div class="flow-step"><div class="flow-num">3</div><div class="flow-content"><h4>Se requirements.txt mudou</h4><p><code>ssh root@204.168.180.25 "cd /opt/saleia && venv/bin/pip install -r requirements.txt"</code></p></div></div>
           <div class="flow-step"><div class="flow-num">4</div><div class="flow-content"><h4>Reiniciar serviço</h4><p><code>systemctl restart saleia</code></p></div></div>
-          <div class="flow-step"><div class="flow-num">5</div><div class="flow-content"><h4>Validar health</h4><p><code>curl -s https://api.saleia.com.br/health</code> → verificar <code>versao</code> e <code>status: online</code>.</p></div></div>
+          <div class="flow-step"><div class="flow-num">5</div><div class="flow-content"><h4>Validar health</h4><p><code>curl -s https://api.saleia.app.br/health</code> → verificar <code>versao</code> e <code>status: online</code>.</p></div></div>
           <div class="flow-step"><div class="flow-num">6</div><div class="flow-content"><h4>Commit + push</h4><p>Commitar os arquivos alterados + CHANGELOG.md + CURRENT_STATE.md no repo local, depois push.</p></div></div>
         </div>
       </div>
@@ -628,7 +628,7 @@ json.dumps({'order':['deepseek','openai','anthropic','gemini'],'updated_at':time
       <div class="card">
         <div class="card-title">Comandos de diagnóstico rápido</div>
         <pre><code><span class="cmt"># Health</span>
-<span class="cmd">curl -s https://api.saleia.com.br/health | python3 -m json.tool</span>
+<span class="cmd">curl -s https://api.saleia.app.br/health | python3 -m json.tool</span>
 
 <span class="cmt"># Status do serviço</span>
 <span class="cmd">ssh root@204.168.180.25 "systemctl status saleia --no-pager -l"</span>

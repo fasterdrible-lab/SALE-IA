@@ -1517,7 +1517,7 @@
     window.fetch = function (url, opts) {
       opts = opts || {};
       const token = localStorage.getItem('saleia_token');
-      if (token && typeof url === 'string' && (url.startsWith('/') || url.includes('api.saleia.com.br'))) {
+      if (token && typeof url === 'string' && (url.startsWith('/') || url.includes('api.saleia.app.br'))) {
         opts.headers = Object.assign({ Authorization: 'Bearer ' + token }, opts.headers || {});
       }
       return _orig.call(this, url, opts);
@@ -1528,9 +1528,9 @@
   const _host = window.location.hostname;
   const API_OPTIONS = [
     { id: 'local',    label: 'Local',    url: 'http://localhost:8000' },
-    { id: 'producao', label: 'Producao', url: 'https://api.saleia.com.br' },
+    { id: 'producao', label: 'Producao', url: 'https://api.saleia.app.br' },
   ];
-  const API_CANONICAL_PROD = 'https://api.saleia.com.br';
+  const API_CANONICAL_PROD = 'https://api.saleia.app.br';
   const API_STORAGE_KEY = 'saleia_dashboard_api_url';
   let API = obterApiSalva();
   let _reunioesCache = [];
@@ -1541,7 +1541,7 @@
   function obterApiSalva() {
     const fallback = (_host === 'localhost' || _host === '127.0.0.1')
       ? 'http://localhost:8000'
-      : 'https://api.saleia.com.br';
+      : 'https://api.saleia.app.br';
     return localStorage.getItem(API_STORAGE_KEY) || fallback;
   }
 
