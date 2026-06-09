@@ -1,29 +1,31 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-06-09 (V.1.4.16 local)
+Atualizado em: 2026-06-09 (V.1.4.17)
 
 ## Ambiente
 
 - Pasta canonica local: `C:\Users\phpos\OneDrive\SALE-IA\SALEIA`
-- Dominio de producao: `https://api.saleia.com.br`
-- Dashboard: `https://api.saleia.com.br/dashboard`
+- Dominio de producao: `https://api.saleia.app.br` (DNS propagando ~2h apos 09/06/2026 16h UTC)
+- Dominio antigo (deprecado): `https://api.saleia.com.br` (VPS antiga ainda ativa)
+- Dashboard: `https://api.saleia.app.br/dashboard`
 - Backend de producao: FastAPI via `saleia.service`
 - Porta interna na VPS: `127.0.0.1:8000`
-- Proxy publico: nginx em `80/443`
-- Banco em producao: MySQL
+- Proxy publico: nginx em `80/443` + Cloudflare proxy (nuvem laranja)
+- Banco em producao: MySQL local (127.0.0.1) — latencia ~2ms
 
 ## Deploy
 
-- VPS: `204.168.180.25`
+- VPS nova (dedicada): `37.27.214.33` — CPX32, 4 vCPU, 8GB RAM, 160GB SSD, Helsinki
+- VPS antiga (deprecada): `204.168.180.25` — aguarda descomissionamento
 - App na VPS: `/opt/saleia`
 - Servico: `saleia.service`
-- Health publico validado: `https://api.saleia.com.br/health`
+- Health: `curl http://127.0.0.1:8000/health` ou `https://api.saleia.app.br/health`
+- Deploy via: `git pull` + `systemctl restart saleia`
 - Nao sobrescrever em deploy: `.env`, `venv`, `data`, `logs`
-- Apos deploy: reiniciar com `systemctl restart saleia`
 
 ## Versao Atual
 
-`V.1.4.16` — local | `V.1.4.15` — produção (VPS)
+`V.1.4.17` — local + nova VPS | `V.1.4.14` — VPS antiga (deprecada)
 
 ## Funcionalidades Entregues
 
@@ -110,9 +112,21 @@ Modelos padrao:
 ## O Que Falta
 
 - Reinstalar extensao Chrome no navegador (novo tema gold/black + multi-clientes — V.1.4.8). *(tarefa manual do usuario)*
-- Testar Visual Cenario AI em producao com creditos OpenAI ativos. *(aguarda saldo)*
-- Deploy de V.1.4.16 na VPS (programado pelo usuário).
+- Testar Visual Cenario AI em producao (DALL-E 3). OpenAI Online — pendente de validacao manual.
+- Aguardar propagacao DNS de `api.saleia.app.br` (~2h apos 09/06/2026 16h UTC) e rodar `certbot --nginx -d api.saleia.app.br`.
+- Descomissionar VPS antiga (`204.168.180.25`) apos validar nova VPS em producao.
+- Criar usuario admin na nova VPS (tabela `usuarios` criada no startup — nenhum usuario existe ainda).
 - Sem tarefas de desenvolvimento pendentes.
+
+## Infraestrutura (V.1.4.17 — 09/06/2026)
+
+- VPS dedicada CPX32 provisionada na Hetzner Helsinki (`37.27.214.33`).
+- MySQL migrado de servidor remoto compartilhado (`177.104.186.227`, 676ms) para instancia local (`127.0.0.1`, ~2ms) — reducao de 338x na latencia do banco.
+- Novo dominio `saleia.app.br` criado no Registro.br + delegado ao Cloudflare (nuvem laranja).
+- Deploy via `git clone https://github.com/fasterdrible-lab/SALE-IA.git /opt/saleia` + venv Python 3.14 + systemd com `TimeoutStopSec=30`.
+- nginx configurado para `api.saleia.app.br` com proxy reverso para `127.0.0.1:8000`.
+- Dados migrados: tabelas `admin_route_rules`, `alertas_automaticos`, `api_integrations`, `audit_logs`, `base_conhecimento` (49 docs RAG) preservadas.
+- Tabelas auto-criadas no startup: `relatorio`, `meeting_memory`, `sessoes`, `usuarios`, `visual_scenarios`.
 
 ## Concluido (T12 - V.1.4.2)
 

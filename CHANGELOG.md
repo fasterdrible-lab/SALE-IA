@@ -3,6 +3,33 @@
 
 ---
 
+## V.1.4.17 — Migração para VPS Dedicada + Novo Domínio
+> Data: 09/06/2026 | Operação de infraestrutura
+
+### INFRAESTRUTURA
+
+- **Nova VPS dedicada**: Hetzner CPX32 — 4 vCPU AMD, 8GB RAM, 160GB SSD, Helsinki (`37.27.214.33`)
+- **MySQL local**: banco migrado de servidor remoto compartilhado (`177.104.186.227`, 676ms) para instância local na própria VPS (`127.0.0.1`, ~2ms) — redução de 338x na latência
+- **Novo domínio**: `saleia.app.br` criado no Registro.br e delegado ao Cloudflare (proxy ativo); subdomínio `api.saleia.app.br` configurado
+- **Deploy**: `git clone` do GitHub + venv Python 3.14 + systemd `TimeoutStopSec=30` (previne SIGKILL em restart)
+- **nginx**: configurado para `api.saleia.app.br` com proxy reverso para `127.0.0.1:8000`
+- **Dados migrados**: `mysqldump` do banco compartilhado → import na nova instância; tabelas de outros projetos removidas; 5 tabelas SALEIA preservadas (`admin_route_rules`, `alertas_automaticos`, `api_integrations`, `audit_logs`, `base_conhecimento` com 49 docs RAG)
+
+### BUG FIX — Versão no health endpoint
+
+- `/health` e `/monitor/metricas` tinham versão hardcoded defasada (`1.4.14` e `1.4.15`); corrigidos para `1.4.17`
+
+### ARQUIVOS ALTERADOS
+- `api/main.py` (versões `1.4.14`/`1.4.15`/`1.4.16` → `1.4.17`)
+- `docs/CURRENT_STATE.md`
+- `docs/TASKS.md`
+- `CHANGELOG.md`
+
+### DEPLOY
+Nova VPS ativa em `37.27.214.33`. Domínio `api.saleia.app.br` aguardando propagação DNS (~2h). VPS antiga (`204.168.180.25`) aguarda descomissionamento.
+
+---
+
 ## V.1.4.16 — Próxima Melhor Pergunta (next_best_question)
 > Data: 09/06/2026 | Desenvolvido com Claude Sonnet 4.6
 

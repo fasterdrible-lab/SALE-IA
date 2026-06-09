@@ -238,4 +238,19 @@ EMAIL_FROM=noreply@saleia.com.br
 
 ---
 
-Sem proximas tarefas pendentes. Projeto em V.1.4.16 local / V.1.4.15 em producao.
+## Concluido (V.1.4.17)
+
+- [x] V.1.4.17 - Migração para VPS dedicada Hetzner CPX32 (`37.27.214.33`, Helsinki): MySQL movido de servidor remoto compartilhado (676ms) para instância local (2ms, redução 338x); novo domínio `api.saleia.app.br` (Cloudflare proxy); deploy via git clone + Python 3.14 venv + systemd `TimeoutStopSec=30`; bug de versão hardcoded no `/health` corrigido (1.4.14→1.4.17). Dados migrados: 5 tabelas SALEIA preservadas incluindo base_conhecimento (49 docs RAG).
+
+---
+
+## Pendente
+
+- [ ] Aguardar propagação DNS `api.saleia.app.br` e rodar `certbot --nginx -d api.saleia.app.br` na nova VPS.
+- [ ] Criar usuário admin na nova VPS (`POST /auth/cadastro` ou direto no banco).
+- [ ] Validar app completo em `https://api.saleia.app.br` (health, dashboard, login, extensão Chrome).
+- [ ] Testar Visual Cenário AI em produção (DALL-E 3 + OpenAI).
+- [ ] Reinstalar extensão Chrome (tema gold/black + multi-clientes — V.1.4.8). *(manual)*
+- [ ] Descomissionar VPS antiga `204.168.180.25` após validação.
+
+Projeto em V.1.4.17 local + nova VPS | V.1.4.14 em VPS antiga (deprecada).
