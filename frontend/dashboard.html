@@ -1978,10 +1978,12 @@
             <div style="color:var(--muted);font-size:.78rem;margin-top:2px">Modelo: ${escHtml(p.modelo)}</div>
             <div style="color:var(--muted);font-size:.75rem;margin-top:4px">${escHtml(p.nota)}</div>
           </div>
+          <span id="tr-status-${p.id}"></span>
         </div>
         ${groqKeyRow}
         <div class="cfg-provedor-acoes" style="margin-top:10px">
           ${btnAtivar}
+          <button class="cfg-btn-provedor" onclick="testarTranscricao('${p.id}')">Testar conexão</button>
           <span class="cfg-provedor-feedback" id="tr-fb-${p.id}"></span>
         </div>
       </div>`;
@@ -1993,6 +1995,30 @@
     if (!inp) return;
     inp.type = inp.type === 'password' ? 'text' : 'password';
     btn.textContent = inp.type === 'password' ? '👁' : '🙈';
+  }
+
+  async function testarTranscricao(pid) {
+    const badge = document.getElementById('tr-status-' + pid);
+    if (!badge) return;
+    badge.innerHTML = '<span class="cfg-badge" style="color:var(--muted);border-color:rgba(255,255,255,.1)">⏳ Testando...</span>';
+    try {
+      const r = await fetchJsonWithFallback('/admin/transcricao/teste', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') },
+        body: JSON.stringify({ provedor: pid }),
+      });
+      const json = await r.json().catch(() => ({}));
+      if (json.ok) {
+        badge.innerHTML = '<span class="cfg-badge cfg-badge-ativo" style="background:rgba(212,175,55,.12);border-color:rgba(212,175,55,.4);color:#D4AF37">✅ Online</span>';
+      } else {
+        const msg = (json.detalhe || 'Offline').slice(0, 60);
+        badge.innerHTML = `<span class="cfg-badge cfg-badge-inativo" title="${escHtml(json.detalhe || '')}">❌ Offline</span>`;
+        const fb = document.getElementById('tr-fb-' + pid);
+        if (fb) { fb.textContent = msg; fb.style.color = '#FCA5A5'; }
+      }
+    } catch (e) {
+      badge.innerHTML = '<span class="cfg-badge cfg-badge-inativo">❌ Erro</span>';
+    }
   }
 
   function toggleVerChave(pid, btn) {

@@ -100,7 +100,7 @@ class _CorrelationMiddleware(BaseHTTPMiddleware):
 app = FastAPI(
     title="SALEIA — Assistente de Vendas IA",
     description="Backend para o assistente de vendas em tempo real no Google Meet",
-    version="1.4.23",
+    version="1.4.24",
 )
 
 app.add_middleware(_CorrelationMiddleware)
@@ -464,7 +464,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.23",
+        "versao":              "1.4.24",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -502,7 +502,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.23",
+        "versao":          "1.4.24",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -2342,6 +2342,54 @@ class TranscricaoConfigRequest(BaseModel):
     provedor: str
     groq_api_key: Optional[str] = None
     apenas_salvar: Optional[bool] = False
+
+
+class TranscricaoTesteRequest(BaseModel):
+    provedor: str
+
+
+@app.post("/admin/transcricao/teste")
+async def admin_testar_transcricao(req: TranscricaoTesteRequest, authorization: str | None = _Header(default=None)):
+    """Testa a conectividade do provedor de transcrição enviando um áudio mínimo."""
+    _req_admin(authorization)
+    pid = req.provedor
+    if pid not in _TRANSCRICAO_PROVEDORES:
+        raise HTTPException(status_code=404, detail="Provedor desconhecido.")
+    import io, time as _time
+    try:
+        if pid == "groq":
+            from groq import AsyncGroq
+            chave = os.getenv("GROQ_API_KEY", "")
+            if not chave:
+                return {"ok": False, "detalhe": "GROQ_API_KEY não configurada."}
+            # Áudio WAV mínimo válido (44 bytes — silêncio)
+            wav_bytes = (
+                b"RIFF$\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00"
+                b"\x80>\x00\x00\x00}\x00\x00\x02\x00\x10\x00data\x00\x00\x00\x00"
+            )
+            client = AsyncGroq(api_key=chave)
+            await client.audio.transcriptions.create(
+                file=("ping.wav", io.BytesIO(wav_bytes), "audio/wav"),
+                model="whisper-large-v3",
+            )
+        elif pid in ("whisper", "openai_whisper"):
+            from openai import AsyncOpenAI as _OAI
+            chave = os.getenv("OPENAI_API_KEY", "")
+            if not chave:
+                return {"ok": False, "detalhe": "OPENAI_API_KEY não configurada."}
+            wav_bytes = (
+                b"RIFF$\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00"
+                b"\x80>\x00\x00\x00}\x00\x00\x02\x00\x10\x00data\x00\x00\x00\x00"
+            )
+            client = _OAI(api_key=chave)
+            await client.audio.transcriptions.create(
+                file=("ping.wav", io.BytesIO(wav_bytes), "audio/wav"),
+                model="whisper-1",
+            )
+        return {"ok": True}
+    except Exception as e:
+        detalhe = str(e)[:150]
+        return {"ok": False, "detalhe": detalhe}
 
 
 @app.post("/admin/transcricao/config")
