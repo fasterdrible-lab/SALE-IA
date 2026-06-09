@@ -100,7 +100,7 @@ class _CorrelationMiddleware(BaseHTTPMiddleware):
 app = FastAPI(
     title="SALEIA — Assistente de Vendas IA",
     description="Backend para o assistente de vendas em tempo real no Google Meet",
-    version="1.4.25",
+    version="1.4.26",
 )
 
 app.add_middleware(_CorrelationMiddleware)
@@ -464,7 +464,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.25",
+        "versao":              "1.4.26",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -502,7 +502,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.25",
+        "versao":          "1.4.26",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -2341,6 +2341,7 @@ def admin_get_transcricao(authorization: str | None = _Header(default=None)):
 class TranscricaoConfigRequest(BaseModel):
     provedor: str
     groq_api_key: Optional[str] = None
+    openai_api_key: Optional[str] = None
     apenas_salvar: Optional[bool] = False
 
 
@@ -2383,9 +2384,11 @@ def admin_set_transcricao(req: TranscricaoConfigRequest, authorization: str | No
     if req.provedor not in _TRANSCRICAO_PROVEDORES:
         raise HTTPException(status_code=400, detail="Provedor desconhecido.")
     conf = _TRANSCRICAO_PROVEDORES[req.provedor]
-    # Salvar chave Groq se fornecida
+    # Salvar chaves se fornecidas
     if req.provedor == "groq" and req.groq_api_key and req.groq_api_key.strip():
         _salvar_env_key("GROQ_API_KEY", req.groq_api_key.strip())
+    if req.provedor in ("whisper", "openai_whisper") and req.openai_api_key and req.openai_api_key.strip():
+        _salvar_env_key("OPENAI_API_KEY", req.openai_api_key.strip())
     # Apenas salvar a chave, sem ativar o provedor
     if req.apenas_salvar:
         return {"ok": True, "msg": "Chave salva com sucesso."}
