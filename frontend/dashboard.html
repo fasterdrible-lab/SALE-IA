@@ -3149,12 +3149,20 @@
     }
   }
 
+  function _fmtLocal(utcStr) {
+    if (!utcStr) return '—';
+    const s = utcStr.trim().replace(' ', 'T');
+    const d = new Date(/Z|[+-]\d\d:?\d\d$/.test(s) ? s : s + 'Z');
+    if (isNaN(d)) return utcStr.slice(0, 16).replace('T', ' ');
+    return d.toLocaleString('pt-BR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '');
+  }
+
   function cardSessaoHTML(s) {
     const meetId  = escHtml(s.meeting_id || 'default');
     const disc    = escHtml(s.disc_identificado || '?');
     const num     = s.num_analises || 0;
-    const criado  = escHtml((s.created_at || '').replace('T', ' ').slice(0, 16));
-    const atualiz = escHtml((s.updated_at || '').replace('T', ' ').slice(0, 16));
+    const criado  = escHtml(_fmtLocal(s.created_at));
+    const atualiz = escHtml(_fmtLocal(s.updated_at));
     const preview = escHtml((s.preview || '').slice(0, 120));
     const discCor = disc === 'D' ? '#f87171' : disc === 'I' ? '#fbbf24' : disc === 'S' ? '#2dd4bf' : disc === 'C' ? '#90caf9' : '#555';
     return `<div class="reuniao-card" onclick="verSessaoDetalhe(${s.id})" style="position:relative">
@@ -3204,7 +3212,7 @@
     const disc     = analise.perfil_disc || {};
     const discTipo = disc.tipo || s.disc_identificado || '?';
     const discCor  = discTipo === 'D' ? '#f87171' : discTipo === 'I' ? '#fbbf24' : discTipo === 'S' ? '#2dd4bf' : '#90caf9';
-    const criado   = (s.created_at || '').replace('T', ' ').slice(0, 16);
+    const criado   = _fmtLocal(s.created_at);
     const num      = s.num_analises || 0;
 
     let html = `<div class="info-card" style="margin-bottom:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">
