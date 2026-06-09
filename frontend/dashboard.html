@@ -1963,7 +1963,7 @@
       // Campo de chave + botão salvar sempre visível no card Groq
       const groqKeyRow = p.id === 'groq' ? `
         <div class="cfg-provedor-key-row" style="margin-top:10px;display:flex;gap:6px;align-items:center">
-          <input type="password" id="tr-key-groq" placeholder="${p.tem_chave ? '••••••••••••••••' : 'Cole a GROQ_API_KEY aqui'}" autocomplete="off" style="flex:1">
+          <input type="password" id="tr-key-groq" placeholder="${p.tem_chave ? '••••••••••••••••' : 'Cole a GROQ_API_KEY aqui'}" autocomplete="new-password" style="flex:1">
           <button class="cfg-btn-provedor" onclick="toggleVerChaveGroq(this)" title="Mostrar/ocultar chave" style="padding:0 10px;font-size:1rem">👁</button>
           <button class="cfg-btn-provedor" onclick="salvarChaveGroq()">Salvar chave</button>
         </div>` : '';
