@@ -130,8 +130,8 @@
   <div class="hero-title">Dev Manual — SALEIA</div>
   <div class="hero-sub">Referência técnica para manutenção, deploy e operação em produção.</div>
   <div class="hero-badges">
-    <span class="badge badge-gold">V.1.4.14</span>
-    <span class="badge badge-green">FastAPI + Python 3.12</span>
+    <span class="badge badge-gold">V.1.4.26</span>
+    <span class="badge badge-green">FastAPI + Python 3.14</span>
     <span class="badge badge-blue">MySQL + SQLite</span>
     <span class="badge badge-orange">Hetzner VPS</span>
   </div>
@@ -405,7 +405,10 @@ for k in ['DEEPSEEK_API_KEY','OPENAI_API_KEY','ANTHROPIC_API_KEY','GEMINI_API_KE
           <tr><td><span class="tag tag-post">POST</span></td><td><code>/admin/api/provedores/{pid}/chave</code></td><td>Salva chave de API de um provedor.</td></tr>
           <tr><td><span class="tag tag-patch">PATCH</span></td><td><code>/admin/api/provedores/{pid}/status</code></td><td>Ativa/inativa provedor em memória.</td></tr>
           <tr><td><span class="tag tag-post">POST</span></td><td><code>/admin/api/principal</code></td><td>Define provedor preferido.</td></tr>
-          <tr><td><span class="tag tag-post">POST</span></td><td><code>/admin/api/teste</code></td><td>Testa conexão de um provedor.</td></tr>
+          <tr><td><span class="tag tag-post">POST</span></td><td><code>/admin/api/teste</code></td><td>Testa conexão de um provedor IA.</td></tr>
+          <tr><td><span class="tag tag-get">GET</span></td><td><code>/admin/transcricao/config</code></td><td>Lê provedor de transcrição ativo e status das chaves.</td></tr>
+          <tr><td><span class="tag tag-post">POST</span></td><td><code>/admin/transcricao/config</code></td><td>Define provedor ativo e/ou salva chave Groq ou OpenAI (<code>apenas_salvar: true</code> para salvar sem ativar).</td></tr>
+          <tr><td><span class="tag tag-post">POST</span></td><td><code>/admin/transcricao/teste</code></td><td>Valida chave de transcrição via <code>models.list()</code> — retorna <code>{"ok": bool, "detalhe": str}</code>.</td></tr>
         </table>
       </div>
     </section>
@@ -478,13 +481,13 @@ json.dumps({'order':['deepseek','openai','anthropic','gemini'],'updated_at':time
           </ul>
         </div>
         <div class="card">
-          <div class="card-title">SQLite — Métricas</div>
+          <div class="card-title">SQLite — Métricas e Estado Compartilhado</div>
           <ul>
             <li>Path: <code>data/metricas.db</code></li>
-            <li>Tabela: <code>metricas_historico</code></li>
-            <li>Colunas: <code>ts, banco_latencia, reunioes_ativas, chamadas_ia, falhas_ia</code></li>
-            <li>Retenção: 24 horas (limpeza automática)</li>
-            <li>Escrita a cada 60 segundos via background task</li>
+            <li>Tabela <code>metricas_historico</code>: <code>ts, banco_latencia, reunioes_ativas, chamadas_ia, falhas_ia</code> — retenção 24h, escrita a cada 60s</li>
+            <li>Tabela <code>teste_provedores</code>: <code>pid, ok, ts, detalhe</code> — resultado do último teste de conexão por provedor (upsert atômico via <code>ON CONFLICT DO UPDATE</code>)</li>
+            <li><strong>Multi-worker:</strong> com <code>--workers 2</code>, estado in-memory (<code>_ultimo_teste</code>) é isolado por processo. A tabela <code>teste_provedores</code> é o único estado compartilhado entre workers — todos leem/escrevem via <code>metricas_historico.py</code></li>
+            <li>Criação automática no startup via <code>criar_tabela_metricas()</code> e <code>criar_tabela_teste_provedores()</code></li>
           </ul>
         </div>
       </div>

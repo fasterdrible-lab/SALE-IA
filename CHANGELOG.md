@@ -3,6 +3,85 @@
 
 ---
 
+## V.1.4.26 — Campo de chave OPENAI_API_KEY no card OpenAI Whisper
+> Data: 09/06/2026 | Feature
+
+### DASHBOARD — Configurações → Transcrição de Áudio
+
+- Card **OpenAI Whisper** agora exibe campo `type="password"` + botão 👁 + **Salvar chave**, idêntico ao card Groq
+- Backend: `TranscricaoConfigRequest` aceita novo campo `openai_api_key`; quando `provedor=whisper` e chave fornecida, `_salvar_env_key("OPENAI_API_KEY", ...)` é chamado
+- Função `salvarChaveWhisper()` e `toggleVerChaveWhisper()` adicionadas ao frontend
+
+### ARQUIVOS ALTERADOS
+- `api/main.py` (1.4.25 → 1.4.26)
+- `frontend/dashboard.html`
+
+---
+
+## V.1.4.25 — Teste de transcrição via models.list (sem áudio)
+> Data: 09/06/2026 | Fix
+
+### PROBLEMA
+Endpoint `POST /admin/transcricao/teste` enviava WAV mínimo de 44 bytes que era rejeitado com `400 — Audio file is too small` pelo Groq e OpenAI Whisper.
+
+### CORREÇÃO
+Substituído por `client.models.list()` — chamada leve que valida a chave sem precisar de áudio. Mensagem de erro para Whisper atualizada para indicar que a chave é configurada em "Configuração de APIs".
+
+### ARQUIVOS ALTERADOS
+- `api/main.py` (1.4.24 → 1.4.25)
+- `frontend/dashboard.html` (nota Whisper substituída por campo de chave — preparação para V.1.4.26)
+
+---
+
+## V.1.4.24 — Botão "Testar conexão" na seção Transcrição de Áudio
+> Data: 09/06/2026 | Feature
+
+### DASHBOARD — Configurações → Transcrição de Áudio
+
+- Novo endpoint `POST /admin/transcricao/teste` (requer JWT admin) — valida chave Groq ou OpenAI Whisper
+- Badge Online/Offline no cabeçalho de cada card, idêntico aos cards de provedores IA
+- Frontend: função `testarTranscricao(pid)` + badge `tr-status-{pid}` — mensagem de erro detalhada em `tr-fb-{pid}` ao clicar
+
+### ARQUIVOS ALTERADOS
+- `api/main.py` (1.4.23 → 1.4.24, novo endpoint)
+- `frontend/dashboard.html` (botão + badge por card)
+
+---
+
+## Fix — Timestamps UTC exibidos em horário local (Sessões ao Vivo)
+> Data: 09/06/2026 | Fix UX
+
+### PROBLEMA
+VPS em UTC+0, usuário em UTC-3 (Brasil). Sessões mostravam `23:08` quando eram `20:09` local.
+
+### CORREÇÃO
+Função `_fmtLocal(utcStr)` adicionada ao dashboard: appenda `Z` ao timestamp sem timezone e converte via `toLocaleString('pt-BR')`. Aplicada nos 3 pontos que renderizam `created_at`/`updated_at` nas Sessões ao Vivo.
+
+### ARQUIVOS ALTERADOS
+- `frontend/dashboard.html`
+
+---
+
+## Fix — autocomplete=new-password no campo Groq API Key
+> Data: 09/06/2026 | Fix UX
+
+Chrome associava o campo `type="password"` do Groq ao login do usuário e exibia prompt "Salvar senha?". Trocado `autocomplete="off"` por `autocomplete="new-password"` — instrução aceita pelo Chrome para não sugerir salvar nem preencher automaticamente.
+
+### ARQUIVOS ALTERADOS
+- `frontend/dashboard.html`
+
+---
+
+## Extensão Chrome — Fix: migrar URL do storage de saleia.com.br para saleia.app.br
+> Data: 09/06/2026 | Fix
+
+`chrome.storage.local` retinha `api.saleia.com.br` do install anterior, ignorando o novo padrão `api.saleia.app.br`. `background.js` agora inclui `saleia.com.br` na lista de URLs obsoletas — ao recarregar a extensão, o storage é migrado automaticamente.
+
+### ARQUIVOS ALTERADOS
+- `chrome-extension/background.js`
+
+---
+
 ## Extensão Chrome V.1.4.2 — Migração de domínio para api.saleia.app.br
 > Data: 09/06/2026 | Fix
 

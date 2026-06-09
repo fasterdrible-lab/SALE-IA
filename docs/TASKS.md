@@ -278,12 +278,21 @@ EMAIL_FROM=noreply@saleia.com.br
 
 ---
 
+## Concluido (V.1.4.24 a V.1.4.26 + fixes)
+
+- [x] V.1.4.24 - Botao "Testar conexao" na secao Transcricao de Audio (09/06/2026): endpoint `POST /admin/transcricao/teste` valida chave Groq ou OpenAI Whisper; badge Online/Offline por card; funcao `testarTranscricao(pid)` no frontend.
+- [x] V.1.4.25 - Teste de transcricao via `models.list()` (09/06/2026): substituiu envio de WAV minimo que retornava erro 400 "Audio file is too small" em ambas as APIs.
+- [x] V.1.4.26 - Campo de chave OPENAI_API_KEY no card OpenAI Whisper (09/06/2026): campo password + botao salvar + toggle 👁 identicos ao card Groq; backend aceita `openai_api_key` em `TranscricaoConfigRequest`.
+- [x] Fix UX - Timestamps UTC convertidos para horario local (UTC-3) nas Sessoes ao Vivo via `_fmtLocal()`.
+- [x] Fix UX - `autocomplete="new-password"` no campo Groq API Key bloqueia prompt "Salvar senha?" do Chrome.
+- [x] Fix Ext - `background.js` migra `saleiaBackendUrl` de `saleia.com.br` para `saleia.app.br` automaticamente no storage.
+
 ## Pendente
 
-- [ ] **DEPLOY V.1.4.23 na VPS**: `cd /opt/saleia && git pull origin main && systemctl restart saleia` — corrige bug critico do Monitor
+- [ ] **DEPLOY V.1.4.26 na VPS**: `cd /opt/saleia && git pull origin main && systemctl restart saleia`
 - [ ] Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI).
-- [ ] Reinstalar extensao Chrome (tema gold/black + multi-clientes — V.1.4.8). *(manual)*
+- [ ] Recarregar extensao Chrome: `chrome://extensions` → 🔄 recarregar SALEIA (aplica migracao de URL).
 - [ ] Descomissionar VPS antiga `204.168.180.25` apos validacao.
 - [ ] Alterar senha do admin `phpos@gmail.com` via dashboard.
 
-Projeto em V.1.4.23 local + GitHub | V.1.4.19 nova VPS (aguarda deploy) | V.1.4.14 VPS antiga (deprecada).
+Projeto em V.1.4.26 local + GitHub | V.1.4.19 nova VPS (aguarda deploy) | V.1.4.14 VPS antiga (deprecada).
