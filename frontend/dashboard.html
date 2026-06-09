@@ -1869,29 +1869,13 @@
     });
   }
 
-  async function _preencherStatusProvedores() {
-    try {
-      const r = await fetch(API + '/monitor/metricas', {
-        headers: { Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') }
-      });
-      if (!r.ok) return;
-      const d = await r.json();
-      const ps = d.provedores_status || {};
-      Object.entries(ps).forEach(([pid, info]) => {
-        const badge = document.getElementById('status-teste-' + pid);
-        if (!badge) return;
-        const st = (info.status || '').toLowerCase();
-        if (st === 'ok') {
-          badge.innerHTML = '<span class="cfg-badge cfg-badge-ativo" style="background:rgba(212,175,55,.12);border-color:rgba(212,175,55,.4);color:#D4AF37">✅ Online</span>';
-        } else if (st === 'sem_chave') {
-          badge.innerHTML = '<span class="cfg-badge cfg-badge-inativo">❌ Sem chave</span>';
-        } else if (st.startsWith('degradado')) {
-          badge.innerHTML = '<span class="cfg-badge" style="background:rgba(251,191,36,.12);border-color:rgba(251,191,36,.4);color:#FBBf24">⚠️ Degradado</span>';
-        } else if (st) {
-          badge.innerHTML = '<span class="cfg-badge cfg-badge-inativo">❌ Offline</span>';
-        }
-      });
-    } catch {}
+  function _autoTestarProvedores() {
+    for (const pid of ['deepseek', 'openai', 'anthropic', 'gemini']) {
+      if (_testeStatus[pid]) continue; // já testado manualmente nesta sessão
+      const badge = document.getElementById('status-teste-' + pid);
+      if (!badge) continue;
+      testarProvedor(pid); // assíncrono — atualiza badge quando concluir
+    }
   }
 
   function toggleAcc(id) {
@@ -2271,16 +2255,16 @@
       renderizarProvedores(dados.provedores || dados);
       loading.classList.add('hidden');
       lista.classList.remove('hidden');
-      await _preencherStatusProvedores();
       _aplicarTesteStatus();
+      _autoTestarProvedores();
     } catch {
       loading.classList.add('hidden');
       renderizarProvedores(_provedoresPadrao);
       lista.classList.remove('hidden');
       erro.classList.remove('hidden');
       erro.textContent = 'Usando dados locais — backend indisponível. As alterações não serão salvas.';
-      await _preencherStatusProvedores();
       _aplicarTesteStatus();
+      _autoTestarProvedores();
     }
   }
 
