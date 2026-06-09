@@ -25,7 +25,7 @@ Atualizado em: 2026-06-09 (V.1.4.19)
 
 ## Versao Atual
 
-`V.1.4.20` — local + GitHub | `V.1.4.19` — nova VPS (aguarda `git pull`) | `V.1.4.14` — VPS antiga (deprecada)
+`V.1.4.21` — local + GitHub | `V.1.4.19` — nova VPS (aguarda `git pull`) | `V.1.4.14` — VPS antiga (deprecada)
 
 ## Funcionalidades Entregues
 

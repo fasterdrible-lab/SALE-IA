@@ -3,6 +3,21 @@
 
 ---
 
+## V.1.4.21 — Config APIs: pré-teste em background + badge de carregamento
+> Data: 09/06/2026 | UX fix
+
+### DASHBOARD — Aba Configuração de APIs
+
+- **Pré-teste ao navegar para Configurações**: `_preTestarProvedores()` dispara os 4 testes em background assim que o usuário clica na aba — quando o accordion for aberto, os resultados já estão prontos e os badges aparecem instantaneamente via `_aplicarTesteStatus()`
+- **Badge "⏳ Testando..."**: enquanto o teste ainda está em andamento (accordion aberto antes do teste concluir), os badges mostram "⏳ Testando..." ao invés de ficarem em branco
+- **Sem duplicatas**: `_testePendente` (Set) impede que `_autoTestarProvedores` dispare um segundo teste para o mesmo provedor se `_preTestarProvedores` já iniciou um
+
+### ARQUIVOS ALTERADOS
+- `api/main.py` (versão `1.4.20` → `1.4.21`)
+- `frontend/dashboard.html` (`_preTestarProvedores`, `_testePendente`, `_autoTestarProvedores` com badge de loading, `testarProvedor` limpa `_testePendente`, `mostrarPagina` chama `_preTestarProvedores`)
+
+---
+
 ## V.1.4.20 — Config APIs: status real automático ao abrir accordion
 > Data: 09/06/2026 | Bug fix (2 iterações)
 

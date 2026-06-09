@@ -1586,6 +1586,7 @@
       // close all accordions
       document.querySelectorAll('.acc-item').forEach(el => el.classList.remove('open'));
       carregarConfiguracoes();
+      _preTestarProvedores(); // pré-testa em background; badges prontos ao abrir accordion
     }
   }
 
@@ -1855,7 +1856,8 @@
 
   /* ─── Configurações — carregamento geral ─────────── */
   const _accLoaded = {};
-  const _testeStatus = {}; // persiste resultado de testarProvedor durante a sessão
+  const _testeStatus   = {}; // persiste resultado de testarProvedor durante a sessão
+  const _testePendente = new Set(); // evita disparar teste duplicado enquanto já está rodando
 
   function _aplicarTesteStatus() {
     Object.entries(_testeStatus).forEach(([id, resultado]) => {
@@ -1871,10 +1873,19 @@
 
   function _autoTestarProvedores() {
     for (const pid of ['deepseek', 'openai', 'anthropic', 'gemini']) {
-      if (_testeStatus[pid]) continue; // já testado manualmente nesta sessão
+      if (_testeStatus[pid] || _testePendente.has(pid)) continue;
       const badge = document.getElementById('status-teste-' + pid);
       if (!badge) continue;
-      testarProvedor(pid); // assíncrono — atualiza badge quando concluir
+      badge.innerHTML = '<span class="cfg-badge" style="color:var(--muted);border-color:rgba(255,255,255,.1)">⏳ Testando...</span>';
+      testarProvedor(pid);
+    }
+  }
+
+  function _preTestarProvedores() {
+    for (const pid of ['deepseek', 'openai', 'anthropic', 'gemini']) {
+      if (_testeStatus[pid] || _testePendente.has(pid)) continue;
+      _testePendente.add(pid);
+      testarProvedor(pid); // badge ainda não existe; _testeStatus[pid] será setado quando concluir
     }
   }
 
@@ -2336,6 +2347,7 @@
         body: JSON.stringify({ provedor: id })
       });
       const json = await r.json().catch(() => ({}));
+      _testePendente.delete(id);
       if (r.ok && json.ok) {
         _testeStatus[id] = 'online';
         if (fb) fb.textContent = '';
@@ -2347,6 +2359,7 @@
         setTimeout(() => { if (fb) fb.textContent = ''; }, 4000);
       }
     } catch {
+      _testePendente.delete(id);
       _testeStatus[id] = 'offline';
       if (badge) badge.innerHTML = '<span class="cfg-badge cfg-badge-inativo">❌ Offline</span>';
       if (fb) { fb.textContent = '❌ Sem resposta do servidor'; fb.style.color = '#FCA5A5'; }
