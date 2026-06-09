@@ -3,6 +3,21 @@
 
 ---
 
+## V.1.4.20 — Config APIs: status automático ao abrir accordion
+> Data: 09/06/2026 | Bug fix
+
+### DASHBOARD — Aba Configuração de APIs
+
+- **Status automático**: ao abrir o accordion "Configuração de APIs", os badges Online/Offline/Sem chave agora são preenchidos automaticamente consultando `/monitor/metricas`
+- **Prioridade manual**: resultados de "Testar conexão" ainda sobrescrevem o status automático (comportamento preservado via `_aplicarTesteStatus`)
+- **Mapeamento de status**: `ok` → ✅ Online (gold); `sem_chave` → ❌ Sem chave; `degradado*` → ⚠️ Degradado; outros → ❌ Offline
+
+### ARQUIVOS ALTERADOS
+- `api/main.py` (versão `1.4.19` → `1.4.20`)
+- `frontend/dashboard.html` (função `_preencherStatusProvedores` + chamadas em `carregarProvedoresApi`)
+
+---
+
 ## V.1.4.19 — Monitor: provedores sempre visíveis + status transcrição
 > Data: 09/06/2026 | Feature + Bug fix
 
