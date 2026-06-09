@@ -16,7 +16,7 @@ cryptography>=42.0.0
 
 # ─── Provedores de LLM ───────────────────────────────────────
 # OpenAI (GPT-4o) — primário
-openai==1.35.7
+openai>=1.52.0
 
 # Anthropic (Claude 3.5 Sonnet) — fallback 1
 anthropic>=0.26.0
