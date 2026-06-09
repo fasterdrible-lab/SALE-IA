@@ -3,6 +3,20 @@
 
 ---
 
+## V.1.4.18 — Fix compatibilidade openai + httpx
+> Data: 09/06/2026 | Bug fix
+
+### BUG FIX
+
+- `openai==1.35.7` usava parâmetro `proxies` removido no `httpx>=0.28.0` — causava erro `AsyncClient.__init__() got an unexpected keyword argument 'proxies'` ao testar conexão com DeepSeek/OpenAI no dashboard
+- `requirements.txt`: `openai==1.35.7` → `openai>=1.52.0` (compatível com httpx 0.28+)
+
+### ARQUIVOS ALTERADOS
+- `requirements.txt`
+- `api/main.py` (versão `1.4.17` → `1.4.18`)
+
+---
+
 ## V.1.4.17 — Migração para VPS Dedicada + Novo Domínio
 > Data: 09/06/2026 | Operação de infraestrutura
 

@@ -253,4 +253,4 @@ EMAIL_FROM=noreply@saleia.com.br
 - [ ] Reinstalar extensão Chrome (tema gold/black + multi-clientes — V.1.4.8). *(manual)*
 - [ ] Descomissionar VPS antiga `204.168.180.25` após validação.
 
-Projeto em V.1.4.17 local + nova VPS | V.1.4.14 em VPS antiga (deprecada).
+Projeto em V.1.4.18 local + nova VPS | V.1.4.14 em VPS antiga (deprecada).
