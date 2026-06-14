@@ -238,7 +238,7 @@
 <header>
   <div class="logo">SALE<span>IA</span></div>
   <p class="tagline">Assistente de Vendas com Inteligência Artificial — Manual do Usuário</p>
-  <div class="versao">Versão 1.4.8 · Junho 2026</div>
+  <div class="versao">Versão 1.4.28 · Junho 2026</div>
 </header>
 
 <nav class="indice">
@@ -249,6 +249,7 @@
     <a class="nav-link" href="#reuniao">Na Reunião</a>
     <a class="nav-link" href="#transcricao">Transcrição</a>
     <a class="nav-link" href="#sidebar">Painel Lateral</a>
+    <a class="nav-link" href="#motor-nba">Motor de Ação</a>
     <a class="nav-link" href="#cenario-cliente">Cenário do Cliente</a>
     <a class="nav-link" href="#visual-cenario">Visual Cenário AI</a>
     <a class="nav-link" href="#score">Score</a>
@@ -291,6 +292,10 @@
       <div class="feature">
         <div class="feature-icon">🖼️</div>
         <div><h3>Visual Cenário AI</h3><p>Gera imagens do estado atual e futuro do cliente com DALL-E 3 para apresentações impactantes</p></div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🎯</div>
+        <div><h3>Motor de Próxima Melhor Ação</h3><p>IA consultiva baseada em SPIN, Sandler e Venda Desafiadora — recomenda exatamente o que dizer e quando dizer, com motivo, risco e follow-up</p></div>
       </div>
       <div class="feature">
         <div class="feature-icon">👥</div>
@@ -594,9 +599,42 @@
         </div>
       </div>
 
+      <div class="card" style="border-top:3px solid var(--gold)">
+        <div class="card-title">🏷️ Badges de Estágio e Conta (NOVO)</div>
+        <p style="color:var(--muted);font-size:.92rem;margin-bottom:10px">Linha superior da sidebar mostra dois badges a cada análise:</p>
+        <div style="font-size:.88rem;display:flex;flex-direction:column;gap:6px">
+          <div><span class="badge badge-orange">Estágio</span> — fase atual da conversa (Abertura, Investigação, Implicação, etc.)</div>
+          <div><span class="badge badge-purple">KARE</span> — tipo da conta (Keep, Attain, Recapture, Expand)</div>
+        </div>
+        <p style="color:var(--muted);font-size:.85rem;margin-top:10px">Use esses badges para saber onde você está na jornada da venda e quais táticas se aplicam.</p>
+      </div>
+
+      <div class="card" style="border-top:3px solid var(--green)">
+        <div class="card-title">🎯 Próxima Melhor Ação (NOVO)</div>
+        <p style="color:var(--muted);font-size:.92rem;margin-bottom:10px">Bloco principal da sidebar — substitui o campo "Próxima fala" com muito mais contexto:</p>
+        <div style="font-size:.85rem;display:flex;flex-direction:column;gap:5px">
+          <div>❓ / 💡 / ⚠️ / ▶️ <strong>Tipo</strong> — Pergunta SPIN / Insight / Alerta / Próximo passo</div>
+          <div><strong>Título</strong> — nome curto da ação recomendada</div>
+          <div style="color:#00a86b"><strong>Mensagem</strong> — o que dizer, exatamente (em verde)</div>
+          <div>↳ <strong>Motivo</strong> — por que a IA escolheu essa ação agora</div>
+          <div style="color:#f59e0b"><strong>Risco se ignorado</strong> — consequência de não agir (em laranja)</div>
+          <div style="font-style:italic"><strong>Follow-up</strong> — o que fazer após o cliente responder</div>
+          <div><strong>Confiança</strong> — percentual de certeza da IA (ex: 85%)</div>
+        </div>
+      </div>
+
+      <div class="card" style="border-top:3px solid var(--purple)">
+        <div class="card-title">📊 Maturity Score (NOVO)</div>
+        <p style="color:var(--muted);font-size:.92rem;margin-bottom:10px">Grid com 7 critérios de maturidade da oportunidade, independente do Score de Compra:</p>
+        <div style="font-size:.85rem;display:flex;flex-direction:column;gap:4px">
+          <div><span class="badge badge-green">verde</span> critério confirmado · <span class="badge badge-orange">amarelo</span> parcial · <span class="badge badge-blue" style="opacity:.5">cinza</span> ausente</div>
+        </div>
+        <p style="color:var(--muted);font-size:.85rem;margin-top:8px">A soma dos 7 critérios forma o score de maturidade (0-100). Score ≥ 60 com compra ≥ 70 → hora de propor!</p>
+      </div>
+
       <div class="card">
         <div class="card-title">💡 Coach / Dica da IA</div>
-        <p style="color:var(--muted);font-size:.92rem">Sugestão gerada com base no que o cliente acabou de dizer. Atualizada a cada análise. Ex: <em>"Cliente mencionou custo — apresente o ROI antes do preço."</em></p>
+        <p style="color:var(--muted);font-size:.92rem">Sugestão complementar gerada com base no que o cliente acabou de dizer. Aparece abaixo da Próxima Melhor Ação.</p>
       </div>
 
       <div class="card">
@@ -631,9 +669,188 @@
     </div>
   </section>
 
-  <!-- ── 7. CENÁRIO DO CLIENTE ── -->
+  <!-- ── 6.5 MOTOR DE PRÓXIMA MELHOR AÇÃO ── -->
+  <section id="motor-nba">
+    <h2><span class="section-num" style="background:var(--purple)">7</span> Motor de Próxima Melhor Ação</h2>
+    <p class="section-desc">O coração do SALEIA V.1.4.28 — combina SPIN Selling, Sandler Enterprise e Venda Desafiadora para recomendar exatamente o que dizer a cada momento da reunião.</p>
+
+    <div class="callout callout-purple">
+      <div class="callout-icon">🧠</div>
+      <div class="callout-body">
+        <strong>Como funciona</strong>
+        A cada fragmento de transcrição, a IA avalia 10 regras em ordem de prioridade e escolhe a ação mais relevante para o momento. Não é uma sugestão genérica — é uma decisão fundamentada no que foi dito nos últimos 30 segundos.
+      </div>
+    </div>
+
+    <!-- Tipos de Ação -->
+    <div class="card">
+      <div class="card-title">🎭 4 Tipos de Ação</div>
+      <p style="color:var(--muted);font-size:.92rem;margin-bottom:14px">Cada recomendação tem um tipo. O ícone na sidebar identifica qual é:</p>
+      <table>
+        <tr><th>Ícone</th><th>Tipo</th><th>Quando aparece</th><th>O que fazer</th></tr>
+        <tr>
+          <td style="font-size:1.3rem">❓</td>
+          <td><strong>Pergunta SPIN</strong></td>
+          <td>Dor ainda não quantificada, impacto não explorado, situação superficial</td>
+          <td>Fazer a pergunta exatamente como está na mensagem verde. Não elabore antes — deixe o silêncio trabalhar.</td>
+        </tr>
+        <tr>
+          <td style="font-size:1.3rem">💡</td>
+          <td><strong>Insight Desafiador</strong></td>
+          <td>Cliente revela problema operacional com implicações estratégicas que ele ainda não conectou</td>
+          <td>Apresente o insight com convicção — "Clientes no seu setor geralmente subestimam X e acabam com Y". Desafie a perspectiva dele gentilmente.</td>
+        </tr>
+        <tr>
+          <td style="font-size:1.3rem">⚠️</td>
+          <td><strong>Alerta</strong></td>
+          <td>Objeção ativa, cliente pedindo preço antes de entender o valor, risco de perda</td>
+          <td>Prioridade máxima. Siga a orientação imediatamente — ignore o alerta e você perde a janela.</td>
+        </tr>
+        <tr>
+          <td style="font-size:1.3rem">▶️</td>
+          <td><strong>Próximo Passo</strong></td>
+          <td>Alta maturidade + alta propensão — momento de avançar</td>
+          <td>Proposta, demonstração, fechamento ou commitment — faça a ação sugerida sem hesitar.</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Estágios da Conversa -->
+    <div class="card">
+      <div class="card-title">🗺️ 8 Estágios da Conversa (SPIN)</div>
+      <p style="color:var(--muted);font-size:.92rem;margin-bottom:14px">O badge de estágio na sidebar mostra em qual fase da conversa você está. Use para calibrar o ritmo:</p>
+      <table>
+        <tr><th>#</th><th>Estágio</th><th>O que está acontecendo</th><th>Foco certo</th></tr>
+        <tr><td>1</td><td><strong>Abertura</strong></td><td>Apresentações, quebra-gelo, agenda</td><td>Estabelecer rapport, definir pauta</td></tr>
+        <tr><td>2</td><td><strong>Investigação de Situação</strong></td><td>Coleta de contexto — estrutura, equipe, processo atual</td><td>Perguntas S do SPIN — entenda o cenário sem julgamentos</td></tr>
+        <tr><td>3</td><td><strong>Investigação de Problema</strong></td><td>Cliente admite dificuldades, pontos de dor surgem</td><td>Perguntas P do SPIN — aprofunde as dores identificadas</td></tr>
+        <tr><td>4</td><td><strong>Implicação</strong></td><td>Discutindo consequências dos problemas</td><td>Perguntas I do SPIN — amplie o impacto da dor no negócio</td></tr>
+        <tr><td>5</td><td><strong>Necessidade de Solução</strong></td><td>Cliente verbalizando o que precisa</td><td>Perguntas N do SPIN — deixe ele descrever a solução ideal</td></tr>
+        <tr><td>6</td><td><strong>Apresentação de Valor</strong></td><td>Você mostra como resolve os problemas levantados</td><td>Conecte cada feature à dor específica. Não liste atributos — venda resultados.</td></tr>
+        <tr><td>7</td><td><strong>Negociação</strong></td><td>Objjeções de preço, prazo, comparação com concorrente</td><td>Use âncoras de valor, nunca desconte sem contrapartida</td></tr>
+        <tr><td>8</td><td><strong>Compromisso</strong></td><td>Cliente sinalizando compra, próximo passo concreto</td><td>Peça o compromisso diretamente. Silêncio após a pergunta de fechamento é seu aliado.</td></tr>
+      </table>
+    </div>
+
+    <!-- KARE -->
+    <div class="card">
+      <div class="card-title">🏷️ Classificação KARE da Conta</div>
+      <p style="color:var(--muted);font-size:.92rem;margin-bottom:14px">A IA classifica automaticamente o tipo de conta a cada análise:</p>
+      <div class="grid-2">
+        <div style="background:#e6f7f2;border:1px solid #00a86b33;border-radius:8px;padding:14px">
+          <div style="font-weight:700;color:#00a86b;margin-bottom:4px">K — Keep (Reter)</div>
+          <p style="font-size:.85rem;color:#2d6a4f">Cliente atual satisfeito. Foco em sucesso, expansão incremental e relacionamento. Não force mudanças desnecessárias.</p>
+        </div>
+        <div style="background:#e8effe;border:1px solid #0057ff33;border-radius:8px;padding:14px">
+          <div style="font-weight:700;color:#0057ff;margin-bottom:4px">A — Attain (Conquistar)</div>
+          <p style="font-size:.85rem;color:#1e3a8a">Prospect novo. Foco em diagnóstico profundo, construção de confiança e diferenciação. Jornada mais longa — seja paciente.</p>
+        </div>
+        <div style="background:#fef2f2;border:1px solid #ef444433;border-radius:8px;padding:14px">
+          <div style="font-weight:700;color:#ef4444;margin-bottom:4px">R — Recapture (Reconquistar)</div>
+          <p style="font-size:.85rem;color:#7f1d1d">Ex-cliente ou cliente em risco de churn. Reconheça o problema anterior, demonstre o que mudou. Seja honesto sobre as melhorias.</p>
+        </div>
+        <div style="background:#ede9fe;border:1px solid #7c3aed33;border-radius:8px;padding:14px">
+          <div style="font-weight:700;color:#7c3aed;margin-bottom:4px">E — Expand (Expandir)</div>
+          <p style="font-size:.85rem;color:#4c1d95">Cliente atual com oportunidade de upsell/cross-sell. Mostre valor já entregue antes de propor expansão. Use métricas do uso atual.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Maturity Score -->
+    <div class="card">
+      <div class="card-title">📊 Maturity Score — 7 Critérios</div>
+      <p style="color:var(--muted);font-size:.92rem;margin-bottom:14px">Independente do Score de Compra, o Maturity Score mede se a oportunidade está madura o suficiente para avançar:</p>
+      <table>
+        <tr><th>#</th><th>Critério</th><th>O que confirma?</th></tr>
+        <tr><td>1</td><td><strong>Dor Identificada</strong></td><td>O cliente verbalizou pelo menos um problema claro</td></tr>
+        <tr><td>2</td><td><strong>Impacto Quantificado</strong></td><td>A dor tem impacto financeiro ou operacional mensurado</td></tr>
+        <tr><td>3</td><td><strong>Urgência</strong></td><td>Há um prazo ou pressão para resolver o problema agora</td></tr>
+        <tr><td>4</td><td><strong>Decisor Identificado</strong></td><td>Sabemos quem assina a compra ou aprova o orçamento</td></tr>
+        <tr><td>5</td><td><strong>Budget Disponível</strong></td><td>O cliente confirmou ou estimou capacidade de investimento</td></tr>
+        <tr><td>6</td><td><strong>Valor Verbalizado</strong></td><td>O cliente disse em palavras próprias que quer a solução</td></tr>
+        <tr><td>7</td><td><strong>Próximo Passo Acordado</strong></td><td>Existe um compromisso concreto para o avanço</td></tr>
+      </table>
+      <div class="callout callout-tip" style="margin-top:14px">
+        <div class="callout-icon">💡</div>
+        <div class="callout-body">
+          <strong>Quando propor?</strong>
+          Maturity Score ≥ 60 <em>e</em> Score de Compra ≥ 70 → condições ideais para apresentar proposta ou pedir fechamento. Abaixo disso, continue investigando antes de avançar.
+        </div>
+      </div>
+    </div>
+
+    <!-- Decisão -->
+    <div class="card">
+      <div class="card-title">⚡ Lógica de Decisão — 10 Regras em Prioridade</div>
+      <p style="color:var(--muted);font-size:.92rem;margin-bottom:14px">A IA percorre essas regras em ordem e aplica a primeira que se encaixa no momento:</p>
+      <table>
+        <tr><th>Prioridade</th><th>Condição</th><th>Ação gerada</th></tr>
+        <tr><td><span class="badge badge-red">1</span></td><td>Objeção ativa detectada</td><td>⚠️ Alerta — tratamento imediato da objeção</td></tr>
+        <tr><td><span class="badge badge-green">2</span></td><td>Score ≥ 70 + Maturity ≥ 60</td><td>▶️ Próximo passo — proposta ou fechamento</td></tr>
+        <tr><td><span class="badge badge-orange">3</span></td><td>Cliente pediu preço antes de entender o valor</td><td>⚠️ Alerta — ancorar valor antes de revelar preço</td></tr>
+        <tr><td><span class="badge badge-purple">4</span></td><td>Problema operacional com implicação estratégica</td><td>💡 Insight Desafiador — conectar o problema ao negócio</td></tr>
+        <tr><td><span class="badge badge-orange">5</span></td><td>Dor identificada mas impacto não quantificado</td><td>❓ Pergunta de Implicação SPIN</td></tr>
+        <tr><td><span class="badge badge-orange">6</span></td><td>Dor identificada mas sem urgência</td><td>❓ Pergunta de urgência / prazo</td></tr>
+        <tr><td><span class="badge badge-blue">7</span></td><td>Nenhuma dor identificada ainda</td><td>❓ Pergunta de Situação ou Problema SPIN</td></tr>
+        <tr><td><span class="badge badge-blue">8</span></td><td>Decisor não identificado</td><td>❓ Pergunta sobre processo de decisão</td></tr>
+        <tr><td><span class="badge badge-blue">9</span></td><td>Budget não confirmado</td><td>❓ Pergunta sobre capacidade de investimento</td></tr>
+        <tr><td><span class="badge badge-blue">10</span></td><td>Valor não verbalizado pelo cliente</td><td>❓ Pergunta de Necessidade de Solução SPIN</td></tr>
+      </table>
+      <div class="callout callout-info" style="margin-top:14px">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          <strong>A mensagem é personalizada pelo perfil DISC</strong>
+          O texto sugerido é diferente para um cliente D (direto, ROI) e para um cliente S (segurança, suporte). A IA já adapta automaticamente com base no perfil detectado.
+        </div>
+      </div>
+    </div>
+
+    <!-- Como usar na prática -->
+    <div class="card">
+      <div class="card-title">🎮 Como usar o Motor na prática</div>
+      <div class="steps" style="margin-top:8px">
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <h3>Observe o badge de estágio antes de falar</h3>
+            <p>Se o badge diz "Investigação de Problema" e você está prestes a apresentar a solução — pare. Siga o estágio atual antes de avançar.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <h3>Leia a mensagem verde, não apenas o título</h3>
+            <p>A mensagem verde é o que dizer literalmente. O título é só um rótulo. Adapte o tom mas mantenha a essência da mensagem sugerida.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <h3>Nunca ignore o campo "Risco se ignorado"</h3>
+            <p>A IA calcula o custo de não agir. Se o risco é alto (em laranja), a janela de oportunidade pode se fechar antes da próxima análise.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <h3>Use o follow-up para preparar a próxima fala</h3>
+            <p>Após o cliente responder, a orientação de follow-up já diz o que fazer. Você não precisa improvisar — a sequência já foi calculada.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <h3>Monitore o Maturity Score ao longo da reunião</h3>
+            <p>Veja quais critérios estão cinzas (ausentes) e use as perguntas SPIN para preenchê-los. Quando chegar em 6 ou 7 critérios verdes, o momento de fechar se aproxima.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 8. CENÁRIO DO CLIENTE ── -->
   <section id="cenario-cliente">
-    <h2><span class="section-num">7</span> Cenário do Cliente</h2>
+    <h2><span class="section-num">8</span> Cenário do Cliente</h2>
     <p class="section-desc">Tela de slides interativos aberta durante a reunião. Acesso via botão 🎬 na sidebar ou pelo link <code>/cenario/{meeting_id}</code>.</p>
 
     <div class="callout callout-gold">
@@ -677,9 +894,9 @@
     </div>
   </section>
 
-  <!-- ── 8. VISUAL CENÁRIO AI ── -->
+  <!-- ── 9. VISUAL CENÁRIO AI ── -->
   <section id="visual-cenario">
-    <h2><span class="section-num">8</span> Visual Cenário AI</h2>
+    <h2><span class="section-num">9</span> Visual Cenário AI</h2>
     <p class="section-desc">Gera imagens do estado atual e futuro do cliente com DALL-E 3. Acesse pelo menu lateral do Dashboard → <strong>Visual Cenário</strong> ou pelo botão na extensão.</p>
 
     <div class="callout callout-gold">
@@ -776,9 +993,9 @@
     </div>
   </section>
 
-  <!-- ── 9. SCORE ── -->
+  <!-- ── 10. SCORE ── -->
   <section id="score">
-    <h2><span class="section-num">9</span> Score de Compra (0 a 100)</h2>
+    <h2><span class="section-num">10</span> Score de Compra (0 a 100)</h2>
     <p class="section-desc">A probabilidade do cliente fechar, calculada em tempo real com base nos sinais detectados na conversa.</p>
 
     <div class="card">
@@ -829,9 +1046,9 @@
     </div>
   </section>
 
-  <!-- ── 10. RELATÓRIO ── -->
+  <!-- ── 11. RELATÓRIO ── -->
   <section id="relatorio">
-    <h2><span class="section-num">10</span> Relatório Pós-Reunião</h2>
+    <h2><span class="section-num">11</span> Relatório Pós-Reunião</h2>
     <p class="section-desc">Gerado automaticamente ao final de cada reunião. Salvo no banco de dados e acessível no Dashboard.</p>
 
     <div class="card">
@@ -871,9 +1088,9 @@
     </div>
   </section>
 
-  <!-- ── 11. DASHBOARD ── -->
+  <!-- ── 12. DASHBOARD ── -->
   <section id="dashboard">
-    <h2><span class="section-num">11</span> Dashboard</h2>
+    <h2><span class="section-num">12</span> Dashboard</h2>
     <p class="section-desc">Central de controle — disponível 24h em <strong>api.saleia.app.br/dashboard</strong>.</p>
 
     <div class="grid-2">
@@ -912,9 +1129,9 @@
     </div>
   </section>
 
-  <!-- ── 12. CONFIGURAÇÕES ── -->
+  <!-- ── 13. CONFIGURAÇÕES ── -->
   <section id="configuracoes">
-    <h2><span class="section-num">12</span> Configurações <span style="font-size:.75rem;font-weight:400;color:var(--muted);margin-left:4px">(apenas admin)</span></h2>
+    <h2><span class="section-num">13</span> Configurações <span style="font-size:.75rem;font-weight:400;color:var(--muted);margin-left:4px">(apenas admin)</span></h2>
     <p class="section-desc">Dashboard → aba Configurações. Acesso restrito a administradores.</p>
 
     <div class="card">
@@ -972,12 +1189,26 @@
     </div>
   </section>
 
-  <!-- ── 13. DICAS ── -->
+  <!-- ── 14. DICAS ── -->
   <section id="dicas">
-    <h2><span class="section-num">13</span> Dicas para Melhores Resultados</h2>
+    <h2><span class="section-num">14</span> Dicas para Melhores Resultados</h2>
     <p class="section-desc">Como aproveitar o máximo do SALEIA em cada reunião.</p>
 
     <div class="steps">
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <h3>Siga o badge de estágio — não pule etapas</h3>
+          <p>O Motor detecta quando você está em Investigação e tenta avançar para Fechamento. A sidebar vai sinalizar — respeitando o estágio, você evita pressão prematura que reduz o score de compra.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <h3>Use o Insight Desafiador (💡) com convicção</h3>
+          <p>Quando a sidebar recomendar um Insight, não suavize demais. A Venda Desafiadora funciona justamente porque você apresenta uma perspectiva que o cliente não considerou. Diga com firmeza e deixe a ideia pousar.</p>
+        </div>
+      </div>
       <div class="step">
         <div class="step-num"></div>
         <div class="step-body">
@@ -1037,9 +1268,9 @@
     </div>
   </section>
 
-  <!-- ── 14. FAQ ── -->
+  <!-- ── 15. FAQ ── -->
   <section id="faq">
-    <h2><span class="section-num">14</span> Dúvidas Frequentes</h2>
+    <h2><span class="section-num">15</span> Dúvidas Frequentes</h2>
     <p class="section-desc">Problemas comuns e como resolver.</p>
 
     <details>
@@ -1190,7 +1421,7 @@
 </div>
 
 <footer>
-  SALEIA v1.4.8 · api.saleia.app.br · Junho 2026
+  SALEIA v1.4.28 · api.saleia.app.br · Junho 2026
 </footer>
 
 <script>

@@ -118,6 +118,7 @@
     <a href="#arquivos">Arquivos</a>
     <a href="#endpoints">Endpoints</a>
     <a href="#ia">IA / Roteador</a>
+    <a href="#motor-nba">Motor NBA</a>
     <a href="#banco">Banco</a>
     <a href="#monitor">Monitor</a>
     <a href="#seguranca">Segurança</a>
@@ -130,7 +131,7 @@
   <div class="hero-title">Dev Manual — SALEIA</div>
   <div class="hero-sub">Referência técnica para manutenção, deploy e operação em produção.</div>
   <div class="hero-badges">
-    <span class="badge badge-gold">V.1.4.26</span>
+    <span class="badge badge-gold">V.1.4.28</span>
     <span class="badge badge-green">FastAPI + Python 3.14</span>
     <span class="badge badge-blue">MySQL + SQLite</span>
     <span class="badge badge-orange">Hetzner VPS</span>
@@ -148,6 +149,7 @@
     <a href="#arquivos">Estrutura de Arquivos</a>
     <a href="#endpoints">Endpoints API</a>
     <a href="#ia">Roteador de IA</a>
+    <a href="#motor-nba">Motor NBA V.1.4.28</a>
     <a href="#banco">Banco de Dados</a>
     <div class="sidebar-group">Operação</div>
     <a href="#monitor">Monitor / Métricas</a>
@@ -224,11 +226,12 @@
         <div class="card">
           <div class="card-title">Acesso</div>
           <ul>
-            <li>IP: <code>204.168.180.25</code></li>
-            <li>Provider: Hetzner</li>
+            <li>IP: <code>37.27.214.33</code></li>
+            <li>Provider: Hetzner CPX32 (4 vCPU, 8GB RAM, Helsinki)</li>
             <li>OS: Ubuntu 22.04 LTS</li>
-            <li>SSH: <code>ssh root@204.168.180.25</code></li>
+            <li>SSH: <code>ssh root@37.27.214.33</code></li>
             <li>App path: <code>/opt/saleia/</code></li>
+            <li><code>RuntimeMaxSec=86400</code> no systemd (reinício diário automático)</li>
           </ul>
         </div>
         <div class="card">
@@ -269,38 +272,31 @@
     <!-- DEPLOY -->
     <section class="section" id="deploy">
       <div class="section-title">Deploy</div>
-      <div class="alert alert-gold">
-        Deploy é via <strong>SCP</strong> (cópia direta de arquivos). O repo Git na VPS está desatualizado — não usar <code>git pull</code> na VPS.
+      <div class="alert alert-green">
+        Deploy é via <strong>git pull</strong> na VPS. O repo está atualizado e sincronizado com GitHub.
       </div>
       <div class="card" style="margin-top:12px">
-        <div class="card-title">Comando padrão de deploy (PowerShell local)</div>
-        <pre><code><span class="cmt"># Deploy de um arquivo</span>
-<span class="cmd">scp "C:\Users\phpos\OneDrive\SALE-IA\SALEIA\api\main.py" root@204.168.180.25:/opt/saleia/api/main.py</span>
+        <div class="card-title">Comando padrão de deploy (SSH)</div>
+        <pre><code><span class="cmt"># Comando único de deploy</span>
+<span class="cmd">ssh root@37.27.214.33 "cd /opt/saleia && git pull origin main && systemctl restart saleia"</span>
 
-<span class="cmt"># Deploy de múltiplos arquivos</span>
-<span class="cmd">scp "C:\...\api\main.py" "C:\...\api\ai_router.py" root@204.168.180.25:/opt/saleia/api/</span>
-
-<span class="cmt"># Reiniciar após deploy</span>
-<span class="cmd">ssh root@204.168.180.25 "systemctl restart saleia && sleep 4 && curl -s https://api.saleia.app.br/health"</span></code></pre>
+<span class="cmt"># Verificar saúde após deploy</span>
+<span class="cmd">curl -s https://api.saleia.app.br/health</span>
+<span class="cmt"># Esperado: {"status":"online","versao":"1.4.28",...}</span></code></pre>
       </div>
       <div class="card">
         <div class="card-title">Checklist de deploy</div>
         <div class="flow">
-          <div class="flow-step"><div class="flow-num">1</div><div class="flow-content"><h4>Verificar arquivos alterados</h4><p><code>git diff --name-only HEAD</code> no repo local.</p></div></div>
-          <div class="flow-step"><div class="flow-num">2</div><div class="flow-content"><h4>SCP dos arquivos</h4><p>Copiar apenas os arquivos da tarefa. Nunca copiar <code>.env</code>, <code>data/</code>, <code>venv/</code>.</p></div></div>
-          <div class="flow-step"><div class="flow-num">3</div><div class="flow-content"><h4>Se requirements.txt mudou</h4><p><code>ssh root@204.168.180.25 "cd /opt/saleia && venv/bin/pip install -r requirements.txt"</code></p></div></div>
-          <div class="flow-step"><div class="flow-num">4</div><div class="flow-content"><h4>Reiniciar serviço</h4><p><code>systemctl restart saleia</code></p></div></div>
+          <div class="flow-step"><div class="flow-num">1</div><div class="flow-content"><h4>Commit + push local</h4><p>Commitar alterações no repo local + push para GitHub (<code>git push origin main</code>).</p></div></div>
+          <div class="flow-step"><div class="flow-num">2</div><div class="flow-content"><h4>git pull na VPS</h4><p><code>ssh root@37.27.214.33 "cd /opt/saleia && git pull origin main"</code></p></div></div>
+          <div class="flow-step"><div class="flow-num">3</div><div class="flow-content"><h4>Se requirements.txt mudou</h4><p><code>ssh root@37.27.214.33 "cd /opt/saleia && venv/bin/pip install -r requirements.txt"</code></p></div></div>
+          <div class="flow-step"><div class="flow-num">4</div><div class="flow-content"><h4>Reiniciar serviço</h4><p><code>ssh root@37.27.214.33 "systemctl restart saleia"</code></p></div></div>
           <div class="flow-step"><div class="flow-num">5</div><div class="flow-content"><h4>Validar health</h4><p><code>curl -s https://api.saleia.app.br/health</code> → verificar <code>versao</code> e <code>status: online</code>.</p></div></div>
-          <div class="flow-step"><div class="flow-num">6</div><div class="flow-content"><h4>Commit + push</h4><p>Commitar os arquivos alterados + CHANGELOG.md + CURRENT_STATE.md no repo local, depois push.</p></div></div>
+          <div class="flow-step"><div class="flow-num">6</div><div class="flow-content"><h4>Nunca sobrescrever</h4><p><code>.env</code>, <code>venv/</code>, <code>data/</code>, <code>logs/</code> — estado de produção, não entram no git pull.</p></div></div>
         </div>
       </div>
-      <div class="card">
-        <div class="card-title">Instalar dependência nova</div>
-        <pre><code><span class="cmt"># 1. Adicionar ao requirements.txt local
-# 2. SCP do requirements.txt
-</span><span class="cmd">scp "C:\...\requirements.txt" root@204.168.180.25:/opt/saleia/requirements.txt</span>
-<span class="cmt"># 3. Instalar na venv da VPS</span>
-<span class="cmd">ssh root@204.168.180.25 "cd /opt/saleia && venv/bin/pip install -r requirements.txt && systemctl restart saleia"</span></code></pre>
+      <div class="alert alert-red" style="margin-top:12px">
+        <strong>Conflito no git pull?</strong> Use <code>git checkout -- arquivo</code> para arquivos do repo e <code>git clean -f pasta/</code> para arquivos não rastreados antes do pull. Nunca force-push na main.
       </div>
     </section>
 
@@ -326,7 +322,7 @@
       </table>
       <div class="card" style="margin-top:12px">
         <div class="card-title">Verificar chaves configuradas (sem expor valores)</div>
-        <pre><code><span class="cmd">ssh root@204.168.180.25 "python3 -c \"
+        <pre><code><span class="cmd">ssh root@37.27.214.33 "python3 -c \"
 from dotenv import dotenv_values
 env = dotenv_values('/opt/saleia/.env')
 for k in ['DEEPSEEK_API_KEY','OPENAI_API_KEY','ANTHROPIC_API_KEY','GEMINI_API_KEY','GROQ_API_KEY','JWT_SECRET']:
@@ -352,6 +348,8 @@ for k in ['DEEPSEEK_API_KEY','OPENAI_API_KEY','ANTHROPIC_API_KEY','GEMINI_API_KE
         <tr><td><code>agent/perfil_disc.py</code></td><td>Perfil DISC do cliente.</td></tr>
         <tr><td><code>agent/visual_scenario.py</code></td><td>Gera imagens DALL-E 3 (Visual Cenário AI). Requer créditos OpenAI.</td></tr>
         <tr><td><code>agent/alertas.py</code></td><td>Alertas Telegram por threshold (taxa de falha, latência, circuit breaker).</td></tr>
+        <tr><td><code>agent/prompt_templates/agente_tempo_real.txt</code></td><td>Prompt do Motor de Próxima Melhor Ação — 10 regras, SPIN+Sandler+Desafiadora, DISC por perfil, schema JSON.</td></tr>
+        <tr><td><code>api/processador_tempo_real.py</code></td><td>Normalização da resposta do Motor — fallbacks NBA/maturity, conversão next_best_action→next_best_question.</td></tr>
         <tr><td><code>agent/email_service.py</code></td><td>Envio de e-mail SMTP (recuperação de senha).</td></tr>
         <tr><td><code>data/ai_provider_order.json</code></td><td>Ordem ativa dos provedores de IA. Editável via painel admin ou SSH.</td></tr>
         <tr><td><code>data/metricas.db</code></td><td>SQLite com histórico de métricas (24h rolling). Não commitar.</td></tr>
@@ -422,7 +420,7 @@ for k in ['DEEPSEEK_API_KEY','OPENAI_API_KEY','ANTHROPIC_API_KEY','GEMINI_API_KE
 
 <span class="cmt"># Ordem salva em: /opt/saleia/data/ai_provider_order.json
 # Corrigir ordem via SSH:</span>
-<span class="cmd">ssh root@204.168.180.25 "python3 -c \"import json,time; \
+<span class="cmd">ssh root@37.27.214.33 "python3 -c \"import json,time; \
 open('/opt/saleia/data/ai_provider_order.json','w').write(\
 json.dumps({'order':['deepseek','openai','anthropic','gemini'],'updated_at':time.time()},indent=2))\""</span></code></pre>
       </div>
@@ -464,6 +462,92 @@ json.dumps({'order':['deepseek','openai','anthropic','gemini'],'updated_at':time
           <li>Endpoint: <code>POST /audio-transcricao</code></li>
           <li>Alternativa anterior (desativada por quota): OpenAI Whisper</li>
         </ul>
+      </div>
+    </section>
+
+    <!-- MOTOR NBA V.1.4.28 -->
+    <section class="section" id="motor-nba">
+      <div class="section-title">Motor de Próxima Melhor Ação (V.1.4.28)</div>
+
+      <div class="alert alert-gold">
+        Implementado em <code>agent/prompt_templates/agente_tempo_real.txt</code> + <code>api/processador_tempo_real.py</code>. Combina SPIN, Sandler Enterprise e Venda Desafiadora.
+      </div>
+
+      <div class="card">
+        <div class="card-title">Campos retornados por <code>POST /tempo-real</code></div>
+        <table>
+          <tr><th>Campo</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code>next_best_action</code></td><td>object</td><td>Ação consultiva recomendada (ver sub-campos abaixo)</td></tr>
+          <tr><td><code>conversation_stage</code></td><td>string</td><td>Estágio SPIN atual: abertura | situação | problema | implicação | necessidade | apresentação | negociação | compromisso</td></tr>
+          <tr><td><code>kare_type</code></td><td>string</td><td>Tipo da conta: keep | attain | recapture | expand</td></tr>
+          <tr><td><code>maturity_score</code></td><td>object</td><td>Score 0-100 + 7 critérios booleanos</td></tr>
+          <tr><td><code>score_compra</code></td><td>number</td><td>Propensão de compra 0-100 (independente do maturity)</td></tr>
+          <tr><td><code>next_best_question</code></td><td>string</td><td>Alias backward-compat — derivado de <code>next_best_action.message</code></td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Sub-campos de <code>next_best_action</code></div>
+        <table>
+          <tr><th>Campo</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code>type</code></td><td>string</td><td>question | insight | warning | next_step</td></tr>
+          <tr><td><code>category</code></td><td>string</td><td>spin_situacao | spin_problema | spin_implicacao | spin_necessidade | insight_desafiador | objecao | urgencia | autoridade | budget | valor</td></tr>
+          <tr><td><code>title</code></td><td>string</td><td>Nome curto da ação (ex: "Explorar impacto financeiro")</td></tr>
+          <tr><td><code>message</code></td><td>string</td><td>O que dizer — texto adaptado ao perfil DISC</td></tr>
+          <tr><td><code>objective</code></td><td>string</td><td>Meta da ação (ex: "Quantificar a dor")</td></tr>
+          <tr><td><code>reason</code></td><td>string</td><td>Por que a IA escolheu essa ação agora</td></tr>
+          <tr><td><code>expected_effect</code></td><td>string</td><td>O que deve acontecer se o cliente responder bem</td></tr>
+          <tr><td><code>risk_if_ignored</code></td><td>string</td><td>Consequência de não executar a ação</td></tr>
+          <tr><td><code>follow_up</code></td><td>string</td><td>O que fazer após a resposta do cliente</td></tr>
+          <tr><td><code>confidence</code></td><td>number</td><td>Confiança da IA na escolha, 0.0–1.0</td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Sub-campos de <code>maturity_score</code></div>
+        <table>
+          <tr><th>Campo</th><th>Descrição</th></tr>
+          <tr><td><code>total</code></td><td>Score geral 0-100 (soma ponderada dos 7 critérios)</td></tr>
+          <tr><td><code>dor_identificada</code></td><td>0 ou 1 — cliente verbalizou dor concreta</td></tr>
+          <tr><td><code>impacto_quantificado</code></td><td>0 ou 1 — impacto financeiro/operacional mensurado</td></tr>
+          <tr><td><code>urgencia</code></td><td>0 ou 1 — prazo ou pressão identificada</td></tr>
+          <tr><td><code>decisor_identificado</code></td><td>0 ou 1 — quem assina a compra é conhecido</td></tr>
+          <tr><td><code>budget_disponivel</code></td><td>0 ou 1 — capacidade de investimento confirmada</td></tr>
+          <tr><td><code>valor_verbalizado</code></td><td>0 ou 1 — cliente expressou desejo pela solução</td></tr>
+          <tr><td><code>proximo_passo_acordado</code></td><td>0 ou 1 — compromisso concreto de avanço acordado</td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Matriz de Decisão — 10 Regras (ordem de prioridade)</div>
+        <pre><code><span class="cmt"># Implementada em: agent/prompt_templates/agente_tempo_real.txt</span>
+<span class="cmt"># A IA percorre em ordem — aplica a PRIMEIRA regra que se encaixa</span>
+
+<span class="str">1. objeção ativa</span>         → type=warning   (prioridade absoluta)
+<span class="str">2. score≥70 + maturity≥60</span> → type=next_step  (momento de propor)
+<span class="str">3. preço antes de valor</span>   → type=warning   (ancorar valor primeiro)
+<span class="str">4. prob. operac. c/ implic.</span>→ type=insight   (Insight Desafiador)
+<span class="str">5. dor sem impacto</span>        → type=question  (SPIN Implicação)
+<span class="str">6. dor sem urgência</span>       → type=question  (SPIN urgência)
+<span class="str">7. sem dor identificada</span>   → type=question  (SPIN Situação/Problema)
+<span class="str">8. decisor desconhecido</span>   → type=question  (processo de decisão)
+<span class="str">9. sem budget</span>             → type=question  (capacidade de investimento)
+<span class="str">10. valor não verbalizado</span>  → type=question  (SPIN Necessidade)</code></pre>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Arquivos envolvidos</div>
+        <table>
+          <tr><th>Arquivo</th><th>Papel</th></tr>
+          <tr><td><code>agent/prompt_templates/agente_tempo_real.txt</code></td><td>Prompt completo com 10 regras, exemplos DISC por perfil, schema JSON de saída</td></tr>
+          <tr><td><code>api/processador_tempo_real.py</code></td><td>Normalização da resposta, fallbacks <code>_FALLBACK_NBA</code> e <code>_FALLBACK_MATURITY</code>, conversão NBA→NBQ</td></tr>
+          <tr><td><code>chrome-extension/content.js</code></td><td>Renderização: <code>renderizarStageKare()</code>, <code>renderizarNBQ()</code> (usa NBA), <code>renderizarMaturity()</code></td></tr>
+          <tr><td><code>chrome-extension/content.css</code></td><td>Estilos: <code>.saleia-stage-kare</code>, <code>.saleia-maturity-box</code>, <code>.saleia-maturity-chip</code></td></tr>
+        </table>
+      </div>
+
+      <div class="alert alert-blue">
+        <strong>Backward compatibility:</strong> <code>next_best_question</code> é mantido como alias derivado de <code>next_best_action.message</code> pela função <code>_nba_para_nbq()</code> em <code>processador_tempo_real.py</code>. Extensões antigas que lêem <code>next_best_question</code> continuam funcionando.
       </div>
     </section>
 
@@ -609,14 +693,25 @@ json.dumps({'order':['deepseek','openai','anthropic','gemini'],'updated_at':time
         <ul>
           <li>A chave <code>OPENAI_API_KEY</code> está inválida ou expirada</li>
           <li>Atualizar via painel admin → APIs → OpenAI → Salvar</li>
-          <li>Testar: <code>ssh root@204.168.180.25 "cd /opt/saleia && venv/bin/python3 -c \"from openai import OpenAI; import os; from dotenv import load_dotenv; load_dotenv('.env'); r=OpenAI(api_key=os.environ.get('OPENAI_API_KEY')).embeddings.create(model='text-embedding-3-small',input='teste'); print('OK',len(r.data[0].embedding))\""</code></li>
+          <li>Testar: <code>ssh root@37.27.214.33 "cd /opt/saleia && venv/bin/python3 -c \"from openai import OpenAI; import os; from dotenv import load_dotenv; load_dotenv('.env'); r=OpenAI(api_key=os.environ.get('OPENAI_API_KEY')).embeddings.create(model='text-embedding-3-small',input='teste'); print('OK',len(r.data[0].embedding))\""</code></li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-title">Gemini retorna 404 (modelo descontinuado)</div>
         <pre><code><span class="cmt"># Atualizar modelo no .env da VPS</span>
-<span class="cmd">ssh root@204.168.180.25 "sed -i 's/GEMINI_MODEL=.*/GEMINI_MODEL=gemini-2.5-flash/' /opt/saleia/.env && systemctl restart saleia"</span></code></pre>
+<span class="cmd">ssh root@37.27.214.33 "sed -i 's/GEMINI_MODEL=.*/GEMINI_MODEL=gemini-2.5-flash/' /opt/saleia/.env && systemctl restart saleia"</span></code></pre>
+      </div>
+
+      <div class="card">
+        <div class="card-title">502 Bad Gateway (workers zombie)</div>
+        <p>Uvicorn aceita a conexão TCP mas retorna resposta vazia após ~2,5 dias de uptime. O Nginx recebe "Empty reply from server" e repassa o 502 ao Cloudflare.</p>
+        <ul style="margin-top:8px">
+          <li><strong>Diagnóstico:</strong> <code>curl -v --resolve api.saleia.app.br:443:37.27.214.33 https://api.saleia.app.br/health</code> → "Empty reply from server"</li>
+          <li><strong>Fix imediato:</strong> <code>ssh root@37.27.214.33 "systemctl restart saleia"</code></li>
+          <li><strong>Prevenção permanente:</strong> <code>RuntimeMaxSec=86400</code> no <code>/etc/systemd/system/saleia.service</code> — reinício automático diário (já aplicado)</li>
+          <li>Após editar a unit: <code>systemctl daemon-reload && systemctl restart saleia</code></li>
+        </ul>
       </div>
 
       <div class="card">
@@ -634,16 +729,16 @@ json.dumps({'order':['deepseek','openai','anthropic','gemini'],'updated_at':time
 <span class="cmd">curl -s https://api.saleia.app.br/health | python3 -m json.tool</span>
 
 <span class="cmt"># Status do serviço</span>
-<span class="cmd">ssh root@204.168.180.25 "systemctl status saleia --no-pager -l"</span>
+<span class="cmd">ssh root@37.27.214.33 "systemctl status saleia --no-pager -l"</span>
 
 <span class="cmt"># Últimas 30 linhas de log</span>
-<span class="cmd">ssh root@204.168.180.25 "tail -30 /opt/saleia/logs/saleia.log"</span>
+<span class="cmd">ssh root@37.27.214.33 "tail -30 /opt/saleia/logs/saleia.log"</span>
 
 <span class="cmt"># Ordem dos provedores</span>
-<span class="cmd">ssh root@204.168.180.25 "cat /opt/saleia/data/ai_provider_order.json"</span>
+<span class="cmd">ssh root@37.27.214.33 "cat /opt/saleia/data/ai_provider_order.json"</span>
 
 <span class="cmt"># Verificar chaves</span>
-<span class="cmd">ssh root@204.168.180.25 "python3 -c \"from dotenv import dotenv_values; env=dotenv_values('/opt/saleia/.env'); [print(k,'✅' if env.get(k,'') else '❌') for k in ['DEEPSEEK_API_KEY','OPENAI_API_KEY','ANTHROPIC_API_KEY','GROQ_API_KEY']]\""</span></code></pre>
+<span class="cmd">ssh root@37.27.214.33 "python3 -c \"from dotenv import dotenv_values; env=dotenv_values('/opt/saleia/.env'); [print(k,'✅' if env.get(k,'') else '❌') for k in ['DEEPSEEK_API_KEY','OPENAI_API_KEY','ANTHROPIC_API_KEY','GROQ_API_KEY']]\""</span></code></pre>
       </div>
     </section>
 

@@ -48,12 +48,20 @@ Evolução do campo "Próxima fala" para um motor completo de condução consult
 - Estilos para `.saleia-nbq-type`, `.saleia-nbq-risco`, `.saleia-nbq-followup`
 - Estilos para `.saleia-maturity-box`, `.saleia-maturity-grid`, `.saleia-maturity-chip`
 
+### DOCUMENTAÇÃO — `frontend/manual.html` + `frontend/manual_tecnico.html`
+- Manual do usuário atualizado para V.1.4.28: nova seção 7 "Motor de Próxima Melhor Ação" (4 tipos de ação, 8 estágios SPIN, KARE, Maturity Score 7 critérios, matriz de decisão, como usar na prática)
+- Seção 6 (Sidebar) expandida com badges Stage+KARE, bloco Próxima Melhor Ação, Maturity Score grid
+- 2 novas dicas na seção Dicas (badge de estágio, Insight Desafiador)
+- Manual técnico: VPS corrigida para `37.27.214.33`, seção Motor NBA adicionada (schema completo, regras, arquivos), troubleshoot 502/zombie workers, deploy atualizado para git pull
+
 ### ARQUIVOS ALTERADOS
 - `agent/prompt_templates/agente_tempo_real.txt` (reescrito)
 - `api/processador_tempo_real.py`
 - `chrome-extension/content.js`
 - `chrome-extension/content.css`
 - `api/main.py` (versão 1.4.26 → 1.4.28)
+- `frontend/manual.html` (V.1.4.8 → V.1.4.28)
+- `frontend/manual_tecnico.html` (V.1.4.26 → V.1.4.28)
 
 ---
 
