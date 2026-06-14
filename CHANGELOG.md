@@ -3,6 +3,27 @@
 
 ---
 
+## V.1.4.33 — Sales Brain Fase 2 · T2.3: Biblioteca de Playbooks (Dashboard)
+> Data: 14/06/2026 | Feature (SALEIA Sales Brain — Fase 2)
+
+### VISÃO
+Nova aba "Playbooks" no dashboard com busca, filtro por ativos, cards expansíveis e edição/ativação/exclusão inline.
+
+### FRONTEND — `frontend/dashboard.html`
+- Nav: novo item "🎯 Playbooks" entre Histórico e Base de IA
+- Página `page-playbooks`: busca por nome/persona, checkbox "Apenas ativos", botão atualizar, métricas (total / ativos)
+- `carregarPlaybooks()`: GET /playbooks com flag apenas_ativos
+- `filtrarPlaybooks()`: filtro client-side sobre cache
+- `cardPlaybookHTML(p)`: card com nome, persona, badge Ativo/Inativo, meeting de origem, data, seções expansíveis (`<details>`) para Passos, Objeções, Argumentos vencedores, Sequência de fechamento
+- `togglePlaybook(id, novoAtivo)`: PATCH is_active com atualização otimista de cache
+- `editarPlaybook(id)`: prompt() para nome e persona, PATCH
+- `deletarPlaybook(id)`: confirm() + DELETE com remoção do cache
+
+### BACKEND — `api/main.py`
+- Versão: `1.4.32` → `1.4.33`
+
+---
+
 ## V.1.4.32 — Sales Brain Fase 2 · T2.1+T2.2: Playbook Engine
 > Data: 14/06/2026 | Feature (SALEIA Sales Brain — Fase 2)
 

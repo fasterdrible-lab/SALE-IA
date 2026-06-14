@@ -1000,6 +1000,9 @@
       <button class="nav-item" data-page="historico" onclick="mostrarPagina('historico', this)">
         <span class="nav-icon">📈</span><span class="nav-label">Histórico</span>
       </button>
+      <button class="nav-item" data-page="playbooks" onclick="mostrarPagina('playbooks', this)">
+        <span class="nav-icon">🎯</span><span class="nav-label">Playbooks</span>
+      </button>
       <button class="nav-item" data-page="base" onclick="mostrarPagina('base', this)">
         <span class="nav-icon">📚</span><span class="nav-label">Base de IA</span>
       </button>
@@ -1330,6 +1333,28 @@
         <div id="hd-conteudo"></div>
       </div>
 
+      <!-- PLAYBOOKS -->
+      <div class="page" id="page-playbooks">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:20px">
+          <div>
+            <h2 style="margin:0">Playbooks</h2>
+            <p style="color:var(--muted);font-size:.85rem;margin:4px 0 0">Gerados automaticamente de reuniões vencedoras.</p>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="text" id="pb-busca" placeholder="Buscar playbook..." oninput="filtrarPlaybooks()" style="padding:6px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.85rem;width:200px"/>
+            <label style="display:flex;align-items:center;gap:6px;font-size:.83rem;color:var(--muted);cursor:pointer">
+              <input type="checkbox" id="pb-apenas-ativos" onchange="carregarPlaybooks()" style="accent-color:var(--gold)"> Apenas ativos
+            </label>
+            <button class="btn" onclick="carregarPlaybooks()">↻ Atualizar</button>
+          </div>
+        </div>
+        <div class="metrics" id="pb-metrics" style="margin-bottom:20px;display:none">
+          <div class="metric"><div class="metric-val" id="pb-m-total">–</div><div class="metric-lbl">Total</div></div>
+          <div class="metric"><div class="metric-val" id="pb-m-ativos">–</div><div class="metric-lbl">Ativos</div></div>
+        </div>
+        <div id="pb-lista"><div style="color:var(--muted)">Carregando...</div></div>
+      </div>
+
       <!-- MONITOR -->
       <div class="page" id="page-monitor">
         <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:20px">
@@ -1579,6 +1604,7 @@
     if (nome === 'sessoes')       carregarSessoes();
     if (nome === 'base')          { carregarBase(); initDropzone(); }
     if (nome === 'historico')     carregarHistorico();
+    if (nome === 'playbooks')     carregarPlaybooks();
     if (nome === 'monitor')       _iniciarMonitor();
     if (nome === 'configuracoes') {
       // reset lazy-load flags so sections reload fresh data on next open
@@ -2635,6 +2661,158 @@
       renderizarReunioes(_reunioesCache);
     } catch (e) {
       alert('Erro ao marcar reunião: ' + e.message);
+    }
+  }
+
+  /* ─── Playbooks ─────────────────────────────────── */
+  let _playbooksCache = [];
+
+  async function carregarPlaybooks() {
+    const container = document.getElementById('pb-lista');
+    container.innerHTML = '<div style="color:var(--muted)">Carregando...</div>';
+    const apenasAtivos = document.getElementById('pb-apenas-ativos')?.checked;
+    try {
+      const r = await fetchJsonWithFallback(`/playbooks?apenas_ativos=${apenasAtivos ? 'true' : 'false'}&limit=100`);
+      const d = await r.json();
+      _playbooksCache = d.playbooks || [];
+      _atualizarMetricsPlaybooks(_playbooksCache);
+      filtrarPlaybooks();
+    } catch (e) {
+      container.innerHTML = '<div style="color:#f87171">Erro ao carregar playbooks: ' + escHtml(e.message) + '</div>';
+    }
+  }
+
+  function _atualizarMetricsPlaybooks(lista) {
+    const met = document.getElementById('pb-metrics');
+    if (met) {
+      met.style.display = lista.length ? '' : 'none';
+      document.getElementById('pb-m-total').textContent  = lista.length;
+      document.getElementById('pb-m-ativos').textContent = lista.filter(p => p.is_active).length;
+    }
+  }
+
+  function filtrarPlaybooks() {
+    const q = (document.getElementById('pb-busca')?.value || '').toLowerCase();
+    const filtrados = q
+      ? _playbooksCache.filter(p => (p.name || '').toLowerCase().includes(q) || (p.target_persona || '').toLowerCase().includes(q))
+      : _playbooksCache;
+    renderizarPlaybooks(filtrados);
+  }
+
+  function renderizarPlaybooks(lista) {
+    const container = document.getElementById('pb-lista');
+    if (!lista.length) {
+      container.innerHTML = '<div style="color:var(--muted);padding:32px;text-align:center">Nenhum playbook encontrado.<br><span style="font-size:.82rem">Reuniões com alta probabilidade ou marcadas como "Ganha" geram playbooks automaticamente.</span></div>';
+      return;
+    }
+    container.innerHTML = lista.map(p => cardPlaybookHTML(p)).join('');
+  }
+
+  function cardPlaybookHTML(p) {
+    const nome    = escHtml(p.name || 'Sem nome');
+    const persona = escHtml(p.target_persona || '');
+    const data    = escHtml((p.created_at || '').slice(0, 10));
+    const mid     = escHtml(p.source_meeting_id || '');
+    const ativo   = !!p.is_active;
+    const pid     = escHtml(p.id);
+
+    const badgeAtivo = ativo
+      ? `<span style="font-size:.72rem;padding:2px 8px;background:rgba(45,212,191,.12);color:#2dd4bf;border-radius:4px;border:1px solid #2dd4bf">Ativo</span>`
+      : `<span style="font-size:.72rem;padding:2px 8px;background:rgba(248,113,113,.1);color:#f87171;border-radius:4px;border:1px solid #f87171">Inativo</span>`;
+
+    const stepsHTML    = _listaPlaybook(p.steps,             '📋 Passos');
+    const objecoesHTML = _listaPlaybook(p.objections,        '💬 Objeções', true);
+    const argHTML      = _listaPlaybook(p.winning_arguments, '⚡ Argumentos vencedores');
+    const closeHTML    = _listaPlaybook(p.closing_sequence,  '🤝 Sequência de fechamento');
+
+    return `<div class="reuniao-card" style="flex-direction:column;align-items:flex-start;gap:12px;padding:18px 20px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;width:100%;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:1rem;font-weight:700;color:var(--gold);margin-bottom:4px">${nome}</div>
+          ${persona ? `<div style="font-size:.82rem;color:var(--muted);margin-bottom:6px">${persona}</div>` : ''}
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            ${badgeAtivo}
+            ${mid ? `<span style="font-size:.72rem;color:var(--muted)">Reunião: ${mid}</span>` : ''}
+            ${data ? `<span style="font-size:.72rem;color:var(--muted)">${data}</span>` : ''}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap">
+          <button onclick="editarPlaybook('${pid}')" style="padding:4px 10px;font-size:.75rem;background:transparent;border:1px solid var(--gold);color:var(--gold);border-radius:4px;cursor:pointer">✏️ Editar</button>
+          <button onclick="togglePlaybook('${pid}',${ativo ? 0 : 1})" style="padding:4px 10px;font-size:.75rem;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:4px;cursor:pointer">${ativo ? '⏸ Desativar' : '▶ Ativar'}</button>
+          <button onclick="deletarPlaybook('${pid}')" style="padding:4px 10px;font-size:.75rem;background:transparent;border:1px solid #f87171;color:#f87171;border-radius:4px;cursor:pointer">🗑</button>
+        </div>
+      </div>
+      ${stepsHTML}${objecoesHTML}${argHTML}${closeHTML}
+    </div>`;
+  }
+
+  function _listaPlaybook(items, titulo, isObj = false) {
+    if (!Array.isArray(items) || !items.length) return '';
+    const itens = items.map(item => {
+      if (isObj && typeof item === 'object' && item !== null) {
+        return `<li><strong>${escHtml(item.objecao || '')}</strong>${item.resposta ? ' — ' + escHtml(item.resposta) : ''}</li>`;
+      }
+      return `<li>${escHtml(String(item))}</li>`;
+    }).join('');
+    return `<details style="width:100%">
+      <summary style="cursor:pointer;color:var(--muted);font-size:.82rem;padding:4px 0;list-style:none;display:flex;align-items:center;gap:6px">
+        <span style="color:var(--gold)">▸</span> ${titulo} (${items.length})
+      </summary>
+      <ul style="margin:8px 0 0 16px;padding:0;color:var(--text);font-size:.83rem;line-height:1.6">${itens}</ul>
+    </details>`;
+  }
+
+  async function togglePlaybook(id, novoAtivo) {
+    try {
+      const r = await fetchJsonWithFallback(`/playbooks/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: novoAtivo }),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      _playbooksCache = _playbooksCache.map(p => p.id === id ? { ...p, is_active: novoAtivo } : p);
+      _atualizarMetricsPlaybooks(_playbooksCache);
+      filtrarPlaybooks();
+    } catch (e) {
+      alert('Erro ao alterar playbook: ' + e.message);
+    }
+  }
+
+  async function editarPlaybook(id) {
+    const playbook = _playbooksCache.find(p => p.id === id);
+    if (!playbook) return;
+
+    const novoNome = window.prompt('Nome do playbook:', playbook.name || '');
+    if (novoNome === null) return;
+    const novaPersona = window.prompt('Persona alvo:', playbook.target_persona || '');
+    if (novaPersona === null) return;
+
+    try {
+      const r = await fetchJsonWithFallback(`/playbooks/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: novoNome.trim(), target_persona: novaPersona.trim() }),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      _playbooksCache = _playbooksCache.map(p => p.id === id ? { ...p, name: novoNome.trim(), target_persona: novaPersona.trim() } : p);
+      filtrarPlaybooks();
+    } catch (e) {
+      alert('Erro ao editar playbook: ' + e.message);
+    }
+  }
+
+  async function deletarPlaybook(id) {
+    const playbook = _playbooksCache.find(p => p.id === id);
+    const nome = playbook?.name || id;
+    if (!window.confirm(`Excluir playbook "${nome}"? Esta ação não pode ser desfeita.`)) return;
+    try {
+      const r = await fetchJsonWithFallback(`/playbooks/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      _playbooksCache = _playbooksCache.filter(p => p.id !== id);
+      _atualizarMetricsPlaybooks(_playbooksCache);
+      filtrarPlaybooks();
+    } catch (e) {
+      alert('Erro ao excluir playbook: ' + e.message);
     }
   }
 
