@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Optional
 
 from api.ai_router import chamar_ia
-from agent.sales_memory import salvar_memorias_em_lote, MEMORY_TYPES
+from agent.sales_memory import salvar_memorias_em_lote, gerar_e_salvar_embeddings_em_lote, MEMORY_TYPES
 
 logger = logging.getLogger("saleia.knowledge_extractor")
 
@@ -238,9 +238,15 @@ def extrair_e_salvar_memorias(
 
         ids = salvar_memorias_em_lote(memorias)
         logger.info(
-            "[KnowledgeExtractor] ✅ %d memórias salvas para reunião %s: %s",
-            len(ids), meeting_id, ids,
+            "[KnowledgeExtractor] ✅ %d memórias salvas para reunião %s",
+            len(ids), meeting_id,
         )
+
+        # Gerar embeddings para busca semântica (em sequência, no mesmo background thread)
+        if ids:
+            itens = [(mem_id, mem["content"]) for mem_id, mem in zip(ids, memorias)]
+            gerar_e_salvar_embeddings_em_lote(itens)
+
         return ids
 
     except Exception as e:

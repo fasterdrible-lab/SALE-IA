@@ -3,6 +3,38 @@
 
 ---
 
+## V.1.4.31 — Sales Brain Fase 1 · Tarefa 1.3: Busca Semântica em Memórias Comerciais
+> Data: 14/06/2026 | Feature (SALEIA Sales Brain — Fase 1)
+
+### VISÃO
+Motor de busca semântica sobre as memórias comerciais: embeddings OpenAI `text-embedding-3-small`,
+similaridade de cosseno via NumPy, cache in-memory lazy-loaded. Três novos endpoints REST expostos.
+
+### BACKEND — `agent/sales_memory.py` (extensão T1.3)
+- `migrar_coluna_embedding_memories()`: garante coluna `embedding LONGTEXT` na tabela `sales_memories`
+- `gerar_embedding(texto)`: gera vetor 1536-dim via `text-embedding-3-small` (limite 6000 chars)
+- `salvar_embedding_memoria(mem_id, embedding)`: persiste JSON do vetor no banco
+- `gerar_e_salvar_embeddings_em_lote(itens)`: processa lista `[(id, content), ...]`, invalida cache ao final
+- `_carregar_cache_memorias()`: carrega todos os embeddings em matriz NumPy (lazy, global)
+- `invalidar_cache_memorias()`: força recarga no próximo acesso
+- `buscar_memorias_semantico(query, top_k, memory_type, confidence_min, similarity_min)`: busca semântica completa com filtros
+- `buscar_contexto_para_reuniao(fragmento, top_k)`: retorna texto formatado para injeção em prompts (similarity_min=0.30)
+
+### BACKEND — `agent/knowledge_extractor.py` (atualização T1.3)
+- `extrair_e_salvar_memorias()` agora chama `gerar_e_salvar_embeddings_em_lote()` após salvar
+- Embeddings gerados no mesmo thread de background — não exige tarefa adicional
+
+### BACKEND — `api/main.py` — novos endpoints
+- `GET /sales-memories` — lista memórias com filtros `memory_type`, `limit`, `offset` (JWT)
+- `GET /sales-memories/buscar` — busca semântica via querystring `?q=...&top_k=5&memory_type=...` (JWT)
+- `GET /sales-memories/stats` — contagem de memórias por tipo (JWT)
+- Versão: `1.4.30` → `1.4.31`
+
+### BANCO
+- `sales_memories.embedding` (LONGTEXT) — coluna adicionada via migration idempotente no startup
+
+---
+
 ## V.1.4.30 — Sales Brain Fase 1 · Tarefa 1.2: Knowledge Extractor (pipeline pós-reunião)
 > Data: 14/06/2026 | Feature (SALEIA Sales Brain — Fase 1)
 

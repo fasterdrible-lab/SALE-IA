@@ -100,7 +100,7 @@ class _CorrelationMiddleware(BaseHTTPMiddleware):
 app = FastAPI(
     title="SALEIA — Assistente de Vendas IA",
     description="Backend para o assistente de vendas em tempo real no Google Meet",
-    version="1.4.30",
+    version="1.4.31",
 )
 
 app.add_middleware(_CorrelationMiddleware)
@@ -195,10 +195,11 @@ async def on_startup():
     except Exception as e:
         logger.warning("Tabela visual_scenarios não criada: %s", e)
     try:
-        from agent.sales_memory import criar_tabela_sales_memories
+        from agent.sales_memory import criar_tabela_sales_memories, migrar_coluna_embedding_memories
         criar_tabela_sales_memories()
+        migrar_coluna_embedding_memories()
     except Exception as e:
-        logger.warning("Tabela sales_memories não criada: %s", e)
+        logger.warning("Tabela sales_memories não criada/migrada: %s", e)
     try:
         from api.metricas_historico import criar_tabela_metricas, criar_tabela_teste_provedores
         criar_tabela_metricas()
@@ -470,7 +471,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.30",
+        "versao":              "1.4.31",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -508,7 +509,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.30",
+        "versao":          "1.4.31",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -848,6 +849,52 @@ def ver_relatorio():
 </html>"""
 
     return HTMLResponse(content=html)
+
+
+@app.get("/sales-memories")
+def listar_sales_memories(
+    memory_type: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    authorization: str | None = Header(default=None),
+):
+    """Lista memórias comerciais com filtro opcional por tipo."""
+    _req_auth(authorization)
+    try:
+        from agent.sales_memory import listar_memorias
+        return {"memorias": listar_memorias(memory_type=memory_type, limit=limit, offset=offset)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/sales-memories/buscar")
+def buscar_sales_memories(
+    q: str,
+    top_k: int = 5,
+    memory_type: Optional[str] = None,
+    authorization: str | None = Header(default=None),
+):
+    """Busca semântica em memórias comerciais por similaridade de cosseno."""
+    _req_auth(authorization)
+    if not q or len(q.strip()) < 3:
+        raise HTTPException(status_code=400, detail="Parâmetro 'q' deve ter pelo menos 3 caracteres")
+    try:
+        from agent.sales_memory import buscar_memorias_semantico
+        resultados = buscar_memorias_semantico(q.strip(), top_k=top_k, memory_type=memory_type)
+        return {"query": q, "total": len(resultados), "resultados": resultados}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/sales-memories/stats")
+def stats_sales_memories(authorization: str | None = Header(default=None)):
+    """Estatísticas de memórias por tipo."""
+    _req_auth(authorization)
+    try:
+        from agent.sales_memory import contar_por_tipo
+        return {"por_tipo": contar_por_tipo()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/relatorios")
