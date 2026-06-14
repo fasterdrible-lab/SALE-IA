@@ -1,0 +1,41 @@
+Você é um especialista em inteligência comercial. Sua tarefa é extrair aprendizados reutilizáveis de uma reunião de vendas.
+
+CONTEXTO DA REUNIÃO:
+{contexto}
+
+Analise o contexto acima e extraia entre 3 e 8 memórias comerciais reutilizáveis.
+
+Uma BOA memória:
+- É generalizável para outras reuniões com perfis similares
+- Captura o que funcionou ou o que revelou algo importante
+- Inclui contexto suficiente para ser usada por outro vendedor sem ter assistido à reunião
+- Tem conteúdo acionável (o que fazer, como fazer, quando usar)
+
+Uma MÁ memória:
+- É específica demais a este cliente (nome, empresa, valor exato)
+- É óbvia demais (ex: "clientes querem resultados")
+- Não tem implicação prática
+
+TIPOS DISPONÍVEIS:
+- objection: objeção levantada e como foi tratada eficazmente
+- pain_point: dor do cliente com contexto de segmento ou perfil DISC
+- buying_signal: sinal de compra identificado, o score no momento e o que o desencadeou
+- closing_signal: sinal de fechamento iminente e a sequência de fechamento que funcionou
+- discovery_pattern: sequência de perguntas ou abordagem de descoberta que gerou insight valioso
+- disc_pattern: padrão comportamental DISC confirmado com evidências concretas da reunião
+- financial_pattern: padrão financeiro do segmento (faturamento típico, capacidade de investimento, ticket ideal)
+- playbook_insight: insight estratégico que deveria estar em um playbook de vendas
+
+Responda APENAS com um JSON válido no seguinte formato, sem explicações, sem markdown, sem texto antes ou depois:
+
+{
+  "memorias": [
+    {
+      "memory_type": "objection",
+      "title": "Título curto e descritivo (máx 80 chars)",
+      "content": "Descrição completa com contexto, o que aconteceu e como usar este aprendizado em situações futuras",
+      "confidence": 0.85,
+      "tags": ["tag1", "tag2", "tag3"]
+    }
+  ]
+}

@@ -100,7 +100,7 @@ class _CorrelationMiddleware(BaseHTTPMiddleware):
 app = FastAPI(
     title="SALEIA — Assistente de Vendas IA",
     description="Backend para o assistente de vendas em tempo real no Google Meet",
-    version="1.4.29",
+    version="1.4.30",
 )
 
 app.add_middleware(_CorrelationMiddleware)
@@ -260,6 +260,7 @@ class RecapitulacaoRequest(BaseModel):
     transcricao: str
     titulo_reuniao: Optional[str] = "Reunião de Vendas"
     data: Optional[str] = None
+    meeting_id: Optional[str] = None
 
 
 class RecapitulacaoVivaRequest(BaseModel):
@@ -469,7 +470,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.29",
+        "versao":              "1.4.30",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -507,7 +508,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.29",
+        "versao":          "1.4.30",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -689,10 +690,11 @@ def identificar_perfil_disc(req: PerfilDiscRequest):
 
 
 @app.post("/recapitulacao-completa")
-def recapitulacao_completa(req: RecapitulacaoRequest):
+def recapitulacao_completa(req: RecapitulacaoRequest, background_tasks: BackgroundTasks):
     """
     Gera recapitulação emocional e estratégica completa pós-reunião.
     Substitui o processo manual de colar transcrição no Claude.
+    Após gerar, dispara extração de memórias comerciais em background.
     """
     if not req.transcricao:
         raise HTTPException(status_code=400, detail="Transcrição vazia")
@@ -712,9 +714,15 @@ def recapitulacao_completa(req: RecapitulacaoRequest):
         "gerado_em": datetime.now().isoformat(),
     }
 
-    # Armazenar como último relatório
     global ultimo_relatorio
     ultimo_relatorio = resultado
+
+    try:
+        from agent.knowledge_extractor import extrair_e_salvar_memorias
+        meeting_id = req.meeting_id or f"completa_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        background_tasks.add_task(extrair_e_salvar_memorias, resultado, req.transcricao, meeting_id)
+    except Exception as e:
+        logger.warning("Não foi possível agendar extração de memórias: %s", e)
 
     return resultado
 
@@ -1005,10 +1013,11 @@ def historico_uso_reuniao(meeting_id: str, authorization: str | None = Header(de
 
 
 @app.post("/recapitulacao-manual")
-def recapitulacao_manual(req: RecapitulacaoRequest):
+def recapitulacao_manual(req: RecapitulacaoRequest, background_tasks: BackgroundTasks):
     """
     Endpoint simplificado: cola a transcrição e gera recapitulação + DISC + diagnóstico financeiro.
     Ideal para uso no painel HTML sem a extensão Chrome.
+    Após salvar o relatório, dispara extração de memórias comerciais em background.
     """
     if not req.transcricao:
         raise HTTPException(status_code=400, detail="Transcrição vazia")
@@ -1041,6 +1050,14 @@ def recapitulacao_manual(req: RecapitulacaoRequest):
         caminho.write_text(json.dumps(resultado, ensure_ascii=False, indent=2), encoding="utf-8")
     except Exception as e:
         logger.warning("Não foi possível salvar relatório manual: %s", e)
+
+    # Extração de memórias comerciais em background (não bloqueia a resposta)
+    try:
+        from agent.knowledge_extractor import extrair_e_salvar_memorias
+        meeting_id = req.meeting_id or f"manual_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        background_tasks.add_task(extrair_e_salvar_memorias, resultado, req.transcricao, meeting_id)
+    except Exception as e:
+        logger.warning("Não foi possível agendar extração de memórias: %s", e)
 
     return resultado
 

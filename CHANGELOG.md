@@ -3,6 +3,51 @@
 
 ---
 
+## V.1.4.30 — Sales Brain Fase 1 · Tarefa 1.2: Knowledge Extractor (pipeline pós-reunião)
+> Data: 14/06/2026 | Feature (SALEIA Sales Brain — Fase 1)
+
+### VISÃO
+Pipeline automático que extrai aprendizados comerciais reutilizáveis após cada reunião.
+Executa em background (não bloqueia a resposta do relatório) via FastAPI BackgroundTasks.
+
+### BACKEND — `agent/knowledge_extractor.py` (novo arquivo)
+- `_montar_contexto(relatorio, transcricao)`: monta contexto compacto do relatório (recap, DISC, financeiro, trecho da transcrição até 6000 chars) para enviar à IA
+- `_validar_memoria(dict)`: valida tipos, título, conteúdo e normaliza confidence (0.0-1.0)
+- `extrair_memorias(relatorio, transcricao)`: chama `chamar_ia()` com o prompt de extração e parseia o campo `memorias` do dict retornado
+- `extrair_e_salvar_memorias(relatorio, transcricao, meeting_id, organization_id)`: pipeline completo — extrai + salva via `salvar_memorias_em_lote()`, captura exceções internamente
+
+### BACKEND — `agent/prompt_templates/knowledge_extraction.txt` (novo arquivo)
+- Prompt especializado em extração de conhecimento comercial
+- Instrui a IA a retornar `{"memorias": [...]}` (json_object compatível)
+- Diferencia BOA memória (generalizável, acionável) de MÁ memória (específica demais, óbvia)
+- Descreve os 8 tipos com exemplos implícitos
+
+### BACKEND — `api/main.py`
+- `RecapitulacaoRequest` ganha campo `meeting_id: Optional[str]` para rastreabilidade
+- `/recapitulacao-manual`: aceita `BackgroundTasks`, agenda extração após salvar relatório
+- `/recapitulacao-completa`: idem
+- Versão: `1.4.29` → `1.4.30`
+
+### FLUXO COMPLETO
+```
+Usuário analisa transcrição no Dashboard
+↓ POST /recapitulacao-manual
+↓ IA gera recapitulação + DISC + diagnóstico (síncrono)
+↓ Resposta retornada ao usuário
+↓ BackgroundTask: extrair_e_salvar_memorias()
+  ↓ chamar_ia() com prompt knowledge_extraction.txt
+  ↓ Parseia {"memorias": [...]}
+  ↓ Valida cada memória
+  ↓ salvar_memorias_em_lote() → tabela sales_memories
+```
+
+### ARQUIVOS ALTERADOS
+- `agent/knowledge_extractor.py` (novo)
+- `agent/prompt_templates/knowledge_extraction.txt` (novo)
+- `api/main.py` (RecapitulacaoRequest + 2 endpoints + versão)
+
+---
+
 ## V.1.4.29 — Sales Brain Fase 1 · Tarefa 1.1: Sales Memory (tabela + módulo)
 > Data: 14/06/2026 | Feature (SALEIA Sales Brain — Fase 1)
 
