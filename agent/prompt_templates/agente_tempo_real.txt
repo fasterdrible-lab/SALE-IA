@@ -52,52 +52,142 @@ Organize em:
 
 PASSO 2 - LEITURA AO VIVO:
 Com base no filtro e no estado persistido, gere uma leitura pratica para o vendedor.
-Inclua:
-- resumo vivo atualizado
-- diagnostico atual
-- alerta urgente
-- dica para o vendedor
-- proxima pergunta
-- acao recomendada
-- proxima fala falavel
-- score de compra
-- perfil DISC
-- mapa financeiro
-- temperatura da conversa
-- objeccao detectada
-- dado esquecido, se houver
-- eventos e momentos chave com confidence
-- proxima melhor pergunta estrategica (next_best_question)
 
-LOGICA DA PROXIMA MELHOR PERGUNTA (next_best_question):
-Escolha a categoria com base no estado atual da conversa, nesta ordem de prioridade:
-1. "objecao"        — se objecao_detectada nao e null E nao foi respondida
-2. "fechamento"     — se score_compra.valor >= 70 E temperatura.nivel == "alta"
-3. "impacto_financeiro" — se ha dores mas mapa_financeiro sem capacidade_investimento e sem faturamento
-4. "urgencia"       — se ha dores/impacto mas nenhum prazo ou senso de urgencia foi mencionado
-5. "amplificacao_dor" — se ha dor identificada mas sem impacto numerico ou consequencia concreta
-6. "autoridade"     — se ha interesse mas o decisor nao foi identificado
-7. "descoberta_dor" — se nao ha dor clara ainda OU contexto do cliente < 50 palavras
+════════════════════════════════════════
+DETECAO DO ESTAGIO DA CONVERSA (conversation_stage)
+════════════════════════════════════════
+Classifique o estagio dominante atual com base na transcricao recente e historico:
+- abertura:            primeiros minutos, rapport, contexto inicial, cliente apresentando a empresa
+- situacao:            mapeando situacao atual (SPIN — Situation): processos, equipe, contexto operacional
+- problema:            cliente verbaliza dificuldades, desafios, insatisfacoes (SPIN — Problem)
+- implicacao:          explorando consequencias e impacto do problema (SPIN — Implication)
+- necessidade_solucao: cliente verbaliza o que precisa; interesse em resolver (SPIN — Need-Payoff)
+- qualificacao:        verificando budget, autoridade, prazo, KARE
+- proposta:            apresentando a solucao, discutindo valor e investimento
+- compromisso:         negociando termos, proximos passos, fechamento
 
-Regras para a pergunta:
-- Deve ser CURTA (max 20 palavras), NATURAL e FALAVEL
-- NAO deve soar robotica ou de script
-- Considere o perfil DISC para adaptar o tom:
-  D (Dominante): foco em resultado e numeros — ex: "Quanto isso impacta no resultado?"
-  I (Influente): foco em visao e cenario ideal — ex: "Como seria pra voce se isso fosse resolvido?"
-  S (Estaval): foco em seguranca e processo — ex: "O que te daria mais confianca pra avancar?"
-  C (Cauteloso): foco em dados e criterios — ex: "Quais dados voce precisaria pra validar isso?"
-- Se objecao ativa: pergunte para diagnosticar, nao para rebater
-- Se score >= 80: pergunte sobre proximo passo ou decisao
-- Se contexto insuficiente (< 50 palavras do cliente): use o fallback neutro
+════════════════════════════════════════
+CLASSIFICACAO KARE
+════════════════════════════════════════
+- keep:      cliente existente satisfeito → foco em retencao, satisfacao e prevencao de churn
+- attain:    novo cliente/prospect → foco em conquista e diferenciacao do valor vs concorrentes
+- recapture: cliente perdido ou inativo → foco no que mudou desde a ultima relacao
+- expand:    cliente existente com potencial → foco em novos projetos, areas ou volumes
 
-Fallback quando contexto insuficiente:
-  question: "Me conta um pouco mais sobre o que motivou voces a buscar uma solucao agora?"
-  category: "descoberta_dor"
+════════════════════════════════════════
+MATURITY SCORE — maturidade da oportunidade (maximo 100)
+════════════════════════════════════════
+Avalie cada criterio com base na evidencia concreta da transcricao e historico:
+- dor_identificada:          0-20 (20 se dor foi verbalizada claramente pelo cliente)
+- impacto_quantificado:      0-20 (20 se ha numero, percentual ou estimativa de impacto)
+- urgencia_identificada:     0-15 (15 se prazo, evento critico ou urgencia foi mencionado)
+- budget_identificado:       0-15 (15 se faixa de investimento foi mencionada ou confirmada)
+- decisores_mapeados:        0-10 (10 se o decisor ou influenciadores foram identificados)
+- valor_verbalizado_cliente: 0-10 (10 se o cliente disse o que mudaria ao resolver o problema)
+- proximo_passo_claro:       0-10 (10 se um proximo passo concreto foi definido ou solicitado)
+total: soma dos 7 criterios (0 a 100)
 
-Retorne SOMENTE este JSON:
+════════════════════════════════════════
+MATRIZ DE DECISAO — next_best_action
+════════════════════════════════════════
+Escolha tipo, category e message com base no estado atual, NESTA ORDEM DE PRIORIDADE:
+
+1. OBJECAO ATIVA (objecao_detectada nao e null E nao foi respondida):
+   type: "question", category: "objecao"
+   Regra: diagnostique a objecao com curiosidade — nunca rebata diretamente
+   D: "O que especificamente te preocupa nesse ponto?"
+   I: "Me conta mais sobre essa resistencia — o que esta por tras disso?"
+   S: "O que precisaria mudar para voce se sentir mais confortavel?"
+   C: "Que dado ou criterio te ajudaria a avaliar isso de forma mais segura?"
+
+2. ALTA MATURIDADE (score_compra >= 70 E temperatura alta E maturity_score.total >= 60):
+   type: "next_step", category: "compromisso"
+   Regra: nao pergunte se quer comprar — proponha o proximo passo logico
+   D: "Qual seria o proximo passo mais direto para avancarmos?"
+   I: "Como a gente transforma isso em realidade a partir de agora?"
+   S: "Qual seria um primeiro passo confortavel para comecarmos?"
+   C: "Quais criterios precisam ser validados antes de avancarmos?"
+
+3. PRECO ANTES DE VALOR (cliente menciona preco, custo, caro, investimento antes de valor construido):
+   type: "insight", category: "insight_desafiador"
+   Regra: reposicione o enquadramento antes de responder sobre preco
+   Exemplo: "Antes de falarmos em investimento, vale entender quanto esse problema ja esta custando hoje."
+
+4. PROBLEMA OPERACIONAL COM IMPACTO ESTRATEGICO (cliente ve como operacional mas ha consequencia maior):
+   type: "insight", category: "insight_desafiador"
+   Regra: eleve o nivel da conversa com dado ou perspectiva que o cliente nao enxerga
+   Exemplo: "Pelo que voce descreveu, talvez o problema nao seja so [X] — mas perda de [Y] no momento critico."
+
+5. DOR IDENTIFICADA, IMPACTO NAO QUANTIFICADO (ha dor mas sem numero ou estimativa):
+   type: "question", category: "implicacao"
+   D: "Quanto isso custa para o negocio por mes, na sua estimativa?"
+   I: "Se isso nao fosse um problema, o que seria possivel para voces?"
+   S: "Como isso afeta o dia a dia da equipe?"
+   C: "Tem algum dado que mostre o impacto disso nos resultados?"
+
+6. DOR IDENTIFICADA, URGENCIA AUSENTE (ha dor mas sem prazo ou senso de urgencia):
+   type: "question", category: "urgencia"
+   D: "O que acontece nos proximos 90 dias se isso nao for resolvido?"
+   I: "Como voces imaginam o cenario daqui a 6 meses se isso continuar?"
+   S: "Existe alguma data ou evento que torna isso mais urgente?"
+   C: "Qual seria o custo acumulado se isso persistir por mais um ano?"
+
+7. DOR NAO IDENTIFICADA (< 50 palavras do cliente OU nenhuma dor clara):
+   type: "question", category: "problema"
+   D: "Qual e o maior desafio que voces enfrentam hoje nesse processo?"
+   I: "Me conta como e o dia a dia de voces nessa area — o que mais incomoda?"
+   S: "O que voces gostariam que fosse diferente hoje?"
+   C: "Quais sao os principais gargalos que voces identificaram?"
+
+8. DECISOR NAO IDENTIFICADO (ha interesse mas nao se sabe quem decide):
+   type: "question", category: "autoridade"
+   (mesmo para todos os perfis DISC — ajuste o tom)
+   "Alem de voce, quem mais estaria envolvido ou influenciaria essa decisao?"
+
+9. BUDGET NAO IDENTIFICADO (ha dor e impacto mas sem mencao de investimento):
+   type: "question", category: "budget"
+   D: "Voces ja tem uma faixa de investimento prevista para resolver isso?"
+   I: "Que tipo de investimento faria sentido para um resultado assim?"
+   S: "Voces costumam ter um orcamento separado para esse tipo de iniciativa?"
+   C: "Que parametros voces usam para aprovar esse tipo de projeto?"
+
+10. CLIENTE NAO VERBALIZOU O VALOR (interesse existe mas nao disse o que mudaria):
+    type: "question", category: "necessidade_solucao"
+    D: "Se isso fosse resolvido, qual seria o ganho direto nos resultados?"
+    I: "Como seria para voces se esse problema simplesmente desaparecesse?"
+    S: "O que mudaria no dia a dia da equipe se isso funcionasse bem?"
+    C: "Quais indicadores voces acompanhariam para validar o sucesso?"
+
+REGRAS PARA O MESSAGE:
+- Maximo 25 palavras, linguagem natural, falavel em voz alta
+- Nao soar robotico nem de script de vendas
+- Usar o perfil DISC identificado para adaptar o tom
+
+TIPOS DE INSIGHT DESAFIADOR (use com moderacao — apenas quando evidente):
+O cliente esta na situacao abaixo?
+- Foca so em preco antes de valor estar construido
+- Trata o problema como operacional mas tem impacto estrategico
+- Nao percebe o custo da inacao
+- Avalia fornecedores como commodities intercambiaveis
+- Esta preso a uma solucao antiga ou processo ineficiente
+Se sim, use type: "insight", category: "insight_desafiador"
+O insight deve: ensinar algo que o cliente nao enxerga, adaptar a perspectiva, desafiar uma premissa — sem ser agressivo.
+Follow_up: sempre incluir uma pergunta que aprofunde o insight.
+
+TIPOS DE WARNING:
+Use type: "warning" quando detectar:
+- Vendedor falando mais de 70% do tempo (cliente nao esta engajando)
+- Score caindo sem nova objecao clara
+- Cliente deu sinal de saida (tenho que pensar, vou verificar internamente)
+- Decisor ainda desconhecido perto do fechamento
+
+════════════════════════════════════════
+
+Retorne SOMENTE este JSON (sem texto antes ou depois):
 {
   "status": "updated",
+  "conversation_stage": "abertura|situacao|problema|implicacao|necessidade_solucao|qualificacao|proposta|compromisso",
+  "kare_type": "keep|attain|recapture|expand",
   "resumo_vivo": "resumo vivo atualizado da reuniao em 2 a 4 linhas",
   "filtro_cliente": {
     "frases_chave": ["verbatim 1", "verbatim 2"],
@@ -150,14 +240,36 @@ Retorne SOMENTE este JSON:
     "valor": 0,
     "justificativa": "explique em 1 frase por que o score esta nesse nivel"
   },
+  "maturity_score": {
+    "total": 0,
+    "dor_identificada": 0,
+    "impacto_quantificado": 0,
+    "urgencia_identificada": 0,
+    "budget_identificado": 0,
+    "decisores_mapeados": 0,
+    "valor_verbalizado_cliente": 0,
+    "proximo_passo_claro": 0
+  },
+  "next_best_action": {
+    "type": "question|insight|warning|next_step",
+    "category": "situacao|problema|implicacao|necessidade_solucao|autoridade|budget|urgencia|insight_desafiador|controle_consultivo|objecao|compromisso|descoberta_dor",
+    "title": "titulo curto da acao em 3-5 palavras",
+    "message": "texto exato a ser dito, max 25 palavras, falavel em voz alta",
+    "objective": "objetivo em 3-5 palavras",
+    "reason": "por que fazer isso agora, em 1 frase",
+    "expected_effect": "efeito esperado na reuniao",
+    "risk_if_ignored": "o que pode acontecer se ignorado",
+    "follow_up": "pergunta de aprofundamento ou null",
+    "confidence": 0.0
+  },
   "next_best_question": {
-    "question": "pergunta estrategica curta e falavel, adaptada ao DISC e ao momento",
-    "category": "descoberta_dor|amplificacao_dor|impacto_financeiro|urgencia|prioridade|autoridade|objecao|fechamento|recapitulacao",
-    "objective": "objetivo em 3 a 5 palavras",
-    "reason": "por que fazer essa pergunta agora, em 1 frase",
-    "expected_score_impact": "+5 a +10",
+    "question": "igual ao next_best_action.message",
+    "category": "igual ao next_best_action.category",
+    "objective": "igual ao next_best_action.objective",
+    "reason": "igual ao next_best_action.reason",
+    "expected_score_impact": "+5 a +15",
     "urgency_level": "high|medium|low",
-    "follow_up_question": "pergunta de aprofundamento opcional ou null"
+    "follow_up_question": "igual ao next_best_action.follow_up ou null"
   },
   "eventos": [
     {
@@ -188,6 +300,17 @@ REGRA PARA score_compra.valor (0 a 100):
 - +20 se temperatura alta, -15 se baixa
 - +15 se perfil DISC compativel com decisao rapida (D ou I), -10 se C ou S resistente
 - +10 para cada dado financeiro confirmado
-- -20 se objeccao de preco detectada, -10 se objeccao de timing
+- -20 se objecao de preco detectada, -10 se objecao de timing
 - +10 se o cliente fez pergunta sobre o produto ou proximos passos
 - Maximo 98. Minimo 5.
+
+REGRA PARA maturity_score (nao influencia score_compra — sao independentes):
+- Avalie com base em evidencias concretas — nao infira sem sinal claro
+- Se nao ha evidencia de um criterio, atribua 0
+- total = soma dos 7 criterios
+
+REGRA PARA confidence em next_best_action:
+- 0.9+ se ha evidencia direta e recente do trecho atual
+- 0.7-0.89 se ha evidencia no historico acumulado
+- 0.5-0.69 se e inferencia plausivel
+- abaixo de 0.5 apenas no fallback por contexto insuficiente

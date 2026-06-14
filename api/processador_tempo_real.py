@@ -46,6 +46,34 @@ _MIN_NEW_CHARS = int(os.getenv("SALEIA_REALTIME_MIN_NEW_CHARS", "120"))
 
 _FALLBACK_NBQ_QUESTION = "Me conta um pouco mais sobre o que motivou voces a buscar uma solucao agora?"
 
+_FALLBACK_NBA: dict = {
+    "type": "question",
+    "category": "descoberta_dor",
+    "title": "Descoberta Inicial",
+    "message": _FALLBACK_NBQ_QUESTION,
+    "objective": "Entender motivacao",
+    "reason": "Contexto insuficiente para sugerir acao estrategica.",
+    "expected_effect": "Abrir espaco para identificar a dor real",
+    "risk_if_ignored": "A conversa pode nao avancar sem contexto do cliente.",
+    "follow_up": None,
+    "confidence": 0.5,
+}
+
+_FALLBACK_MATURITY: dict = {
+    "total": 0,
+    "dor_identificada": 0,
+    "impacto_quantificado": 0,
+    "urgencia_identificada": 0,
+    "budget_identificado": 0,
+    "decisores_mapeados": 0,
+    "valor_verbalizado_cliente": 0,
+    "proximo_passo_claro": 0,
+}
+
+
+def _fallback_next_best_action() -> dict:
+    return dict(_FALLBACK_NBA)
+
 
 def _fallback_next_best_question() -> dict:
     return {
@@ -57,6 +85,21 @@ def _fallback_next_best_question() -> dict:
         "urgency_level": "low",
         "follow_up_question": None,
     }
+
+
+def _nba_para_nbq(nba: dict) -> dict:
+    """Cria alias next_best_question a partir de next_best_action para backward compat."""
+    return {
+        "question": nba.get("message") or _FALLBACK_NBQ_QUESTION,
+        "category": nba.get("category") or "descoberta_dor",
+        "objective": nba.get("objective") or "",
+        "reason": nba.get("reason") or "",
+        "expected_score_impact": "+10",
+        "urgency_level": "high" if (nba.get("confidence") or 0) >= 0.8 else "medium",
+        "follow_up_question": nba.get("follow_up"),
+    }
+
+
 _MIN_NEW_WORDS = int(os.getenv("SALEIA_REALTIME_MIN_NEW_WORDS", "18"))
 _MIN_INTERVAL_SECONDS = int(os.getenv("SALEIA_REALTIME_MIN_INTERVAL_SECONDS", "35"))
 _MAX_CONTEXT_CHARS = int(os.getenv("SALEIA_REALTIME_MAX_CONTEXT_CHARS", "6000"))
@@ -180,7 +223,11 @@ def _extrair_ultima_analise_memoria(memoria: Optional[dict], cache: dict) -> dic
     resposta.setdefault("proxima_fala", resposta.get("proxima_fala") or resposta.get("texto_falavel") or resposta.get("acao_recomendada"))
     resposta.setdefault("texto_falavel", resposta.get("texto_falavel") or resposta.get("proxima_fala"))
     resposta.setdefault("current_diagnosis", resposta.get("current_diagnosis") or {})
-    resposta.setdefault("next_best_question", _fallback_next_best_question())
+    resposta.setdefault("next_best_action", _fallback_next_best_action())
+    resposta.setdefault("next_best_question", _nba_para_nbq(resposta["next_best_action"]))
+    resposta.setdefault("conversation_stage", "abertura")
+    resposta.setdefault("kare_type", "attain")
+    resposta.setdefault("maturity_score", dict(_FALLBACK_MATURITY))
 
     if memoria.get("score_history"):
         score_history = memoria.get("score_history") or []
@@ -377,12 +424,25 @@ def _normalizar_resposta_realtime(resultado: dict | str | None, memoria: Optiona
     if not resultado.get("proxima_pergunta"):
         resultado["proxima_pergunta"] = resultado.get("pergunta_sugerida") or resultado.get("pergunta_confirmacao")
 
-    if not resultado.get("next_best_question"):
-        resultado["next_best_question"] = _fallback_next_best_question()
-    elif not isinstance(resultado["next_best_question"], dict):
-        resultado["next_best_question"] = _fallback_next_best_question()
-    elif not resultado["next_best_question"].get("question"):
-        resultado["next_best_question"]["question"] = _FALLBACK_NBQ_QUESTION
+    # next_best_action — campo primário
+    if not resultado.get("next_best_action") or not isinstance(resultado["next_best_action"], dict):
+        resultado["next_best_action"] = _fallback_next_best_action()
+    elif not resultado["next_best_action"].get("message"):
+        resultado["next_best_action"]["message"] = _FALLBACK_NBQ_QUESTION
+    # next_best_question — alias backward-compat gerado a partir do next_best_action
+    resultado["next_best_question"] = _nba_para_nbq(resultado["next_best_action"])
+    # novos campos
+    resultado.setdefault("conversation_stage", "abertura")
+    resultado.setdefault("kare_type", "attain")
+    if not resultado.get("maturity_score") or not isinstance(resultado.get("maturity_score"), dict):
+        resultado["maturity_score"] = dict(_FALLBACK_MATURITY)
+    else:
+        for k in _FALLBACK_MATURITY:
+            resultado["maturity_score"].setdefault(k, 0)
+        if not resultado["maturity_score"].get("total"):
+            resultado["maturity_score"]["total"] = sum(
+                v for k, v in resultado["maturity_score"].items() if k != "total"
+            )
 
     if not resultado.get("current_diagnosis"):
         resultado["current_diagnosis"] = {

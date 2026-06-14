@@ -292,14 +292,24 @@
           <div id="saleia-temperatura-texto">Aguardando análise...</div>
         </div>
 
+        <div id="saleia-stage-kare" class="saleia-stage-kare" style="display:none"></div>
+
         <div id="saleia-nbq" class="saleia-secao saleia-nbq-box">
-          <div class="saleia-secao-titulo">🎯 PRÓXIMA MELHOR PERGUNTA</div>
+          <div class="saleia-secao-titulo">🎯 PRÓXIMA MELHOR AÇÃO</div>
           <div id="saleia-nbq-badges"></div>
           <div id="saleia-nbq-objetivo" class="saleia-nbq-objetivo"></div>
           <div id="saleia-nbq-pergunta" class="saleia-nbq-pergunta">Aguardando análise...</div>
           <div id="saleia-nbq-motivo" class="saleia-nbq-motivo"></div>
+          <div id="saleia-nbq-risco" class="saleia-nbq-risco" style="display:none"></div>
+          <div id="saleia-nbq-followup" class="saleia-nbq-followup" style="display:none"></div>
           <div id="saleia-nbq-impacto" class="saleia-nbq-impacto"></div>
-          <button id="saleia-nbq-copiar" class="saleia-discreto-btn" style="margin-top:6px;display:none">📋 Copiar pergunta</button>
+          <button id="saleia-nbq-copiar" class="saleia-discreto-btn" style="margin-top:6px;display:none">📋 Copiar</button>
+        </div>
+
+        <div id="saleia-maturity" class="saleia-secao saleia-maturity-box" style="display:none">
+          <div class="saleia-secao-titulo">📊 MATURIDADE DA OPORTUNIDADE</div>
+          <div id="saleia-maturity-total" class="saleia-maturity-total"></div>
+          <div id="saleia-maturity-grid" class="saleia-maturity-grid"></div>
         </div>
 
         <div id="saleia-objecao" class="saleia-secao" style="display:none">
@@ -1107,8 +1117,14 @@
         '<span class="saleia-acao">' + escaparHtml(temp.acao) + '</span>';
     }
 
-    // 🎯 PRÓXIMA MELHOR PERGUNTA
+    // 🏷️ ESTÁGIO + KARE
+    renderizarStageKare(dados);
+
+    // 🎯 PRÓXIMA MELHOR AÇÃO
     renderizarNBQ(dados);
+
+    // 📊 MATURITY SCORE
+    renderizarMaturity(dados);
 
     // 🛡️ OBJEÇÃO DETECTADA
     const objecaoEl = document.getElementById('saleia-objecao');
@@ -1149,73 +1165,188 @@
     animarAtualizacao();
   }
 
-  var _NBQ_CATEGORY_LABEL = {
-    descoberta_dor: 'Descoberta',
-    amplificacao_dor: 'Amplificar dor',
-    impacto_financeiro: 'Impacto $',
-    urgencia: 'Urgência',
-    prioridade: 'Prioridade',
-    autoridade: 'Autoridade',
-    objecao: 'Objeção',
-    fechamento: 'Fechamento',
-    recapitulacao: 'Recapitulação',
+  var _NBA_CATEGORY_LABEL = {
+    descoberta_dor:      'Descoberta',
+    problema:            'Identificar Dor',
+    amplificacao_dor:    'Amplificar Dor',
+    implicacao:          'Implicação',
+    necessidade_solucao: 'Necessidade',
+    impacto_financeiro:  'Impacto $',
+    urgencia:            'Urgência',
+    autoridade:          'Autoridade',
+    budget:              'Budget',
+    objecao:             'Objeção',
+    insight_desafiador:  'Insight',
+    controle_consultivo: 'Controle',
+    compromisso:         'Próx. Passo',
+    situacao:            'Situação',
   };
 
-  var _NBQ_URGENCY_COLOR = { high: '#EF4444', medium: '#F59E0B', low: '#888' };
+  var _NBA_TYPE_LABEL = {
+    question:  '❓',
+    insight:   '💡',
+    warning:   '⚠️',
+    next_step: '▶️',
+  };
+
+  var _NBA_CONF_COLOR = { high: '#EF4444', medium: '#F59E0B', low: '#888' };
+
+  var _STAGE_LABEL = {
+    abertura:            'Abertura',
+    situacao:            'Situação',
+    problema:            'Problema',
+    implicacao:          'Implicação',
+    necessidade_solucao: 'Necessidade',
+    qualificacao:        'Qualificação',
+    proposta:            'Proposta',
+    compromisso:         'Compromisso',
+  };
+
+  var _KARE_LABEL = { keep: 'Keep', attain: 'Attain', recapture: 'Recapture', expand: 'Expand' };
+  var _KARE_COLOR = { keep: '#22C55E', attain: '#C9A227', recapture: '#F97316', expand: '#3B82F6' };
+
+  function renderizarStageKare(dados) {
+    var el = document.getElementById('saleia-stage-kare');
+    if (!el) return;
+    var stage = dados.conversation_stage;
+    var kare = dados.kare_type;
+    if (!stage && !kare) { el.style.display = 'none'; return; }
+    var html = '';
+    if (stage) html += '<span class="saleia-stage-badge">' + escaparHtml(_STAGE_LABEL[stage] || stage) + '</span>';
+    if (kare) {
+      var kColor = _KARE_COLOR[kare] || '#888';
+      html += '<span class="saleia-kare-badge" style="color:' + kColor + ';border-color:' + kColor + '44">' + escaparHtml(_KARE_LABEL[kare] || kare) + '</span>';
+    }
+    el.innerHTML = html;
+    el.style.display = 'flex';
+  }
 
   function renderizarNBQ(dados) {
+    // Prefere next_best_action (novo), cai em next_best_question (legacy)
+    var nba = dados.next_best_action;
     var nbq = dados.next_best_question;
     var perguntaEl = document.getElementById('saleia-nbq-pergunta');
-    var badgesEl = document.getElementById('saleia-nbq-badges');
+    var badgesEl   = document.getElementById('saleia-nbq-badges');
     var objetivoEl = document.getElementById('saleia-nbq-objetivo');
-    var motivoEl = document.getElementById('saleia-nbq-motivo');
-    var impactoEl = document.getElementById('saleia-nbq-impacto');
-    var copiarBtn = document.getElementById('saleia-nbq-copiar');
+    var motivoEl   = document.getElementById('saleia-nbq-motivo');
+    var riscoEl    = document.getElementById('saleia-nbq-risco');
+    var followupEl = document.getElementById('saleia-nbq-followup');
+    var impactoEl  = document.getElementById('saleia-nbq-impacto');
+    var copiarBtn  = document.getElementById('saleia-nbq-copiar');
     if (!perguntaEl) return;
 
-    // Fallback: usa proxima_pergunta se next_best_question ausente
-    if (!nbq || !nbq.question) {
-      var fallback = dados.proxima_pergunta || dados.proxima_fala || dados.texto_falavel || dados.acao_recomendada;
-      if (fallback) {
-        badgesEl.innerHTML = '';
-        objetivoEl.textContent = '';
-        perguntaEl.innerHTML = '<span class="saleia-verde">' + escaparHtml(fallback) + '</span>';
-        motivoEl.textContent = '';
-        impactoEl.textContent = '';
-        if (copiarBtn) { copiarBtn.style.display = 'block'; copiarBtn.onclick = function () { navigator.clipboard.writeText(fallback).catch(function () {}); }; }
-      } else {
-        perguntaEl.textContent = 'Aguardando análise...';
-        if (copiarBtn) copiarBtn.style.display = 'none';
-      }
+    // --- Extrair texto principal ---
+    var textoMsg = (nba && nba.message) || (nbq && nbq.question) ||
+                   dados.proxima_pergunta || dados.proxima_fala || dados.texto_falavel || null;
+    if (!textoMsg) {
+      perguntaEl.textContent = 'Aguardando análise...';
+      badgesEl.innerHTML = '';
+      objetivoEl.textContent = '';
+      motivoEl.textContent = '';
+      if (riscoEl)    { riscoEl.textContent = ''; riscoEl.style.display = 'none'; }
+      if (followupEl) { followupEl.textContent = ''; followupEl.style.display = 'none'; }
+      impactoEl.textContent = '';
+      if (copiarBtn) copiarBtn.style.display = 'none';
       return;
     }
 
-    // Badges: categoria + urgência
-    var catLabel = _NBQ_CATEGORY_LABEL[nbq.category] || nbq.category || '';
-    var urgColor = _NBQ_URGENCY_COLOR[nbq.urgency_level] || '#888';
+    // --- Badges: tipo + categoria + confiança ---
+    var typeIcon  = (nba && _NBA_TYPE_LABEL[nba.type]) || '❓';
+    var catKey    = (nba && nba.category) || (nbq && nbq.category) || '';
+    var catLabel  = _NBA_CATEGORY_LABEL[catKey] || catKey || '';
+    var conf      = nba && nba.confidence != null ? parseFloat(nba.confidence) : null;
+    var confLevel = conf != null ? (conf >= 0.8 ? 'high' : conf >= 0.6 ? 'medium' : 'low') : null;
+    var confColor = confLevel ? _NBA_CONF_COLOR[confLevel] : '#888';
+
     badgesEl.innerHTML =
+      '<span class="saleia-nbq-type">' + typeIcon + '</span>' +
       (catLabel ? '<span class="saleia-nbq-badge">' + escaparHtml(catLabel) + '</span>' : '') +
-      (nbq.urgency_level ? '<span class="saleia-nbq-urgency" style="background:' + urgColor + '22;color:' + urgColor + '">' + escaparHtml(nbq.urgency_level) + '</span>' : '');
+      (confLevel ? '<span class="saleia-nbq-urgency" style="background:' + confColor + '22;color:' + confColor + '">' + Math.round((conf || 0) * 100) + '%</span>' : '');
 
-    // Objetivo
-    objetivoEl.textContent = nbq.objective ? 'Objetivo: ' + nbq.objective : '';
+    // --- Título / Objetivo ---
+    var titulo = (nba && nba.title) || '';
+    var objetivo = (nba && nba.objective) || (nbq && nbq.objective) || '';
+    objetivoEl.textContent = titulo ? titulo + (objetivo ? ' — ' + objetivo : '') : (objetivo ? objetivo : '');
 
-    // Pergunta principal
-    perguntaEl.innerHTML = '<span class="saleia-verde">"' + escaparHtml(nbq.question) + '"</span>';
+    // --- Mensagem principal ---
+    perguntaEl.innerHTML = '<span class="saleia-verde">"' + escaparHtml(textoMsg) + '"</span>';
 
-    // Motivo
-    motivoEl.textContent = nbq.reason || '';
+    // --- Motivo (por que agora) ---
+    var motivo = (nba && nba.reason) || (nbq && nbq.reason) || '';
+    motivoEl.textContent = motivo ? '↳ ' + motivo : '';
 
-    // Impacto esperado
-    impactoEl.textContent = nbq.expected_score_impact ? 'Score: ' + nbq.expected_score_impact : '';
+    // --- Risco se ignorado ---
+    if (riscoEl) {
+      var risco = nba && nba.risk_if_ignored;
+      if (risco) {
+        riscoEl.textContent = '⚠ ' + risco;
+        riscoEl.style.display = 'block';
+      } else {
+        riscoEl.textContent = '';
+        riscoEl.style.display = 'none';
+      }
+    }
 
-    // Botão copiar
+    // --- Follow-up ---
+    if (followupEl) {
+      var fu = (nba && nba.follow_up) || (nbq && nbq.follow_up_question) || null;
+      if (fu) {
+        followupEl.textContent = '↪ ' + fu;
+        followupEl.style.display = 'block';
+      } else {
+        followupEl.textContent = '';
+        followupEl.style.display = 'none';
+      }
+    }
+
+    // --- Efeito esperado / score ---
+    var efeito = (nba && nba.expected_effect) || (nbq && nbq.expected_score_impact ? 'Score: ' + nbq.expected_score_impact : '');
+    impactoEl.textContent = efeito || '';
+
+    // --- Botão copiar ---
     if (copiarBtn) {
       copiarBtn.style.display = 'block';
       copiarBtn.onclick = function () {
-        navigator.clipboard.writeText(nbq.question).catch(function () {});
+        navigator.clipboard.writeText(textoMsg).catch(function () {});
       };
     }
+  }
+
+  var _MATURITY_LABELS = {
+    dor_identificada:          'Dor',
+    impacto_quantificado:      'Impacto',
+    urgencia_identificada:     'Urgência',
+    budget_identificado:       'Budget',
+    decisores_mapeados:        'Decisor',
+    valor_verbalizado_cliente: 'Valor',
+    proximo_passo_claro:       'Próx.Passo',
+  };
+  var _MATURITY_MAX = {
+    dor_identificada: 20, impacto_quantificado: 20, urgencia_identificada: 15,
+    budget_identificado: 15, decisores_mapeados: 10, valor_verbalizado_cliente: 10, proximo_passo_claro: 10,
+  };
+
+  function renderizarMaturity(dados) {
+    var el = document.getElementById('saleia-maturity');
+    var totalEl = document.getElementById('saleia-maturity-total');
+    var gridEl  = document.getElementById('saleia-maturity-grid');
+    if (!el || !gridEl) return;
+    var ms = dados.maturity_score;
+    if (!ms || typeof ms.total === 'undefined') { el.style.display = 'none'; return; }
+    el.style.display = 'block';
+    var total = ms.total || 0;
+    var cor = total >= 70 ? '#22C55E' : total >= 40 ? '#F59E0B' : '#EF4444';
+    totalEl.innerHTML = 'Score: <strong style="color:' + cor + '">' + total + '/100</strong>';
+    var html = '';
+    Object.keys(_MATURITY_LABELS).forEach(function (k) {
+      var val = ms[k] || 0;
+      var max = _MATURITY_MAX[k] || 10;
+      var pct = Math.round((val / max) * 100);
+      var chipCor = val >= max ? '#22C55E' : val > 0 ? '#F59E0B' : '#444';
+      html += '<div class="saleia-maturity-chip" style="border-color:' + chipCor + ';color:' + chipCor + '" title="' + _MATURITY_LABELS[k] + ': ' + val + '/' + max + '">' +
+              escaparHtml(_MATURITY_LABELS[k]) + (val > 0 ? ' ✓' : '') + '</div>';
+    });
+    gridEl.innerHTML = html;
   }
 
   function animarAtualizacao() {

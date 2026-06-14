@@ -3,6 +3,60 @@
 
 ---
 
+## V.1.4.28 — Motor de Próxima Melhor Ação & Insight Consultivo
+> Data: 14/06/2026 | Feature Major
+
+### VISÃO GERAL
+Evolução do campo "Próxima fala" para um motor completo de condução consultiva da venda, combinando SPIN Selling, Sandler Enterprise Selling e Venda Desafiadora.
+
+### BACKEND — `agent/prompt_templates/agente_tempo_real.txt`
+- **`next_best_action`** (novo campo primário): substitui e expande `next_best_question`
+  - Campos: `type` (question|insight|warning|next_step), `category`, `title`, `message`, `objective`, `reason`, `expected_effect`, `risk_if_ignored`, `follow_up`, `confidence`
+- **`conversation_stage`**: classifica o estágio dominante da conversa (abertura | situacao | problema | implicacao | necessidade_solucao | qualificacao | proposta | compromisso)
+- **`kare_type`**: classifica a conta (keep | attain | recapture | expand)
+- **`maturity_score`**: novo score de maturidade da oportunidade (0-100), independente do Score de Compra
+  - 7 critérios: dor_identificada (0-20), impacto_quantificado (0-20), urgencia_identificada (0-15), budget_identificado (0-15), decisores_mapeados (0-10), valor_verbalizado_cliente (0-10), proximo_passo_claro (0-10)
+- **Matriz de decisão** (10 regras em ordem de prioridade): objeção ativa → alta maturidade → preço antes de valor → problema operacional com impacto estratégico → dor sem impacto → dor sem urgência → dor não identificada → decisor desconhecido → budget ausente → valor não verbalizado
+- **Insight Desafiador**: tipo `insight` para quando cliente foca em preço, trata problema como operacional, não percebe custo da inação ou avalia fornecedores como commodities
+- **DISC expandido**: exemplos de pergunta específicos por perfil (D/I/S/C) para cada regra da matriz
+- **`next_best_question`** mantido como alias de `next_best_action` para backward compat
+
+### BACKEND — `api/processador_tempo_real.py`
+- `_fallback_next_best_action()`: novo fallback completo para `next_best_action`
+- `_fallback_maturity()`: fallback para maturity_score zerado
+- `_nba_para_nbq()`: converte `next_best_action` → `next_best_question` para backward compat
+- `_normalizar_resposta_realtime()`: normaliza `next_best_action`, `maturity_score`, `conversation_stage`, `kare_type`
+- `_extrair_ultima_analise_memoria()`: propaga novos campos do cache
+
+### FRONTEND — `chrome-extension/content.js`
+- Sidebar renomeada: "PRÓXIMA MELHOR PERGUNTA" → "PRÓXIMA MELHOR AÇÃO"
+- Novo bloco **Stage + KARE**: badges de estágio da conversa e tipo KARE com cores por contexto
+- Novo bloco **Maturity Score**: grid de chips coloridos (verde=completo, amarelo=parcial, cinza=ausente) com total 0-100
+- `renderizarNBQ()` atualizado para `next_best_action`:
+  - Ícone do tipo (❓ pergunta / 💡 insight / ⚠️ alerta / ▶️ próx.passo)
+  - Título + objetivo em linha
+  - Mensagem principal com botão copiar
+  - Motivo (por que agora)
+  - Risco se ignorado (em laranja)
+  - Follow-up (em cinza itálico)
+  - Confiança como percentual colorido (verde/amarelo/cinza)
+- Novo `renderizarStageKare()`: badges de estágio e KARE no topo da sidebar
+- Novo `renderizarMaturity()`: grid de maturidade
+
+### FRONTEND — `chrome-extension/content.css`
+- Estilos para `.saleia-stage-kare`, `.saleia-stage-badge`, `.saleia-kare-badge`
+- Estilos para `.saleia-nbq-type`, `.saleia-nbq-risco`, `.saleia-nbq-followup`
+- Estilos para `.saleia-maturity-box`, `.saleia-maturity-grid`, `.saleia-maturity-chip`
+
+### ARQUIVOS ALTERADOS
+- `agent/prompt_templates/agente_tempo_real.txt` (reescrito)
+- `api/processador_tempo_real.py`
+- `chrome-extension/content.js`
+- `chrome-extension/content.css`
+- `api/main.py` (versão 1.4.26 → 1.4.28)
+
+---
+
 ## V.1.4.27 — Fix: logo quebrada na tela de login + estabilidade VPS
 > Data: 14/06/2026 | Fix / Infra
 
