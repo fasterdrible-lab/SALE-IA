@@ -3,6 +3,30 @@
 
 ---
 
+## V.1.4.27 — Fix: logo quebrada na tela de login + estabilidade VPS
+> Data: 14/06/2026 | Fix / Infra
+
+### PROBLEMA 1 — 502 Bad Gateway em api.saleia.app.br
+Workers uvicorn entraram em estado zumbi após ~2,5 dias de uptime: aceitavam conexão TCP mas retornavam empty reply. O loop de métricas SQLite (`metricas_historico.py`) falhava a cada 60s com `unable to open database file`, contribuindo para a degradação.
+
+**Correção:**
+- `systemctl restart saleia` restaurou o serviço
+- Adicionado `RuntimeMaxSec=86400` em `/etc/systemd/system/saleia.service` para reinício automático diário, prevenindo recorrência
+
+### PROBLEMA 2 — Logo quebrada na tela de login
+`<img src="/logo-saleia.png">` referenciava caminho não servido pelo nginx (apenas `/static/` está configurado como alias para o filesystem).
+
+**Correção:**
+- `frontend/login.html`: src alterado para `/static/logo-saleia.png`
+- Criado diretório `frontend/static/` e adicionado `logo-saleia.png`
+- Arquivo deployado em `/opt/saleia/frontend/static/logo-saleia.png` na VPS
+
+### ARQUIVOS ALTERADOS
+- `frontend/login.html` (src do logo corrigido)
+- `frontend/static/logo-saleia.png` (novo)
+
+---
+
 ## V.1.4.26 — Campo de chave OPENAI_API_KEY no card OpenAI Whisper
 > Data: 09/06/2026 | Feature
 
