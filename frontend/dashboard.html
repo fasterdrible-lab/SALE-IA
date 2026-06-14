@@ -1092,6 +1092,7 @@
           <h2 id="det-titulo" style="margin:0">Reunião</h2>
         </div>
         <div id="det-conteudo"></div>
+        <div id="followup-section" style="margin-top:16px"></div>
       </div>
 
       <!-- SESSÕES AO VIVO -->
@@ -2995,6 +2996,110 @@
     }
   }
 
+  /* ─── Follow-up ─────────────────────────────────── */
+  const _fuCanalIcon = { whatsapp:'💬', email:'✉️', linkedin:'🔗' };
+  const _fuCanalLabel = { whatsapp:'WhatsApp', email:'E-mail', linkedin:'LinkedIn' };
+  const _fuPriCor = { alta:'#2dd4bf', media:'#fbbf24', baixa:'#9D9BB8' };
+
+  async function abrirFollowup(meetingId) {
+    const sec = document.getElementById('followup-section');
+    sec.innerHTML = '<div style="color:var(--muted);padding:12px">Gerando follow-ups com IA...</div>';
+    try {
+      const r = await fetchJsonWithFallback(`/relatorios/${encodeURIComponent(meetingId)}/followups/gerar`, { method: 'POST' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+      renderizarFollowups(sec, d.followups || []);
+    } catch (e) {
+      sec.innerHTML = `<div style="color:#f87171;padding:12px">Erro ao gerar follow-ups: ${escHtml(e.message)}</div>`;
+    }
+  }
+
+  async function carregarFollowupsExistentes(meetingId) {
+    const sec = document.getElementById('followup-section');
+    try {
+      const r = await fetchJsonWithFallback(`/relatorios/${encodeURIComponent(meetingId)}/followups`);
+      if (!r.ok) return;
+      const d = await r.json();
+      if ((d.followups || []).length) renderizarFollowups(sec, d.followups);
+    } catch (e) { /* silencioso */ }
+  }
+
+  function renderizarFollowups(container, followups) {
+    if (!followups.length) {
+      container.innerHTML = '';
+      return;
+    }
+    let html = `<div class="info-card" style="margin-top:0">
+      <h3 style="margin-bottom:12px">📩 Follow-up Inteligente</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px">`;
+
+    followups.forEach(fu => {
+      const icon  = _fuCanalIcon[fu.canal] || '📨';
+      const label = _fuCanalLabel[fu.canal] || fu.canal;
+      const priCor = _fuPriCor[fu.prioridade] || '#666';
+      const statusCor = fu.status === 'enviado' ? '#22c55e' : fu.status === 'descartado' ? '#666' : '#fbbf24';
+      const statusLabel = { pendente:'Pendente', enviado:'✅ Enviado', descartado:'Descartado' }[fu.status] || fu.status;
+      const diasText = fu.dias_apos === 1 ? 'amanhã' : `em ${fu.dias_apos} dias`;
+
+      html += `<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-weight:700;font-size:.9rem">${icon} ${label}</span>
+          <span style="font-size:.72rem;color:${statusCor};border:1px solid ${statusCor};padding:1px 7px;border-radius:4px">${statusLabel}</span>
+        </div>
+        ${fu.assunto ? `<div style="font-size:.78rem;color:var(--muted)">Assunto: <b style="color:var(--text)">${escHtml(fu.assunto)}</b></div>` : ''}
+        <div style="font-size:.82rem;color:#cbd5e1;line-height:1.55;white-space:pre-wrap;max-height:120px;overflow-y:auto">${escHtml(fu.mensagem)}</div>
+        ${fu.call_to_action ? `<div style="font-size:.78rem;color:var(--gold);font-style:italic">${escHtml(fu.call_to_action)}</div>` : ''}
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px">
+          <span style="font-size:.72rem;color:${priCor};border:1px solid ${priCor};padding:1px 6px;border-radius:4px">● ${diasText}</span>
+          <div style="margin-left:auto;display:flex;gap:5px">
+            <button onclick="copiarFollowup(this,'${escHtml(fu.id)}')" style="padding:3px 8px;font-size:.72rem;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:4px;cursor:pointer">📋 Copiar</button>
+            ${fu.status !== 'enviado' ? `<button onclick="marcarEnviado('${escHtml(fu.id)}',this)" style="padding:3px 8px;font-size:.72rem;background:transparent;border:1px solid #22c55e;color:#22c55e;border-radius:4px;cursor:pointer">✓ Enviado</button>` : ''}
+            <button onclick="deletarFollowup('${escHtml(fu.id)}',this)" style="padding:3px 8px;font-size:.72rem;background:transparent;border:1px solid #f87171;color:#f87171;border-radius:4px;cursor:pointer">✕</button>
+          </div>
+        </div>
+      </div>`;
+    });
+
+    html += `</div></div>`;
+    container.innerHTML = html;
+  }
+
+  async function copiarFollowup(btn, fuId) {
+    // busca o texto da mensagem do card (pai do pai do pai do btn)
+    const card = btn.closest('[style*="border-radius:8px"]');
+    const texto = card?.querySelector('[style*="pre-wrap"]')?.textContent || '';
+    try {
+      await navigator.clipboard.writeText(texto);
+      const orig = btn.textContent;
+      btn.textContent = '✓ Copiado';
+      setTimeout(() => { btn.textContent = orig; }, 1500);
+    } catch (e) { alert('Não foi possível copiar.'); }
+  }
+
+  async function marcarEnviado(fuId, btn) {
+    try {
+      const r = await fetchJsonWithFallback(`/followups/${encodeURIComponent(fuId)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'enviado' }),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      // re-renderiza substituindo o status no card
+      btn.closest('[style*="border-radius:8px"]').querySelector('[style*="statusCor"]') ;
+      const statusSpan = btn.closest('[style*="border-radius:8px"]').querySelector('span[style*="fbbf24"]');
+      if (statusSpan) { statusSpan.textContent = '✅ Enviado'; statusSpan.style.color='#22c55e'; statusSpan.style.borderColor='#22c55e'; }
+      btn.remove();
+    } catch (e) { alert('Erro: ' + e.message); }
+  }
+
+  async function deletarFollowup(fuId, btn) {
+    if (!window.confirm('Remover este follow-up?')) return;
+    try {
+      const r = await fetchJsonWithFallback(`/followups/${encodeURIComponent(fuId)}`, { method: 'DELETE' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      btn.closest('[style*="border-radius:8px"]').remove();
+    } catch (e) { alert('Erro: ' + e.message); }
+  }
+
   /* ─── Clientes ──────────────────────────────────── */
   let _clientesCache = [];
   let _clienteAtual  = null;
@@ -3394,12 +3499,14 @@
     // Botão vincular ao cliente
     const midDetalhe = r.meeting_id || r.id || '';
     if (midDetalhe) {
-      html += `<div style="margin-top:16px;text-align:right">
+      html += `<div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
         <button onclick="vincularDetalheAoCliente('${escHtml(midDetalhe)}','${escHtml(r.titulo||r.nome_reuniao||'')}')" style="padding:6px 14px;font-size:.82rem;background:transparent;border:1px solid #2dd4bf;color:#2dd4bf;border-radius:6px;cursor:pointer">🔗 Vincular ao Cliente</button>
+        <button onclick="abrirFollowup('${escHtml(midDetalhe)}')" style="padding:6px 14px;font-size:.82rem;background:transparent;border:1px solid var(--gold);color:var(--gold);border-radius:6px;cursor:pointer">📩 Follow-up</button>
       </div>`;
     }
 
     document.getElementById('det-conteudo').innerHTML = html;
+    if (midDetalhe) carregarFollowupsExistentes(midDetalhe);
   }
 
   async function vincularDetalheAoCliente(meetingId, titulo) {

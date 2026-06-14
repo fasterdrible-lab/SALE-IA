@@ -3,6 +3,52 @@
 
 ---
 
+## V.1.4.37 — Sales Brain Fase 6: Follow-up Inteligente (T6.1 + T6.2 + T6.3)
+> Data: 14/06/2026 | Feature (SALEIA Sales Brain — Fase 6)
+
+### VISÃO
+Geração automática de mensagens de follow-up para 3 canais (WhatsApp, Email, LinkedIn), adaptadas ao perfil DISC do cliente, com agenda inteligente baseada no score de compra. Botão "📩 Follow-up" integrado à página de detalhe de cada reunião.
+
+### BACKEND — `agent/followup_generator.py` (novo arquivo)
+
+**T6.1 — Follow-up Generator:**
+- `criar_tabela_followups()`: tabela MySQL `followups` (id, meeting_id, client_id, canal, assunto, mensagem, call_to_action, tom, disc_profile, score, dias_apos, agendado_para, status)
+- `gerar_followups()`: 1 chamada IA gera mensagens para os 3 canais adaptadas ao DISC
+- `gerar_e_salvar_followups()`: orquestra IA + agenda + persistência MySQL; retorna lista de follow-ups
+
+**T6.2 — Estratégia por Perfil:**
+- Prompt `followup_generator.txt` com regras por DISC: D=curto/direto, I=entusiasmado/social proof, S=caloroso/sem pressão, C=dados/critérios
+- Regras por canal: WhatsApp=informal/5 linhas, Email=profissional/3 parágrafos, LinkedIn=breve/sem venda direta
+
+**T6.3 — Agenda Inteligente:**
+- `agenda_inteligente(score)`: retorna timings adaptados ao score
+  - Score 65+: 1 dia (WhatsApp), 4 dias (Email), 10 dias (LinkedIn)
+  - Score 35-65: 3 dias (WhatsApp), 7 dias (Email), 15 dias (LinkedIn)
+  - Score <35: 2 dias (WhatsApp), 5 dias (Email), 14 dias (LinkedIn)
+- CRUD: `listar_followups()`, `obter_followup()`, `atualizar_followup()`, `deletar_followup()`
+
+### BACKEND — `agent/prompt_templates/followup_generator.txt` (novo arquivo)
+- Injeta: nome_cliente, disc_profile, score, resumo, dores, proximos_passos
+- Retorna JSON com `whatsapp`, `email`, `linkedin` (mensagem, assunto, call_to_action, tom)
+
+### BACKEND — `api/main.py`
+- Startup: `criar_tabela_followups()`
+- `POST /relatorios/{meeting_id}/followups/gerar` — lê memória da reunião (score, DISC, dores, resumo), verifica cliente vinculado, chama gerador IA
+- `GET /relatorios/{meeting_id}/followups` — lista follow-ups da reunião
+- `PATCH /followups/{id}` — edição de mensagem ou status (pendente/enviado/descartado)
+- `DELETE /followups/{id}` — remoção
+- Versão: `1.4.36` → `1.4.37`
+
+### FRONTEND — `frontend/dashboard.html`
+- Botão "📩 Follow-up" na página de detalhe de reunião (ao lado de "🔗 Vincular ao Cliente")
+- `<div id="followup-section">` na página de detalhe — carrega follow-ups existentes automaticamente ao abrir
+- Seção "📩 Follow-up Inteligente": grid de cards por canal com ícone, assunto, mensagem, CTA, timing colorido por prioridade
+- Funções JS: `abrirFollowup()`, `carregarFollowupsExistentes()`, `renderizarFollowups()`, `copiarFollowup()`, `marcarEnviado()`, `deletarFollowup()`
+- Copy to clipboard nativo via `navigator.clipboard`
+- Badge de status (pendente/enviado/descartado) com cores
+
+---
+
 ## V.1.4.36 — Sales Brain Fase 5: Multiagent Sales System (T5.1–T5.5)
 > Data: 14/06/2026 | Feature (SALEIA Sales Brain — Fase 5)
 

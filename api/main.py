@@ -100,7 +100,7 @@ class _CorrelationMiddleware(BaseHTTPMiddleware):
 app = FastAPI(
     title="SALEIA — Assistente de Vendas IA",
     description="Backend para o assistente de vendas em tempo real no Google Meet",
-    version="1.4.36",
+    version="1.4.37",
 )
 
 app.add_middleware(_CorrelationMiddleware)
@@ -215,6 +215,11 @@ async def on_startup():
         criar_tabelas_clientes()
     except Exception as e:
         logger.warning("Tabelas de clientes não criadas: %s", e)
+    try:
+        from agent.followup_generator import criar_tabela_followups
+        criar_tabela_followups()
+    except Exception as e:
+        logger.warning("Tabela followups não criada: %s", e)
     try:
         from api.metricas_historico import criar_tabela_metricas, criar_tabela_teste_provedores
         criar_tabela_metricas()
@@ -1328,6 +1333,139 @@ def listar_relatorios_endpoint():
             except Exception:
                 continue
         return {"total": len(relatorios), "fonte": "arquivos", "relatorios": relatorios}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ─────────────────────────────────────────────
+# FOLLOW-UPS (Fase 6)
+# ─────────────────────────────────────────────
+
+@app.post("/relatorios/{meeting_id}/followups/gerar")
+def gerar_followups_reuniao(
+    meeting_id: str,
+    authorization: str | None = Header(default=None),
+):
+    """Gera follow-ups para os 3 canais (WhatsApp, Email, LinkedIn) com agenda inteligente."""
+    _req_auth(authorization)
+    try:
+        from agent.followup_generator import gerar_e_salvar_followups
+        from api.database import obter_meeting_memory
+
+        mem = obter_meeting_memory(meeting_id) or {}
+
+        # Extrai score
+        score = 0
+        try:
+            hist = json.loads(mem.get("score_history_json") or "[]")
+            if hist:
+                last = hist[-1]
+                score = int(last.get("valor") or last.get("score") or 0)
+        except Exception:
+            pass
+
+        # Extrai DISC e dores do current_diagnosis
+        disc_profile = ""
+        dores: list = []
+        proximos_passos: list = []
+        try:
+            diag = mem.get("current_diagnosis") or "{}"
+            if isinstance(diag, str):
+                diag = json.loads(diag)
+            if isinstance(diag, dict):
+                disc_profile = (
+                    diag.get("perfil_disc", {}) or {}
+                ).get("tipo", "") or ""
+                fc = diag.get("filtro_cliente") or {}
+                dores = fc.get("dores_e_travas") or []
+                ps = diag.get("proxima_acao") or ""
+                if ps:
+                    proximos_passos = [ps]
+        except Exception:
+            pass
+
+        resumo = mem.get("accumulated_summary") or ""
+
+        # Tenta buscar nome do cliente vinculado
+        nome_cliente = ""
+        client_id = None
+        try:
+            from agent.client_intelligence import buscar_cliente_por_reuniao, obter_cliente
+            client_id = buscar_cliente_por_reuniao(meeting_id)
+            if client_id:
+                cli = obter_cliente(client_id)
+                if cli:
+                    nome_cliente = cli.get("empresa") or cli.get("nome") or ""
+        except Exception:
+            pass
+
+        followups = gerar_e_salvar_followups(
+            meeting_id=meeting_id,
+            disc_profile=disc_profile,
+            score=score,
+            resumo=resumo,
+            dores=dores if isinstance(dores, list) else [],
+            proximos_passos=proximos_passos,
+            nome_cliente=nome_cliente,
+            client_id=client_id,
+        )
+        return {"meeting_id": meeting_id, "total": len(followups), "followups": followups}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/relatorios/{meeting_id}/followups")
+def listar_followups_reuniao(
+    meeting_id: str,
+    authorization: str | None = Header(default=None),
+):
+    """Lista todos os follow-ups de uma reunião."""
+    _req_auth(authorization)
+    try:
+        from agent.followup_generator import listar_followups
+        items = listar_followups(meeting_id)
+        return {"meeting_id": meeting_id, "total": len(items), "followups": items}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.patch("/followups/{fid}")
+def atualizar_followup_endpoint(
+    fid: str,
+    body: dict,
+    authorization: str | None = Header(default=None),
+):
+    """Atualiza mensagem ou status de um follow-up."""
+    _req_auth(authorization)
+    try:
+        from agent.followup_generator import atualizar_followup
+        updated = atualizar_followup(fid, **body)
+        if not updated:
+            raise HTTPException(status_code=404, detail="Follow-up não encontrado")
+        return updated
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/followups/{fid}")
+def deletar_followup_endpoint(
+    fid: str,
+    authorization: str | None = Header(default=None),
+):
+    """Remove um follow-up."""
+    _req_auth(authorization)
+    try:
+        from agent.followup_generator import deletar_followup
+        ok = deletar_followup(fid)
+        if not ok:
+            raise HTTPException(status_code=404, detail="Follow-up não encontrado")
+        return {"ok": True}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
