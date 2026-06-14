@@ -39,6 +39,7 @@ class SmokeSuite(unittest.TestCase):
             "agent.sessao_manager.criar_tabela_sessoes",
             "agent.sessao_manager.criar_tabela_usuarios",
             "agent.visual_scenario.criar_tabela_visual_scenarios",
+            "agent.sales_memory.criar_tabela_sales_memories",
         ):
             try:
                 p = patch(target)

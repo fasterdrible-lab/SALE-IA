@@ -3,6 +3,39 @@
 
 ---
 
+## V.1.4.29 — Sales Brain Fase 1 · Tarefa 1.1: Sales Memory (tabela + módulo)
+> Data: 14/06/2026 | Feature (SALEIA Sales Brain — Fase 1)
+
+### VISÃO
+Primeira entrega do SALEIA Sales Brain — infraestrutura de memória comercial persistente.
+Cada reunião passa a gerar aprendizados reutilizáveis que enriquecem futuras análises.
+
+### BACKEND — `agent/sales_memory.py` (novo arquivo)
+- Tabela `sales_memories` criada via `criar_tabela_sales_memories()` no startup
+- 8 tipos de memória: `objection`, `pain_point`, `buying_signal`, `closing_signal`, `discovery_pattern`, `disc_pattern`, `financial_pattern`, `playbook_insight`
+- `salvar_memoria()` — persiste um aprendizado com validação de tipo, UUID automático, tags JSON
+- `salvar_memorias_em_lote()` — pipeline de múltiplas memórias pós-reunião
+- `listar_memorias()` — filtros por tipo, reunião, organização, confidence mínimo, paginação
+- `buscar_por_reuniao()` — todas as memórias de uma reunião específica
+- `contar_por_tipo()` — estatísticas de memória agrupadas
+- `atualizar_memoria()` / `deletar_memoria()` — gestão CRUD completa
+- Índices: `memory_type`, `source_meeting_id`, `organization_id+memory_type`, `created_at`
+- Padrão de conexão idêntico ao restante do projeto (pymysql direto, sem ORM)
+
+### BACKEND — `api/main.py`
+- Startup chama `criar_tabela_sales_memories()` na sequência de migrações
+- Versão: `1.4.28` → `1.4.29`
+
+### TESTES — `tests/test_smoke.py`
+- `agent.sales_memory.criar_tabela_sales_memories` adicionado ao patch list do smoke suite
+
+### ARQUIVOS ALTERADOS
+- `agent/sales_memory.py` (novo)
+- `api/main.py` (startup + versão)
+- `tests/test_smoke.py` (patch list)
+
+---
+
 ## V.1.4.28 — Motor de Próxima Melhor Ação & Insight Consultivo
 > Data: 14/06/2026 | Feature Major
 

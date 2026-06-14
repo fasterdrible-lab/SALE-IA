@@ -100,7 +100,7 @@ class _CorrelationMiddleware(BaseHTTPMiddleware):
 app = FastAPI(
     title="SALEIA — Assistente de Vendas IA",
     description="Backend para o assistente de vendas em tempo real no Google Meet",
-    version="1.4.28",
+    version="1.4.29",
 )
 
 app.add_middleware(_CorrelationMiddleware)
@@ -194,6 +194,11 @@ async def on_startup():
         criar_tabela_visual_scenarios()
     except Exception as e:
         logger.warning("Tabela visual_scenarios não criada: %s", e)
+    try:
+        from agent.sales_memory import criar_tabela_sales_memories
+        criar_tabela_sales_memories()
+    except Exception as e:
+        logger.warning("Tabela sales_memories não criada: %s", e)
     try:
         from api.metricas_historico import criar_tabela_metricas, criar_tabela_teste_provedores
         criar_tabela_metricas()
@@ -464,7 +469,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.28",
+        "versao":              "1.4.29",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -502,7 +507,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.28",
+        "versao":          "1.4.29",
         "timestamp":       datetime.now().isoformat(),
     }
 
