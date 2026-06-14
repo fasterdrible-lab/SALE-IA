@@ -575,7 +575,6 @@ async def analyzeRealtimeMeeting(
     meeting_id: str = "default",
     transcricao_nova: str = "",
 ) -> dict:
-    from agent.agente_tempo_real import analisar_fragmento
     from api.database import (
         obter_meeting_memory,
         registrar_analise_meeting,
@@ -627,8 +626,42 @@ async def analyzeRealtimeMeeting(
         elif isinstance(raw_diagnostico, dict):
             diagnostico_atual = dict(raw_diagnostico)
 
+    # Resolve skill e client context (injetados no multiagente)
+    skill_context = ""
     try:
-        resultado = await analisar_fragmento(
+        from agent.skill_resolver import resolver_skill_context
+        ultimo_score = 50.0
+        ultimo_stage = "abertura"
+        if memoria_atual:
+            scores_hist = json.loads(memoria_atual.get("score_history_json") or "[]")
+            if scores_hist:
+                last = scores_hist[-1]
+                ultimo_score = float(last.get("valor") or last.get("score") or 50)
+            diag_raw = memoria_atual.get("current_diagnosis") or "{}"
+            if isinstance(diag_raw, str):
+                try:
+                    diag_raw = json.loads(diag_raw)
+                except Exception:
+                    diag_raw = {}
+            ultimo_stage = (diag_raw if isinstance(diag_raw, dict) else {}).get("conversation_stage") or "abertura"
+        skill_context = resolver_skill_context(
+            disc_profile=perfil_disc_atual or "",
+            score=ultimo_score,
+            conversation_stage=ultimo_stage,
+        )
+    except Exception as _se:
+        logger.debug("[Skills] Nao foi possivel resolver skill: %s", _se)
+
+    client_context = ""
+    try:
+        from agent.client_intelligence import buscar_resumo_cliente_para_reuniao
+        client_context = buscar_resumo_cliente_para_reuniao(meeting_id)
+    except Exception as _ce:
+        logger.debug("[Clientes] Nao foi possivel buscar contexto do cliente: %s", _ce)
+
+    try:
+        from agent.multiagente.orquestrador import analisar_fragmento_multi
+        resultado = await analisar_fragmento_multi(
             transcricao_parcial=_limitar_contexto_ia(transcricao_parcial),
             historico=_limitar_contexto_ia(historico or "Inicio da conversa"),
             perfil_disc_atual=perfil_disc_atual or "Ainda nao identificado",
@@ -637,6 +670,8 @@ async def analyzeRealtimeMeeting(
             diagnostico_atual=diagnostico_atual or {},
             historico_scores=(memoria_atual or {}).get("score_history") or [],
             eventos=(memoria_atual or {}).get("events") or [],
+            skill_context=skill_context,
+            client_context=client_context,
         )
     except Exception as _e:
         logger.exception("[TempoReal] Falha ao analisar fragmento: %s", _e)

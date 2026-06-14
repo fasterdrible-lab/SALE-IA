@@ -3,6 +3,65 @@
 
 ---
 
+## V.1.4.36 — Sales Brain Fase 5: Multiagent Sales System (T5.1–T5.5)
+> Data: 14/06/2026 | Feature (SALEIA Sales Brain — Fase 5)
+
+### VISÃO
+Substituição do agente único por 4 agentes especializados rodando em paralelo via `asyncio.gather`. Cada agente recebe somente o contexto relevante, responde em JSON focado e o orquestrador consolida no mesmo schema da extensão Chrome — sem quebrar backward compat.
+
+### ARQUITETURA
+```
+Transcrição
+↓
+Coach + DISC + Finance + Closer  (asyncio.gather — paralelo)
+↓
+Orquestrador → consolida → JSON unificado → Sidebar
+```
+
+### BACKEND — `agent/multiagente/` (diretório novo)
+
+**`coach_agent.py`** (T5.1)
+- Responsável: condução, rapport, estágio da conversa, next_best_action, alertas, key_moments, filtro_cliente
+- Recebe: transcricao, historico, resumo_vivo, diagnostico, eventos, skill_context, client_context
+- Retorna: conversation_stage, next_best_action, alerta_urgente, dica_vendedor, key_moments, eventos, filtro_cliente, texto_falavel
+
+**`disc_agent.py`** (T5.2)
+- Responsável: perfil comportamental DISC, tipo de conta KARE, temperatura emocional
+- Recebe: transcricao, historico, perfil_disc_atual, diagnostico
+- Retorna: perfil_disc, kare_type, temperatura
+
+**`finance_agent.py`** (T5.3)
+- Responsável: capacidade financeira, potencial de compra, objeção de preço, produto recomendado
+- Recebe: transcricao, historico, mapa_financeiro
+- Retorna: mapa_financeiro, objecao_detectada
+
+**`closer_agent.py`** (T5.4)
+- Responsável: score de compra, maturity_score, resumo vivo, diagnóstico atual, próximos passos
+- Recebe: transcricao, resumo_vivo, historico_scores, diagnostico
+- Retorna: score_compra, maturity_score, resumo_vivo, current_diagnosis, proxima_acao
+
+**`orquestrador.py`** (T5.5)
+- `analisar_fragmento_multi()`: busca RAG uma vez, dispara 4 agentes com `asyncio.gather(return_exceptions=True)`, consolida com `_mesclar()`
+- Falhas individuais degradam graciosamente — agente que falha usa fallback sem parar os outros
+- `_nba_para_nbq()`: gera alias `next_best_question` a partir do `next_best_action` do Coach
+- `_safe()`: desempacota resultado ou retorna `{}` se Exception
+
+### BACKEND — `agent/prompt_templates/`
+- `multiagente_coach.txt`: estágio SPIN + matriz de decisão next_best_action (10 cenários prioritizados)
+- `multiagente_disc.txt`: classificação DISC + KARE + temperatura emocional
+- `multiagente_finance.txt`: extração de sinais financeiros + produto recomendado
+- `multiagente_closer.txt`: regras de score_compra + maturity_score (7 critérios)
+
+### BACKEND — `api/processador_tempo_real.py`
+- `analyzeRealtimeMeeting()` agora resolve skill_context + client_context (antes estavam só na função legada)
+- Substitui `analisar_fragmento()` por `analisar_fragmento_multi()` do orquestrador
+- Remove import `analisar_fragmento` desnecessário
+
+### BACKEND — `api/main.py`
+- Versão: `1.4.35` → `1.4.36`
+
+---
+
 ## V.1.4.35 — Sales Brain Fase 4: Client Intelligence (T4.1 + T4.2 + T4.3)
 > Data: 14/06/2026 | Feature (SALEIA Sales Brain — Fase 4)
 
