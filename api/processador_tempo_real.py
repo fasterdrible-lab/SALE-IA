@@ -382,12 +382,21 @@ async def processar_fragmento_tempo_real(
     except Exception as _se:
         logger.debug("[Skills] Não foi possível resolver skill: %s", _se)
 
+    # Contexto do cliente vinculado (T4.3)
+    client_context = ""
+    try:
+        from agent.client_intelligence import buscar_resumo_cliente_para_reuniao
+        client_context = buscar_resumo_cliente_para_reuniao(meeting_id)
+    except Exception as _ce:
+        logger.debug("[Clientes] Não foi possível buscar contexto do cliente: %s", _ce)
+
     resultado = await analisar_fragmento(
         transcricao_parcial=transcricao_parcial,
         historico=historico or "Início da conversa",
         perfil_disc_atual=perfil_disc_atual or "Ainda não identificado",
         mapa_financeiro=cache["mapa_financeiro"] if cache["mapa_financeiro"] else None,
         skill_context=skill_context,
+        client_context=client_context,
     )
 
     # Persistir transcrição e análise no MySQL para revisão posterior

@@ -3,6 +3,49 @@
 
 ---
 
+## V.1.4.35 — Sales Brain Fase 4: Client Intelligence (T4.1 + T4.2 + T4.3)
+> Data: 14/06/2026 | Feature (SALEIA Sales Brain — Fase 4)
+
+### VISÃO
+Perfis acumulativos por cliente: histórico de reuniões, enriquecimento automático de objeções/dores/DISC, contexto do cliente injetado no prompt em tempo real. Dashboard com timeline comercial.
+
+### BACKEND — `agent/client_intelligence.py` (novo arquivo)
+- Tabelas MySQL: `client_profiles` (perfil completo, listas JSON de objeções/dores, stats agregados) e `client_meetings` (vínculo reunião↔cliente com UNIQUE KEY)
+- `criar_tabelas_clientes()`, `criar_cliente()`, `obter_cliente()` (inclui lista `reunioes`), `listar_clientes(busca, status, limit, offset)`, `atualizar_cliente()`, `deletar_cliente()` (cascade)
+- `vincular_reuniao(client_id, meeting_id, titulo, score, data)` — upsert + `_recalcular_stats()` (score_medio, ultimo_score, total_reunioes)
+- `desvincular_reuniao()`, `obter_timeline(client_id)`
+- `buscar_cliente_por_reuniao(meeting_id)` → client_id | None
+- `buscar_resumo_cliente_para_reuniao(meeting_id)` → bloco `[CONTEXTO DO CLIENTE]` para injeção no prompt
+- `enriquecer_perfil_apos_relatorio()` — merge de novas objeções/dores/DISC após recapitulação
+
+### BACKEND — `agent/agente_tempo_real.py`
+- `analisar_fragmento()` ganha parâmetro `client_context: str = ""`
+- Client context injetado no prompt antes da skill context: `contexto_str + client_context + skill_context`
+
+### BACKEND — `api/processador_tempo_real.py`
+- Antes de `analisar_fragmento()`: chama `buscar_resumo_cliente_para_reuniao(meeting_id)`, passa para `analisar_fragmento()` como `client_context`
+
+### BACKEND — `api/main.py`
+- Startup: `criar_tabelas_clientes()`
+- `GET /clientes` — lista com busca e filtro por status
+- `POST /clientes` — criação de perfil
+- `GET /clientes/{id}` — perfil com lista de reuniões vinculadas
+- `PATCH /clientes/{id}` — atualização parcial (notas, status, DISC, etc.)
+- `DELETE /clientes/{id}` — remoção com cascade
+- `POST /clientes/{id}/reunioes` — vínculo reunião↔cliente
+- `DELETE /clientes/{id}/reunioes/{meeting_id}` — desvínculo
+- `GET /clientes/por-reuniao/{meeting_id}` — busca rápida por meeting_id
+- Versão: `1.4.34` → `1.4.35`
+
+### FRONTEND — `frontend/dashboard.html`
+- Nav item "👤 Clientes" (após Playbooks)
+- Página `page-clientes`: métricas (total, ativos, ganhos, score médio), busca, filtro por status, grid de cards
+- Página `page-cliente-detalhe`: timeline de reuniões com score visual, objeções e dores recorrentes, notas, seletor de status, botões Notas e Vincular Reunião
+- Funções JS: `carregarClientes()`, `filtrarClientes()`, `renderizarClientes()`, `cardClienteHTML()`, `verClienteDetalhe()`, `voltarParaClientes()`, `renderClienteDetalhe()`, `alterarStatusCliente()`, `editarNotasCliente()`, `vincularReuniaoAoCliente()`, `desvinculaReuniaoCliente()`, `abrirNovoCliente()`
+- Botão "🔗 Vincular ao Cliente" em toda página de detalhe de reunião com seleção de cliente existente ou criação inline
+
+---
+
 ## V.1.4.34 — Sales Brain Fase 3: Sales Skills (T3.1 + T3.2 + T3.3)
 > Data: 14/06/2026 | Feature (SALEIA Sales Brain — Fase 3)
 

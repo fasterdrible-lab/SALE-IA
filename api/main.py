@@ -100,7 +100,7 @@ class _CorrelationMiddleware(BaseHTTPMiddleware):
 app = FastAPI(
     title="SALEIA — Assistente de Vendas IA",
     description="Backend para o assistente de vendas em tempo real no Google Meet",
-    version="1.4.34",
+    version="1.4.35",
 )
 
 app.add_middleware(_CorrelationMiddleware)
@@ -210,6 +210,11 @@ async def on_startup():
         criar_tabela_skills()
     except Exception as e:
         logger.warning("Tabela skills não criada: %s", e)
+    try:
+        from agent.client_intelligence import criar_tabelas_clientes
+        criar_tabelas_clientes()
+    except Exception as e:
+        logger.warning("Tabelas de clientes não criadas: %s", e)
     try:
         from api.metricas_historico import criar_tabela_metricas, criar_tabela_teste_provedores
         criar_tabela_metricas()
@@ -481,7 +486,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.34",
+        "versao":              "1.4.35",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -519,7 +524,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.34",
+        "versao":          "1.4.35",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -989,6 +994,159 @@ def gerar_playbook_manual_endpoint(
         from agent.playbook_generator import gerar_e_salvar_playbook
         background_tasks.add_task(gerar_e_salvar_playbook, relatorio, "", meeting_id)
         return {"status": "gerando", "meeting_id": meeting_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/clientes")
+def listar_clientes_endpoint(
+    busca: str = "",
+    status: str = "",
+    limit: int = 50,
+    offset: int = 0,
+    authorization: str | None = Header(default=None),
+):
+    """Lista perfis de clientes com filtro por nome/empresa/email e status."""
+    _req_auth(authorization)
+    try:
+        from agent.client_intelligence import listar_clientes
+        items = listar_clientes(busca=busca, status=status, limit=limit, offset=offset)
+        return {"total": len(items), "clientes": items}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/clientes")
+def criar_cliente_endpoint(body: dict, authorization: str | None = Header(default=None)):
+    """Cria um perfil de cliente."""
+    _req_auth(authorization)
+    nome = (body.get("nome") or "").strip()
+    if not nome:
+        raise HTTPException(status_code=400, detail="Campo 'nome' é obrigatório.")
+    try:
+        from agent.client_intelligence import criar_cliente
+        cid = criar_cliente(
+            nome=nome,
+            empresa=body.get("empresa") or "",
+            email=body.get("email") or "",
+            telefone=body.get("telefone") or "",
+            disc_profile=body.get("disc_profile") or "",
+            notas=body.get("notas") or "",
+        )
+        return {"id": cid, "nome": nome}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/clientes/{client_id}")
+def obter_cliente_endpoint(client_id: str, authorization: str | None = Header(default=None)):
+    """Retorna perfil completo do cliente com timeline."""
+    _req_auth(authorization)
+    try:
+        from agent.client_intelligence import obter_cliente
+        item = obter_cliente(client_id)
+        if not item:
+            raise HTTPException(status_code=404, detail="Cliente não encontrado.")
+        return item
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.patch("/clientes/{client_id}")
+def atualizar_cliente_endpoint(
+    client_id: str,
+    body: dict,
+    authorization: str | None = Header(default=None),
+):
+    """Atualiza campos do perfil do cliente."""
+    _req_auth(authorization)
+    try:
+        from agent.client_intelligence import atualizar_cliente
+        ok = atualizar_cliente(client_id, body)
+        if not ok:
+            raise HTTPException(status_code=404, detail="Cliente não encontrado ou sem campos válidos.")
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/clientes/{client_id}")
+def deletar_cliente_endpoint(client_id: str, authorization: str | None = Header(default=None)):
+    """Remove um cliente e todos os vínculos de reuniões."""
+    _req_admin(authorization)
+    try:
+        from agent.client_intelligence import deletar_cliente
+        ok = deletar_cliente(client_id)
+        if not ok:
+            raise HTTPException(status_code=404, detail="Cliente não encontrado.")
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/clientes/{client_id}/reunioes")
+def vincular_reuniao_endpoint(
+    client_id: str,
+    body: dict,
+    authorization: str | None = Header(default=None),
+):
+    """Vincula uma reunião ao cliente e atualiza as estatísticas."""
+    _req_auth(authorization)
+    meeting_id = (body.get("meeting_id") or "").strip()
+    if not meeting_id:
+        raise HTTPException(status_code=400, detail="Campo 'meeting_id' é obrigatório.")
+    try:
+        from agent.client_intelligence import vincular_reuniao
+        from datetime import datetime as _dt
+        data_str = body.get("data")
+        data = _dt.fromisoformat(data_str) if data_str else _dt.now()
+        ok = vincular_reuniao(
+            client_id=client_id,
+            meeting_id=meeting_id,
+            titulo=body.get("titulo") or "",
+            score=int(body.get("score") or 0),
+            data=data,
+        )
+        return {"ok": ok}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/clientes/{client_id}/reunioes/{meeting_id}")
+def desvincular_reuniao_endpoint(
+    client_id: str,
+    meeting_id: str,
+    authorization: str | None = Header(default=None),
+):
+    """Remove o vínculo de uma reunião com o cliente."""
+    _req_auth(authorization)
+    try:
+        from agent.client_intelligence import desvincular_reuniao
+        ok = desvincular_reuniao(client_id, meeting_id)
+        return {"ok": ok}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/clientes/por-reuniao/{meeting_id}")
+def cliente_por_reuniao_endpoint(
+    meeting_id: str,
+    authorization: str | None = Header(default=None),
+):
+    """Retorna o cliente vinculado a uma reunião, ou null."""
+    _req_auth(authorization)
+    try:
+        from agent.client_intelligence import buscar_cliente_por_reuniao, obter_cliente
+        cid = buscar_cliente_por_reuniao(meeting_id)
+        if not cid:
+            return {"cliente": None}
+        return {"cliente": obter_cliente(cid)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -1003,6 +1003,9 @@
       <button class="nav-item" data-page="playbooks" onclick="mostrarPagina('playbooks', this)">
         <span class="nav-icon">🎯</span><span class="nav-label">Playbooks</span>
       </button>
+      <button class="nav-item" data-page="clientes" onclick="mostrarPagina('clientes', this)">
+        <span class="nav-icon">👤</span><span class="nav-label">Clientes</span>
+      </button>
       <button class="nav-item" data-page="base" onclick="mostrarPagina('base', this)">
         <span class="nav-icon">📚</span><span class="nav-label">Base de IA</span>
       </button>
@@ -1366,6 +1369,44 @@
         </div>
       </div>
 
+      <!-- CLIENTES -->
+      <div class="page" id="page-clientes">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:20px">
+          <div>
+            <h2 style="margin:0">Clientes</h2>
+            <p style="color:var(--muted);font-size:.85rem;margin:4px 0 0">Perfis persistentes com histórico, DISC e timeline comercial.</p>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input type="text" id="cli-busca" placeholder="Buscar por nome ou empresa..." oninput="filtrarClientes()" style="padding:6px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.85rem;width:220px"/>
+            <select id="cli-status" onchange="filtrarClientes()" style="padding:6px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.85rem">
+              <option value="">Todos os status</option>
+              <option value="ativo">Ativo</option>
+              <option value="ganho">Ganho</option>
+              <option value="perdido">Perdido</option>
+              <option value="pausado">Pausado</option>
+            </select>
+            <button class="btn btn-secondary" onclick="abrirNovoCliente()">+ Novo Cliente</button>
+            <button class="btn" onclick="carregarClientes()">↻</button>
+          </div>
+        </div>
+        <div class="metrics" id="cli-metrics" style="margin-bottom:20px;display:none">
+          <div class="metric"><div class="metric-val" id="cli-m-total">–</div><div class="metric-lbl">Total</div></div>
+          <div class="metric"><div class="metric-val" id="cli-m-ativos">–</div><div class="metric-lbl">Ativos</div></div>
+          <div class="metric"><div class="metric-val" id="cli-m-ganhos">–</div><div class="metric-lbl">Ganhos</div></div>
+          <div class="metric"><div class="metric-val" id="cli-m-score">–</div><div class="metric-lbl">Score médio</div></div>
+        </div>
+        <div id="cli-lista"><div style="color:var(--muted)">Carregando...</div></div>
+      </div>
+
+      <!-- DETALHE CLIENTE -->
+      <div class="page" id="page-cliente-detalhe">
+        <div class="detalhe-header">
+          <button class="back-btn" onclick="voltarParaClientes()">← Voltar</button>
+          <h2 id="cd-nome" style="margin:0">Cliente</h2>
+        </div>
+        <div id="cd-conteudo"></div>
+      </div>
+
       <!-- MONITOR -->
       <div class="page" id="page-monitor">
         <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:20px">
@@ -1616,6 +1657,7 @@
     if (nome === 'base')          { carregarBase(); initDropzone(); }
     if (nome === 'historico')     carregarHistorico();
     if (nome === 'playbooks')     { carregarPlaybooks(); carregarSkills(); }
+    if (nome === 'clientes')     carregarClientes();
     if (nome === 'monitor')       _iniciarMonitor();
     if (nome === 'configuracoes') {
       // reset lazy-load flags so sections reload fresh data on next open
@@ -2953,6 +2995,246 @@
     }
   }
 
+  /* ─── Clientes ──────────────────────────────────── */
+  let _clientesCache = [];
+  let _clienteAtual  = null;
+
+  async function carregarClientes() {
+    const container = document.getElementById('cli-lista');
+    container.innerHTML = '<div style="color:var(--muted)">Carregando...</div>';
+    try {
+      const r = await fetchJsonWithFallback('/clientes?limit=100');
+      const d = await r.json();
+      _clientesCache = d.clientes || [];
+      _atualizarMetricsClientes(_clientesCache);
+      filtrarClientes();
+    } catch (e) {
+      container.innerHTML = '<div style="color:#f87171">Erro ao carregar clientes.</div>';
+    }
+  }
+
+  function _atualizarMetricsClientes(lista) {
+    const met = document.getElementById('cli-metrics');
+    if (!met) return;
+    met.style.display = lista.length ? '' : 'none';
+    document.getElementById('cli-m-total').textContent  = lista.length;
+    document.getElementById('cli-m-ativos').textContent = lista.filter(c => c.status_negociacao === 'ativo').length;
+    document.getElementById('cli-m-ganhos').textContent = lista.filter(c => c.status_negociacao === 'ganho').length;
+    const scores = lista.map(c => Number(c.score_medio || 0)).filter(s => s > 0);
+    document.getElementById('cli-m-score').textContent  = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : '–';
+  }
+
+  function filtrarClientes() {
+    const q  = (document.getElementById('cli-busca')?.value || '').toLowerCase();
+    const st = (document.getElementById('cli-status')?.value || '');
+    const filtrados = _clientesCache.filter(c => {
+      const matchQ  = !q  || (c.nome||'').toLowerCase().includes(q) || (c.empresa||'').toLowerCase().includes(q);
+      const matchSt = !st || c.status_negociacao === st;
+      return matchQ && matchSt;
+    });
+    renderizarClientes(filtrados);
+  }
+
+  function renderizarClientes(lista) {
+    const container = document.getElementById('cli-lista');
+    if (!lista.length) {
+      container.innerHTML = '<div style="color:var(--muted);padding:32px;text-align:center">Nenhum cliente encontrado.<br><span style="font-size:.82rem">Crie perfis para acompanhar o histórico de cada cliente.</span></div>';
+      return;
+    }
+    container.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">${lista.map(c => cardClienteHTML(c)).join('')}</div>`;
+  }
+
+  function cardClienteHTML(c) {
+    const nome    = escHtml(c.nome || '');
+    const empresa = escHtml(c.empresa || '');
+    const disc    = escHtml(c.disc_profile || '');
+    const status  = c.status_negociacao || 'ativo';
+    const score   = Number(c.score_medio || 0);
+    const ultimo  = Number(c.ultimo_score || 0);
+    const total   = Number(c.total_reunioes || 0);
+    const cid     = escHtml(c.id);
+    const statusColor = { ativo:'#2dd4bf', ganho:'#22c55e', perdido:'#f87171', pausado:'#fbbf24' }[status] || '#666';
+    const statusLabel = { ativo:'Ativo', ganho:'Ganho', perdido:'Perdido', pausado:'Pausado' }[status] || status;
+    const discColor = { D:'#f87171', I:'#fbbf24', S:'#2dd4bf', C:'#a78bfa' }[disc?.trim().toUpperCase()] || 'var(--gold)';
+    return `<div class="reuniao-card" style="flex-direction:column;align-items:flex-start;padding:16px;gap:10px;cursor:pointer" onclick="verClienteDetalhe('${cid}')">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;width:100%">
+        <div>
+          <div style="font-weight:700;font-size:.95rem;color:var(--gold)">${nome}</div>
+          ${empresa ? `<div style="font-size:.8rem;color:var(--muted)">${empresa}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+          ${disc ? `<span style="font-size:.8rem;font-weight:700;color:${discColor};border:1px solid ${discColor};padding:1px 6px;border-radius:4px">${disc}</span>` : ''}
+          <span style="font-size:.72rem;color:${statusColor};border:1px solid ${statusColor};padding:1px 6px;border-radius:4px">${statusLabel}</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:16px;font-size:.8rem;color:var(--muted)">
+        <span>🤝 ${total} reuniões</span>
+        ${score > 0 ? `<span>📊 Médio: <b style="color:var(--text)">${score.toFixed(0)}</b></span>` : ''}
+        ${ultimo > 0 ? `<span>⬆ Último: <b style="color:var(--text)">${ultimo}</b></span>` : ''}
+      </div>
+    </div>`;
+  }
+
+  async function verClienteDetalhe(clientId) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+    document.getElementById('page-cliente-detalhe').classList.add('active');
+    document.getElementById('cd-conteudo').innerHTML = '<div style="color:var(--muted)">Carregando...</div>';
+
+    try {
+      const r = await fetchJsonWithFallback(`/clientes/${encodeURIComponent(clientId)}`);
+      const c = await r.json();
+      _clienteAtual = c;
+      document.getElementById('cd-nome').textContent = c.nome || 'Cliente';
+      document.getElementById('cd-conteudo').innerHTML = renderClienteDetalhe(c);
+    } catch (e) {
+      document.getElementById('cd-conteudo').innerHTML = '<div style="color:#f87171">Erro ao carregar cliente.</div>';
+    }
+  }
+
+  function renderClienteDetalhe(c) {
+    const status  = c.status_negociacao || 'ativo';
+    const statusColor = { ativo:'#2dd4bf', ganho:'#22c55e', perdido:'#f87171', pausado:'#fbbf24' }[status] || '#666';
+    const statusLabel = { ativo:'Ativo', ganho:'✅ Ganho', perdido:'❌ Perdido', pausado:'⏸ Pausado' }[status] || status;
+    const disc    = escHtml(c.disc_profile || '–');
+    const score   = Number(c.score_medio || 0);
+    const ultimo  = Number(c.ultimo_score || 0);
+    const total   = Number(c.total_reunioes || 0);
+    const cid     = escHtml(c.id);
+
+    let html = `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:20px">
+      <span style="color:${statusColor};border:1px solid ${statusColor};padding:3px 10px;border-radius:6px;font-size:.85rem">${statusLabel}</span>
+      ${c.empresa ? `<span style="color:var(--muted);font-size:.85rem">🏢 ${escHtml(c.empresa)}</span>` : ''}
+      ${c.email ? `<span style="color:var(--muted);font-size:.85rem">✉ ${escHtml(c.email)}</span>` : ''}
+      <div style="margin-left:auto;display:flex;gap:6px">
+        <select onchange="alterarStatusCliente('${cid}',this.value)" style="padding:4px 8px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:.8rem">
+          <option value="ativo" ${status==='ativo'?'selected':''}>Ativo</option>
+          <option value="ganho" ${status==='ganho'?'selected':''}>Ganho</option>
+          <option value="perdido" ${status==='perdido'?'selected':''}>Perdido</option>
+          <option value="pausado" ${status==='pausado'?'selected':''}>Pausado</option>
+        </select>
+        <button onclick="editarNotasCliente('${cid}')" style="padding:4px 10px;font-size:.78rem;background:transparent;border:1px solid var(--gold);color:var(--gold);border-radius:4px;cursor:pointer">✏️ Notas</button>
+        <button onclick="vincularReuniaoAoCliente('${cid}')" style="padding:4px 10px;font-size:.78rem;background:transparent;border:1px solid #2dd4bf;color:#2dd4bf;border-radius:4px;cursor:pointer">🔗 Reunião</button>
+      </div>
+    </div>`;
+
+    html += `<div class="metrics" style="margin-bottom:20px">
+      <div class="metric"><div class="metric-val">${disc}</div><div class="metric-lbl">DISC</div></div>
+      <div class="metric"><div class="metric-val">${total}</div><div class="metric-lbl">Reuniões</div></div>
+      <div class="metric"><div class="metric-val">${score > 0 ? score.toFixed(0) : '–'}</div><div class="metric-lbl">Score médio</div></div>
+      <div class="metric"><div class="metric-val">${ultimo || '–'}</div><div class="metric-lbl">Último score</div></div>
+    </div>`;
+
+    // Timeline
+    const reunioes = c.reunioes || [];
+    if (reunioes.length) {
+      const maxS = Math.max(...reunioes.map(r => r.score || 0), 1);
+      html += `<div class="info-card" style="margin-bottom:16px">
+        <h3>📈 Timeline Comercial</h3>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">`;
+      reunioes.forEach((r, i) => {
+        const s   = Number(r.score || 0);
+        const cor = s >= 70 ? '#2dd4bf' : s >= 45 ? '#fbbf24' : '#f87171';
+        const isLast = i === reunioes.length - 1;
+        html += `<div style="display:flex;align-items:center;gap:12px">
+          <div style="flex-shrink:0;width:36px;height:36px;border-radius:50%;background:${cor}22;border:2px solid ${cor};display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;color:${cor}">${s || '?'}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:.85rem;font-weight:600;color:var(--text)">${escHtml(r.titulo || r.meeting_id || 'Reunião')}</div>
+            <div style="font-size:.75rem;color:var(--muted)">${(r.data||'').slice(0,10)}</div>
+          </div>
+          ${isLast && status === 'ganho' ? '<span style="font-size:.8rem;color:#22c55e;font-weight:700">✅ Fechou!</span>' : ''}
+          <button onclick="desvinculaReuniaoCliente('${cid}','${escHtml(r.meeting_id)}')" style="padding:2px 6px;font-size:.7rem;background:transparent;border:1px solid #444;color:var(--muted);border-radius:3px;cursor:pointer" title="Desvincular">✕</button>
+        </div>`;
+        if (!isLast) html += `<div style="margin-left:17px;width:2px;height:12px;background:var(--border)"></div>`;
+      });
+      html += `</div></div>`;
+    }
+
+    // Objeções e dores
+    const objecoes = c.objecoes_recorrentes || [];
+    const dores    = c.dores_recorrentes || [];
+    if (objecoes.length || dores.length) {
+      html += `<div class="grid-2">`;
+      if (objecoes.length) html += `<div class="info-card"><h3>🛡️ Objeções Recorrentes</h3><ul>${objecoes.map(o=>`<li>${escHtml(o)}</li>`).join('')}</ul></div>`;
+      if (dores.length)    html += `<div class="info-card"><h3>🩹 Dores Recorrentes</h3><ul>${dores.map(d=>`<li>${escHtml(d)}</li>`).join('')}</ul></div>`;
+      html += `</div>`;
+    }
+
+    if (c.notas) html += `<div class="info-card" style="margin-bottom:16px"><h3>📝 Notas</h3><p style="color:#cbd5e1;line-height:1.6;white-space:pre-wrap">${escHtml(c.notas)}</p></div>`;
+
+    return html;
+  }
+
+  function voltarParaClientes() {
+    mostrarPagina('clientes', document.querySelector('[data-page="clientes"]'));
+  }
+
+  async function alterarStatusCliente(cid, novoStatus) {
+    try {
+      const r = await fetchJsonWithFallback(`/clientes/${encodeURIComponent(cid)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status_negociacao: novoStatus }),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      if (_clienteAtual?.id === cid) _clienteAtual.status_negociacao = novoStatus;
+    } catch (e) { alert('Erro: ' + e.message); }
+  }
+
+  async function editarNotasCliente(cid) {
+    const atual = _clienteAtual?.notas || '';
+    const novas = window.prompt('Notas do cliente:', atual);
+    if (novas === null) return;
+    try {
+      const r = await fetchJsonWithFallback(`/clientes/${encodeURIComponent(cid)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notas: novas }),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      verClienteDetalhe(cid);
+    } catch (e) { alert('Erro: ' + e.message); }
+  }
+
+  async function vincularReuniaoAoCliente(cid) {
+    const mid = window.prompt('ID da reunião a vincular (ex: manual_20260614_120000):');
+    if (!mid?.trim()) return;
+    const titulo = window.prompt('Título da reunião (opcional):') || '';
+    const scoreStr = window.prompt('Score final (0-100):') || '0';
+    try {
+      const r = await fetchJsonWithFallback(`/clientes/${encodeURIComponent(cid)}/reunioes`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ meeting_id: mid.trim(), titulo, score: parseInt(scoreStr) || 0 }),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      verClienteDetalhe(cid);
+    } catch (e) { alert('Erro: ' + e.message); }
+  }
+
+  async function desvinculaReuniaoCliente(cid, mid) {
+    if (!window.confirm('Desvincular esta reunião do cliente?')) return;
+    try {
+      const r = await fetchJsonWithFallback(`/clientes/${encodeURIComponent(cid)}/reunioes/${encodeURIComponent(mid)}`, { method: 'DELETE' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      verClienteDetalhe(cid);
+    } catch (e) { alert('Erro: ' + e.message); }
+  }
+
+  async function abrirNovoCliente() {
+    const nome = window.prompt('Nome do cliente:');
+    if (!nome?.trim()) return;
+    const empresa = window.prompt('Empresa (opcional):') || '';
+    const email   = window.prompt('E-mail (opcional):') || '';
+    try {
+      const r = await fetchJsonWithFallback('/clientes', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: nome.trim(), empresa, email }),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+      await carregarClientes();
+      verClienteDetalhe(d.id);
+    } catch (e) { alert('Erro: ' + e.message); }
+  }
+
   /* ─── Frases gatilho ──────────────────────────────── */
   function limparFrasesGatilho(texto) {
     let limpo = String(texto ?? '');
@@ -3109,7 +3391,67 @@
     }
     html += `</div>`;
 
+    // Botão vincular ao cliente
+    const midDetalhe = r.meeting_id || r.id || '';
+    if (midDetalhe) {
+      html += `<div style="margin-top:16px;text-align:right">
+        <button onclick="vincularDetalheAoCliente('${escHtml(midDetalhe)}','${escHtml(r.titulo||r.nome_reuniao||'')}')" style="padding:6px 14px;font-size:.82rem;background:transparent;border:1px solid #2dd4bf;color:#2dd4bf;border-radius:6px;cursor:pointer">🔗 Vincular ao Cliente</button>
+      </div>`;
+    }
+
     document.getElementById('det-conteudo').innerHTML = html;
+  }
+
+  async function vincularDetalheAoCliente(meetingId, titulo) {
+    // escolhe cliente existente ou cria novo
+    const listaR = await fetchJsonWithFallback('/clientes?limit=100');
+    const listaD = await listaR.json();
+    const clientes = listaD.clientes || [];
+    if (!clientes.length) {
+      const criar = window.confirm('Nenhum cliente cadastrado. Deseja criar um agora?');
+      if (!criar) return;
+      const nome = window.prompt('Nome do cliente:');
+      if (!nome?.trim()) return;
+      const empresa = window.prompt('Empresa (opcional):') || '';
+      const r2 = await fetchJsonWithFallback('/clientes', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: nome.trim(), empresa }),
+      });
+      if (!r2.ok) { alert('Erro ao criar cliente'); return; }
+      const d2 = await r2.json();
+      await _vincularReuniaoEm(d2.id, meetingId, titulo);
+      return;
+    }
+    const opcoes = clientes.map((c, i) => `${i + 1}. ${c.nome}${c.empresa ? ' (' + c.empresa + ')' : ''}`).join('\n');
+    const escolha = window.prompt(`Escolha o número do cliente:\n${opcoes}\n\n0 = Criar novo cliente`);
+    if (escolha === null) return;
+    if (escolha.trim() === '0') {
+      const nome = window.prompt('Nome do novo cliente:');
+      if (!nome?.trim()) return;
+      const empresa = window.prompt('Empresa (opcional):') || '';
+      const r2 = await fetchJsonWithFallback('/clientes', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: nome.trim(), empresa }),
+      });
+      if (!r2.ok) { alert('Erro ao criar cliente'); return; }
+      const d2 = await r2.json();
+      await _vincularReuniaoEm(d2.id, meetingId, titulo);
+    } else {
+      const idx = parseInt(escolha) - 1;
+      if (idx < 0 || idx >= clientes.length) { alert('Opção inválida'); return; }
+      await _vincularReuniaoEm(clientes[idx].id, meetingId, titulo);
+    }
+  }
+
+  async function _vincularReuniaoEm(clientId, meetingId, titulo) {
+    try {
+      const r = await fetchJsonWithFallback(`/clientes/${encodeURIComponent(clientId)}/reunioes`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ meeting_id: meetingId, titulo: titulo || '', score: 0 }),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      alert('✅ Reunião vinculada ao cliente!');
+    } catch (e) { alert('Erro ao vincular: ' + e.message); }
   }
 
   function renderAnaliseEssencial(dados, falas) {
