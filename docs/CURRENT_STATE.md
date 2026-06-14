@@ -1,6 +1,6 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-06-09 (V.1.4.26)
+Atualizado em: 2026-06-14 (V.1.4.28)
 
 ## Ambiente
 
@@ -25,7 +25,7 @@ Atualizado em: 2026-06-09 (V.1.4.26)
 
 ## Versao Atual
 
-`V.1.4.26` — local + GitHub | `V.1.4.19` — nova VPS (aguarda `git pull`) | `V.1.4.14` — VPS antiga (deprecada)
+`V.1.4.28` — local + GitHub + VPS (`37.27.214.33`) | VPS antiga (`204.168.180.25`) deprecada
 
 ## Funcionalidades Entregues
 
@@ -109,14 +109,30 @@ Modelos padrao:
 - `/dashboard` publico respondeu `200`.
 - `/recapitulacao-manual` retornou `200` em producao apos correcoes de fallback.
 
+## Funcionalidades Novas (V.1.4.27–V.1.4.28)
+
+### Fix: 502 Bad Gateway + Estabilidade VPS (V.1.4.27)
+- Workers uvicorn entravam em estado zumbi após ~2,5 dias: `systemctl restart saleia` corrigiu
+- `RuntimeMaxSec=86400` adicionado ao `/etc/systemd/system/saleia.service` — reinício automático diário
+- Logo quebrada no login: `frontend/login.html` src corrigido para `/static/logo-saleia.png`
+- `frontend/static/logo-saleia.png` adicionado ao nginx static path
+
+### Motor de Próxima Melhor Ação (V.1.4.28)
+- `next_best_action`: tipo (question|insight|warning|next_step), título, mensagem, motivo, risco, follow-up, confidence
+- `conversation_stage`: 8 estágios SPIN (abertura → compromisso)
+- `kare_type`: keep | attain | recapture | expand
+- `maturity_score`: 7 critérios independentes, 0-100
+- Matriz de decisão com 10 regras em ordem de prioridade
+- Insight Desafiador como tipo formal (Sandler + Venda Desafiadora)
+- DISC expandido por perfil em cada regra da matriz
+- Sidebar Chrome: badges Stage+KARE, bloco Próxima Melhor Ação com risco/follow-up, grid Maturity Score
+
 ## O Que Falta
 
-- **DEPLOY PENDENTE** — V.1.4.26 na nova VPS: `cd /opt/saleia && git pull origin main && systemctl restart saleia`
-- Reinstalar extensao Chrome no navegador (tema gold/black + multi-clientes — V.1.4.8). *(tarefa manual)*
+- Reinstalar extensao Chrome (V.1.4.28 — novo content.js com Próxima Melhor Ação). *(tarefa manual)*
 - Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI Online).
-- Descomissionar VPS antiga (`204.168.180.25`) apos validar nova VPS em producao.
-- Alterar senha do admin `phpos@gmail.com` (atual: `NovaSenha2026`) via dashboard.
-- Sem tarefas de desenvolvimento pendentes.
+- Descomissionar VPS antiga (`204.168.180.25`).
+- Alterar senha do admin via dashboard.
 
 ## Infraestrutura (V.1.4.17 — 09/06/2026)
 
