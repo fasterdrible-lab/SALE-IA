@@ -1,6 +1,6 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-06-14 (V.1.4.28)
+Atualizado em: 2026-06-14 (V.1.4.37)
 
 ## Ambiente
 
@@ -25,7 +25,7 @@ Atualizado em: 2026-06-14 (V.1.4.28)
 
 ## Versao Atual
 
-`V.1.4.28` — local + GitHub + VPS (`37.27.214.33`) | VPS antiga (`204.168.180.25`) deprecada
+`V.1.4.37` — local + GitHub (pendente push) | VPS antiga (`204.168.180.25`) deprecada
 
 ## Funcionalidades Entregues
 
@@ -127,10 +127,53 @@ Modelos padrao:
 - DISC expandido por perfil em cada regra da matriz
 - Sidebar Chrome: badges Stage+KARE, bloco Próxima Melhor Ação com risco/follow-up, grid Maturity Score
 
+### Sales Brain — Inteligência Comercial Acumulativa (V.1.4.31–V.1.4.37)
+
+#### Fase 1 — Memórias de Vendas (V.1.4.31)
+- `agent/sales_memory.py`: extrai DISC, objeções, dores, próximos passos, score final e lições após cada reunião.
+- Tabela MySQL `sales_memories`: gerada automaticamente no startup.
+- Endpoints: `GET /relatorios/{mid}/memoria`, `POST /relatorios/{mid}/gerar-memoria`.
+
+#### Fase 2 — Playbooks (V.1.4.32)
+- `agent/playbook_generator.py`: gera roteiro de vendas a partir de reuniões marcadas como ganhas.
+- Tabela MySQL `playbooks`: id, meeting_id, titulo, conteudo, disc_profile, stage, score_origem.
+- Endpoints: `POST /relatorios/{mid}/marcar-ganha`, `GET /playbooks`, `GET /playbooks/{pid}`, `DELETE /playbooks/{pid}`.
+- Dashboard: aba "Playbooks" no menu lateral.
+
+#### Fase 3 — Skills Especializadas (V.1.4.33)
+- `agent/skill_resolver.py`: seleciona skill com base em DISC + score + estágio da conversa.
+- 5 skills: fechamento, objecao_preco, prospecting, negociacao, reativacao.
+- Tabela MySQL `skills`: id, nome, conteudo_instrucao, condicoes_json.
+- Integrado ao `processador_tempo_real.py` como `skill_context` injetado em cada fragmento.
+
+#### Fase 4 — Perfil de Clientes / Client Intelligence (V.1.4.34)
+- `agent/client_intelligence.py`: CRUD de clientes e vínculo cliente↔reunião.
+- Tabelas: `client_profiles` (id, user_id, nome, empresa, cargo, email, whatsapp, notas, status) e `client_meetings` (client_id, meeting_id, score_reuniao, vinculado_em).
+- Endpoints: `GET/POST /clientes`, `GET/PATCH/DELETE /clientes/{cid}`, `POST/DELETE /clientes/{cid}/reunioes/{mid}`.
+- Dashboard: aba "Clientes" — cards com score médio, total reuniões, último contato, status (ativo/ganho/em_pausa/perdido).
+- Relatório: botão "🔗 Vincular ao Cliente".
+- Métricas agregadas via JOIN + AVG na query de listagem.
+
+#### Fase 5 — Sistema Multiagente (V.1.4.36)
+- `agent/multiagente/orquestrador.py`: dispara 4 agentes em paralelo com `asyncio.gather(return_exceptions=True)`.
+- Agentes: Coach (estágio SPIN, NBA, alerta, texto falável), DISC (perfil D/I/S/C, KARE, temperatura), Finance (mapa financeiro, objeções preço), Closer (score, maturity, próxima pergunta).
+- RAG buscado uma única vez no orquestrador e compartilhado entre todos os agentes.
+- `_safe()` converte Exception em `{}` — se um agente falhar, os outros 3 continuam.
+- `_nba_para_nbq()` mantém backward compat com extensões Chrome antigas.
+- `processador_tempo_real.py::analyzeRealtimeMeeting` agora chama `analisar_fragmento_multi()` em vez do agente legado.
+- skill_context e client_context resolvidos antes do orquestrador nessa função.
+
+#### Fase 6 — Follow-up Inteligente (V.1.4.37)
+- `agent/followup_generator.py`: IA gera mensagens para WhatsApp, Email e LinkedIn adaptadas por DISC.
+- `agenda_inteligente(score)`: timing server-side (score ≥65 → hot; 35–64 → warm; <35 → cold).
+- Tabela MySQL `followups`: id, meeting_id, client_id, canal, assunto, mensagem, call_to_action, tom, disc_profile, score, dias_apos, agendado_para, status (pendente/enviado/descartado).
+- Endpoints: `POST /relatorios/{mid}/followups/gerar`, `GET /relatorios/{mid}/followups`, `PATCH /followups/{fid}`, `DELETE /followups/{fid}`.
+- Dashboard/Relatório: botão "📩 Follow-up" — seção expandível com cards por canal, botão copiar e marcar enviado.
+
 ## O Que Falta
 
-- Reinstalar extensao Chrome (V.1.4.28 — novo content.js com Próxima Melhor Ação). *(tarefa manual)*
-- Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI Online).
+- Reinstalar extensao Chrome (mudanças desde V.1.4.28). *(tarefa manual)*
+- Push + deploy VPS: `cd /opt/saleia && git pull origin main && systemctl restart saleia`.
 - Descomissionar VPS antiga (`204.168.180.25`).
 - Alterar senha do admin via dashboard.
 

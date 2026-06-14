@@ -119,6 +119,7 @@
     <a href="#endpoints">Endpoints</a>
     <a href="#ia">IA / Roteador</a>
     <a href="#motor-nba">Motor NBA</a>
+    <a href="#sales-brain">Sales Brain</a>
     <a href="#banco">Banco</a>
     <a href="#monitor">Monitor</a>
     <a href="#seguranca">Segurança</a>
@@ -131,7 +132,7 @@
   <div class="hero-title">Dev Manual — SALEIA</div>
   <div class="hero-sub">Referência técnica para manutenção, deploy e operação em produção.</div>
   <div class="hero-badges">
-    <span class="badge badge-gold">V.1.4.28</span>
+    <span class="badge badge-gold">V.1.4.37</span>
     <span class="badge badge-green">FastAPI + Python 3.14</span>
     <span class="badge badge-blue">MySQL + SQLite</span>
     <span class="badge badge-orange">Hetzner VPS</span>
@@ -150,6 +151,7 @@
     <a href="#endpoints">Endpoints API</a>
     <a href="#ia">Roteador de IA</a>
     <a href="#motor-nba">Motor NBA V.1.4.28</a>
+    <a href="#sales-brain">Sales Brain V.1.4.31–37</a>
     <a href="#banco">Banco de Dados</a>
     <div class="sidebar-group">Operação</div>
     <a href="#monitor">Monitor / Métricas</a>
@@ -340,7 +342,7 @@ for k in ['DEEPSEEK_API_KEY','OPENAI_API_KEY','ANTHROPIC_API_KEY','GEMINI_API_KE
         <tr><td><code>api/main.py</code></td><td>App FastAPI — todos os endpoints, startup, middleware, auth, admin, monitor.</td></tr>
         <tr><td><code>api/ai_router.py</code></td><td>Roteador central de IA — fallback chain, circuit breaker, contadores em memória, custo estimado.</td></tr>
         <tr><td><code>api/metricas_historico.py</code></td><td>SQLite rolling 24h para sparklines do Monitor. Tabela <code>metricas_historico</code>.</td></tr>
-        <tr><td><code>agent/agente_tempo_real.py</code></td><td>Analisa fragmentos de transcrição em tempo real. Usa <code>chamar_ia_async()</code>.</td></tr>
+        <tr><td><code>agent/agente_tempo_real.py</code></td><td>Motor legado — substituído pelo orquestrador multiagente em V.1.4.36.</td></tr>
         <tr><td><code>agent/base_conhecimento.py</code></td><td>RAG — embeddings OpenAI, cosine similarity, cache em memória, busca top-k.</td></tr>
         <tr><td><code>agent/sessao_manager.py</code></td><td>Gerencia <code>MeetingMemory</code> — transcrição, buffer, resumo, DISC, score, key moments.</td></tr>
         <tr><td><code>agent/recapitulacao.py</code></td><td>Gera recapitulação pós-reunião via IA.</td></tr>
@@ -348,9 +350,25 @@ for k in ['DEEPSEEK_API_KEY','OPENAI_API_KEY','ANTHROPIC_API_KEY','GEMINI_API_KE
         <tr><td><code>agent/perfil_disc.py</code></td><td>Perfil DISC do cliente.</td></tr>
         <tr><td><code>agent/visual_scenario.py</code></td><td>Gera imagens DALL-E 3 (Visual Cenário AI). Requer créditos OpenAI.</td></tr>
         <tr><td><code>agent/alertas.py</code></td><td>Alertas Telegram por threshold (taxa de falha, latência, circuit breaker).</td></tr>
-        <tr><td><code>agent/prompt_templates/agente_tempo_real.txt</code></td><td>Prompt do Motor de Próxima Melhor Ação — 10 regras, SPIN+Sandler+Desafiadora, DISC por perfil, schema JSON.</td></tr>
-        <tr><td><code>api/processador_tempo_real.py</code></td><td>Normalização da resposta do Motor — fallbacks NBA/maturity, conversão next_best_action→next_best_question.</td></tr>
+        <tr><td><code>agent/prompt_templates/agente_tempo_real.txt</code></td><td>Prompt legado do Motor NBA.</td></tr>
+        <tr><td><code>api/processador_tempo_real.py</code></td><td>Orquestra o fluxo de análise em tempo real. V.1.4.36: chama <code>analisar_fragmento_multi()</code> em vez do agente legado.</td></tr>
         <tr><td><code>agent/email_service.py</code></td><td>Envio de e-mail SMTP (recuperação de senha).</td></tr>
+        <tr><td colspan="2" style="color:var(--gold);font-size:.78rem;padding-top:10px">── SALES BRAIN (V.1.4.31–V.1.4.37) ──</td></tr>
+        <tr><td><code>agent/sales_memory.py</code></td><td>Extrai e persiste memórias de vendas após cada reunião. Tabela <code>sales_memories</code>.</td></tr>
+        <tr><td><code>agent/playbook_generator.py</code></td><td>Gera playbook de reuniões marcadas como ganhas. Tabela <code>playbooks</code>.</td></tr>
+        <tr><td><code>agent/skill_resolver.py</code></td><td>Seleciona skill ativa com base em DISC, score e estágio. Injeta contexto no orquestrador.</td></tr>
+        <tr><td><code>agent/client_intelligence.py</code></td><td>CRUD de clientes e vinculação reunião↔cliente. Tabelas <code>client_profiles</code> e <code>client_meetings</code>.</td></tr>
+        <tr><td><code>agent/followup_generator.py</code></td><td>Gera follow-ups por canal (WhatsApp/Email/LinkedIn), agenda inteligente por score. Tabela <code>followups</code>.</td></tr>
+        <tr><td><code>agent/multiagente/orquestrador.py</code></td><td>Dispara os 4 agentes em paralelo (<code>asyncio.gather</code>), busca RAG uma vez, mescla resultados.</td></tr>
+        <tr><td><code>agent/multiagente/coach_agent.py</code></td><td>Agente Coach — estágio SPIN, NBA, alertas, texto falável.</td></tr>
+        <tr><td><code>agent/multiagente/disc_agent.py</code></td><td>Agente DISC — perfil D/I/S/C, KARE, temperatura da conversa.</td></tr>
+        <tr><td><code>agent/multiagente/finance_agent.py</code></td><td>Agente Finance — mapa financeiro, objeções de preço, capacidade de investimento.</td></tr>
+        <tr><td><code>agent/multiagente/closer_agent.py</code></td><td>Agente Closer — score de compra, maturity score, próxima pergunta decisiva.</td></tr>
+        <tr><td><code>agent/prompt_templates/multiagente_coach.txt</code></td><td>Prompt do Coach: SPIN 8 estágios, 10 regras de NBA, schema JSON completo.</td></tr>
+        <tr><td><code>agent/prompt_templates/multiagente_disc.txt</code></td><td>Prompt DISC + KARE + temperatura.</td></tr>
+        <tr><td><code>agent/prompt_templates/multiagente_finance.txt</code></td><td>Prompt de extração de sinais financeiros.</td></tr>
+        <tr><td><code>agent/prompt_templates/multiagente_closer.txt</code></td><td>Prompt de score (parte de 50, ±pts) e maturity (7 critérios).</td></tr>
+        <tr><td><code>agent/prompt_templates/followup_generator.txt</code></td><td>Prompt de follow-up: regras DISC por canal, schema JSON {whatsapp, email, linkedin}.</td></tr>
         <tr><td><code>data/ai_provider_order.json</code></td><td>Ordem ativa dos provedores de IA. Editável via painel admin ou SSH.</td></tr>
         <tr><td><code>data/metricas.db</code></td><td>SQLite com histórico de métricas (24h rolling). Não commitar.</td></tr>
         <tr><td><code>frontend/dashboard.html</code></td><td>Dashboard principal — métricas, reuniões, admin, monitor, configurações.</td></tr>
@@ -383,6 +401,41 @@ for k in ['DEEPSEEK_API_KEY','OPENAI_API_KEY','ANTHROPIC_API_KEY','GEMINI_API_KE
           <tr><td><span class="tag tag-post">POST</span></td><td><code>/recapitulacao-manual</code></td><td>Gera recapitulação completa da reunião.</td></tr>
           <tr><td><span class="tag tag-get">GET</span></td><td><code>/relatorios</code></td><td>Lista reuniões com score, custo, DISC.</td></tr>
           <tr><td><span class="tag tag-get">GET</span></td><td><code>/historico/uso</code></td><td>Histórico de uso por reunião.</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">Sales Brain — Memórias, Playbooks, Skills <span class="tag tag-auth">AUTH</span></div>
+        <table>
+          <tr><th>Método</th><th>Rota</th><th>Descrição</th></tr>
+          <tr><td><span class="tag tag-get">GET</span></td><td><code>/relatorios/{mid}/memoria</code></td><td>Retorna memória de vendas extraída da reunião.</td></tr>
+          <tr><td><span class="tag tag-post">POST</span></td><td><code>/relatorios/{mid}/gerar-memoria</code></td><td>Gera/regera memória de vendas via IA.</td></tr>
+          <tr><td><span class="tag tag-post">POST</span></td><td><code>/relatorios/{mid}/marcar-ganha</code></td><td>Marca reunião como ganha e dispara geração de playbook.</td></tr>
+          <tr><td><span class="tag tag-get">GET</span></td><td><code>/playbooks</code></td><td>Lista todos os playbooks do usuário.</td></tr>
+          <tr><td><span class="tag tag-get">GET</span></td><td><code>/playbooks/{pid}</code></td><td>Detalhe de um playbook.</td></tr>
+          <tr><td><span class="tag tag-delete">DELETE</span></td><td><code>/playbooks/{pid}</code></td><td>Remove um playbook.</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">Sales Brain — Clientes <span class="tag tag-auth">AUTH</span></div>
+        <table>
+          <tr><th>Método</th><th>Rota</th><th>Descrição</th></tr>
+          <tr><td><span class="tag tag-get">GET</span></td><td><code>/clientes</code></td><td>Lista clientes com métricas agregadas (total reuniões, score médio, última reunião).</td></tr>
+          <tr><td><span class="tag tag-post">POST</span></td><td><code>/clientes</code></td><td>Cria novo cliente. Body: <code>{nome, empresa, cargo, email, whatsapp, notas}</code>.</td></tr>
+          <tr><td><span class="tag tag-get">GET</span></td><td><code>/clientes/{cid}</code></td><td>Detalhe do cliente com reuniões vinculadas e histórico de score.</td></tr>
+          <tr><td><span class="tag tag-patch">PATCH</span></td><td><code>/clientes/{cid}</code></td><td>Atualiza campos do cliente (nome, status, notas, etc.).</td></tr>
+          <tr><td><span class="tag tag-delete">DELETE</span></td><td><code>/clientes/{cid}</code></td><td>Remove cliente (mantém reuniões — apenas desvincula).</td></tr>
+          <tr><td><span class="tag tag-post">POST</span></td><td><code>/clientes/{cid}/reunioes/{mid}</code></td><td>Vincula reunião ao cliente.</td></tr>
+          <tr><td><span class="tag tag-delete">DELETE</span></td><td><code>/clientes/{cid}/reunioes/{mid}</code></td><td>Desvincula reunião do cliente.</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">Sales Brain — Follow-ups <span class="tag tag-auth">AUTH</span></div>
+        <table>
+          <tr><th>Método</th><th>Rota</th><th>Descrição</th></tr>
+          <tr><td><span class="tag tag-post">POST</span></td><td><code>/relatorios/{mid}/followups/gerar</code></td><td>Gera follow-ups via IA, calcula agenda e salva no MySQL. Retorna lista com 3 mensagens.</td></tr>
+          <tr><td><span class="tag tag-get">GET</span></td><td><code>/relatorios/{mid}/followups</code></td><td>Lista follow-ups de uma reunião, ordenados por <code>dias_apos ASC</code>.</td></tr>
+          <tr><td><span class="tag tag-patch">PATCH</span></td><td><code>/followups/{fid}</code></td><td>Atualiza mensagem, assunto, call_to_action, status ou agendado_para.</td></tr>
+          <tr><td><span class="tag tag-delete">DELETE</span></td><td><code>/followups/{fid}</code></td><td>Remove follow-up. Retorna <code>204 No Content</code>.</td></tr>
         </table>
       </div>
       <div class="card">
@@ -551,17 +604,184 @@ json.dumps({'order':['deepseek','openai','anthropic','gemini'],'updated_at':time
       </div>
     </section>
 
+    <!-- SALES BRAIN -->
+    <section class="section" id="sales-brain">
+      <div class="section-title">Sales Brain — Inteligência Comercial Acumulativa (V.1.4.31–V.1.4.37)</div>
+
+      <div class="alert alert-gold">O Sales Brain é o conjunto de módulos que transformam o SALEIA de ferramenta de reunião em plataforma de inteligência comercial acumulativa. Cada módulo adiciona uma camada de contexto que melhora as análises subsequentes.</div>
+
+      <!-- Multiagente -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">Arquitetura Multiagente em Tempo Real <span class="badge badge-blue" style="font-size:.7rem;padding:2px 8px;margin-left:6px">V.1.4.36</span></div>
+        <p>O endpoint <code>POST /tempo-real</code> agora dispara 4 agentes especializados em paralelo via <code>asyncio.gather(return_exceptions=True)</code>:</p>
+        <pre><code><span class="cmt"># orquestrador.py — fluxo principal</span>
+<span class="kw">async def</span> analisar_fragmento_multi(transcricao_parcial, historico, perfil_disc_atual,
+        mapa_financeiro, resumo_vivo, diagnostico_atual, historico_scores, eventos,
+        skill_context<span class="str">=""</span>, client_context<span class="str">=""</span>) -> dict:
+
+    <span class="cmt"># RAG buscado uma única vez, compartilhado entre todos os agentes</span>
+    rag = await _buscar_rag(transcricao_parcial)
+    client_context += rag
+
+    coach, disc, finance, closer = await asyncio.gather(
+        analisar_coach(..., skill_context, client_context),
+        analisar_disc(...),
+        analisar_finance(...),
+        analisar_closer(...),
+        return_exceptions=<span class="kw">True</span>
+    )
+    <span class="cmt"># _safe() converte Exception em {} para degradação graceful</span>
+    <span class="kw">return</span> _mesclar(_safe(coach), _safe(disc), _safe(finance), _safe(closer))</code></pre>
+        <table style="margin-top:12px">
+          <tr><th>Agente</th><th>Arquivo</th><th>Saída principal</th></tr>
+          <tr><td>Coach</td><td><code>multiagente/coach_agent.py</code></td><td>conversation_stage, next_best_action, alerta_urgente, texto_falavel, key_moments</td></tr>
+          <tr><td>DISC</td><td><code>multiagente/disc_agent.py</code></td><td>perfil_disc, kare_type, temperatura</td></tr>
+          <tr><td>Finance</td><td><code>multiagente/finance_agent.py</code></td><td>mapa_financeiro, objecao_detectada</td></tr>
+          <tr><td>Closer</td><td><code>multiagente/closer_agent.py</code></td><td>score_compra, maturity_score, resumo_vivo, proxima_pergunta</td></tr>
+        </table>
+        <div class="alert alert-blue" style="margin-top:12px"><strong>Backward compat:</strong> <code>next_best_question</code> é gerado por <code>_nba_para_nbq()</code> no orquestrador — extensões Chrome antigas continuam funcionando sem alteração.</div>
+      </div>
+
+      <!-- Skills -->
+      <div class="card">
+        <div class="card-title">Skill Resolver <span class="badge badge-gold" style="font-size:.7rem;padding:2px 8px;margin-left:6px">V.1.4.33</span></div>
+        <p>O <code>skill_resolver.py</code> seleciona a skill ativa antes de cada chamada ao orquestrador:</p>
+        <pre><code><span class="kw">from</span> agent.skill_resolver <span class="kw">import</span> resolver_skill_context
+
+skill_context = resolver_skill_context(
+    disc_profile=<span class="str">"D"</span>,
+    score=<span class="str">72</span>,
+    conversation_stage=<span class="str">"fechamento"</span>
+)
+<span class="cmt"># Retorna string com instruções da skill "fechamento"
+# injetada em client_context do orquestrador</span></code></pre>
+        <table style="margin-top:8px">
+          <tr><th>Skill</th><th>Condição de Ativação</th></tr>
+          <tr><td>fechamento</td><td>score ≥ 70 + stage == "fechamento"</td></tr>
+          <tr><td>objecao_preco</td><td>objecao_detectada == true no Finance agent</td></tr>
+          <tr><td>prospecting</td><td>stage == "abertura"</td></tr>
+          <tr><td>negociacao</td><td>stage == "proposta" + temperatura != "alta"</td></tr>
+          <tr><td>reativacao</td><td>kare_type == "recapture" + score &lt; 40</td></tr>
+        </table>
+      </div>
+
+      <!-- Memórias -->
+      <div class="card">
+        <div class="card-title">Sales Memory <span class="badge badge-gold" style="font-size:.7rem;padding:2px 8px;margin-left:6px">V.1.4.31</span></div>
+        <p>Gerada assincronamente após <code>POST /recapitulacao-manual</code>. Extrai via <code>chamar_ia()</code> e persiste em <code>sales_memories</code>.</p>
+        <table>
+          <tr><th>Campo MySQL</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td>id</td><td>CHAR(36) PK</td><td>UUID v4</td></tr>
+          <tr><td>meeting_id</td><td>VARCHAR(255)</td><td>FK lógica para reunião</td></tr>
+          <tr><td>user_id</td><td>INT</td><td>FK para usuarios</td></tr>
+          <tr><td>disc_profile</td><td>VARCHAR(5)</td><td>D / DI / IS / SC …</td></tr>
+          <tr><td>objections_json</td><td>JSON</td><td>Lista de objeções</td></tr>
+          <tr><td>pain_themes_json</td><td>JSON</td><td>Temas de dor</td></tr>
+          <tr><td>next_steps_json</td><td>JSON</td><td>Próximos passos acordados</td></tr>
+          <tr><td>final_score</td><td>INT</td><td>Score ao final da reunião</td></tr>
+          <tr><td>lessons_learned</td><td>TEXT</td><td>Lições para reuniões futuras</td></tr>
+        </table>
+      </div>
+
+      <!-- Playbooks -->
+      <div class="card">
+        <div class="card-title">Playbook Generator <span class="badge badge-gold" style="font-size:.7rem;padding:2px 8px;margin-left:6px">V.1.4.32</span></div>
+        <p>Ativado por <code>POST /relatorios/{mid}/marcar-ganha</code>. Lê a memória + recapitulação da reunião, gera roteiro via IA e salva na tabela <code>playbooks</code>.</p>
+        <table>
+          <tr><th>Campo</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td>id</td><td>CHAR(36) PK</td><td>UUID v4</td></tr>
+          <tr><td>meeting_id</td><td>VARCHAR(255)</td><td>Reunião de origem</td></tr>
+          <tr><td>titulo</td><td>VARCHAR(500)</td><td>Título gerado pela IA</td></tr>
+          <tr><td>conteudo</td><td>LONGTEXT</td><td>Roteiro completo (markdown)</td></tr>
+          <tr><td>disc_profile</td><td>VARCHAR(5)</td><td>Perfil DISC para matching</td></tr>
+          <tr><td>stage</td><td>VARCHAR(50)</td><td>Estágio SPIN (abertura…compromisso)</td></tr>
+          <tr><td>score_origem</td><td>INT</td><td>Score final da reunião ganhadora</td></tr>
+        </table>
+      </div>
+
+      <!-- Clientes -->
+      <div class="card">
+        <div class="card-title">Client Intelligence <span class="badge badge-gold" style="font-size:.7rem;padding:2px 8px;margin-left:6px">V.1.4.34</span></div>
+        <div class="grid-2" style="margin-top:8px">
+          <div>
+            <p style="font-size:.83rem;font-weight:700;margin-bottom:6px">Tabela <code>client_profiles</code></p>
+            <table>
+              <tr><th>Campo</th><th>Tipo</th></tr>
+              <tr><td>id</td><td>CHAR(36) PK</td></tr>
+              <tr><td>user_id</td><td>INT</td></tr>
+              <tr><td>nome</td><td>VARCHAR(200)</td></tr>
+              <tr><td>empresa</td><td>VARCHAR(200)</td></tr>
+              <tr><td>cargo</td><td>VARCHAR(100)</td></tr>
+              <tr><td>email</td><td>VARCHAR(200)</td></tr>
+              <tr><td>whatsapp</td><td>VARCHAR(30)</td></tr>
+              <tr><td>notas</td><td>TEXT</td></tr>
+              <tr><td>status</td><td>VARCHAR(20) DEFAULT 'ativo'</td></tr>
+            </table>
+          </div>
+          <div>
+            <p style="font-size:.83rem;font-weight:700;margin-bottom:6px">Tabela <code>client_meetings</code></p>
+            <table>
+              <tr><th>Campo</th><th>Tipo</th></tr>
+              <tr><td>client_id</td><td>CHAR(36) FK</td></tr>
+              <tr><td>meeting_id</td><td>VARCHAR(255)</td></tr>
+              <tr><td>score_reuniao</td><td>INT</td></tr>
+              <tr><td>vinculado_em</td><td>DATETIME</td></tr>
+            </table>
+            <p style="font-size:.82rem;color:var(--muted);margin-top:8px">Status válidos: <code>ativo</code> <code>ganho</code> <code>em_pausa</code> <code>perdido</code>. Metrics (total reuniões, score médio) calculados na query de listagem via JOIN + AVG.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Follow-up -->
+      <div class="card">
+        <div class="card-title">Follow-up Inteligente <span class="badge badge-gold" style="font-size:.7rem;padding:2px 8px;margin-left:6px">V.1.4.37</span></div>
+        <p>Fluxo: <code>POST /relatorios/{mid}/followups/gerar</code> → lê memória + DISC + score → <code>gerar_e_salvar_followups()</code> → IA gera 3 mensagens → <code>agenda_inteligente(score)</code> calcula timing → 3 INSERTs no MySQL.</p>
+        <pre><code><span class="cmt"># Agenda inteligente — server-side, determinístico, sem risco de alucinação de datas</span>
+<span class="kw">def</span> agenda_inteligente(score: int) -> list[dict]:
+    <span class="kw">if</span> score >= <span class="str">65</span>:   <span class="cmt"># hot</span>
+        <span class="kw">return</span> [{<span class="str">"dias"</span>: <span class="str">1</span>, <span class="str">"canal"</span>: <span class="str">"whatsapp"</span>}, {<span class="str">"dias"</span>: <span class="str">4</span>, <span class="str">"canal"</span>: <span class="str">"email"</span>}, {<span class="str">"dias"</span>: <span class="str">10</span>, <span class="str">"canal"</span>: <span class="str">"linkedin"</span>}]
+    <span class="kw">elif</span> score >= <span class="str">35</span>: <span class="cmt"># warm</span>
+        <span class="kw">return</span> [{<span class="str">"dias"</span>: <span class="str">3</span>, ...}, {<span class="str">"dias"</span>: <span class="str">7</span>, ...}, {<span class="str">"dias"</span>: <span class="str">15</span>, ...}]
+    <span class="kw">else</span>:              <span class="cmt"># cold</span>
+        <span class="kw">return</span> [{<span class="str">"dias"</span>: <span class="str">2</span>, ...}, {<span class="str">"dias"</span>: <span class="str">5</span>, ...}, {<span class="str">"dias"</span>: <span class="str">14</span>, ...}]</code></pre>
+        <table style="margin-top:8px">
+          <tr><th>Campo MySQL (<code>followups</code>)</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td>id</td><td>CHAR(36) PK</td><td>UUID v4</td></tr>
+          <tr><td>meeting_id</td><td>VARCHAR(255)</td><td>Reunião de origem</td></tr>
+          <tr><td>client_id</td><td>CHAR(36) NULL</td><td>Cliente vinculado (opcional)</td></tr>
+          <tr><td>canal</td><td>VARCHAR(20)</td><td>whatsapp / email / linkedin</td></tr>
+          <tr><td>assunto</td><td>VARCHAR(500)</td><td>Assunto do e-mail (NULL p/ outros canais)</td></tr>
+          <tr><td>mensagem</td><td>LONGTEXT</td><td>Texto gerado pela IA</td></tr>
+          <tr><td>call_to_action</td><td>VARCHAR(500)</td><td>CTA específico do canal</td></tr>
+          <tr><td>tom</td><td>VARCHAR(100)</td><td>Tom usado pela IA (informal, profissional…)</td></tr>
+          <tr><td>disc_profile</td><td>VARCHAR(5)</td><td>Perfil DISC no momento da geração</td></tr>
+          <tr><td>score</td><td>INT</td><td>Score da reunião</td></tr>
+          <tr><td>dias_apos</td><td>INT</td><td>Dias após a reunião para envio sugerido</td></tr>
+          <tr><td>agendado_para</td><td>DATETIME</td><td>Data/hora UTC calculada automaticamente</td></tr>
+          <tr><td>status</td><td>VARCHAR(20)</td><td>pendente / enviado / descartado</td></tr>
+        </table>
+        <div class="alert alert-blue" style="margin-top:10px"><strong>STATUS_VALIDOS</strong>: apenas <code>pendente</code>, <code>enviado</code> e <code>descartado</code> são aceitos pelo <code>atualizar_followup()</code> — qualquer outro valor levanta <code>ValueError</code> antes de atingir o banco.</div>
+      </div>
+    </section>
+
     <!-- BANCO -->
     <section class="section" id="banco">
       <div class="section-title">Banco de Dados</div>
       <div class="grid-2">
         <div class="card">
-          <div class="card-title">MySQL — Tabelas principais</div>
+          <div class="card-title">MySQL — Tabelas</div>
           <ul>
             <li><code>usuarios</code> — auth, perfil, plano, reset_token</li>
             <li><code>reunioes</code> — meeting_id, dados da sessão</li>
             <li><code>base_conhecimento</code> — textos + embeddings para RAG</li>
             <li><code>relatorios</code> — recapitulações, DISC, score history</li>
+            <li><code>sales_memories</code> — memórias extraídas por reunião</li>
+            <li><code>meeting_status</code> — flags de reunião (ganha, etc.)</li>
+            <li><code>playbooks</code> — roteiros de reuniões ganhas</li>
+            <li><code>skills</code> — módulos de skill com instruções</li>
+            <li><code>client_profiles</code> — perfis de clientes</li>
+            <li><code>client_meetings</code> — vínculo cliente↔reunião</li>
+            <li><code>followups</code> — mensagens de follow-up por canal</li>
           </ul>
         </div>
         <div class="card">
