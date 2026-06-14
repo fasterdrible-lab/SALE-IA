@@ -27,6 +27,7 @@ async def analisar_fragmento(
     diagnostico_atual: dict = None,
     historico_scores: list = None,
     eventos: list = None,
+    skill_context: str = "",
 ) -> dict:
     """
     Analisa um fragmento da transcricao em tempo real e retorna insights em JSON.
@@ -69,7 +70,7 @@ async def analisar_fragmento(
         .replace("{diagnostico_atual}", diagnostico_atual_str)
         .replace("{historico_scores}", historico_scores_str)
         .replace("{eventos}", eventos_str)
-    ) + contexto_str
+    ) + contexto_str + (skill_context or "")
 
     return await chamar_ia_async(
         (

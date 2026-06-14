@@ -1,0 +1,20 @@
+{
+  "id": "disc-dominant",
+  "name": "Estratégia para DISC Dominante (Perfil D)",
+  "description": "Cliente direto, orientado a resultados, impaciente com detalhes. Quer decisões rápidas e controle.",
+  "triggers": {
+    "disc_profiles": ["D"],
+    "min_score": 0,
+    "max_score": 100,
+    "stages": []
+  },
+  "priority": 80,
+  "system_injection": "[SKILL ATIVA — DISC Dominante]\nEste cliente tem perfil D (Dominante). Adapte TODA a sua abordagem:\n- Seja direto, objetivo e vai ao ponto nos primeiros 30 segundos\n- Fale em ROI, resultados e tempo para implementar — nunca em processos\n- Evite perguntas abertas longas; prefira opções concretas (A ou B)\n- Mostre autoridade e segurança — perfis D compram de quem demonstra competência\n- Se houver resistência, não ceda; reapresente o valor sem renegociar antes do tempo\n- Feche com urgência real (agenda, vagas, prazo) — nunca urgência falsa\n- Máximo 2 objeções por rodada; depois, peça o compromisso diretamente",
+  "tactics": [
+    "Abra com o resultado final que o cliente vai ter, não com a história da empresa",
+    "Use dados e números — percentuais de melhoria, tempo economizado, receita gerada",
+    "Feche com calendário: 'Posso confirmar para terça ou quarta?'",
+    "Se ele cortar a fala, não se incomode — é estilo, não rejeição",
+    "Evite: 'Você que decide', 'Sem pressão', 'Pense com calma' — isso faz ele perder interesse"
+  ]
+}

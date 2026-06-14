@@ -1,0 +1,20 @@
+{
+  "id": "high-ticket-close",
+  "name": "Fechamento High-Ticket (R$ 15k+)",
+  "description": "Ativa em oportunidades de alto valor (produto intermediário ou completo) com score de maturidade elevado.",
+  "triggers": {
+    "disc_profiles": [],
+    "min_score": 65,
+    "max_score": 100,
+    "stages": ["fechamento", "negociacao", "compromisso"]
+  },
+  "priority": 85,
+  "system_injection": "[SKILL ATIVA — High-Ticket Close]\nO cliente está perto do fechamento em um produto de alto valor. Não perca momentum:\n- NÃO faça perguntas que reabram objeções já superadas\n- A próxima ação deve ser logística: data de início, forma de pagamento, próximos passos\n- Se houver hesitação, use a pergunta: 'O que ainda está te impedindo de dar esse passo agora?'\n- Um cliente com score alto quer ser conduzido — mostre o caminho, não peça permissão\n- Mencione o custo de adiar: cada semana sem começar = perda de X em receita\n- Confirme os decisores: 'Tem mais alguém que precisa estar nessa conversa?'\n- Use prova social de clientes similares que já fecharam e estão tendo resultados",
+  "tactics": [
+    "Peça o sim para o próximo passo, não para o produto inteiro: 'Posso te enviar o contrato ainda hoje?'",
+    "Elimine fricção: 'Você prefere pagar à vista com desconto ou no cartão em parcelas?'",
+    "Crie cenário futuro: 'Imagina daqui a 90 dias com [resultado específico]...'",
+    "Valide a decisão: 'Pelos números que você me passou, essa é claramente a melhor decisão agora'",
+    "Nunca: 'Sem pressão, pode pensar' — isso mata momentum em high-ticket"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "id": "financial-diagnosis",
+  "name": "Diagnóstico Financeiro Consultivo",
+  "description": "Ativa nas fases iniciais quando o mapa financeiro ainda está vazio. Guia a descoberta do orçamento e capacidade de investimento.",
+  "triggers": {
+    "disc_profiles": [],
+    "min_score": 0,
+    "max_score": 45,
+    "stages": ["abertura", "descoberta", "desenvolvimento"]
+  },
+  "priority": 70,
+  "system_injection": "[SKILL ATIVA — Diagnóstico Financeiro]\nO mapa financeiro do cliente ainda está incompleto. Priorize a descoberta de dados financeiros:\n- Faturamento mensal (meta: identificar faixa: até 30k / 30-100k / 100k+)\n- Maior despesa atual no problema que estamos resolvendo\n- Se já investe em algo similar — quanto e com qual resultado\n- Capacidade de investimento: pergunte indiretamente ('Você costuma separar um orçamento para desenvolvimento?')\n- Quantidade de vendedores / tamanho da equipe (multiplica o valor por cabeça)\n- NUNCA pergunte 'Quanto você pode pagar?' — isso posiciona o cliente no controle do preço\n- Meta: ter faturamento + dor quantificada ANTES de apresentar o produto",
+  "tactics": [
+    "Pergunta de âncora: 'Me conta um pouco sobre o negócio — como está o volume de vendas hoje?'",
+    "Quantificação de dor: 'Quanto você estima que perde por mês sem isso resolvido?'",
+    "Indireto: 'Você já investe em treinamento de equipe? Como tem sido o resultado?'",
+    "Benchmark: 'Empresas no seu segmento costumam investir X% do faturamento nisso'",
+    "Nunca apresente produto antes de ter faturamento E dor quantificada"
+  ]
+}

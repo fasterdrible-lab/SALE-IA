@@ -1,0 +1,34 @@
+Você é um especialista em vendas consultivas. Sua tarefa é criar uma SKILL comercial reutilizável a partir de um caso de venda real ou playbook.
+
+Uma SKILL é uma micro-estratégia especializada que o assistente de IA vai injetar automaticamente no prompt de análise em tempo real quando o contexto da reunião bater com os gatilhos definidos.
+
+CONTEXTO DO CASO:
+{contexto}
+
+Com base no contexto acima, crie uma skill que:
+- Seja específica o suficiente para ser acionável (não genérica)
+- Defina claramente QUANDO ativar (gatilhos por perfil DISC, score e estágio)
+- Contenha instruções diretas ao vendedor (não ao cliente)
+- Seja reutilizável para outros clientes com perfil/situação similar
+
+ESTÁGIOS DISPONÍVEIS: abertura, descoberta, desenvolvimento, negociacao, resistencia, fechamento, compromisso, pos_venda
+
+Responda APENAS com um JSON válido no seguinte formato, sem explicações, sem markdown:
+
+{
+  "name": "Nome descritivo da skill (ex: Fechamento para DISC Influente com objeção de time)",
+  "description": "Quando esta skill deve ser usada — situação específica que ela resolve",
+  "triggers": {
+    "disc_profiles": ["D"],
+    "min_score": 50,
+    "max_score": 100,
+    "stages": ["fechamento", "negociacao"]
+  },
+  "priority": 75,
+  "system_injection": "Texto de instrução direta que será injetado no prompt da IA durante a reunião. Use linguagem imperativa, clara e acionável. Máximo 400 palavras.",
+  "tactics": [
+    "Tática específica 1 — frase ou pergunta exata a usar",
+    "Tática específica 2",
+    "Tática específica 3"
+  ]
+}

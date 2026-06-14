@@ -354,11 +354,40 @@ async def processar_fragmento_tempo_real(
         except Exception as _e:
             logger.warning("[MeetingMemory] Nao foi possivel salvar transcript: %s", _e)
 
+    # Resolve skill baseada no contexto atual (DISC + score + estágio)
+    skill_context = ""
+    try:
+        from agent.skill_resolver import resolver_skill_context
+        from api.database import obter_meeting_memory
+        mem = obter_meeting_memory(meeting_id)
+        ultimo_score = 50.0
+        ultimo_stage = "abertura"
+        if mem:
+            scores = json.loads(mem.get("score_history_json") or "[]")
+            if scores:
+                last = scores[-1]
+                ultimo_score = float(last.get("valor") or last.get("score") or 50)
+            diag = mem.get("current_diagnosis") or "{}"
+            if isinstance(diag, str):
+                try:
+                    diag = json.loads(diag)
+                except Exception:
+                    diag = {}
+            ultimo_stage = diag.get("conversation_stage") or "abertura"
+        skill_context = resolver_skill_context(
+            disc_profile=perfil_disc_atual or "",
+            score=ultimo_score,
+            conversation_stage=ultimo_stage,
+        )
+    except Exception as _se:
+        logger.debug("[Skills] Não foi possível resolver skill: %s", _se)
+
     resultado = await analisar_fragmento(
         transcricao_parcial=transcricao_parcial,
         historico=historico or "Início da conversa",
         perfil_disc_atual=perfil_disc_atual or "Ainda não identificado",
         mapa_financeiro=cache["mapa_financeiro"] if cache["mapa_financeiro"] else None,
+        skill_context=skill_context,
     )
 
     # Persistir transcrição e análise no MySQL para revisão posterior

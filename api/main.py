@@ -100,7 +100,7 @@ class _CorrelationMiddleware(BaseHTTPMiddleware):
 app = FastAPI(
     title="SALEIA — Assistente de Vendas IA",
     description="Backend para o assistente de vendas em tempo real no Google Meet",
-    version="1.4.33",
+    version="1.4.34",
 )
 
 app.add_middleware(_CorrelationMiddleware)
@@ -205,6 +205,11 @@ async def on_startup():
         criar_tabelas_playbook()
     except Exception as e:
         logger.warning("Tabelas de playbook não criadas: %s", e)
+    try:
+        from agent.skill_resolver import criar_tabela_skills
+        criar_tabela_skills()
+    except Exception as e:
+        logger.warning("Tabela skills não criada: %s", e)
     try:
         from api.metricas_historico import criar_tabela_metricas, criar_tabela_teste_provedores
         criar_tabela_metricas()
@@ -476,7 +481,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.33",
+        "versao":              "1.4.34",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -514,7 +519,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.33",
+        "versao":          "1.4.34",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -984,6 +989,79 @@ def gerar_playbook_manual_endpoint(
         from agent.playbook_generator import gerar_e_salvar_playbook
         background_tasks.add_task(gerar_e_salvar_playbook, relatorio, "", meeting_id)
         return {"status": "gerando", "meeting_id": meeting_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/skills")
+def listar_skills_endpoint(
+    apenas_ativas: bool = False,
+    authorization: str | None = Header(default=None),
+):
+    """Lista todas as skills (builtins + customizadas)."""
+    _req_auth(authorization)
+    try:
+        from agent.skill_resolver import listar_skills
+        return {"skills": listar_skills(apenas_ativas=apenas_ativas)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/skills/gerar")
+def gerar_skill_endpoint(
+    body: dict,
+    background_tasks: BackgroundTasks,
+    authorization: str | None = Header(default=None),
+):
+    """Gera uma skill via IA a partir de um contexto (playbook, reunião ou texto livre)."""
+    _req_auth(authorization)
+    contexto = (body.get("contexto") or "").strip()
+    if not contexto or len(contexto) < 20:
+        raise HTTPException(status_code=400, detail="Campo 'contexto' deve ter pelo menos 20 caracteres.")
+    playbook_id = body.get("source_playbook_id")
+    try:
+        from agent.skill_resolver import gerar_e_salvar_skill
+        background_tasks.add_task(gerar_e_salvar_skill, contexto, playbook_id)
+        return {"status": "gerando", "source_playbook_id": playbook_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.patch("/skills/{skill_id}")
+def atualizar_skill_endpoint(
+    skill_id: str,
+    body: dict,
+    authorization: str | None = Header(default=None),
+):
+    """Edita campos de uma skill customizada (name, system_injection, priority, is_active, etc.)."""
+    _req_auth(authorization)
+    try:
+        from agent.skill_resolver import atualizar_skill
+        ok = atualizar_skill(skill_id, body)
+        if not ok:
+            raise HTTPException(status_code=404, detail="Skill não encontrada ou sem campos válidos.")
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/skills/{skill_id}")
+def deletar_skill_endpoint(
+    skill_id: str,
+    authorization: str | None = Header(default=None),
+):
+    """Remove uma skill customizada (admin). Skills builtin não podem ser removidas via API."""
+    _req_admin(authorization)
+    try:
+        from agent.skill_resolver import deletar_skill
+        ok = deletar_skill(skill_id)
+        if not ok:
+            raise HTTPException(status_code=404, detail="Skill não encontrada.")
+        return {"ok": True}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

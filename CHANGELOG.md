@@ -3,6 +3,56 @@
 
 ---
 
+## V.1.4.34 — Sales Brain Fase 3: Sales Skills (T3.1 + T3.2 + T3.3)
+> Data: 14/06/2026 | Feature (SALEIA Sales Brain — Fase 3)
+
+### VISÃO
+Skills especializadas injetadas automaticamente no prompt de análise em tempo real, baseadas no perfil DISC, score atual e estágio da conversa. Geração via IA a partir de playbooks.
+
+### BACKEND — `agent/skills/` (5 arquivos JSON builtin)
+- `disc-dominant.json` — DISC D, qualquer score/estágio: direto, ROI, opções A/B
+- `objection-price.json` — score 20-65, estágios negociacao/resistencia/fechamento: gestão de objeção de preço
+- `high-ticket-close.json` — score 65+, estágios fechamento/negociacao/compromisso: momentum high-ticket
+- `financial-diagnosis.json` — score 0-45, estágios abertura/descoberta/desenvolvimento: coleta de dados financeiros
+- `follow-up-recovery.json` — score 0-35, qualquer estágio: resgate de reunião fria
+
+### BACKEND — `agent/skill_resolver.py` (novo arquivo)
+- `criar_tabela_skills()`: tabela MySQL para skills customizadas/geradas
+- `_carregar_skills_builtin()`: lê JSONs de `agent/skills/`
+- `_carregar_skills_db()`: lê skills ativas do MySQL
+- `listar_skills(apenas_ativas)`: merge builtin + DB com ordenação por priority
+- `resolver_melhor_skill(disc, score, stage)`: match por DISC + range de score + estágio; tiebreak por priority
+- `resolver_skill_context(disc, score, stage)`: retorna `system_injection` como string (ou "" se sem match)
+- `salvar_skill()`, `atualizar_skill()`, `deletar_skill()`: CRUD para skills customizadas
+- `gerar_skill(contexto, playbook_id)`, `gerar_e_salvar_skill()`: geração via `chamar_ia()` + prompt `skill_generation.txt`
+
+### BACKEND — `agent/prompt_templates/skill_generation.txt` (novo arquivo)
+- Instrui IA a criar skills com: name, description, triggers (disc/score/stages), priority, system_injection, tactics
+
+### BACKEND — `agent/agente_tempo_real.py`
+- `analisar_fragmento()` ganha parâmetro `skill_context: str = ""`
+- Texto da skill injetado no final do prompt (após RAG context)
+
+### BACKEND — `api/processador_tempo_real.py`
+- Antes de `analisar_fragmento()`: carrega MeetingMemory, extrai score e stage, chama `resolver_skill_context()`
+- Skill context passado para `analisar_fragmento()` — zero impacto se nenhuma skill aplicável
+
+### BACKEND — `api/main.py`
+- Startup: `criar_tabela_skills()`
+- `GET /skills` — lista builtins + customizadas
+- `POST /skills/gerar` — gera skill via IA em background (contexto + source_playbook_id)
+- `PATCH /skills/{id}` — edição de skills DB
+- `DELETE /skills/{id}` — remoção de skills DB (admin)
+- Versão: `1.4.33` → `1.4.34`
+
+### FRONTEND — `frontend/dashboard.html`
+- Botão "🧠 Skill" em cada card de playbook → `transformarEmSkill(playbook_id)`
+- Seção "🧠 Skills Ativas" na página Playbooks: grid de cards com DISC/score/stage/origem
+- `carregarSkills()`, `renderizarSkills()`, `cardSkillHTML()`, `toggleSkill()`, `deletarSkill()`, `transformarEmSkill()`
+- Skills builtin mostradas como somente-leitura (sem botões editar/deletar); skills DB têm toggle e delete
+
+---
+
 ## V.1.4.33 — Sales Brain Fase 2 · T2.3: Biblioteca de Playbooks (Dashboard)
 > Data: 14/06/2026 | Feature (SALEIA Sales Brain — Fase 2)
 

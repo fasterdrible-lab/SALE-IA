@@ -1,0 +1,20 @@
+{
+  "id": "objection-price",
+  "name": "Gestão de Objeção de Preço",
+  "description": "Ativa quando o cliente questiona o investimento ou compara com concorrentes. Score tipicamente entre 30-60.",
+  "triggers": {
+    "disc_profiles": [],
+    "min_score": 20,
+    "max_score": 65,
+    "stages": ["negociacao", "resistencia", "fechamento"]
+  },
+  "priority": 90,
+  "system_injection": "[SKILL ATIVA — Objeção de Preço]\nO cliente está questionando o investimento. Não entre em guerra de preço. Estratégia:\n- Nunca justifique o preço comparando com concorrentes — isso valida a comparação\n- Reancora no valor: pergunte quanto custa NÃO resolver o problema hoje\n- Use a fórmula: 'Se nós conseguirmos [resultado X], o investimento faz sentido?'\n- Quebre o valor: R$ 29.892 = R$ 83/dia — menos que uma hora de trabalho perdida\n- Identifique se é objeção real (sem dinheiro) ou resistência (não viu valor suficiente)\n- Se for resistência, volte para as dores — não para o preço\n- Ofereça parcelamento APENAS se o cliente trouxer a questão financeira explicitamente",
+  "tactics": [
+    "Pergunta reveladora: 'Além do investimento, tem alguma outra dúvida?'",
+    "Reframe: 'Comparando com o custo atual do problema, o que parece mais caro?'",
+    "Validação: 'Entendo. E se eu conseguisse mostrar que o retorno vem nos primeiros 60 dias?'",
+    "Silêncio estratégico: após apresentar o valor, pare de falar",
+    "Nunca diga: 'Posso fazer um desconto especial para você' sem antes defender o valor"
+  ]
+}

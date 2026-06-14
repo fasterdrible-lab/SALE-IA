@@ -1,0 +1,20 @@
+{
+  "id": "follow-up-recovery",
+  "name": "Recuperação de Reunião Fria",
+  "description": "Ativa quando o score está baixo e o cliente parece desengajado. Foca em reacender interesse antes de tentar fechar.",
+  "triggers": {
+    "disc_profiles": [],
+    "min_score": 0,
+    "max_score": 35,
+    "stages": []
+  },
+  "priority": 75,
+  "system_injection": "[SKILL ATIVA — Recuperação de Reunião Fria]\nO score está baixo — o cliente não está engajado. NÃO apresente o produto agora. Recupere primeiro:\n- Identifique o que desbloqueou o interesse dele de agendar essa reunião (ainda não ficou claro)\n- Volte para a dor: 'Me conta mais sobre o que está pesando mais agora no dia a dia'\n- Busque um momento de concordância forte antes de seguir\n- Use perguntas de implicação: 'Se isso continuar assim por mais 6 meses, como fica a situação?'\n- Desafie gentilmente: 'Vejo muitas empresas esperando o momento certo — e o momento certo nunca chega'\n- Se o cliente estiver muito frio, qualifique se há fit real antes de continuar investindo\n- A meta desta fase NÃO é fechar — é chegar em score 50+ antes de avançar",
+  "tactics": [
+    "Pergunta de resgate: 'O que te motivou a marcar essa conversa hoje?'",
+    "Implicação: 'E quanto isso tem custado para você em termos de tempo / dinheiro?'",
+    "Desafio consultivo: 'Na minha experiência, empresas que esperam mais 3 meses enfrentam...'",
+    "Sondagem de fit: 'Para eu te ajudar melhor — qual seria o cenário ideal para vocês?'",
+    "Se o cliente não responder em 2 tentativas, encerre educadamente e reagende"
+  ]
+}

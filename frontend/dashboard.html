@@ -1353,6 +1353,17 @@
           <div class="metric"><div class="metric-val" id="pb-m-ativos">–</div><div class="metric-lbl">Ativos</div></div>
         </div>
         <div id="pb-lista"><div style="color:var(--muted)">Carregando...</div></div>
+
+        <div style="margin-top:36px;border-top:1px solid var(--border);padding-top:24px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+            <div>
+              <h3 style="margin:0;color:var(--gold)">🧠 Skills Ativas</h3>
+              <p style="color:var(--muted);font-size:.82rem;margin:4px 0 0">Injetadas automaticamente no assistente em tempo real conforme o contexto.</p>
+            </div>
+            <button class="btn" onclick="carregarSkills()">↻ Atualizar Skills</button>
+          </div>
+          <div id="skills-lista"><div style="color:var(--muted);font-size:.85rem">Carregando skills...</div></div>
+        </div>
       </div>
 
       <!-- MONITOR -->
@@ -1604,7 +1615,7 @@
     if (nome === 'sessoes')       carregarSessoes();
     if (nome === 'base')          { carregarBase(); initDropzone(); }
     if (nome === 'historico')     carregarHistorico();
-    if (nome === 'playbooks')     carregarPlaybooks();
+    if (nome === 'playbooks')     { carregarPlaybooks(); carregarSkills(); }
     if (nome === 'monitor')       _iniciarMonitor();
     if (nome === 'configuracoes') {
       // reset lazy-load flags so sections reload fresh data on next open
@@ -2738,6 +2749,7 @@
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap">
           <button onclick="editarPlaybook('${pid}')" style="padding:4px 10px;font-size:.75rem;background:transparent;border:1px solid var(--gold);color:var(--gold);border-radius:4px;cursor:pointer">✏️ Editar</button>
+          <button onclick="transformarEmSkill('${pid}')" style="padding:4px 10px;font-size:.75rem;background:transparent;border:1px solid #a78bfa;color:#a78bfa;border-radius:4px;cursor:pointer">🧠 Skill</button>
           <button onclick="togglePlaybook('${pid}',${ativo ? 0 : 1})" style="padding:4px 10px;font-size:.75rem;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:4px;cursor:pointer">${ativo ? '⏸ Desativar' : '▶ Ativar'}</button>
           <button onclick="deletarPlaybook('${pid}')" style="padding:4px 10px;font-size:.75rem;background:transparent;border:1px solid #f87171;color:#f87171;border-radius:4px;cursor:pointer">🗑</button>
         </div>
@@ -2813,6 +2825,131 @@
       filtrarPlaybooks();
     } catch (e) {
       alert('Erro ao excluir playbook: ' + e.message);
+    }
+  }
+
+  /* ─── Skills ────────────────────────────────────── */
+  let _skillsCache = [];
+
+  async function carregarSkills() {
+    const container = document.getElementById('skills-lista');
+    if (!container) return;
+    container.innerHTML = '<div style="color:var(--muted);font-size:.85rem">Carregando...</div>';
+    try {
+      const r = await fetchJsonWithFallback('/skills');
+      const d = await r.json();
+      _skillsCache = d.skills || [];
+      renderizarSkills(_skillsCache);
+    } catch (e) {
+      container.innerHTML = '<div style="color:#f87171;font-size:.85rem">Erro ao carregar skills.</div>';
+    }
+  }
+
+  function renderizarSkills(lista) {
+    const container = document.getElementById('skills-lista');
+    if (!container) return;
+    if (!lista.length) {
+      container.innerHTML = '<div style="color:var(--muted);font-size:.85rem">Nenhuma skill encontrada.</div>';
+      return;
+    }
+    container.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">${lista.map(s => cardSkillHTML(s)).join('')}</div>`;
+  }
+
+  function cardSkillHTML(s) {
+    const nome     = escHtml(s.name || 'Sem nome');
+    const desc     = escHtml(s.description || '');
+    const fonte    = s.source === 'builtin' ? '📦 Builtin' : s.source === 'generated' ? '🤖 Gerada' : '✏️ Manual';
+    const ativo    = s.is_active !== 0;
+    const triggers = s.triggers || {};
+    const disc     = (triggers.disc_profiles || s.trigger_disc || []).join(', ') || 'Qualquer';
+    const minS     = triggers.min_score ?? s.trigger_min_score ?? 0;
+    const maxS     = triggers.max_score ?? s.trigger_max_score ?? 100;
+    const stages   = (triggers.stages || s.trigger_stages || []).join(', ') || 'Qualquer';
+    const sid      = escHtml(s.id || '');
+    const isDb     = s.source !== 'builtin';
+    const badgeAtivo = ativo
+      ? `<span style="font-size:.7rem;padding:1px 6px;background:rgba(45,212,191,.12);color:#2dd4bf;border-radius:3px;border:1px solid #2dd4bf">Ativo</span>`
+      : `<span style="font-size:.7rem;padding:1px 6px;background:rgba(248,113,113,.1);color:#f87171;border-radius:3px;border:1px solid #f87171">Inativo</span>`;
+    const deleteBtn = isDb ? `<button onclick="deletarSkill('${sid}')" style="padding:2px 8px;font-size:.7rem;background:transparent;border:1px solid #f87171;color:#f87171;border-radius:3px;cursor:pointer">🗑</button>` : '';
+    const toggleBtn = isDb ? `<button onclick="toggleSkill('${sid}',${ativo ? 0 : 1})" style="padding:2px 8px;font-size:.7rem;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:3px;cursor:pointer">${ativo ? '⏸' : '▶'}</button>` : '';
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">
+        <div style="font-weight:700;font-size:.88rem;color:var(--gold)">${nome}</div>
+        <div style="display:flex;gap:4px;align-items:center;flex-shrink:0">${badgeAtivo}${toggleBtn}${deleteBtn}</div>
+      </div>
+      ${desc ? `<div style="font-size:.78rem;color:var(--muted);margin-bottom:8px">${desc}</div>` : ''}
+      <div style="font-size:.75rem;color:var(--muted);display:grid;grid-template-columns:1fr 1fr;gap:4px">
+        <span>DISC: <b style="color:var(--text)">${escHtml(disc)}</b></span>
+        <span>Score: <b style="color:var(--text)">${minS}–${maxS}</b></span>
+        <span>Estágios: <b style="color:var(--text)">${escHtml(stages)}</b></span>
+        <span>Origem: <b style="color:var(--text)">${fonte}</b></span>
+      </div>
+    </div>`;
+  }
+
+  async function toggleSkill(id, novoAtivo) {
+    try {
+      const r = await fetchJsonWithFallback(`/skills/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: novoAtivo }),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      _skillsCache = _skillsCache.map(s => s.id === id ? { ...s, is_active: novoAtivo } : s);
+      renderizarSkills(_skillsCache);
+    } catch (e) {
+      alert('Erro ao alterar skill: ' + e.message);
+    }
+  }
+
+  async function deletarSkill(id) {
+    const skill = _skillsCache.find(s => s.id === id);
+    if (!window.confirm(`Excluir skill "${skill?.name || id}"?`)) return;
+    try {
+      const r = await fetchJsonWithFallback(`/skills/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      _skillsCache = _skillsCache.filter(s => s.id !== id);
+      renderizarSkills(_skillsCache);
+    } catch (e) {
+      alert('Erro ao excluir skill: ' + e.message);
+    }
+  }
+
+  async function transformarEmSkill(playbookId) {
+    const playbook = _playbooksCache.find(p => p.id === playbookId);
+    if (!playbook) return;
+
+    const confirma = window.confirm(
+      `Transformar o playbook "${playbook.name}" em uma Skill?\n\nA IA vai criar uma micro-estratégia reutilizável baseada neste playbook.`
+    );
+    if (!confirma) return;
+
+    // Monta contexto resumido do playbook para enviar à IA
+    const ctx = [
+      `Playbook: ${playbook.name}`,
+      playbook.target_persona ? `Persona: ${playbook.target_persona}` : '',
+      Array.isArray(playbook.steps) && playbook.steps.length
+        ? `Passos: ${playbook.steps.join(' | ')}`
+        : '',
+      Array.isArray(playbook.winning_arguments) && playbook.winning_arguments.length
+        ? `Argumentos vencedores: ${playbook.winning_arguments.join(' | ')}`
+        : '',
+      Array.isArray(playbook.closing_sequence) && playbook.closing_sequence.length
+        ? `Sequência de fechamento: ${playbook.closing_sequence.join(' | ')}`
+        : '',
+    ].filter(Boolean).join('\n');
+
+    try {
+      const r = await fetchJsonWithFallback('/skills/gerar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contexto: ctx, source_playbook_id: playbookId }),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      alert('✅ Skill sendo gerada em background. Atualize a seção Skills em alguns segundos.');
+      setTimeout(carregarSkills, 4000);
+    } catch (e) {
+      alert('Erro ao gerar skill: ' + e.message);
     }
   }
 
