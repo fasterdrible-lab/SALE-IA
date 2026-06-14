@@ -100,7 +100,7 @@ class _CorrelationMiddleware(BaseHTTPMiddleware):
 app = FastAPI(
     title="SALEIA — Assistente de Vendas IA",
     description="Backend para o assistente de vendas em tempo real no Google Meet",
-    version="1.4.31",
+    version="1.4.32",
 )
 
 app.add_middleware(_CorrelationMiddleware)
@@ -200,6 +200,11 @@ async def on_startup():
         migrar_coluna_embedding_memories()
     except Exception as e:
         logger.warning("Tabela sales_memories não criada/migrada: %s", e)
+    try:
+        from agent.playbook_generator import criar_tabelas_playbook
+        criar_tabelas_playbook()
+    except Exception as e:
+        logger.warning("Tabelas de playbook não criadas: %s", e)
     try:
         from api.metricas_historico import criar_tabela_metricas, criar_tabela_teste_provedores
         criar_tabela_metricas()
@@ -471,7 +476,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.31",
+        "versao":              "1.4.32",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -509,7 +514,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.31",
+        "versao":          "1.4.32",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -720,10 +725,13 @@ def recapitulacao_completa(req: RecapitulacaoRequest, background_tasks: Backgrou
 
     try:
         from agent.knowledge_extractor import extrair_e_salvar_memorias
+        from agent.playbook_generator import _eh_reuniao_de_sucesso, gerar_e_salvar_playbook
         meeting_id = req.meeting_id or f"completa_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         background_tasks.add_task(extrair_e_salvar_memorias, resultado, req.transcricao, meeting_id)
+        if _eh_reuniao_de_sucesso(resultado, meeting_id):
+            background_tasks.add_task(gerar_e_salvar_playbook, resultado, req.transcricao, meeting_id)
     except Exception as e:
-        logger.warning("Não foi possível agendar extração de memórias: %s", e)
+        logger.warning("Não foi possível agendar pipeline pós-reunião: %s", e)
 
     return resultado
 
@@ -851,6 +859,135 @@ def ver_relatorio():
     return HTMLResponse(content=html)
 
 
+@app.patch("/relatorios/{meeting_id}/status")
+def atualizar_status_relatorio(
+    meeting_id: str,
+    body: dict,
+    authorization: str | None = Header(default=None),
+):
+    """Define o status de uma reunião: open | won | lost. Marcar como 'won' dispara geração de playbook."""
+    _req_auth(authorization)
+    status = (body.get("status") or "").strip().lower()
+    if status not in ("open", "won", "lost"):
+        raise HTTPException(status_code=400, detail="Status inválido. Use: open, won ou lost.")
+    try:
+        from agent.playbook_generator import atualizar_status_reuniao
+        atualizar_status_reuniao(meeting_id, status)
+        return {"meeting_id": meeting_id, "status": status}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/relatorios/{meeting_id}/status")
+def obter_status_relatorio(
+    meeting_id: str,
+    authorization: str | None = Header(default=None),
+):
+    """Retorna o status atual de uma reunião."""
+    _req_auth(authorization)
+    try:
+        from agent.playbook_generator import obter_status_reuniao
+        return {"meeting_id": meeting_id, "status": obter_status_reuniao(meeting_id)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/playbooks")
+def listar_playbooks_endpoint(
+    apenas_ativos: bool = False,
+    limit: int = 50,
+    offset: int = 0,
+    authorization: str | None = Header(default=None),
+):
+    """Lista todos os playbooks (ou apenas os ativos)."""
+    _req_auth(authorization)
+    try:
+        from agent.playbook_generator import listar_playbooks
+        items = listar_playbooks(apenas_ativos=apenas_ativos, limit=limit, offset=offset)
+        return {"total": len(items), "playbooks": items}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/playbooks/{playbook_id}")
+def obter_playbook_endpoint(
+    playbook_id: str,
+    authorization: str | None = Header(default=None),
+):
+    """Retorna um playbook por ID."""
+    _req_auth(authorization)
+    try:
+        from agent.playbook_generator import obter_playbook
+        item = obter_playbook(playbook_id)
+        if not item:
+            raise HTTPException(status_code=404, detail="Playbook não encontrado.")
+        return item
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.patch("/playbooks/{playbook_id}")
+def atualizar_playbook_endpoint(
+    playbook_id: str,
+    body: dict,
+    authorization: str | None = Header(default=None),
+):
+    """Edita campos de um playbook ou ativa/desativa (is_active: 0|1)."""
+    _req_auth(authorization)
+    try:
+        from agent.playbook_generator import atualizar_playbook
+        ok = atualizar_playbook(playbook_id, body)
+        if not ok:
+            raise HTTPException(status_code=404, detail="Playbook não encontrado ou sem campos válidos.")
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/playbooks/{playbook_id}")
+def deletar_playbook_endpoint(
+    playbook_id: str,
+    authorization: str | None = Header(default=None),
+):
+    """Remove permanentemente um playbook."""
+    _req_admin(authorization)
+    try:
+        from agent.playbook_generator import deletar_playbook
+        ok = deletar_playbook(playbook_id)
+        if not ok:
+            raise HTTPException(status_code=404, detail="Playbook não encontrado.")
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/playbooks/gerar/{meeting_id}")
+def gerar_playbook_manual_endpoint(
+    meeting_id: str,
+    background_tasks: BackgroundTasks,
+    authorization: str | None = Header(default=None),
+):
+    """Força geração de playbook para uma reunião específica (admin)."""
+    _req_admin(authorization)
+    try:
+        from agent.sessao_manager import buscar_relatorio_por_meeting
+        relatorio = buscar_relatorio_por_meeting(meeting_id) or {}
+    except Exception:
+        relatorio = {}
+    try:
+        from agent.playbook_generator import gerar_e_salvar_playbook
+        background_tasks.add_task(gerar_e_salvar_playbook, relatorio, "", meeting_id)
+        return {"status": "gerando", "meeting_id": meeting_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/sales-memories")
 def listar_sales_memories(
     memory_type: Optional[str] = None,
@@ -905,9 +1042,16 @@ def listar_relatorios_endpoint():
         try:
             rows = db_listar(limite=20)
             if rows:
+                try:
+                    from agent.playbook_generator import listar_status_reunioes
+                    mids = [r["meeting_id"] for r in rows]
+                    status_map = listar_status_reunioes(mids)
+                except Exception:
+                    status_map = {}
                 return {"total": len(rows), "fonte": "sqlite", "relatorios": [
                     {
                         "id": r["id"],
+                        "meeting_id": r["meeting_id"],
                         "titulo": r["nome_reuniao"],
                         "data": r["criado_em"],
                         "probabilidade_fechamento": r["dados"].get("recapitulacao", {}).get("probabilidade_fechamento", ""),
@@ -917,6 +1061,7 @@ def listar_relatorios_endpoint():
                             or r["dados"].get("diagnostico_financeiro", {}).get("_provedor_ia")
                             or ""
                         ),
+                        "status": status_map.get(r["meeting_id"], "open"),
                     }
                     for r in rows
                 ]}
@@ -1098,13 +1243,16 @@ def recapitulacao_manual(req: RecapitulacaoRequest, background_tasks: Background
     except Exception as e:
         logger.warning("Não foi possível salvar relatório manual: %s", e)
 
-    # Extração de memórias comerciais em background (não bloqueia a resposta)
+    # Pipeline pós-reunião em background (não bloqueia a resposta)
     try:
         from agent.knowledge_extractor import extrair_e_salvar_memorias
+        from agent.playbook_generator import _eh_reuniao_de_sucesso, gerar_e_salvar_playbook
         meeting_id = req.meeting_id or f"manual_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         background_tasks.add_task(extrair_e_salvar_memorias, resultado, req.transcricao, meeting_id)
+        if _eh_reuniao_de_sucesso(resultado, meeting_id):
+            background_tasks.add_task(gerar_e_salvar_playbook, resultado, req.transcricao, meeting_id)
     except Exception as e:
-        logger.warning("Não foi possível agendar extração de memórias: %s", e)
+        logger.warning("Não foi possível agendar pipeline pós-reunião: %s", e)
 
     return resultado
 

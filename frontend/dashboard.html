@@ -2602,14 +2602,40 @@
     const prov = (r.provedor || '').toLowerCase();
     const provLabel = { deepseek: 'DeepSeek', openai: 'OpenAI', anthropic: 'Anthropic', gemini: 'Gemini' }[prov] || '';
     const provHTML = provLabel ? `<span style="font-size:.72rem;color:var(--muted);margin-left:6px">${escHtml(provLabel)}</span>` : '';
+    const mid = escHtml(r.meeting_id || r.id || '');
+    const statusAtual = r.status || 'open';
+    const wonBtn = statusAtual === 'won'
+      ? `<span style="font-size:.72rem;color:#2dd4bf;font-weight:700;padding:2px 8px;border:1px solid #2dd4bf;border-radius:4px;margin-left:6px">✓ Ganha</span>`
+      : `<button onclick="marcarComoGanha(event,'${mid}')" style="font-size:.7rem;padding:2px 8px;background:transparent;border:1px solid var(--gold);color:var(--gold);border-radius:4px;cursor:pointer;margin-left:6px">Ganha</button>`;
     return `<div class="reuniao-card" onclick='verDetalhe(${JSON.stringify(r)})'>
       <div class="score-circle" style="border-color:${cor};color:${cor}">${score !== null ? score : '?'}</div>
       <div class="reuniao-info">
         <div class="reuniao-titulo">${titulo}</div>
-        <div class="reuniao-meta">${data} ${scoreHTML}${provHTML}</div>
+        <div class="reuniao-meta">${data} ${scoreHTML}${provHTML}${wonBtn}</div>
       </div>
       ${badge}
     </div>`;
+  }
+
+  async function marcarComoGanha(event, meetingId) {
+    event.stopPropagation();
+    if (!meetingId) return;
+    try {
+      const r = await fetchJsonWithFallback(`/relatorios/${encodeURIComponent(meetingId)}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'won' }),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      // Atualiza cache local e re-renderiza
+      _reunioesCache = _reunioesCache.map(re => {
+        const rid = re.meeting_id || re.id || '';
+        return rid === meetingId ? { ...re, status: 'won' } : re;
+      });
+      renderizarReunioes(_reunioesCache);
+    } catch (e) {
+      alert('Erro ao marcar reunião: ' + e.message);
+    }
   }
 
   /* ─── Frases gatilho ──────────────────────────────── */

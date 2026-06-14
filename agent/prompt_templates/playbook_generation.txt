@@ -1,0 +1,42 @@
+Você é um especialista em vendas consultivas de alto valor. Sua tarefa é transformar uma reunião vencedora em um playbook comercial reutilizável para outros vendedores.
+
+CONTEXTO DA REUNIÃO:
+{contexto}
+
+Analise o contexto acima e gere um playbook detalhado que outro vendedor possa usar para replicar o sucesso desta venda.
+
+UM BOM PLAYBOOK:
+- É generalizável para clientes com perfil similar (mesmo DISC, mesmo segmento, mesma dor)
+- Captura EXATAMENTE o que funcionou nesta reunião — não o que "costuma funcionar"
+- Inclui as objeções reais levantadas e como foram superadas
+- Tem passos sequenciais acionáveis, não conceitos vagos
+- Inclui a sequência de fechamento que funcionou
+
+Responda APENAS com um JSON válido no seguinte formato, sem explicações, sem markdown, sem texto antes ou depois:
+
+{
+  "name": "Nome descritivo do playbook (ex: Fechamento para DISC Dominante com objeção de preço)",
+  "targetPersona": "Descrição do cliente ideal para este playbook (perfil DISC, segmento, faturamento, dor principal)",
+  "steps": [
+    "Passo 1: Como abrir a reunião com este perfil",
+    "Passo 2: Perguntas de descoberta para revelar a dor principal",
+    "Passo 3: Como apresentar o produto/solução",
+    "Passo 4: Como lidar com as objeções típicas",
+    "Passo 5: Sequência de fechamento"
+  ],
+  "objections": [
+    {
+      "objecao": "Objeção exata levantada pelo cliente",
+      "resposta": "Como foi superada com sucesso nesta reunião"
+    }
+  ],
+  "winningArguments": [
+    "Argumento ou fala que gerou maior engajamento ou quebrou resistência",
+    "Outro argumento vencedor identificado na transcrição"
+  ],
+  "closingSequence": [
+    "Passo 1 do fechamento que funcionou",
+    "Passo 2 do fechamento",
+    "Passo 3 — como o compromisso foi obtido"
+  ]
+}

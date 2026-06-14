@@ -3,6 +3,45 @@
 
 ---
 
+## V.1.4.32 — Sales Brain Fase 2 · T2.1+T2.2: Playbook Engine
+> Data: 14/06/2026 | Feature (SALEIA Sales Brain — Fase 2)
+
+### VISÃO
+Reuniões vencedoras geram playbooks automaticamente. Critério de sucesso: probabilidade_fechamento=="alta", score_compra>80 ou status marcado manualmente como "won".
+
+### BACKEND — `agent/playbook_generator.py` (novo arquivo)
+- `criar_tabelas_playbook()`: cria `meeting_status` (meeting_id PK, status, updated_at) e `playbooks` (id UUID, name, targetPersona, steps, objections, winningArguments, closingSequence, source_meeting_id, is_active)
+- `_eh_reuniao_de_sucesso(relatorio, meeting_id)`: 3 critérios em cascata — probabilidade=="alta", score>80, status=="won"
+- `atualizar_status_reuniao(meeting_id, status)`: upsert em `meeting_status`
+- `obter_status_reuniao(meeting_id)`: leitura com fallback "open"
+- `listar_status_reunioes(meeting_ids)`: batch lookup para enriquecer listagem
+- `salvar_playbook(playbook)`, `listar_playbooks()`, `obter_playbook()`, `atualizar_playbook()`, `deletar_playbook()`: CRUD completo
+- `gerar_playbook(relatorio, transcricao, meeting_id)`: chama `chamar_ia()` com prompt playbook_generation.txt
+- `gerar_e_salvar_playbook(relatorio, transcricao, meeting_id)`: pipeline completo para BackgroundTask
+
+### BACKEND — `agent/prompt_templates/playbook_generation.txt` (novo arquivo)
+- Prompt especializado: extrai name, targetPersona, steps, objections, winningArguments, closingSequence
+- Instrui IA a focar no que REALMENTE funcionou nessa reunião, não no que "costuma funcionar"
+
+### BACKEND — `api/main.py`
+- Startup: `criar_tabelas_playbook()` adicionado
+- `/recapitulacao-manual` e `/recapitulacao-completa`: após extrair memórias, detecta sucesso e agenda `gerar_e_salvar_playbook()` como BackgroundTask adicional
+- `PATCH /relatorios/{meeting_id}/status` — define status (open/won/lost) com JWT
+- `GET /relatorios/{meeting_id}/status` — consulta status com JWT
+- `GET /playbooks` — lista playbooks (filtro `apenas_ativos`, `limit`, `offset`)
+- `GET /playbooks/{id}` — detalhe do playbook
+- `PATCH /playbooks/{id}` — edição inline (name, steps, is_active, etc.)
+- `DELETE /playbooks/{id}` — remoção (admin)
+- `POST /playbooks/gerar/{meeting_id}` — geração manual forçada (admin)
+- `GET /relatorios` agora retorna campos `meeting_id` e `status` em cada item
+- Versão: `1.4.31` → `1.4.32`
+
+### FRONTEND — `frontend/dashboard.html`
+- `cardReuniaoHTML()`: exibe badge "✓ Ganha" (verde) ou botão "Ganha" (dourado) por reunião
+- `marcarComoGanha(event, meetingId)`: PATCH no endpoint de status, atualiza cache local e re-renderiza sem reload
+
+---
+
 ## V.1.4.31 — Sales Brain Fase 1 · Tarefa 1.3: Busca Semântica em Memórias Comerciais
 > Data: 14/06/2026 | Feature (SALEIA Sales Brain — Fase 1)
 
