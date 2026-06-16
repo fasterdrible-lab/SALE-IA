@@ -301,134 +301,6 @@ async def buscar_transcript_tactiq(meeting_id: str) -> Optional[str]:
         return None
 
 
-async def processar_fragmento_tempo_real(
-    transcricao_parcial: str,
-    historico: str = "",
-    perfil_disc_atual: str = "",
-    mapa_financeiro: dict = None,
-    meeting_id: str = "default",
-    transcricao_nova: str = "",
-) -> dict:
-    """
-    Processa um fragmento de transcrição em tempo real usando o agente dedicado.
-
-    Persiste o mapa financeiro entre ciclos: campos não-null retornados pela IA
-    são mergeados ao cache da reunião. Campos já coletados nunca são sobrescritos
-    por valores null.
-
-    Args:
-        transcricao_parcial: Trecho mais recente capturado pela extensão.
-        historico: Histórico acumulado da conversa.
-        perfil_disc_atual: Perfil DISC identificado até o momento.
-        mapa_financeiro: Mapa financeiro vindo do estado do cliente (content.js).
-        meeting_id: Identificador da reunião para persistência do cache.
-
-    Returns:
-        Dicionário com análise da IA e mapa_financeiro atualizado.
-    """
-    from agent.agente_tempo_real import analisar_fragmento
-    from api.database import registrar_analise_meeting, registrar_transcricao_meeting
-
-    cache = _get_cache_reuniao(meeting_id)
-
-    # Merge do mapa_financeiro recebido com o cache da reunião
-    if mapa_financeiro:
-        for campo, valor in mapa_financeiro.items():
-            if valor is not None and valor != "" and campo != "produto_indicado":
-                cache["mapa_financeiro"][campo] = valor
-        if isinstance(mapa_financeiro.get("produto_indicado"), dict):
-            prod = mapa_financeiro["produto_indicado"]
-            cache["mapa_financeiro"].setdefault("produto_indicado", {})
-            for k, v in prod.items():
-                if v is not None and v != "":
-                    cache["mapa_financeiro"]["produto_indicado"][k] = v
-
-    fragmento_para_memoria = (transcricao_nova or transcricao_parcial or "").strip()
-    if fragmento_para_memoria:
-        try:
-            registrar_transcricao_meeting(
-                meeting_id,
-                _limpar_transcricao(fragmento_para_memoria),
-                substituir=False,
-            )
-        except Exception as _e:
-            logger.warning("[MeetingMemory] Nao foi possivel salvar transcript: %s", _e)
-
-    # Resolve skill baseada no contexto atual (DISC + score + estágio)
-    skill_context = ""
-    try:
-        from agent.skill_resolver import resolver_skill_context
-        from api.database import obter_meeting_memory
-        mem = obter_meeting_memory(meeting_id)
-        ultimo_score = 50.0
-        ultimo_stage = "abertura"
-        if mem:
-            scores = json.loads(mem.get("score_history_json") or "[]")
-            if scores:
-                last = scores[-1]
-                ultimo_score = float(last.get("valor") or last.get("score") or 50)
-            diag = mem.get("current_diagnosis") or "{}"
-            if isinstance(diag, str):
-                try:
-                    diag = json.loads(diag)
-                except Exception:
-                    diag = {}
-            ultimo_stage = diag.get("conversation_stage") or "abertura"
-        skill_context = resolver_skill_context(
-            disc_profile=perfil_disc_atual or "",
-            score=ultimo_score,
-            conversation_stage=ultimo_stage,
-        )
-    except Exception as _se:
-        logger.debug("[Skills] Não foi possível resolver skill: %s", _se)
-
-    # Contexto do cliente vinculado (T4.3)
-    client_context = ""
-    try:
-        from agent.client_intelligence import buscar_resumo_cliente_para_reuniao
-        client_context = buscar_resumo_cliente_para_reuniao(meeting_id)
-    except Exception as _ce:
-        logger.debug("[Clientes] Não foi possível buscar contexto do cliente: %s", _ce)
-
-    resultado = await analisar_fragmento(
-        transcricao_parcial=transcricao_parcial,
-        historico=historico or "Início da conversa",
-        perfil_disc_atual=perfil_disc_atual or "Ainda não identificado",
-        mapa_financeiro=cache["mapa_financeiro"] if cache["mapa_financeiro"] else None,
-        skill_context=skill_context,
-        client_context=client_context,
-    )
-
-    # Persistir transcrição e análise no MySQL para revisão posterior
-    try:
-        from agent.sessao_manager import salvar_analise
-        salvar_analise(meeting_id, _limpar_transcricao(transcricao_parcial), resultado)
-    except Exception as _e:
-        logger.warning("[Sessões] Não foi possível salvar sessão: %s", _e)
-
-    try:
-        registrar_analise_meeting(meeting_id, resultado)
-    except Exception as _e:
-        logger.warning("[MeetingMemory] Nao foi possivel registrar analise: %s", _e)
-
-    # Merge do mapa_financeiro retornado pela IA de volta ao cache
-    novo_mapa = resultado.get("mapa_financeiro") or {}
-    for campo, valor in novo_mapa.items():
-        if campo == "produto_indicado":
-            continue
-        if valor is not None and valor != "":
-            cache["mapa_financeiro"][campo] = valor
-    if isinstance(novo_mapa.get("produto_indicado"), dict):
-        prod = novo_mapa["produto_indicado"]
-        cache["mapa_financeiro"].setdefault("produto_indicado", {})
-        for k, v in prod.items():
-            if v is not None and v != "":
-                cache["mapa_financeiro"]["produto_indicado"][k] = v
-
-    resultado["mapa_financeiro"] = dict(cache["mapa_financeiro"])
-    return resultado
-
-
 def _normalizar_resposta_realtime(resultado: dict | str | None, memoria: Optional[dict], cache: dict) -> dict:
     if isinstance(resultado, str):
         try:
@@ -625,6 +497,12 @@ async def analyzeRealtimeMeeting(
                 diagnostico_atual = {}
         elif isinstance(raw_diagnostico, dict):
             diagnostico_atual = dict(raw_diagnostico)
+
+    # Restaura mapa_financeiro do banco se este worker ainda não tem cache para a reunião.
+    # Com 2 workers uvicorn, _cache_transcricoes é por-processo; se o fragmento anterior
+    # foi atendido por outro worker, o mapa acumulado lá só existe no current_diagnosis do banco.
+    if not cache["mapa_financeiro"] and isinstance(diagnostico_atual.get("mapa_financeiro"), dict):
+        cache["mapa_financeiro"] = dict(diagnostico_atual["mapa_financeiro"])
 
     # Resolve skill e client context (injetados no multiagente)
     skill_context = ""

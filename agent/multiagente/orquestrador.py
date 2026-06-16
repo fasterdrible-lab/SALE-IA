@@ -139,6 +139,15 @@ async def analisar_fragmento_multi(
     except Exception as _e:
         logger.debug("[Multiagente] RAG falhou: %s", _e)
 
+    # Sales Memory — memórias comerciais extraídas de reuniões anteriores
+    try:
+        from agent.sales_memory import buscar_contexto_para_reuniao
+        mem_ctx = buscar_contexto_para_reuniao(f"{transcricao_parcial} {historico}", top_k=3)
+        if mem_ctx:
+            client_context = (client_context or "") + f"\n\n{mem_ctx}"
+    except Exception as _e:
+        logger.debug("[Multiagente] Sales Memory falhou: %s", _e)
+
     coach_coro   = analisar_coach(transcricao_parcial, historico, rv, diag, evts, skill_context, client_context)
     disc_coro    = analisar_disc(transcricao_parcial, historico, perfil_disc_atual, diag)
     finance_coro = analisar_finance(transcricao_parcial, historico, mapa)

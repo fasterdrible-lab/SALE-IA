@@ -282,14 +282,13 @@ def desvincular_reuniao(client_id: str, meeting_id: str) -> bool:
 def _recalcular_stats(cur, client_id: str) -> None:
     """Recalcula score_medio, ultimo_score e total_reunioes a partir dos vínculos."""
     cur.execute(
-        "SELECT COUNT(*) as total, AVG(score) as media, MAX(score) as ultimo "
+        "SELECT COUNT(*) as total, AVG(score) as media "
         "FROM client_meetings WHERE client_id = %s",
         (client_id,),
     )
     row = cur.fetchone() or {}
     total = int(row.get("total") or 0)
     media = float(row.get("media") or 0)
-    # "ultimo" here is max score; for true last-meeting score, use date ordering below
     cur.execute(
         "SELECT score FROM client_meetings WHERE client_id = %s ORDER BY data DESC LIMIT 1",
         (client_id,),
@@ -414,12 +413,15 @@ def enriquecer_perfil_apos_relatorio(
 
         # Objeções e dores (merge com existentes)
         conn = _get_conn()
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT objecoes_recorrentes, dores_recorrentes FROM client_profiles WHERE id = %s",
-                (client_id,),
-            )
-            row = cur.fetchone() or {}
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT objecoes_recorrentes, dores_recorrentes FROM client_profiles WHERE id = %s",
+                    (client_id,),
+                )
+                row = cur.fetchone() or {}
+        finally:
+            conn.close()
 
         def _json_list(val):
             if isinstance(val, list): return val
@@ -459,7 +461,6 @@ def enriquecer_perfil_apos_relatorio(
                 score=score,
             )
 
-        conn.close()
         logger.info("[Clientes] Perfil %s enriquecido após relatório (reunião %s, score %s)",
                     client_id, meeting_id, score)
     except Exception as e:

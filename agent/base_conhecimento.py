@@ -18,6 +18,19 @@ from openai import AsyncOpenAI
 # Cache global — carregado uma vez, compartilhado entre workers
 _cache: Optional[dict] = None
 
+# Singleton do cliente OpenAI — recriado apenas se a chave de API mudar
+_openai_client: Optional[AsyncOpenAI] = None
+_openai_client_key: str = ""
+
+
+def _get_openai_client() -> AsyncOpenAI:
+    global _openai_client, _openai_client_key
+    current_key = os.environ.get("OPENAI_API_KEY", "")
+    if _openai_client is None or current_key != _openai_client_key:
+        _openai_client = AsyncOpenAI(api_key=current_key)
+        _openai_client_key = current_key
+    return _openai_client
+
 
 def _get_db_conn():
     required = ("DB_HOST", "DB_USER", "DB_PASS", "DB_NAME")
@@ -108,7 +121,7 @@ async def buscar_contexto_similar(texto: str, top_k: int = 3) -> Optional[str]:
         return None
 
     try:
-        client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        client = _get_openai_client()
         resp = await client.embeddings.create(
             model="text-embedding-3-small",
             input=texto[:4000],
