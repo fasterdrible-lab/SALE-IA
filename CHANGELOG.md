@@ -3,6 +3,45 @@
 
 ---
 
+## V.1.4.38 — Fix: 6 bugs corrigidos (connection leak, dead code, Sales Memory, multi-worker, RAG singleton)
+> Data: 16/06/2026 | Bug fix
+
+### BUGS CORRIGIDOS
+
+**Bug #1 — Connection leak em `enriquecer_perfil_apos_relatorio` (ALTO)**
+- `agent/client_intelligence.py`: a conexão MySQL aberta para buscar `objecoes_recorrentes` / `dores_recorrentes` nunca era fechada se uma exceção ocorresse antes do `conn.close()` no final do bloco `try`
+- Correção: `conn` agora envolto em `try/finally: conn.close()` imediatamente após o `with conn.cursor()`, antes de chamar `atualizar_cliente()` e `vincular_reuniao()` (que abrem suas próprias conexões)
+
+**Bug #2 — Dead code: `processar_fragmento_tempo_real` sobrescrita silenciosamente (ALTO)**
+- `api/processador_tempo_real.py`: a função `processar_fragmento_tempo_real` era definida nas linhas 304–429 usando o agente legado (`analisar_fragmento`), mas na linha 792 o nome era reatribuído a `analyzeRealtimeMeeting`, tornando as 126 linhas anteriores código morto permanente — nunca chamado
+- Correção: função legada removida; alias `processar_fragmento_tempo_real = analyzeRealtimeMeeting` mantido para compatibilidade com importadores existentes
+
+**Bug #3 — Sales Memory não injetada no path multiagente (ALTO)**
+- `agent/multiagente/orquestrador.py`: o orquestrador chamava apenas `buscar_contexto_similar` (RAG de transcrições históricas de `base_conhecimento.py`), ignorando completamente o sistema de Sales Memory introduzido em V.1.4.31
+- Todas as memórias comerciais extraídas pelo `knowledge_extractor.py` (objeções, buying signals, padrões DISC, discovery patterns, playbook insights) estavam sendo gravadas no banco mas nunca recuperadas em tempo real
+- Correção: adicionada chamada a `buscar_contexto_para_reuniao()` de `agent/sales_memory.py` logo após o RAG; resultado concatenado ao `client_context` e distribuído para todos os 4 agentes paralelos; falha silenciosa com `logger.debug`
+
+**Bug #4 — `mapa_financeiro` inconsistente com 2 workers uvicorn (MÉDIO)**
+- `api/processador_tempo_real.py`: `_cache_transcricoes` é um dict em memória por processo; com `--workers 2`, fragmentos da mesma reunião atendidos por workers diferentes acumulavam mapas financeiros separados
+- Correção: após carregar `memoria_atual` do banco, se `cache["mapa_financeiro"]` estiver vazio e `diagnostico_atual` (salvo no MySQL) contiver `mapa_financeiro`, ele é restaurado para o cache local — garantindo continuidade independente de qual worker atende cada requisição
+
+**Bug #5 — `AsyncOpenAI` recriado a cada chamada RAG (MÉDIO)**
+- `agent/base_conhecimento.py`: a cada fragmento analisado em tempo real, `AsyncOpenAI(api_key=...)` era instanciado dentro de `buscar_contexto_similar()`, criando e destruindo o pool de conexões HTTP a cada chamada
+- Correção: `_get_openai_client()` singleton lazy — instancia uma vez e reutiliza; recria automaticamente se `OPENAI_API_KEY` mudar em runtime (rotação via painel admin)
+
+**Bug #6 — `MAX(score)` computado mas nunca lido em `_recalcular_stats` (BAIXO)**
+- `agent/client_intelligence.py`: `SELECT COUNT(*) as total, AVG(score) as media, MAX(score) as ultimo` — o alias `ultimo` nunca era lido pelo Python (comentário no próprio código confirmava: "use date ordering below"); uma segunda query por data era a única usada para `ultimo_score`
+- Correção: `MAX(score) as ultimo` removido do SELECT; query mais limpa e sem processamento SQL desnecessário
+
+### ARQUIVOS ALTERADOS
+- `agent/client_intelligence.py` (bugs #1 e #6)
+- `api/processador_tempo_real.py` (bugs #2 e #4)
+- `agent/multiagente/orquestrador.py` (bug #3)
+- `agent/base_conhecimento.py` (bug #5)
+- `api/main.py` (versão `1.4.37` → `1.4.38`, + correção de versões defasadas nos endpoints `/health` e `/monitor/metricas` que ainda exibiam `1.4.35`)
+
+---
+
 ## V.1.4.37 — Sales Brain Fase 6: Follow-up Inteligente (T6.1 + T6.2 + T6.3)
 > Data: 14/06/2026 | Feature (SALEIA Sales Brain — Fase 6)
 

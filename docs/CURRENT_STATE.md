@@ -1,6 +1,6 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-06-14 (V.1.4.37)
+Atualizado em: 2026-06-16 (V.1.4.38)
 
 ## Ambiente
 
@@ -25,7 +25,7 @@ Atualizado em: 2026-06-14 (V.1.4.37)
 
 ## Versao Atual
 
-`V.1.4.37` — local + GitHub (pendente push) | VPS antiga (`204.168.180.25`) deprecada
+`V.1.4.38` — local + GitHub (pendente deploy VPS) | VPS antiga (`204.168.180.25`) deprecada
 
 ## Funcionalidades Entregues
 
@@ -173,9 +173,18 @@ Modelos padrao:
 ## O Que Falta
 
 - Reinstalar extensao Chrome (mudanças desde V.1.4.28). *(tarefa manual)*
-- Push + deploy VPS: `cd /opt/saleia && git pull origin main && systemctl restart saleia`.
+- Deploy VPS: `cd /opt/saleia && git pull origin main && systemctl restart saleia` *(V.1.4.38 no GitHub, pendente VPS)*
 - Descomissionar VPS antiga (`204.168.180.25`).
 - Alterar senha do admin via dashboard.
+
+## Bugs Corrigidos em V.1.4.38 (16/06/2026)
+
+- Connection leak em `enriquecer_perfil_apos_relatorio` (client_intelligence.py)
+- Dead code: funcao `processar_fragmento_tempo_real` legada removida (processador_tempo_real.py)
+- Sales Memory agora injetada no orquestrador multiagente — memorias comerciais passam a enriquecer analise em tempo real (orquestrador.py)
+- `mapa_financeiro` restaurado do banco ao trocar de worker uvicorn (processador_tempo_real.py)
+- `AsyncOpenAI` singleton — nao recriado a cada chamada RAG (base_conhecimento.py)
+- `MAX(score)` desnecessario removido do SELECT em `_recalcular_stats` (client_intelligence.py)
 
 ## Infraestrutura (V.1.4.17 — 09/06/2026)
 
