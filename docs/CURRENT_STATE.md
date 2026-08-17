@@ -1,6 +1,6 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-06-16 (V.1.4.38)
+Atualizado em: 2026-08-17 (V.1.4.39)
 
 ## Ambiente
 
@@ -25,7 +25,7 @@ Atualizado em: 2026-06-16 (V.1.4.38)
 
 ## Versao Atual
 
-`V.1.4.38` — local + GitHub (pendente deploy VPS) | VPS antiga (`204.168.180.25`) deprecada
+`V.1.4.39` — local + GitHub (pendente deploy VPS) | VPS antiga (`204.168.180.25`) deprecada
 
 ## Funcionalidades Entregues
 
@@ -170,12 +170,31 @@ Modelos padrao:
 - Endpoints: `POST /relatorios/{mid}/followups/gerar`, `GET /relatorios/{mid}/followups`, `PATCH /followups/{fid}`, `DELETE /followups/{fid}`.
 - Dashboard/Relatório: botão "📩 Follow-up" — seção expandível com cards por canal, botão copiar e marcar enviado.
 
+### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)
+- `services/embeddings/`: interface `EmbeddingProvider` (`embed`, `embed_async`, `embed_batch`, `health_check`), `OllamaEmbeddingProvider` (HTTP local via `httpx`, zero import de SDKs de LLM externos), `OpenAIEmbeddingProvider`, `factory.get_embedding_provider()` (lê `EMBEDDING_PROVIDER`, erro explícito em valor desconhecido).
+- `EMBEDDING_PROVIDER=ollama` é o padrão — RAG (`base_conhecimento`) e Sales Memory (`sales_memories`) deixam de depender obrigatoriamente da OpenAI.
+- Refatorados os 4 pontos que geravam embedding: `agent/base_conhecimento.py`, `agent/sales_memory.py`, `api/main.py::adicionar_base` (`POST /base`), `agent/sessao_manager.py::exportar_para_base_conhecimento`.
+- Novas colunas `embedding_provider`/`embedding_model`/`embedding_dim` em `base_conhecimento` e `sales_memories` — vetores de dimensões diferentes nunca são comparados entre si (bug pré-existente de `ValueError` fechado).
+- `GET /admin/embeddings/status` (novo, JWT admin): status do provedor ativo, dimensão, contagem de documentos/memórias indexados.
+- `scripts/reindex_embeddings.py`: CLI idempotente para regenerar embeddings sob o provedor configurado (`--dry-run`, `--provider`, `--table`, `--limit`).
+- `docs/EMBEDDINGS_LOCAL.md`: guia de instalação do Ollama (Windows/Linux) e configuração.
+- Testes: `tests/test_embeddings.py` (32 testes, mockado, sem rede/DB) + `tests/test_embeddings_semantic_ranking.py` (integração real, auto-skip sem Ollama local).
+
 ## O Que Falta
 
 - Reinstalar extensao Chrome (mudanças desde V.1.4.28). *(tarefa manual)*
-- Deploy VPS: `cd /opt/saleia && git pull origin main && systemctl restart saleia` *(V.1.4.38 no GitHub, pendente VPS)*
 - Descomissionar VPS antiga (`204.168.180.25`).
 - Alterar senha do admin via dashboard.
+- Corrigir remote `origin` do git em `/opt/saleia` na VPS nova — URL atual contem placeholder invalido `https://SEU_TOKEN@github.com`, impedindo `git pull` funcional (necessario token real do GitHub).
+- **Deploy V.1.4.39 pendente**: `cd /opt/saleia && git pull origin main && systemctl restart saleia`.
+- **Antes do deploy V.1.4.39**: instalar Ollama na VPS nova (`docs/EMBEDDINGS_LOCAL.md`) — `EMBEDDING_PROVIDER=ollama` e o padrao; sem o Ollama instalado, RAG/Sales Memory degradam silenciosamente em producao (nao derruba o servico, so para de retornar contexto). Alternativa: definir `EMBEDDING_PROVIDER=openai` no `.env` da VPS antes do deploy.
+
+## Deploy V.1.4.38 Confirmado (16/08/2026)
+
+- Verificado via SSH que `/opt/saleia` ja estava no commit `555b990` (igual ao GitHub `origin/main`) — deploy ja havia ocorrido antes da doc ser atualizada.
+- `systemctl restart saleia` executado; servico `active`.
+- `curl http://127.0.0.1:8000/health` retornou `"versao":"1.4.38"`, banco MySQL com `banco_latencia_ms: 1`, 4 provedores IA configurados (`ok`).
+- `curl http://127.0.0.1:8000/dashboard` retornou `200`.
 
 ## Bugs Corrigidos em V.1.4.38 (16/06/2026)
 

@@ -287,12 +287,32 @@ EMAIL_FROM=noreply@saleia.com.br
 - [x] Fix UX - `autocomplete="new-password"` no campo Groq API Key bloqueia prompt "Salvar senha?" do Chrome.
 - [x] Fix Ext - `background.js` migra `saleiaBackendUrl` de `saleia.com.br` para `saleia.app.br` automaticamente no storage.
 
+## Concluido (Deploy V.1.4.38)
+
+- [x] Deploy V.1.4.38 confirmado na VPS nova (16/08/2026, via SSH): `/opt/saleia` ja estava no commit `555b990` (igual a `origin/main`); `systemctl restart saleia` executado, servico `active`; `/health` retornou `versao: 1.4.38`; `/dashboard` retornou `200`.
+- Achado: remote `origin` do git em `/opt/saleia` tinha URL com placeholder invalido (`https://SEU_TOKEN@github.com`), entao `git pull` falhava com erro de autenticacao. Nao bloqueou o deploy porque o commit ja estava atualizado.
+- [x] Corrigido (16/08/2026): `git remote set-url origin` atualizado com PAT valido do GitHub (`fasterdrible-lab`). `git pull origin main` testado e retornou "Already up to date".
+
+## Concluido (V.1.4.39 — Embeddings desacoplados)
+
+- [x] Auditoria dos 4 pontos que geravam embeddings (2 nao documentados no pedido original: `POST /base` em `api/main.py` e `agent/sessao_manager.py::exportar_para_base_conhecimento`).
+- [x] Criado `services/embeddings/` — interface `EmbeddingProvider`, `OllamaEmbeddingProvider` (local, padrao), `OpenAIEmbeddingProvider` (opcional), `factory.get_embedding_provider()`.
+- [x] Refatorados `agent/base_conhecimento.py`, `agent/sales_memory.py`, `agent/sessao_manager.py`, `api/main.py` para usar `services.embeddings` — nenhum modulo de negocio instancia mais um cliente OpenAI diretamente.
+- [x] Mecanismo de seguranca de dimensao: colunas `embedding_provider`/`embedding_model`/`embedding_dim` + `is_dimension_compatible()` — fecha bug pre-existente de `ValueError` ao comparar vetores de dimensoes diferentes.
+- [x] `scripts/reindex_embeddings.py` (idempotente, `--dry-run`, nunca deleta antes de validar).
+- [x] `GET /admin/embeddings/status` (diagnostico, JWT admin).
+- [x] `docs/EMBEDDINGS_LOCAL.md` (guia Windows/Linux).
+- [x] `tests/test_embeddings.py` (32/32 OK) + `tests/test_embeddings_semantic_ranking.py` (auto-skip sem Ollama local). `tests/test_smoke.py` (8/8 OK, sem regressao — confirmado via `git stash` isolando as mudancas).
+- Achado corrigido: `agent/sessao_manager.py::_get_conn()` nao tinha `connect_timeout` (diferente das outras 3 conexoes do projeto) — adicionado `connect_timeout=10`.
+- Versao: `1.4.38` → `1.4.39`.
+
 ## Pendente
 
-- [ ] **DEPLOY V.1.4.26 na VPS**: `cd /opt/saleia && git pull origin main && systemctl restart saleia`
 - [ ] Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI).
 - [ ] Recarregar extensao Chrome: `chrome://extensions` → 🔄 recarregar SALEIA (aplica migracao de URL).
 - [ ] Descomissionar VPS antiga `204.168.180.25` apos validacao.
-- [ ] Alterar senha do admin `phpos@gmail.com` via dashboard.
+- [ ] Alterar senha do admin `phpos35@gmail.com` via dashboard.
+- [ ] **Deploy V.1.4.39**: `cd /opt/saleia && git pull origin main && systemctl restart saleia`.
+- [ ] **Antes do deploy V.1.4.39**: instalar Ollama na VPS nova (ver `docs/EMBEDDINGS_LOCAL.md`) — sem isso, RAG/Sales Memory degradam silenciosamente em producao (`EMBEDDING_PROVIDER=ollama` e o padrao). Alternativa rapida: definir `EMBEDDING_PROVIDER=openai` no `.env` da VPS antes do deploy.
 
-Projeto em V.1.4.26 local + GitHub | V.1.4.19 nova VPS (aguarda deploy) | V.1.4.14 VPS antiga (deprecada).
+Projeto em V.1.4.39 local + GitHub (pendente deploy VPS) | VPS antiga (deprecada).

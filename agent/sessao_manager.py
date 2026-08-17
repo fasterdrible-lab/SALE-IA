@@ -25,6 +25,7 @@ def _get_conn():
         password=os.environ["DB_PASS"],
         database=os.environ["DB_NAME"],
         charset="utf8mb4",
+        connect_timeout=10,
     )
 
 
@@ -247,13 +248,58 @@ def registrar_sessao(meeting_id: str) -> int:
         return 0
 
 
+def migrar_colunas_embedding_metadata_base_conhecimento():
+    """Garante que a tabela base_conhecimento exista com as colunas de
+    metadados de embedding (provider/model/dim). Não há criar_tabela_*
+    centralizada para base_conhecimento hoje (só existia via o CREATE TABLE
+    inline aqui) — esta função cobre tanto bases novas quanto a migração de
+    bases existentes, e deve ser chamada no startup independente de alguém
+    já ter exportado uma sessão."""
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS base_conhecimento (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    titulo VARCHAR(255) NOT NULL,
+                    tipo VARCHAR(50) DEFAULT 'reuniao',
+                    texto MEDIUMTEXT NOT NULL,
+                    embedding JSON,
+                    embedding_provider VARCHAR(20),
+                    embedding_model VARCHAR(100),
+                    embedding_dim INT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_tipo (tipo),
+                    INDEX idx_created (created_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """)
+            for nome, tipo_sql in (
+                ("embedding_provider", "VARCHAR(20)"),
+                ("embedding_model", "VARCHAR(100)"),
+                ("embedding_dim", "INT"),
+            ):
+                cur.execute("SHOW COLUMNS FROM base_conhecimento LIKE %s", (nome,))
+                if cur.fetchone() is None:
+                    cur.execute(f"ALTER TABLE base_conhecimento ADD COLUMN {nome} {tipo_sql}")
+                    logger.info("[Base] Coluna %s adicionada à tabela base_conhecimento.", nome)
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.error("[Base] Erro ao migrar colunas de metadados de embedding: %s", e)
+
+
 def exportar_para_base_conhecimento(sessao_id: int, titulo: str = "", tipo: str = "reuniao") -> dict:
     """
     Exporta a transcrição acumulada de uma sessão para a base de conhecimento da IA.
-    Gera embedding via text-embedding-3-small e insere na tabela base_conhecimento.
+    Gera embedding via o EmbeddingProvider configurado e insere na tabela
+    base_conhecimento. Se a geração do embedding falhar, a linha ainda é
+    salva sem embedding (mesmo padrão de degradação graciosa de POST /base)
+    em vez de falhar a exportação inteira.
     """
     import json as _json
-    import os
+
+    from services.embeddings import get_embedding_provider
+
     try:
         # Buscar transcrição da sessão
         conn = _get_conn()
@@ -272,31 +318,31 @@ def exportar_para_base_conhecimento(sessao_id: int, titulo: str = "", tipo: str 
         titulo_final = titulo or f"Reunião {meeting_id}"
         chars = len(transcricao)
 
-        # Gerar embedding via OpenAI
-        from openai import OpenAI
-        client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-        resp = client.embeddings.create(model="text-embedding-3-small", input=transcricao[:8000])
-        embedding_json = _json.dumps(resp.data[0].embedding)
+        embedding_json = None
+        embedding_provider = embedding_model = embedding_dim = None
+        try:
+            provider = get_embedding_provider()
+            resultado = provider.embed(transcricao[:8000])
+            if resultado is not None:
+                embedding_json = _json.dumps(resultado.vector)
+                embedding_provider = resultado.provider
+                embedding_model = resultado.model
+                embedding_dim = resultado.dimension
+            else:
+                logger.warning("[Base] Embedding não gerado para sessão %s — salvando sem embedding.", sessao_id)
+        except Exception as e:
+            logger.warning("[Base] Erro ao gerar embedding para sessão %s, salvando sem: %s", sessao_id, e)
 
         # Inserir na base_conhecimento
+        migrar_colunas_embedding_metadata_base_conhecimento()
         conn = _get_conn()
         with conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS base_conhecimento (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    titulo VARCHAR(255) NOT NULL,
-                    tipo VARCHAR(50) DEFAULT 'reuniao',
-                    texto MEDIUMTEXT NOT NULL,
-                    embedding JSON,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    INDEX idx_tipo (tipo),
-                    INDEX idx_created (created_at)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-            """)
             cur.execute(
-                """INSERT INTO base_conhecimento (titulo, tipo, texto, embedding)
-                   VALUES (%s, %s, %s, %s)""",
-                (titulo_final, tipo, transcricao, embedding_json),
+                """INSERT INTO base_conhecimento
+                   (titulo, tipo, texto, embedding, embedding_provider, embedding_model, embedding_dim)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+                (titulo_final, tipo, transcricao, embedding_json,
+                 embedding_provider, embedding_model, embedding_dim),
             )
             novo_id = cur.lastrowid
         conn.commit()

@@ -51,6 +51,7 @@ Admin (exige JWT admin):
 - `POST /admin/api/teste`
 - `PATCH /admin/api/provedores/{pid}/status`
 - `POST /admin/api/principal`
+- `GET /admin/embeddings/status` (V.1.4.39) — status do provedor de embeddings ativo, dimensao, contagem de documentos/memorias indexados
 
 Historico (exige JWT):
 
@@ -85,6 +86,18 @@ Campos principais:
 - `last_ai_at`
 - `last_recap_trigger_at`
 - `provider_cost_estimate`
+
+### Embeddings (services/embeddings/, V.1.4.39)
+
+Camada desacoplada de geração de embeddings para RAG e Sales Memory —
+independente do AI Router (que trata apenas chat/LLM).
+
+- `EmbeddingProvider`: interface comum (`embed`, `embed_async`, `embed_batch`, `health_check`).
+- `OllamaEmbeddingProvider`: local via `httpx`, padrão (`EMBEDDING_PROVIDER=ollama`).
+- `OpenAIEmbeddingProvider`: opcional (`EMBEDDING_PROVIDER=openai`).
+- `get_embedding_provider()`: única forma de obter o provider — nenhum módulo de negócio instancia um provider diretamente.
+- Metadados (`embedding_provider`, `embedding_model`, `embedding_dim`) em `base_conhecimento` e `sales_memories` garantem que vetores de dimensões/modelos diferentes nunca sejam comparados entre si.
+- Reindexação: `scripts/reindex_embeddings.py`.
 
 ### AI Router
 

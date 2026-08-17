@@ -3,6 +3,108 @@
 
 ---
 
+## V.1.4.39 — Embeddings desacoplados: Ollama local (padrão) + OpenAI opcional
+> Data: 17/08/2026 | Feature (infraestrutura de RAG / Sales Memory)
+
+### VISÃO
+Até esta versão, RAG (`base_conhecimento`) e Sales Memory (`sales_memories`)
+dependiam obrigatoriamente da OpenAI (`text-embedding-3-small`) para gerar
+embeddings, em 4 pontos diferentes do código. Introduzida uma camada
+`EmbeddingProvider` desacoplada — Ollama local vira o padrão (nenhum texto
+de reunião/documento sai da máquina), com OpenAI mantida como alternativa
+configurável. Nenhum comportamento de RAG, Sales Memory, Knowledge Extractor
+ou dos provedores de LLM de chat (DeepSeek/OpenAI/Anthropic/Gemini) mudou.
+
+### BUG FECHADO — comparação de embeddings de dimensões diferentes
+Antes desta versão, trocar de modelo de embedding sem reindexar quebrava a
+requisição com `ValueError` dentro de `cosine_top_k` (vetores de dimensões
+diferentes não podem ser multiplicados). Agora, `is_dimension_compatible()`
+é checado antes de qualquer comparação — incompatibilidade vira "nada
+encontrado" + log, nunca um crash.
+
+### BACKEND — `services/embeddings/` (pacote novo)
+- `provider.py`: interface `EmbeddingProvider` (`embed`, `embed_async`,
+  `embed_batch`, `provider_name`, `model_name`, `dimension`, `health_check`),
+  `EmbeddingResult`, `EmbeddingProviderError`, `cosine_top_k` (consolidado a
+  partir da implementação antes duplicada em `base_conhecimento.py` e
+  `sales_memory.py`), `is_dimension_compatible`
+- `ollama_provider.py`: `OllamaEmbeddingProvider` — HTTP via `httpx` contra
+  `POST /api/embeddings` do Ollama local; dimensão nunca hardcoded (resolvida
+  de `len(embedding)` na primeira chamada real); retries só para falhas
+  transitórias; zero import de SDKs de LLM externos
+- `openai_provider.py`: `OpenAIEmbeddingProvider` — wrapper do código OpenAI
+  já existente (mesmo modelo padrão `text-embedding-3-small`)
+- `factory.py`: `get_embedding_provider()` lê `EMBEDDING_PROVIDER`
+  (`ollama` padrão | `openai`), erro explícito em valor desconhecido — nunca
+  fallback silencioso; `get_fallback_provider()` só ativa se
+  `EMBEDDING_FALLBACK_PROVIDER` for explicitamente configurado
+
+### BACKEND — refatoração dos 4 pontos que geravam embeddings
+- `agent/base_conhecimento.py` (RAG): usa `services.embeddings`; cache passa
+  a rastrear metadados de provider/modelo/dimensão e exclui linhas
+  divergentes da matriz (com log) em vez de misturá-las
+- `agent/sales_memory.py` (Sales Memory): idem; `gerar_e_salvar_embeddings_em_lote`
+  passa a persistir metadados por linha; nova `migrar_colunas_embedding_metadata_memories()`
+- `api/main.py::adicionar_base` (`POST /base`): usa `services.embeddings`;
+  aviso de "sem embedding" agora nomeia o provedor configurado em vez do
+  texto fixo "quota OpenAI esgotada"
+- `agent/sessao_manager.py::exportar_para_base_conhecimento`: usa
+  `services.embeddings`; **mudança de comportamento deliberada** — antes,
+  falha ao gerar embedding derrubava a exportação inteira; agora salva sem
+  embedding (mesmo padrão de `POST /base`); nova
+  `migrar_colunas_embedding_metadata_base_conhecimento()` (também cobre a
+  ausência de uma `criar_tabela_base_conhecimento()` centralizada, lacuna
+  pré-existente)
+
+### BACKEND — schema
+- Novas colunas nullable `embedding_provider`, `embedding_model`,
+  `embedding_dim` em `base_conhecimento` e `sales_memories`, migradas
+  automaticamente no `on_startup()` (mesmo padrão try/except-por-migração já
+  usado para as demais tabelas)
+
+### BACKEND — diagnóstico e reindexação
+- `GET /admin/embeddings/status` (novo, requer JWT admin): provider/modelo
+  ativo, status de saúde, dimensão, contagem de documentos/memórias
+  indexados vs. já no provedor atual, status do cache — nunca retorna
+  chaves, `.env`, conteúdo de documentos/memórias ou vetores brutos
+- `scripts/reindex_embeddings.py` (novo): CLI para regerar embeddings sob o
+  provedor configurado; idempotente (linha já atualizada é pulada); nunca
+  deleta um embedding antes de validar o novo; processa em lotes;
+  `--dry-run`, `--provider`, `--table`, `--limit`, `--report-file`
+
+### CONFIGURAÇÃO
+- `.env.example`: nova seção `EMBEDDINGS / RAG` (`EMBEDDING_PROVIDER`,
+  `OLLAMA_BASE_URL`, `OLLAMA_EMBEDDING_MODEL`, `OPENAI_EMBEDDING_MODEL`,
+  `EMBEDDING_BATCH_SIZE`, `EMBEDDING_TIMEOUT`, `EMBEDDING_FALLBACK_PROVIDER`)
+- `requirements.txt`: `httpx` adicionada explicitamente (já era dependência
+  transitiva via `openai`)
+- `docs/EMBEDDINGS_LOCAL.md` (novo): guia de instalação do Ollama para
+  Windows e Linux, configuração, reindexação e rollback para OpenAI
+
+### TESTES
+- `tests/test_embeddings.py` (novo): interface dos providers, factory
+  (incl. erro em provider desconhecido), Ollama (HTTP mockado), OpenAI (SDK
+  mockado), `cosine_top_k`, `is_dimension_compatible`, validação de vetor e
+  lógica de reindexação (banco mockado) — sem rede/DB real
+- `tests/test_embeddings_semantic_ranking.py` (novo): prova de ranking
+  semântico contra um Ollama local real, auto-skip se indisponível — nunca
+  exige rede na suíte padrão
+
+### PENDÊNCIA — deploy em produção
+Ollama **não está instalado** na VPS (`37.27.214.33`). Como
+`EMBEDDING_PROVIDER=ollama` é o padrão, fazer deploy sem instalar o Ollama
+lá degrada silenciosamente RAG/Sales Memory (não derruba o serviço, mas
+para de retornar contexto). Antes do deploy: instalar Ollama na VPS
+(`docs/EMBEDDINGS_LOCAL.md`) **ou** definir `EMBEDDING_PROVIDER=openai`
+explicitamente no `.env` da VPS.
+
+### ARQUIVOS ALTERADOS
+- `agent/base_conhecimento.py`, `agent/sales_memory.py`,
+  `agent/sessao_manager.py`, `api/main.py` (versão `1.4.38` → `1.4.39`),
+  `.env.example`, `requirements.txt`
+
+---
+
 ## V.1.4.38 — Fix: 6 bugs corrigidos (connection leak, dead code, Sales Memory, multi-worker, RAG singleton)
 > Data: 16/06/2026 | Bug fix
 

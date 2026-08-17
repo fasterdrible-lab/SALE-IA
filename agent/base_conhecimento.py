@@ -6,30 +6,24 @@ contextualizar e enriquecer as análises em tempo real.
 
 Todos os embeddings são carregados em memória no primeiro acesso (cache).
 Com 49 documentos, o cache ocupa ~300 KB de RAM — desprezível.
+
+A geração de embeddings passa pelo EmbeddingProvider (services/embeddings) —
+este módulo não sabe se o provedor ativo é Ollama ou OpenAI.
 """
 import json
+import logging
 import os
 from typing import Optional
 
 import numpy as np
 import pymysql
-from openai import AsyncOpenAI
+
+from services.embeddings import cosine_top_k, get_embedding_provider, is_dimension_compatible
+
+logger = logging.getLogger("saleia.base_conhecimento")
 
 # Cache global — carregado uma vez, compartilhado entre workers
 _cache: Optional[dict] = None
-
-# Singleton do cliente OpenAI — recriado apenas se a chave de API mudar
-_openai_client: Optional[AsyncOpenAI] = None
-_openai_client_key: str = ""
-
-
-def _get_openai_client() -> AsyncOpenAI:
-    global _openai_client, _openai_client_key
-    current_key = os.environ.get("OPENAI_API_KEY", "")
-    if _openai_client is None or current_key != _openai_client_key:
-        _openai_client = AsyncOpenAI(api_key=current_key)
-        _openai_client_key = current_key
-    return _openai_client
 
 
 def _get_db_conn():
@@ -49,6 +43,32 @@ def _get_db_conn():
     )
 
 
+def _fetch_rows_com_metadados(conn):
+    """Busca linhas com as colunas de metadados de embedding.
+
+    Faz fallback para uma consulta sem essas colunas se a migração
+    (migrar_colunas_embedding_metadata_base_conhecimento) ainda não tiver
+    rodado nesta base — nesse caso todas as linhas são tratadas como legado
+    (metadados None), sem quebrar o carregamento do cache.
+    """
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, titulo, tipo, texto, embedding, "
+                "embedding_provider, embedding_model, embedding_dim "
+                "FROM base_conhecimento WHERE embedding IS NOT NULL"
+            )
+            return cur.fetchall(), True
+    except Exception as e:
+        logger.debug("[RAG] Colunas de metadados de embedding ausentes, usando fallback legado: %s", e)
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, titulo, tipo, texto, embedding "
+                "FROM base_conhecimento WHERE embedding IS NOT NULL"
+            )
+            return cur.fetchall(), False
+
+
 def _carregar_cache() -> dict:
     """Carrega todos os embeddings da DB em memória e retorna o cache."""
     global _cache
@@ -57,36 +77,83 @@ def _carregar_cache() -> dict:
 
     try:
         conn = _get_db_conn()
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT id, titulo, tipo, texto, embedding "
-                "FROM base_conhecimento WHERE embedding IS NOT NULL"
-            )
-            rows = cur.fetchall()
+        rows, tem_metadados = _fetch_rows_com_metadados(conn)
         conn.close()
     except Exception as e:
-        print(f"[RAG] Erro ao conectar ao banco: {e}")
+        logger.error("[RAG] Erro ao conectar ao banco: %s", e)
         _cache = {"vazio": True}
         return _cache
 
     if not rows:
-        print("[RAG] Base de conhecimento vazia.")
+        logger.info("[RAG] Base de conhecimento vazia.")
         _cache = {"vazio": True}
         return _cache
 
-    ids, titulos, tipos, textos, vecs = [], [], [], [], []
+    # Primeira passagem: determina a metadados majoritária (provider, model, dim)
+    # entre as linhas que a possuem — vetores de outras combinações são excluídos
+    # do cache em vez de serem misturados na mesma matriz numpy.
+    contagem_meta: dict[tuple, int] = {}
     for row in rows:
-        ids.append(row[0])
-        titulos.append(row[1] or "")
-        tipos.append(row[2] or "outro")
-        # Guarda apenas os primeiros 1000 chars para injeção no prompt
-        textos.append((row[3] or "")[:1000])
-        emb = row[4]
+        if tem_metadados:
+            _, _, _, _, _, prov, model, dim = row
+            if prov and model and dim:
+                chave = (prov, model, int(dim))
+                contagem_meta[chave] = contagem_meta.get(chave, 0) + 1
+
+    meta_majoritaria = max(contagem_meta.items(), key=lambda kv: kv[1])[0] if contagem_meta else None
+
+    ids, titulos, tipos, textos, vecs = [], [], [], [], []
+    excluidas = 0
+    for row in rows:
+        if tem_metadados:
+            rid, titulo, tipo, texto, emb, prov, model, dim = row
+        else:
+            rid, titulo, tipo, texto, emb = row
+            prov, model, dim = None, None, None
+
         if isinstance(emb, str):
-            emb = json.loads(emb)
+            try:
+                emb = json.loads(emb)
+            except Exception:
+                excluidas += 1
+                continue
+
+        if meta_majoritaria is not None:
+            linha_meta = (prov, model, int(dim)) if (prov and model and dim) else None
+            if linha_meta != meta_majoritaria:
+                # Linha legada (sem metadados) ou de outro modelo/dimensão —
+                # não entra na matriz para não quebrar a comparação de cosseno.
+                excluidas += 1
+                continue
+
+        ids.append(rid)
+        titulos.append(titulo or "")
+        tipos.append(tipo or "outro")
+        # Guarda apenas os primeiros 1000 chars para injeção no prompt
+        textos.append((texto or "")[:1000])
         vecs.append(emb)
 
+    if excluidas:
+        logger.warning(
+            "[RAG] %d linha(s) com embedding de provedor/dimensão divergente "
+            "(ou legado) ignorada(s) no cache — pendente(s) de reindexação.",
+            excluidas,
+        )
+
+    if not vecs:
+        logger.info("[RAG] Nenhum embedding compatível para carregar no cache.")
+        _cache = {"vazio": True}
+        return _cache
+
     matrix = np.array(vecs, dtype=np.float32)
+
+    embedding_meta = None
+    if meta_majoritaria is not None:
+        embedding_meta = {
+            "provider": meta_majoritaria[0],
+            "model": meta_majoritaria[1],
+            "dim": meta_majoritaria[2],
+        }
 
     _cache = {
         "vazio": False,
@@ -95,18 +162,10 @@ def _carregar_cache() -> dict:
         "tipos": tipos,
         "textos": textos,
         "matrix": matrix,
+        "embedding_meta": embedding_meta,
     }
-    print(f"[RAG] Cache carregado: {len(ids)} transcrições.")
+    logger.info("[RAG] Cache carregado: %d transcrições.", len(ids))
     return _cache
-
-
-def _cosine_top_k(vec: np.ndarray, matrix: np.ndarray, k: int) -> list[int]:
-    """Retorna os índices dos k vetores mais similares por cosseno."""
-    vec_norm = vec / (np.linalg.norm(vec) + 1e-9)
-    mat_norm = matrix / (np.linalg.norm(matrix, axis=1, keepdims=True) + 1e-9)
-    sims = mat_norm @ vec_norm
-    top_indices = np.argsort(sims)[::-1][:k]
-    return [(int(idx), float(sims[idx])) for idx in top_indices]
 
 
 async def buscar_contexto_similar(texto: str, top_k: int = 3) -> Optional[str]:
@@ -114,24 +173,34 @@ async def buscar_contexto_similar(texto: str, top_k: int = 3) -> Optional[str]:
     Gera embedding para `texto`, busca as top_k transcrições mais similares
     e retorna um bloco formatado para injetar no prompt da IA.
 
-    Retorna None se a base estiver vazia ou o serviço de embedding falhar.
+    Retorna None se a base estiver vazia, o serviço de embedding falhar ou
+    a dimensão do embedding da consulta for incompatível com o cache.
     """
     cache = _carregar_cache()
     if cache.get("vazio"):
         return None
 
     try:
-        client = _get_openai_client()
-        resp = await client.embeddings.create(
-            model="text-embedding-3-small",
-            input=texto[:4000],
-        )
-        vec = np.array(resp.data[0].embedding, dtype=np.float32)
+        provider = get_embedding_provider()
+        resultado = await provider.embed_async(texto[:4000])
     except Exception as e:
-        print(f"[RAG] Erro ao gerar embedding: {e}")
+        logger.error("[RAG] Erro ao gerar embedding: %s", e)
         return None
 
-    resultados = _cosine_top_k(vec, cache["matrix"], top_k)
+    if resultado is None:
+        logger.warning("[RAG] Provedor de embedding não retornou vetor para a consulta.")
+        return None
+
+    if not is_dimension_compatible(resultado.dimension, cache.get("embedding_meta")):
+        logger.warning(
+            "[RAG] Dimensão do embedding da consulta (%s, %s) incompatível com o cache "
+            "(%s) — pulei a comparação. Base pode precisar de reindexação.",
+            resultado.provider, resultado.dimension, cache.get("embedding_meta"),
+        )
+        return None
+
+    vec = np.array(resultado.vector, dtype=np.float32)
+    resultados = cosine_top_k(vec, cache["matrix"], top_k)
 
     blocos = []
     for idx, sim in resultados:
@@ -167,4 +236,4 @@ def invalidar_cache():
     """Força recarregamento do cache na próxima consulta (após nova importação)."""
     global _cache
     _cache = None
-    print("[RAG] Cache invalidado.")
+    logger.info("[RAG] Cache invalidado.")

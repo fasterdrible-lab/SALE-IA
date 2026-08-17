@@ -201,6 +201,16 @@ async def on_startup():
     except Exception as e:
         logger.warning("Tabela sales_memories não criada/migrada: %s", e)
     try:
+        from agent.sales_memory import migrar_colunas_embedding_metadata_memories
+        migrar_colunas_embedding_metadata_memories()
+    except Exception as e:
+        logger.warning("Colunas de metadados de embedding (sales_memories) não migradas: %s", e)
+    try:
+        from agent.sessao_manager import migrar_colunas_embedding_metadata_base_conhecimento
+        migrar_colunas_embedding_metadata_base_conhecimento()
+    except Exception as e:
+        logger.warning("Tabela/colunas base_conhecimento não migradas: %s", e)
+    try:
         from agent.playbook_generator import criar_tabelas_playbook
         criar_tabelas_playbook()
     except Exception as e:
@@ -491,7 +501,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.38",
+        "versao":              "1.4.39",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -529,7 +539,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.38",
+        "versao":          "1.4.39",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -1786,34 +1796,50 @@ def listar_base():
 
 @app.post("/base")
 async def adicionar_base(req: AdicionarBaseRequest):
-    """Adiciona um documento à base de conhecimento, gerando embedding via OpenAI."""
+    """Adiciona um documento à base de conhecimento, gerando embedding via
+    o EmbeddingProvider configurado (Ollama por padrão, OpenAI opcional)."""
     if not req.titulo or not req.titulo.strip():
         raise HTTPException(status_code=400, detail="Título obrigatório")
     if not req.texto or len(req.texto.strip()) < 10:
         raise HTTPException(status_code=400, detail="Texto muito curto (mínimo 10 caracteres)")
 
     import json as _json
-    from openai import AsyncOpenAI
+    from services.embeddings import EmbeddingProviderError, get_embedding_provider
+
     embedding_json = None
     aviso = None
+    embedding_provider = embedding_model = embedding_dim = None
+    provider_name_configurado = os.environ.get("EMBEDDING_PROVIDER", "ollama").strip().lower()
     try:
-        oai = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-        resp = await oai.embeddings.create(
-            model="text-embedding-3-small",
-            input=req.texto[:8000],
-        )
-        embedding_json = _json.dumps(resp.data[0].embedding)
+        provider = get_embedding_provider()
+        resultado = await provider.embed_async(req.texto[:8000])
+        if resultado is None:
+            raise RuntimeError("provedor de embedding não retornou vetor")
+        embedding_json = _json.dumps(resultado.vector)
+        embedding_provider = resultado.provider
+        embedding_model = resultado.model
+        embedding_dim = resultado.dimension
+    except EmbeddingProviderError as e:
+        aviso = f"Documento salvo sem embedding: configuração de embedding inválida ({e})."
+        logger.error("[base] configuração de embedding inválida: %s", e)
     except Exception as e:
-        aviso = "Documento salvo sem embedding (quota OpenAI esgotada). Atualize a chave em Configurações > APIs."
+        aviso = (
+            f"Documento salvo sem embedding (provedor '{provider_name_configurado}' indisponível). "
+            "Verifique Configurações."
+        )
         logger.warning("[base] embedding falhou, salvando sem: %s", e)
 
-    from agent.sessao_manager import _get_conn
+    from agent.sessao_manager import _get_conn, migrar_colunas_embedding_metadata_base_conhecimento
+    migrar_colunas_embedding_metadata_base_conhecimento()
     try:
         conn = _get_conn()
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO base_conhecimento (titulo, tipo, texto, embedding) VALUES (%s, %s, %s, %s)",
-                (req.titulo.strip(), req.tipo or "instrucao", req.texto, embedding_json),
+                "INSERT INTO base_conhecimento "
+                "(titulo, tipo, texto, embedding, embedding_provider, embedding_model, embedding_dim) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                (req.titulo.strip(), req.tipo or "instrucao", req.texto, embedding_json,
+                 embedding_provider, embedding_model, embedding_dim),
             )
             novo_id = cur.lastrowid
         conn.commit()
@@ -2887,6 +2913,105 @@ def admin_definir_principal(req: AdminPrincipalRequest, authorization: str | Non
         raise HTTPException(status_code=404, detail="Provedor desconhecido.")
     _salvar_env_key("PROVEDOR_PREFERIDO", req.provedor)  # já seta os.environ internamente
     return {"ok": True}
+
+
+@app.get("/admin/embeddings/status")
+async def admin_embeddings_status(authorization: str | None = _Header(default=None)):
+    """Diagnóstico do provedor de embeddings ativo — nunca retorna chaves,
+    conteúdo do .env, texto de documentos/memórias ou vetores brutos."""
+    _req_admin(authorization)
+    from services.embeddings import EmbeddingProviderError, get_embedding_provider
+
+    resposta = {
+        "provider": None,
+        "model": None,
+        "dimension": None,
+        "ok": False,
+        "detalhe": "",
+        "fallback_provider": os.environ.get("EMBEDDING_FALLBACK_PROVIDER", "").strip() or None,
+        "indexado": {
+            "base_conhecimento": {"total": 0, "com_embedding": 0, "provider_atual": 0},
+            "sales_memories": {"total": 0, "com_embedding": 0, "provider_atual": 0},
+        },
+        "cache": {
+            "base_conhecimento": {"carregado": False, "itens": 0},
+            "sales_memories": {"carregado": False, "itens": 0},
+        },
+    }
+
+    try:
+        provider = get_embedding_provider()
+        resposta["provider"] = provider.provider_name
+        resposta["model"] = provider.model_name
+        hc = await provider.health_check(5.0)
+        resposta["ok"] = hc.get("ok", False)
+        resposta["detalhe"] = str(hc.get("detalhe", ""))[:200]
+        resposta["dimension"] = hc.get("dimension")
+    except EmbeddingProviderError as e:
+        resposta["detalhe"] = f"Configuração inválida: {str(e)[:180]}"
+    except Exception as e:
+        resposta["detalhe"] = f"Erro inesperado: {str(e)[:180]}"
+
+    provider_nome = resposta["provider"]
+    modelo_nome = resposta["model"]
+
+    from agent.sessao_manager import _get_conn as _base_conn
+    try:
+        conn = _base_conn()
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM base_conhecimento")
+            resposta["indexado"]["base_conhecimento"]["total"] = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) FROM base_conhecimento WHERE embedding IS NOT NULL")
+            resposta["indexado"]["base_conhecimento"]["com_embedding"] = cur.fetchone()[0]
+            if provider_nome and modelo_nome:
+                cur.execute(
+                    "SELECT COUNT(*) FROM base_conhecimento "
+                    "WHERE embedding_provider = %s AND embedding_model = %s",
+                    (provider_nome, modelo_nome),
+                )
+                resposta["indexado"]["base_conhecimento"]["provider_atual"] = cur.fetchone()[0]
+        conn.close()
+    except Exception as e:
+        logger.debug("[admin_embeddings_status] contagem base_conhecimento falhou: %s", e)
+
+    try:
+        from agent.sales_memory import _get_conn as _mem_conn
+        conn = _mem_conn()
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM sales_memories")
+            resposta["indexado"]["sales_memories"]["total"] = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) FROM sales_memories WHERE embedding IS NOT NULL")
+            resposta["indexado"]["sales_memories"]["com_embedding"] = cur.fetchone()[0]
+            if provider_nome and modelo_nome:
+                cur.execute(
+                    "SELECT COUNT(*) FROM sales_memories "
+                    "WHERE embedding_provider = %s AND embedding_model = %s",
+                    (provider_nome, modelo_nome),
+                )
+                resposta["indexado"]["sales_memories"]["provider_atual"] = cur.fetchone()[0]
+        conn.close()
+    except Exception as e:
+        logger.debug("[admin_embeddings_status] contagem sales_memories falhou: %s", e)
+
+    try:
+        import agent.base_conhecimento as _bc
+        cache_bc = _bc._cache
+        resposta["cache"]["base_conhecimento"]["carregado"] = cache_bc is not None
+        if cache_bc and not cache_bc.get("vazio"):
+            resposta["cache"]["base_conhecimento"]["itens"] = len(cache_bc.get("ids", []))
+    except Exception:
+        pass
+
+    try:
+        import agent.sales_memory as _sm
+        cache_sm = _sm._cache_memorias
+        resposta["cache"]["sales_memories"]["carregado"] = cache_sm is not None
+        if cache_sm and not cache_sm.get("vazio"):
+            resposta["cache"]["sales_memories"]["itens"] = len(cache_sm.get("ids", []))
+    except Exception:
+        pass
+
+    return resposta
 
 
 # ─────────────────────────────────────────────

@@ -30,3 +30,8 @@ PyJWT>=2.8.0
 
 # ─── Transcrição de áudio ─────────────────────────────────────
 groq>=0.9.0
+
+# ─── Embeddings locais (Ollama) ────────────────────────────────
+# Já é dependência transitiva de openai/httpx, mas usado diretamente pelo
+# OllamaEmbeddingProvider (services/embeddings) — pinado explicitamente.
+httpx>=0.27.0

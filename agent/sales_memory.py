@@ -26,6 +26,8 @@ from typing import Optional
 import numpy as np
 import pymysql
 
+from services.embeddings import cosine_top_k, get_embedding_provider, is_dimension_compatible
+
 logger = logging.getLogger("saleia.sales_memory")
 
 # Tipos válidos de memória
@@ -362,6 +364,30 @@ def migrar_coluna_embedding_memories():
         logger.error("[SalesMemory] Erro ao migrar coluna embedding: %s", e)
 
 
+def migrar_colunas_embedding_metadata_memories():
+    """Adiciona colunas de metadados de embedding (provider/model/dim) à
+    tabela sales_memories, se ainda não existirem. Necessário para que
+    buscas semânticas nunca comparem vetores de provedores/modelos
+    diferentes (ex.: Ollama vs. OpenAI, ou trocas de modelo)."""
+    colunas = {
+        "embedding_provider": "VARCHAR(20)",
+        "embedding_model": "VARCHAR(100)",
+        "embedding_dim": "INT",
+    }
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            for nome, tipo in colunas.items():
+                cur.execute("SHOW COLUMNS FROM sales_memories LIKE %s", (nome,))
+                if cur.fetchone() is None:
+                    cur.execute(f"ALTER TABLE sales_memories ADD COLUMN {nome} {tipo}")
+                    logger.info("[SalesMemory] Coluna %s adicionada à tabela sales_memories.", nome)
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.error("[SalesMemory] Erro ao migrar colunas de metadados de embedding: %s", e)
+
+
 # ─────────────────────────────────────────────────────────
 # EMBEDDINGS — CACHE EM MEMÓRIA
 # ─────────────────────────────────────────────────────────
@@ -375,10 +401,34 @@ def invalidar_cache_memorias():
     _cache_memorias = None
 
 
+def _fetch_rows_com_metadados(conn):
+    """Busca memórias com colunas de metadados de embedding, com fallback
+    para uma consulta sem essas colunas caso a migração ainda não tenha
+    rodado nesta base (trata todas as linhas como legado)."""
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, memory_type, title, content, confidence, tags, embedding, "
+                "embedding_provider, embedding_model, embedding_dim "
+                "FROM sales_memories WHERE embedding IS NOT NULL"
+            )
+            return cur.fetchall(), True
+    except Exception as e:
+        logger.debug("[SalesMemory] Colunas de metadados de embedding ausentes, usando fallback legado: %s", e)
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, memory_type, title, content, confidence, tags, embedding "
+                "FROM sales_memories WHERE embedding IS NOT NULL"
+            )
+            return cur.fetchall(), False
+
+
 def _carregar_cache_memorias() -> dict:
     """
     Carrega todos os embeddings de sales_memories em memória (lazy, com cache).
-    Mesmo padrão de base_conhecimento.py.
+    Mesmo padrão de base_conhecimento.py, incluindo a filtragem de linhas
+    com metadados de embedding divergentes (provider/model/dim) para nunca
+    misturar vetores incompatíveis na mesma matriz.
     """
     global _cache_memorias
     if _cache_memorias is not None:
@@ -386,12 +436,7 @@ def _carregar_cache_memorias() -> dict:
 
     try:
         conn = _get_conn()
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT id, memory_type, title, content, confidence, tags, embedding "
-                "FROM sales_memories WHERE embedding IS NOT NULL"
-            )
-            rows = cur.fetchall()
+        rows, tem_metadados = _fetch_rows_com_metadados(conn)
         conn.close()
     except Exception as e:
         logger.error("[SalesMemory] Erro ao carregar cache de embeddings: %s", e)
@@ -402,16 +447,41 @@ def _carregar_cache_memorias() -> dict:
         _cache_memorias = {"vazio": True}
         return _cache_memorias
 
+    contagem_meta: dict[tuple, int] = {}
+    for row in rows:
+        if tem_metadados:
+            prov, model, dim = row[7], row[8], row[9]
+            if prov and model and dim:
+                chave = (prov, model, int(dim))
+                contagem_meta[chave] = contagem_meta.get(chave, 0) + 1
+
+    meta_majoritaria = max(contagem_meta.items(), key=lambda kv: kv[1])[0] if contagem_meta else None
+
     ids, tipos, titulos, conteudos, confs, tags_list, vecs = [], [], [], [], [], [], []
+    excluidas = 0
     for row in rows:
         emb = row[6]
+        if tem_metadados:
+            prov, model, dim = row[7], row[8], row[9]
+        else:
+            prov, model, dim = None, None, None
+
         if isinstance(emb, str):
             try:
                 emb = json.loads(emb)
             except Exception:
+                excluidas += 1
                 continue
         if not emb:
+            excluidas += 1
             continue
+
+        if meta_majoritaria is not None:
+            linha_meta = (prov, model, int(dim)) if (prov and model and dim) else None
+            if linha_meta != meta_majoritaria:
+                excluidas += 1
+                continue
+
         ids.append(row[0])
         tipos.append(row[1] or "")
         titulos.append(row[2] or "")
@@ -423,6 +493,25 @@ def _carregar_cache_memorias() -> dict:
             tags_list.append([])
         vecs.append(emb)
 
+    if excluidas:
+        logger.warning(
+            "[SalesMemory] %d memória(s) com embedding de provedor/dimensão "
+            "divergente (ou legado) ignorada(s) no cache — pendente(s) de reindexação.",
+            excluidas,
+        )
+
+    if not vecs:
+        _cache_memorias = {"vazio": True}
+        return _cache_memorias
+
+    embedding_meta = None
+    if meta_majoritaria is not None:
+        embedding_meta = {
+            "provider": meta_majoritaria[0],
+            "model": meta_majoritaria[1],
+            "dim": meta_majoritaria[2],
+        }
+
     _cache_memorias = {
         "vazio": False,
         "ids": ids,
@@ -432,17 +521,10 @@ def _carregar_cache_memorias() -> dict:
         "confs": confs,
         "tags": tags_list,
         "matrix": np.array(vecs, dtype=np.float32),
+        "embedding_meta": embedding_meta,
     }
     logger.info("[SalesMemory] Cache de embeddings carregado: %d memórias.", len(ids))
     return _cache_memorias
-
-
-def _cosine_top_k(vec: np.ndarray, matrix: np.ndarray, k: int) -> list:
-    vec_norm = vec / (np.linalg.norm(vec) + 1e-9)
-    mat_norm = matrix / (np.linalg.norm(matrix, axis=1, keepdims=True) + 1e-9)
-    sims = mat_norm @ vec_norm
-    top_indices = np.argsort(sims)[::-1][:k]
-    return [(int(idx), float(sims[idx])) for idx in top_indices]
 
 
 # ─────────────────────────────────────────────────────────
@@ -451,35 +533,43 @@ def _cosine_top_k(vec: np.ndarray, matrix: np.ndarray, k: int) -> list:
 
 def gerar_embedding(texto: str) -> Optional[list]:
     """
-    Gera embedding via OpenAI text-embedding-3-small (1536 dimensões).
-    Retorna lista de floats ou None em caso de falha.
+    Gera embedding via o EmbeddingProvider configurado (Ollama por padrão,
+    OpenAI se EMBEDDING_PROVIDER=openai). Retorna lista de floats ou None
+    em caso de falha (rede, provedor indisponível, sem chave, etc.) — nunca
+    lança para esses casos.
     """
-    api_key = os.environ.get("OPENAI_API_KEY", "")
-    if not api_key:
-        logger.warning("[SalesMemory] OPENAI_API_KEY não configurada — embedding ignorado.")
-        return None
-
     try:
-        from openai import OpenAI
-        client = OpenAI(api_key=api_key, timeout=30)
-        resp = client.embeddings.create(
-            model="text-embedding-3-small",
-            input=texto[:6000],
-        )
-        return resp.data[0].embedding
+        provider = get_embedding_provider()
     except Exception as e:
-        logger.error("[SalesMemory] Erro ao gerar embedding: %s", e)
+        logger.warning("[SalesMemory] Provedor de embedding mal configurado: %s", e)
         return None
 
+    resultado = provider.embed(texto[:6000])
+    if resultado is None:
+        logger.warning("[SalesMemory] Falha ao gerar embedding via %s.", provider.provider_name)
+        return None
+    return resultado.vector
 
-def salvar_embedding_memoria(mem_id: str, embedding: list) -> bool:
-    """Persiste o embedding JSON na coluna embedding da memória."""
+
+def salvar_embedding_memoria(
+    mem_id: str,
+    embedding: list,
+    provider: Optional[str] = None,
+    model: Optional[str] = None,
+    dimension: Optional[int] = None,
+) -> bool:
+    """Persiste o embedding JSON (+ metadados de provedor/modelo/dimensão,
+    quando informados) na memória. provider/model/dimension são opcionais
+    para manter compatibilidade com chamadas existentes que só passam
+    (mem_id, embedding)."""
     try:
         conn = _get_conn()
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE sales_memories SET embedding = %s WHERE id = %s",
-                (json.dumps(embedding), mem_id),
+                "UPDATE sales_memories SET embedding = %s, "
+                "embedding_provider = %s, embedding_model = %s, embedding_dim = %s "
+                "WHERE id = %s",
+                (json.dumps(embedding), provider, model, dimension, mem_id),
             )
             affected = cur.rowcount
         conn.commit()
@@ -492,8 +582,8 @@ def salvar_embedding_memoria(mem_id: str, embedding: list) -> bool:
 
 def gerar_e_salvar_embeddings_em_lote(itens: list) -> int:
     """
-    Gera e persiste embeddings para uma lista de (mem_id, conteudo).
-    Invalida o cache após salvar.
+    Gera e persiste embeddings (com metadados de provedor/modelo/dimensão)
+    para uma lista de (mem_id, conteudo). Invalida o cache após salvar.
 
     Args:
         itens: lista de tuplas (mem_id: str, conteudo: str)
@@ -501,15 +591,24 @@ def gerar_e_salvar_embeddings_em_lote(itens: list) -> int:
     Returns:
         número de embeddings salvos com sucesso
     """
+    try:
+        provider = get_embedding_provider()
+    except Exception as e:
+        logger.warning("[SalesMemory] Provedor de embedding mal configurado — lote ignorado: %s", e)
+        return 0
+
     salvos = 0
     for mem_id, conteudo in itens:
-        emb = gerar_embedding(conteudo)
-        if emb and salvar_embedding_memoria(mem_id, emb):
+        resultado = provider.embed(conteudo[:6000])
+        if resultado and salvar_embedding_memoria(
+            mem_id, resultado.vector,
+            provider=resultado.provider, model=resultado.model, dimension=resultado.dimension,
+        ):
             salvos += 1
 
     if salvos:
         invalidar_cache_memorias()
-        logger.info("[SalesMemory] %d embeddings gerados e salvos.", salvos)
+        logger.info("[SalesMemory] %d embeddings gerados e salvos (provider=%s).", salvos, provider.provider_name)
 
     return salvos
 
@@ -546,8 +645,16 @@ def buscar_memorias_semantico(
     if vec_query is None:
         return []
 
+    if not is_dimension_compatible(len(vec_query), cache.get("embedding_meta")):
+        logger.warning(
+            "[SalesMemory] Dimensão do embedding da consulta (%d) incompatível com o "
+            "cache (%s) — pulei a comparação. Base pode precisar de reindexação.",
+            len(vec_query), cache.get("embedding_meta"),
+        )
+        return []
+
     vec = np.array(vec_query, dtype=np.float32)
-    resultados_brutos = _cosine_top_k(vec, cache["matrix"], min(top_k * 3, len(cache["ids"])))
+    resultados_brutos = cosine_top_k(vec, cache["matrix"], min(top_k * 3, len(cache["ids"])))
 
     resultados = []
     for idx, sim in resultados_brutos:
