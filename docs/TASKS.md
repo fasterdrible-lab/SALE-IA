@@ -312,7 +312,13 @@ EMAIL_FROM=noreply@saleia.com.br
 - [ ] Recarregar extensao Chrome: `chrome://extensions` → 🔄 recarregar SALEIA (aplica migracao de URL).
 - [ ] Descomissionar VPS antiga `204.168.180.25` apos validacao.
 - [ ] Alterar senha do admin `phpos35@gmail.com` via dashboard.
-- [ ] **Deploy V.1.4.39**: `cd /opt/saleia && git pull origin main && systemctl restart saleia`.
-- [ ] **Antes do deploy V.1.4.39**: instalar Ollama na VPS nova (ver `docs/EMBEDDINGS_LOCAL.md`) — sem isso, RAG/Sales Memory degradam silenciosamente em producao (`EMBEDDING_PROVIDER=ollama` e o padrao). Alternativa rapida: definir `EMBEDDING_PROVIDER=openai` no `.env` da VPS antes do deploy.
+- [ ] **Deploy V.1.4.39**: `cd /opt/saleia && git pull origin main && systemctl restart saleia`. Adiado em 17/08/2026 por haver 1 reuniao ativa — fazer quando `reunioes_ativas: 0` em `/health`.
+- [ ] **Apos o deploy**: `python -m scripts.reindex_embeddings --dry-run --table all` (conferir) e depois sem `--dry-run` (embeddings atuais sao da OpenAI, incompativeis com Ollama).
 
-Projeto em V.1.4.39 local + GitHub (pendente deploy VPS) | VPS antiga (deprecada).
+## Concluido (Ollama na VPS — 17/08/2026)
+
+- [x] Ollama instalado na VPS nova (`37.27.214.33`) via script oficial — `ollama.service` active + enabled.
+- [x] Modelo `embeddinggemma` baixado e testado — dimensao real confirmada: 768.
+- [x] Confirmado que a instalacao nao afetou `saleia.service` (continuou active durante todo o processo).
+
+Projeto em V.1.4.39 local + GitHub (pendente deploy VPS) | Ollama ja instalado na VPS nova | VPS antiga (deprecada).

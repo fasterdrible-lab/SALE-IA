@@ -186,8 +186,16 @@ Modelos padrao:
 - Descomissionar VPS antiga (`204.168.180.25`).
 - Alterar senha do admin via dashboard.
 - Corrigir remote `origin` do git em `/opt/saleia` na VPS nova — URL atual contem placeholder invalido `https://SEU_TOKEN@github.com`, impedindo `git pull` funcional (necessario token real do GitHub).
-- **Deploy V.1.4.39 pendente**: `cd /opt/saleia && git pull origin main && systemctl restart saleia`.
-- **Antes do deploy V.1.4.39**: instalar Ollama na VPS nova (`docs/EMBEDDINGS_LOCAL.md`) — `EMBEDDING_PROVIDER=ollama` e o padrao; sem o Ollama instalado, RAG/Sales Memory degradam silenciosamente em producao (nao derruba o servico, so para de retornar contexto). Alternativa: definir `EMBEDDING_PROVIDER=openai` no `.env` da VPS antes do deploy.
+- **Deploy V.1.4.39 pendente**: `cd /opt/saleia && git pull origin main && systemctl restart saleia`. Adiado propositalmente em 17/08/2026 porque havia 1 reuniao ativa no SALEIA no momento — reiniciar o servico a interromperia. Fazer o deploy na proxima janela sem reunioes ativas (checar `reunioes_ativas` em `/health` antes).
+- Apos o deploy: rodar `python -m scripts.reindex_embeddings --dry-run --table all` (conferir) e depois sem `--dry-run` (a base atual tem embeddings antigos gerados pela OpenAI, incompativeis com o Ollama).
+
+## Ollama instalado na VPS nova (17/08/2026)
+
+- `ollama.service` — `active` + `enabled` (sobrevive a reboot).
+- Modelo `embeddinggemma` baixado (621 MB) e testado — **dimensao real confirmada: 768**.
+- Escuta apenas em `127.0.0.1:11434` (nao exposto externamente).
+- CPU-only (sem GPU na VPS); ~4.3GB RAM disponivel no momento do teste; 134GB de disco livre.
+- Instalado via script oficial (`curl -fsSL https://ollama.com/install.sh | sh`), sem afetar `saleia.service` (servicos independentes).
 
 ## Deploy V.1.4.38 Confirmado (16/08/2026)
 
