@@ -32,15 +32,20 @@ Em ambos os sistemas o comando é o mesmo — só precisa ter o Ollama instalado
 
 **Windows (PowerShell):**
 ```powershell
-Invoke-RestMethod -Uri http://localhost:11434/api/embeddings -Method Post -Body '{"model":"embeddinggemma","prompt":"teste"}' -ContentType "application/json"
+Invoke-RestMethod -Uri http://localhost:11434/api/embed -Method Post -Body '{"model":"embeddinggemma","input":"teste","truncate":true}' -ContentType "application/json"
 ```
 
 **Linux/macOS:**
 ```bash
-curl http://localhost:11434/api/embeddings -d '{"model":"embeddinggemma","prompt":"teste"}'
+curl http://localhost:11434/api/embed -d '{"model":"embeddinggemma","input":"teste","truncate":true}'
 ```
 
-Se retornar um JSON com uma lista grande de números em `"embedding"`, está funcionando.
+Se retornar um JSON com uma lista grande de números em `"embeddings"`, está funcionando.
+
+> Usamos `/api/embed` (atual) em vez de `/api/embeddings` (depreciado): o endpoint antigo
+> rejeita com erro 500 qualquer texto que exceda a janela de contexto do modelo (2048
+> tokens no `embeddinggemma`); o atual, com `truncate: true`, corta o texto automaticamente
+> em vez de falhar — importante porque transcrições de reunião no RAG costumam passar disso.
 
 ## 4. Configurar o SALEIA
 

@@ -53,7 +53,12 @@ class OllamaEmbeddingProvider(EmbeddingProvider):
         return self._dimension
 
     def _endpoint(self) -> str:
-        return f"{self._base_url}/api/embeddings"
+        # /api/embed (atual) em vez de /api/embeddings (depreciado): o
+        # endpoint antigo rejeita com 500 qualquer input que exceda a
+        # janela de contexto do modelo; o atual aceita `truncate` e corta
+        # o texto automaticamente em vez de falhar — essencial aqui porque
+        # transcrições de reunião no RAG rotineiramente passam de 2048 tokens.
+        return f"{self._base_url}/api/embed"
 
     async def _post_embedding(self, client: httpx.AsyncClient, text: str) -> list[float]:
         last_error: Optional[Exception] = None
@@ -61,7 +66,7 @@ class OllamaEmbeddingProvider(EmbeddingProvider):
             try:
                 resp = await client.post(
                     self._endpoint(),
-                    json={"model": self._model, "prompt": text},
+                    json={"model": self._model, "input": text, "truncate": True},
                     timeout=self._timeout,
                 )
                 if resp.status_code in _TRANSIENT_STATUS and attempt < _MAX_RETRIES:
@@ -74,10 +79,10 @@ class OllamaEmbeddingProvider(EmbeddingProvider):
                     )
                 resp.raise_for_status()
                 data = resp.json()
-                vec = data.get("embedding")
-                if not vec or not isinstance(vec, list):
-                    raise RuntimeError(f"Resposta do Ollama sem 'embedding' válido: {data!r}")
-                return vec
+                vecs = data.get("embeddings")
+                if not vecs or not isinstance(vecs, list) or not vecs[0]:
+                    raise RuntimeError(f"Resposta do Ollama sem 'embeddings' válido: {data!r}")
+                return vecs[0]
             except (httpx.ConnectError, httpx.TimeoutException) as e:
                 last_error = e
                 if attempt < _MAX_RETRIES:

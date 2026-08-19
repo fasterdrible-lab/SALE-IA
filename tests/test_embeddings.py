@@ -136,7 +136,7 @@ class TestFactory(unittest.TestCase):
 def _fake_ollama_response(status_code=200, embedding=None):
     resp = MagicMock()
     resp.status_code = status_code
-    resp.json.return_value = {"embedding": embedding or [0.1, 0.2, 0.3]}
+    resp.json.return_value = {"embeddings": [embedding or [0.1, 0.2, 0.3]]}
     resp.raise_for_status = MagicMock()
     return resp
 
@@ -177,7 +177,7 @@ class TestOllamaProvider(unittest.IsolatedAsyncioTestCase):
         provider = OllamaEmbeddingProvider(base_url="http://fake:11434")
 
         async def _side_effect(url, json=None, timeout=None, **kwargs):
-            if json.get("prompt") == "b":
+            if json.get("input") == "b":
                 raise httpx.ConnectError("boom")
             return _fake_ollama_response(embedding=[0.5] * 768)
 

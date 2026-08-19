@@ -26,11 +26,11 @@ def _ollama_disponivel() -> bool:
         base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
         modelo = os.environ.get("OLLAMA_EMBEDDING_MODEL", "embeddinggemma")
         resp = httpx.post(
-            f"{base_url}/api/embeddings",
-            json={"model": modelo, "prompt": "ping"},
+            f"{base_url}/api/embed",
+            json={"model": modelo, "input": "ping", "truncate": True},
             timeout=3,
         )
-        return resp.status_code == 200 and "embedding" in resp.json()
+        return resp.status_code == 200 and resp.json().get("embeddings")
     except Exception:
         return False
 
