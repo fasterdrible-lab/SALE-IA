@@ -235,5 +235,43 @@ class AiRouterTest(unittest.TestCase):
         self.assertEqual(resultado["ordem_ia"], ["openai"])
 
 
+class CallAnthropicContentParsingTest(unittest.TestCase):
+    """content[0] nem sempre e texto (ex.: claude-sonnet-5 antepondo um bloco
+    de thinking) — _call_anthropic precisa achar o bloco de texto certo."""
+
+    def _fake_block(self, type_, text=None):
+        block = type("Block", (), {})()
+        block.type = type_
+        if text is not None:
+            block.text = text
+        return block
+
+    def test_skips_non_text_blocks_before_text(self):
+        thinking_block = self._fake_block("thinking")  # sem atributo .text
+        text_block = self._fake_block("text", text='{"ok": true}')
+
+        fake_response = type("Response", (), {"content": [thinking_block, text_block]})()
+        fake_client = type("Client", (), {
+            "messages": type("Messages", (), {"create": lambda self, **kw: fake_response})(),
+        })()
+
+        with patch("anthropic.Anthropic", return_value=fake_client):
+            resultado = ai_router._call_anthropic("system", "user", "fake-key", "claude-sonnet-5", 30)
+
+        self.assertEqual(resultado, {"ok": True})
+
+    def test_raises_when_no_text_block_present(self):
+        thinking_block = self._fake_block("thinking")
+
+        fake_response = type("Response", (), {"content": [thinking_block]})()
+        fake_client = type("Client", (), {
+            "messages": type("Messages", (), {"create": lambda self, **kw: fake_response})(),
+        })()
+
+        with patch("anthropic.Anthropic", return_value=fake_client):
+            with self.assertRaises(RuntimeError):
+                ai_router._call_anthropic("system", "user", "fake-key", "claude-sonnet-5", 30)
+
+
 if __name__ == "__main__":
     unittest.main()

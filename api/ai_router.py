@@ -264,7 +264,12 @@ def _call_anthropic(system_prompt: str, user_content: str, api_key: str, model: 
         ),
         messages=[{"role": "user", "content": user_content}],
     )
-    return _extract_json(response.content[0].text)
+    # content[0] nem sempre e texto: alguns modelos (ex.: claude-sonnet-5)
+    # podem antepor blocos de outro tipo (ex.: thinking) antes do texto.
+    texto = next((b.text for b in response.content if getattr(b, "type", None) == "text"), None)
+    if texto is None:
+        raise RuntimeError(f"Resposta da Anthropic sem bloco de texto: {response.content!r}")
+    return _extract_json(texto)
 
 
 def _call_gemini(system_prompt: str, user_content: str, api_key: str, model: str, timeout: float) -> dict:
