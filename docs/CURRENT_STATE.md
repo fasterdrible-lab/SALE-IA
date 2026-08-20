@@ -25,7 +25,7 @@ Atualizado em: 2026-08-17 (V.1.4.39)
 
 ## Versao Atual
 
-`V.1.4.41` — local + GitHub (pendente deploy VPS) | extensao Chrome `V.1.4.3` | VPS antiga (`204.168.180.25`) deprecada
+`V.1.4.42` — local + GitHub (pendente deploy VPS) | extensao Chrome `V.1.4.3` | VPS antiga (`204.168.180.25`) deprecada
 
 ## Funcionalidades Entregues
 
@@ -180,6 +180,19 @@ Modelos padrao:
 - `docs/EMBEDDINGS_LOCAL.md`: guia de instalação do Ollama (Windows/Linux) e configuração.
 - Testes: `tests/test_embeddings.py` (32 testes, mockado, sem rede/DB) + `tests/test_embeddings_semantic_ranking.py` (integração real, auto-skip sem Ollama local).
 
+## Funcionalidades Novas (V.1.4.42 — 20/08/2026)
+
+### Visual Cenário — removido da navegação visível
+- Item de menu `🎬 Visual Cenário` removido de `frontend/dashboard.html`;
+  botão `🎬 Visual` e função `abrirVisualScenario()` removidos de
+  `frontend/cenario.html`.
+- Backend intocado: `POST /generate-visual-scenario` e
+  `frontend/visual-scenario.html` continuam funcionais, acessíveis por URL
+  direta (`/visual-scenario?meeting=<id>`) para validação manual pendente.
+- Revisão da decisão anterior (V.1.4.41 dizia "aceito como está" para
+  manter Visual Cenário visível) — usuário pediu para tirar visualmente do
+  front também aqui, mantendo só o backend.
+
 ## Funcionalidades Novas (V.1.4.41 — 20/08/2026)
 
 Revisao da V.1.4.40 contra a especificacao original (prompt de desenvolvimento
@@ -220,7 +233,8 @@ recebido apos o deploy) encontrou 6 lacunas; 2 foram corrigidas nesta versao
 - Descomissionar VPS antiga (`204.168.180.25`).
 - Alterar senha do admin via dashboard.
 - **Reindex de embeddings pendente**: rodar `python -m scripts.reindex_embeddings --dry-run --table all` (conferir) e depois sem `--dry-run` (a base atual tem embeddings antigos gerados pela OpenAI, incompativeis com o Ollama).
-- **Deploy V.1.4.40/V.1.4.41 pendente**: checar `reunioes_ativas` em `/health` antes de `git pull origin main && systemctl restart saleia`. Validar manualmente upload/download da Base em producao (nao testavel localmente — sem MySQL acessivel desta maquina).
+- **Deploy V.1.4.40/V.1.4.41/V.1.4.42 pendente**: checar `reunioes_ativas` em `/health` antes de `git pull origin main && systemctl restart saleia`. Validar manualmente upload/download da Base em producao (nao testavel localmente — sem MySQL acessivel desta maquina).
+- Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI) continua pendente — agora so acessivel por URL direta (`/visual-scenario?meeting=<id>`), sem botao/menu (removido na V.1.4.42).
 - 8 falhas de teste pre-existentes e nao relacionadas encontradas em `tests/test_next_best_question.py`/`tests/test_realtime_memory.py` (nao corrigidas — fora do escopo desta rodada).
 - **Decisoes tomadas sobre as 4 lacunas remanescentes da V.1.4.40 (20/08/2026)**:
   - Download da Base sem isolamento por empresa/tenant: **aceito como esta** — SALEIA e uso interno de uma unica empresa, multi-tenancy nao se aplica. `GET /base/{id}/download` continua exigindo so JWT valido.

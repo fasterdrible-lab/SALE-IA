@@ -3,6 +3,48 @@
 
 ---
 
+## V.1.4.42 — Visual Cenário removido da navegação visível (dashboard + cenario.html)
+> Data: 20/08/2026 | Ajuste (Visual Cenário)
+
+### VISÃO
+Revisão de continuidade da V.1.4.40/V.1.4.41: o Visual Cenário havia sido
+removido apenas da sidebar da extensão Chrome, mas ainda aparecia como item
+de navegação no Dashboard e como botão em `cenario.html`. Decisão do
+usuário: remover também esses dois pontos de entrada visíveis — a feature
+em si (página, endpoint de geração) continua funcional no backend, só deixa
+de ser descoberta por navegação.
+
+### FRONTEND — `frontend/dashboard.html`
+- Removido o item de menu `🎬 Visual Cenário` (link para `/visual-scenario`)
+  da sidebar de navegação.
+
+### FRONTEND — `frontend/cenario.html`
+- Removido o botão `🎬 Visual` (abria `/visual-scenario` em nova aba) e a
+  função `abrirVisualScenario()`, que ficou órfã sem o botão.
+
+### O QUE NÃO MUDOU (mantido no backend, de propósito)
+- `POST /generate-visual-scenario` (`api/main.py`) — endpoint intocado.
+- `frontend/visual-scenario.html` — página continua servida e funcional,
+  só não é mais alcançável por um botão/menu; acessível por URL direta
+  (`/visual-scenario` ou `/visual-scenario?meeting=<id>`) para quem
+  precisar validar manualmente (ver pendência em `TASKS.md`).
+- `frontend/manual.html`/`manual_tecnico.html` — documentação da feature
+  não foi alterada (a feature continua existindo, só não é mais promovida
+  na navegação principal).
+
+### VERSÃO
+- Backend: `1.4.41` → `1.4.42` (`/health`, `/monitor/metricas`).
+
+### VERIFICAÇÃO
+- Sintaxe verificada (Node `--check`) nos blocos `<script>` de
+  `cenario.html` e `dashboard.html`.
+- `python -m unittest tests.test_smoke -v`: 8/8 OK (sem regressão).
+
+### ARQUIVOS ALTERADOS
+- `frontend/dashboard.html`, `frontend/cenario.html`, `api/main.py` (versão)
+
+---
+
 ## V.1.4.41 — Ajustes na Propensão: dimensões nomeadas no prompt + limiares configuráveis
 > Data: 20/08/2026 | Fix / Ajuste (Propensão de Compra)
 
