@@ -25,7 +25,7 @@ Atualizado em: 2026-08-17 (V.1.4.39)
 
 ## Versao Atual
 
-`V.1.4.40` — local + GitHub (pendente deploy VPS) | extensao Chrome `V.1.4.3` | VPS antiga (`204.168.180.25`) deprecada
+`V.1.4.41` — local + GitHub (pendente deploy VPS) | extensao Chrome `V.1.4.3` | VPS antiga (`204.168.180.25`) deprecada
 
 ## Funcionalidades Entregues
 
@@ -180,6 +180,23 @@ Modelos padrao:
 - `docs/EMBEDDINGS_LOCAL.md`: guia de instalação do Ollama (Windows/Linux) e configuração.
 - Testes: `tests/test_embeddings.py` (32 testes, mockado, sem rede/DB) + `tests/test_embeddings_semantic_ranking.py` (integração real, auto-skip sem Ollama local).
 
+## Funcionalidades Novas (V.1.4.41 — 20/08/2026)
+
+Revisao da V.1.4.40 contra a especificacao original (prompt de desenvolvimento
+recebido apos o deploy) encontrou 6 lacunas; 2 foram corrigidas nesta versao
+(mecanicas, sem decisao de produto pendente), 4 seguem em aberto de proposito
+(exigem decisao de arquitetura/produto — ver "O Que Falta").
+
+### Propensao de Compra — dimensoes nomeadas + limiares configuraveis
+- `PROMPT_RECAPITULACAO`: nova regra orienta a IA a avaliar 9 dimensoes de
+  venda nomeadas (Dor, Urgencia, Orcamento, Autoridade, Interesse, Intencao,
+  Engajamento, Proximo passo, Objecoes) ao montar os fatores do bloco
+  `propensao` — so inclui a dimensao que realmente apareceu na conversa.
+- `agent/propensao_rules.py`: `LIMIAR_ALTA`/`LIMIAR_MEDIA` deixam de ser
+  constantes fixas e passam a ler `PROPENSAO_LIMIAR_ALTA`/`PROPENSAO_LIMIAR_MEDIA`
+  do `.env` (fallback 70/45) — continuam sendo o unico lugar do codigo com
+  esses limiares, agora ajustaveis sem deploy.
+
 ## Funcionalidades Novas (V.1.4.40 — 19/08/2026)
 
 ### Extensao Chrome simplificada
@@ -203,8 +220,13 @@ Modelos padrao:
 - Descomissionar VPS antiga (`204.168.180.25`).
 - Alterar senha do admin via dashboard.
 - **Reindex de embeddings pendente**: rodar `python -m scripts.reindex_embeddings --dry-run --table all` (conferir) e depois sem `--dry-run` (a base atual tem embeddings antigos gerados pela OpenAI, incompativeis com o Ollama).
-- **Deploy V.1.4.40 pendente**: checar `reunioes_ativas` em `/health` antes de `git pull origin main && systemctl restart saleia`. Validar manualmente upload/download da Base em producao (nao testavel localmente — sem MySQL acessivel desta maquina).
+- **Deploy V.1.4.40/V.1.4.41 pendente**: checar `reunioes_ativas` em `/health` antes de `git pull origin main && systemctl restart saleia`. Validar manualmente upload/download da Base em producao (nao testavel localmente — sem MySQL acessivel desta maquina).
 - 8 falhas de teste pre-existentes e nao relacionadas encontradas em `tests/test_next_best_question.py`/`tests/test_realtime_memory.py` (nao corrigidas — fora do escopo desta rodada).
+- **Lacunas conhecidas da V.1.4.40 (decisao de produto pendente, nao implementadas)**:
+  - Download da Base (`GET /base/{id}/download`) exige so JWT valido — nao ha isolamento por empresa/tenant porque o sistema nao tem esse conceito hoje (`organization_id` em `sales_memory.py` e um placeholder nullable "tenant futuro"). Implementar exigiria desenhar multi-tenancy do zero.
+  - Sessoes ao Vivo so derivam status "Ao vivo"/"Finalizada" — "Processando"/"Erro" nao existem por falta de coluna de status persistida no banco (decisao deliberada, documentada na V.1.4.40, para nao inventar estado sem sinal real).
+  - Limpeza de codigo morto do Visual Cenario/Mapa Financeiro/Score/Cenario do Cliente no backend ainda nao feita como etapa separada (backend intencionalmente intocado na V.1.4.40 para nao quebrar compatibilidade).
+  - Sem suite automatizada especifica para: toggle API on/off + persistencia na extensao, download de documentos multi-formato, busca de sessoes, responsividade da extensao — cobertos hoje so por verificacao de sintaxe (Node) + smoke tests existentes.
 
 ## Deploy V.1.4.39 Confirmado (19/08/2026)
 

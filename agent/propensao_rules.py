@@ -5,10 +5,23 @@ Classificação determinística de Propensão de Compra a partir do score_compra
 numérico já calculado pelo closer_agent. Único lugar com os limiares —
 usado no tempo real para não gerar mais uma chamada de IA por fragmento
 (o score interno continua existindo, só não é mais exibido ao usuário).
+
+Limiares configuráveis via .env (PROPENSAO_LIMIAR_ALTA/PROPENSAO_LIMIAR_MEDIA)
+sem precisar alterar código; caem nos valores padrão se ausentes/inválidos.
 """
 
-LIMIAR_ALTA = 70
-LIMIAR_MEDIA = 45
+import os
+
+
+def _limiar_env(nome: str, padrao: float) -> float:
+    try:
+        return float(os.environ.get(nome, padrao))
+    except (TypeError, ValueError):
+        return padrao
+
+
+LIMIAR_ALTA = _limiar_env("PROPENSAO_LIMIAR_ALTA", 70)
+LIMIAR_MEDIA = _limiar_env("PROPENSAO_LIMIAR_MEDIA", 45)
 
 
 def classificar_propensao(score_valor) -> str:

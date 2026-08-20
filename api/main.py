@@ -451,6 +451,10 @@ REGRAS PARA O BLOCO "propensao" (classificação de propensão de compra):
 - Se a transcrição for curta ou insuficiente para uma leitura confiável,
   retorne "nivel": "nao_determinada" (nunca force alta/media/baixa sem
   base) e explique a insuficiência em "resumo".
+- Ao identificar os fatores, avalie estas dimensões (só inclua como fator
+  a dimensão que realmente apareceu na conversa — não force as 9): Dor,
+  Urgência, Orçamento, Autoridade (quem decide), Interesse, Intenção de
+  compra, Engajamento, Próximo passo e Objeções.
 - Nunca inclua raciocínio interno, apenas fatores/evidências/conclusões.
 
 Retorne APENAS um JSON válido (sem markdown):
@@ -530,7 +534,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.40",
+        "versao":              "1.4.41",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -568,7 +572,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.40",
+        "versao":          "1.4.41",
         "timestamp":       datetime.now().isoformat(),
     }
 

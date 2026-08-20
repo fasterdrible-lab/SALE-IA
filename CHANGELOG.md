@@ -3,6 +3,42 @@
 
 ---
 
+## V.1.4.41 — Ajustes na Propensão: dimensões nomeadas no prompt + limiares configuráveis
+> Data: 20/08/2026 | Fix / Ajuste (Propensão de Compra)
+
+### VISÃO
+Revisão da V.1.4.40 contra a especificação original identificou duas lacunas
+pequenas e mecânicas (sem decisão de produto pendente) na Propensão de
+Compra: o prompt de recapitulação não guiava a IA por dimensões de venda
+nomeadas, e os limiares de classificação eram constantes fixas no código.
+
+### BACKEND — `api/main.py` (`PROMPT_RECAPITULACAO`)
+- Nova regra no bloco `propensao`: a IA deve avaliar as dimensões Dor,
+  Urgência, Orçamento, Autoridade (quem decide), Interesse, Intenção de
+  compra, Engajamento, Próximo passo e Objeções — só incluindo como fator
+  a dimensão que realmente apareceu na conversa (sem forçar as 9).
+
+### BACKEND — `agent/propensao_rules.py`
+- `LIMIAR_ALTA`/`LIMIAR_MEDIA` deixam de ser constantes fixas e passam a
+  ler `PROPENSAO_LIMIAR_ALTA`/`PROPENSAO_LIMIAR_MEDIA` do `.env` (via
+  `_limiar_env()`, com fallback para os valores padrão 70/45 se a variável
+  estiver ausente ou inválida) — continuam sendo o único lugar do código
+  com esses limiares, agora sem precisar de deploy para ajustar.
+- `.env.example`: nova seção documentando as duas variáveis.
+
+### VERSÃO
+- Backend: `1.4.40` → `1.4.41` (`/health`, `/monitor/metricas`).
+
+### VERIFICAÇÃO
+- `python -m unittest tests.test_smoke -v`: 8/8 OK (sem regressão).
+- `classificar_propensao()` testado manualmente com limiares padrão e com
+  override via variável de ambiente — comportamento correto em ambos.
+
+### ARQUIVOS ALTERADOS
+- `api/main.py` (prompt + versão), `agent/propensao_rules.py`, `.env.example`
+
+---
+
 ## V.1.4.40 — Simplificação da extensão, download na Base, busca em Sessões e Propensão de Compra
 > Data: 19/08/2026 | Feature (extensão Chrome + Base de Conhecimento + Sessões + Propensão)
 
