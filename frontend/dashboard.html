@@ -1100,9 +1100,33 @@
         <h2>Sessões ao Vivo</h2>
         <p style="color:var(--muted);margin-bottom:16px">Reuniões capturadas em tempo real pela extensão Chrome.</p>
         <div class="toolbar">
+          <input type="text" id="sessao-busca" placeholder="Buscar por cliente, link ou data..." oninput="filtrarSessoes()" />
+          <select id="sessao-status" onchange="filtrarSessoes()">
+            <option value="">Todos os status</option>
+            <option value="ao_vivo">Ao vivo</option>
+            <option value="finalizada">Finalizada</option>
+          </select>
+          <select id="sessao-periodo" onchange="aplicarPeriodoSessao()">
+            <option value="">Qualquer período</option>
+            <option value="hoje">Hoje</option>
+            <option value="ontem">Ontem</option>
+            <option value="7d">7 dias</option>
+            <option value="30d">30 dias</option>
+          </select>
+          <input type="date" id="sessao-data-de"  onchange="filtrarSessoes()" title="De (data)" />
+          <input type="date" id="sessao-data-ate" onchange="filtrarSessoes()" title="Até (data)" />
+          <input type="time" id="sessao-hora-de"  onchange="filtrarSessoes()" title="De (hora)" />
+          <input type="time" id="sessao-hora-ate" onchange="filtrarSessoes()" title="Até (hora)" />
+          <select id="sessao-ordem" onchange="filtrarSessoes()">
+            <option value="recente">Mais recente</option>
+            <option value="antiga">Mais antiga</option>
+            <option value="cliente">Cliente</option>
+            <option value="status">Status</option>
+          </select>
+          <button class="btn btn-secondary" onclick="limparFiltrosSessoes()" title="Limpar filtros">✕ Limpar</button>
           <button class="btn" onclick="carregarSessoes()">↻ Atualizar</button>
-          <span id="sessoes-info" style="color:var(--muted);font-size:.85rem;align-self:center"></span>
         </div>
+        <div id="sessao-filtro-contador" style="color:var(--muted);font-size:.82rem;margin-bottom:10px;display:none"></div>
         <div class="reunioes" id="lista-sessoes"><div style="color:var(--muted)">Carregando...</div></div>
       </div>
 
@@ -1711,12 +1735,17 @@
       const titulo = escHtml(d.titulo || '—');
       const chars = d.chars ? (d.chars > 999 ? (d.chars / 1000).toFixed(1) + ' k' : d.chars) + ' chars' : '—';
       const data  = d.created_at ? new Date(d.created_at).toLocaleDateString('pt-BR') : '—';
+      const nomeArquivo = d.arquivo_nome ? escHtml(d.arquivo_nome) : '';
+      const btnBaixar = nomeArquivo
+        ? `<button class="cfg-btn-acao" onclick="baixarDocumento(${d.id}, '${nomeArquivo.replace(/'/g, "\\'")}')" title="Baixar arquivo original" style="padding:5px 10px;font-size:.8rem;margin-right:6px">⬇️ Baixar</button>`
+        : '';
       return `<tr>
         <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${titulo}">${titulo}</td>
         <td><span style="font-size:.82rem;color:var(--muted)">${tipo}</span></td>
         <td style="color:var(--muted);font-size:.82rem">${chars}</td>
         <td style="color:var(--muted);font-size:.82rem">${data}</td>
-        <td>
+        <td style="white-space:nowrap">
+          ${btnBaixar}
           <button class="cfg-btn-acao danger" onclick="removerDaBase(${d.id}, this)" title="Excluir documento" style="padding:5px 10px;font-size:.8rem">
             🗑 Excluir
           </button>
@@ -1744,15 +1773,18 @@
     document.getElementById('btn-base-text').textContent = 'Gerando embedding...';
 
     try {
-      const resp = await fetchJsonWithFallback('/base', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ titulo, tipo, texto }),
-      });
+      const formData = new FormData();
+      formData.append('titulo', titulo);
+      formData.append('tipo', tipo);
+      formData.append('texto', texto);
+      if (_arquivoBaseSelecionado) formData.append('arquivo', _arquivoBaseSelecionado, _arquivoBaseSelecionado.name);
+
+      const resp = await fetchJsonWithFallback('/base', { method: 'POST', body: formData });
       const r = await resp.json();
       document.getElementById('base-titulo').value = '';
       document.getElementById('base-texto').value  = '';
       document.getElementById('base-char-counter').textContent = '0 caracteres';
+      _arquivoBaseSelecionado = null;
       const dropStatus = document.getElementById('base-drop-status');
       if (dropStatus) dropStatus.style.display = 'none';
       const charsStr = r.chars > 999 ? (r.chars/1000).toFixed(1)+'k' : r.chars;
@@ -1771,6 +1803,24 @@
     } finally {
       btn.classList.remove('loading'); btn.disabled = false;
       document.getElementById('btn-base-text').textContent = '📚 Adicionar à Base';
+    }
+  }
+
+  async function baixarDocumento(id, nomeArquivo) {
+    try {
+      const resp = await fetchJsonWithFallback('/base/' + id + '/download', { method: 'GET' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = nomeArquivo || 'documento';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Erro ao baixar documento: ' + (e.message || e));
     }
   }
 
@@ -1797,6 +1847,7 @@
 
   /* ─── Drag-and-Drop / Upload de Arquivos ─────────── */
   let _dropzoneInited = false;
+  let _arquivoBaseSelecionado = null;
 
   function initDropzone() {
     if (_dropzoneInited) return;
@@ -1874,6 +1925,11 @@
 
       texto = texto.trim();
       if (!texto) { setStatus('❌ Não foi possível extrair texto do arquivo.', true); return; }
+
+      // Guarda o arquivo original para upload junto do texto — permite
+      // baixá-lo depois na lista da Base (o texto extraído sozinho não
+      // preserva formatação/layout do documento original).
+      _arquivoBaseSelecionado = file;
 
       textarea.value = texto;
       atualizarContadorBase();
@@ -2676,9 +2732,6 @@
     const prop   = norm(r.probabilidade_fechamento);
     const cor    = prop === 'alta' ? '#2dd4bf' : prop === 'media' ? '#fbbf24' : prop === 'baixa' ? '#f87171' : '#555';
     const badge  = prop ? `<span class="badge badge-${prop}">${prop.charAt(0).toUpperCase() + prop.slice(1)}</span>` : '';
-    const scoreVal = r.dados?.score_compra?.valor;
-    const score  = scoreVal !== undefined ? Math.min(98, Math.max(5, Number(scoreVal))) : null;
-    const scoreHTML = score !== null ? `<span style="color:${cor};font-weight:700;font-size:.85rem">${score}/100</span>` : '';
     const prov = (r.provedor || '').toLowerCase();
     const provLabel = { deepseek: 'DeepSeek', openai: 'OpenAI', anthropic: 'Anthropic', gemini: 'Gemini' }[prov] || '';
     const provHTML = provLabel ? `<span style="font-size:.72rem;color:var(--muted);margin-left:6px">${escHtml(provLabel)}</span>` : '';
@@ -2687,11 +2740,12 @@
     const wonBtn = statusAtual === 'won'
       ? `<span style="font-size:.72rem;color:#2dd4bf;font-weight:700;padding:2px 8px;border:1px solid #2dd4bf;border-radius:4px;margin-left:6px">✓ Ganha</span>`
       : `<button onclick="marcarComoGanha(event,'${mid}')" style="font-size:.7rem;padding:2px 8px;background:transparent;border:1px solid var(--gold);color:var(--gold);border-radius:4px;cursor:pointer;margin-left:6px">Ganha</button>`;
+    const letraProp = prop ? prop.charAt(0).toUpperCase() : '?';
     return `<div class="reuniao-card" onclick='verDetalhe(${JSON.stringify(r)})'>
-      <div class="score-circle" style="border-color:${cor};color:${cor}">${score !== null ? score : '?'}</div>
+      <div class="score-circle" style="border-color:${cor};color:${cor}">${letraProp}</div>
       <div class="reuniao-info">
         <div class="reuniao-titulo">${titulo}</div>
-        <div class="reuniao-meta">${data} ${scoreHTML}${provHTML}${wonBtn}</div>
+        <div class="reuniao-meta">${data} ${provHTML}${wonBtn}</div>
       </div>
       ${badge}
     </div>`;
@@ -3417,27 +3471,41 @@
     let html = '';
     html += renderAnaliseEssencial(dados, dados.falas_separadas || []);
 
-    const scoreVal = dados.score_compra?.valor;
-    if (scoreVal !== undefined) {
-      const val = Math.min(98, Math.max(5, Number(scoreVal)));
-      const corS = val >= 70 ? '#2dd4bf' : val >= 45 ? '#fbbf24' : '#f87171';
-      html += `<div class="info-card" style="margin-bottom:16px;border-color:${corS}33">
-        <h3 style="color:${corS}">📊 Score de Compra</h3>
-        <div style="font-size:2rem;font-weight:700;color:${corS}">${val}<span style="font-size:1rem;color:var(--muted)">/100</span></div>
-        <div class="score-barra-wrap"><div class="score-barra-fill" style="width:${val}%;background:${corS}"></div></div>
-        <div style="color:var(--muted);font-size:.85rem">${escHtml(dados.score_compra?.justificativa || '')}</div>
-      </div>`;
-    }
-
     html += `<div class="grid-2">`;
     if (recap.resumo_executivo) {
       html += `<div class="info-card"><h3>📋 Resumo Executivo</h3><p style="line-height:1.7;color:#cbd5e1">${escHtml(recap.resumo_executivo)}</p></div>`;
     }
-    if (prop) {
-      html += `<div class="info-card" style="border-color:${cor}33">
-        <h3 style="color:${cor}">🎯 Probabilidade de Fechamento</h3>
-        <div style="font-size:1.6rem;font-weight:700;color:${cor};text-transform:capitalize">${prop}</div>
-        <p style="color:var(--muted);font-size:.85rem;margin-top:8px">${escHtml(recap.justificativa_probabilidade || '')}</p>
+    const pz = recap.propensao || {};
+    const nivelProp = pz.nivel || prop;
+    if (nivelProp) {
+      const corProp = nivelProp === 'alta' ? '#2dd4bf' : nivelProp === 'media' ? '#fbbf24' : nivelProp === 'baixa' ? '#f87171' : '#94a3b8';
+      const labelProp = nivelProp === 'nao_determinada' ? 'Não determinada' : nivelProp;
+      const fatoresPos = Array.isArray(pz.fatores_positivos) ? pz.fatores_positivos : [];
+      const fatoresNeg = Array.isArray(pz.fatores_negativos) ? pz.fatores_negativos : [];
+      const fatoresPend = Array.isArray(pz.fatores_pendentes) ? pz.fatores_pendentes : [];
+      const comoAvancar = Array.isArray(pz.como_avancar) ? pz.como_avancar : [];
+      const temDetalhamento = fatoresPos.length || fatoresNeg.length || fatoresPend.length || comoAvancar.length;
+      const listaComEvidencia = (itens) => itens.map(f => {
+        const texto = typeof f === 'string' ? f : (f.fator || '');
+        const evid = f && typeof f === 'object' ? f.evidencia : null;
+        return `<li>${escHtml(texto)}${evid ? `<br><em style="color:var(--muted);font-size:.82rem">"${escHtml(evid)}"</em>` : ''}</li>`;
+      }).join('');
+      const listaSimples = (itens) => itens.map(f => `<li>${escHtml(f)}</li>`).join('');
+
+      html += `<div class="info-card" style="border-color:${corProp}33">
+        <h3 style="color:${corProp}">🎯 Propensão de Compra</h3>
+        <div style="font-size:1.6rem;font-weight:700;color:${corProp};text-transform:capitalize">${escHtml(labelProp)}</div>
+        <p style="color:var(--muted);font-size:.85rem;margin-top:8px">${escHtml(pz.resumo || recap.justificativa_probabilidade || (nivelProp === 'nao_determinada' ? 'Ainda não há informações suficientes para uma classificação confiável.' : ''))}</p>
+        ${temDetalhamento ? `
+        <details style="margin-top:10px">
+          <summary style="cursor:pointer;color:${corProp};font-size:.85rem;font-weight:600">Ver detalhamento</summary>
+          <div style="margin-top:8px;font-size:.85rem;color:#cbd5e1">
+            ${fatoresPos.length ? `<div style="margin-bottom:8px"><strong style="color:#2dd4bf">✓ Sinais positivos</strong><ul style="margin:4px 0 0 18px;padding:0">${listaComEvidencia(fatoresPos)}</ul></div>` : ''}
+            ${fatoresNeg.length ? `<div style="margin-bottom:8px"><strong style="color:#fbbf24">! Sinais de atenção</strong><ul style="margin:4px 0 0 18px;padding:0">${listaComEvidencia(fatoresNeg)}</ul></div>` : ''}
+            ${fatoresPend.length ? `<div style="margin-bottom:8px"><strong style="color:#94a3b8">O que falta para avançar</strong><ul style="margin:4px 0 0 18px;padding:0">${listaSimples(fatoresPend)}</ul></div>` : ''}
+            ${comoAvancar.length ? `<div><strong style="color:#94a3b8">Próximas ações</strong><ul style="margin:4px 0 0 18px;padding:0">${listaSimples(comoAvancar)}</ul></div>` : ''}
+          </div>
+        </details>` : ''}
       </div>`;
     }
     html += `</div>`;
@@ -3985,21 +4053,23 @@
   }
 
   /* ─── Sessões ao Vivo ─────────────────────────────── */
+  let _sessoesCache = [];
+
   async function carregarSessoes() {
     const container = document.getElementById('lista-sessoes');
-    const info = document.getElementById('sessoes-info');
     container.innerHTML = '<div style="color:var(--muted)">Carregando...</div>';
     try {
       const r = await fetch(API + '/sessoes');
       if (!r.ok) throw new Error('Erro ' + r.status);
       const d = await r.json();
-      const lista = d.sessoes || [];
-      info.textContent = lista.length + ' sessão(ões) registrada(s)';
-      if (!lista.length) {
+      _sessoesCache = d.sessoes || [];
+      if (!_sessoesCache.length) {
         container.innerHTML = '<div style="color:var(--muted)">Nenhuma sessão registrada ainda. Inicie uma reunião com a extensão Chrome ativa.</div>';
+        const contEl = document.getElementById('sessao-filtro-contador');
+        if (contEl) contEl.style.display = 'none';
         return;
       }
-      container.innerHTML = lista.map(s => cardSessaoHTML(s)).join('');
+      filtrarSessoes();
     } catch (e) {
       container.innerHTML = '<div class="erro">Erro ao carregar sessões: ' + escHtml(e.message) + '</div>';
     }
@@ -4013,19 +4083,137 @@
     return d.toLocaleString('pt-BR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '');
   }
 
+  // Sem coluna de status persistida no banco — deriva apenas Ao vivo/Finalizada
+  // pela recência de updated_at (não há sinal para "processando"/"erro").
+  function _statusSessao(s) {
+    if (!s.updated_at) return 'finalizada';
+    const str = s.updated_at.trim().replace(' ', 'T');
+    const d = new Date(/Z|[+-]\d\d:?\d\d$/.test(str) ? str : str + 'Z');
+    if (isNaN(d)) return 'finalizada';
+    const diffMin = (Date.now() - d.getTime()) / 60000;
+    return diffMin <= 5 ? 'ao_vivo' : 'finalizada';
+  }
+
+  function _duracaoSessao(s) {
+    if (!s.created_at || !s.updated_at) return '';
+    const norm = (v) => {
+      const str = v.trim().replace(' ', 'T');
+      return new Date(/Z|[+-]\d\d:?\d\d$/.test(str) ? str : str + 'Z');
+    };
+    const ini = norm(s.created_at), fim = norm(s.updated_at);
+    if (isNaN(ini) || isNaN(fim)) return '';
+    const min = Math.max(0, Math.round((fim - ini) / 60000));
+    return min + ' min';
+  }
+
+  // Aceita link colado (ex: meet.google.com/abc-defg-hij) e extrai só o código
+  // para comparar com meeting_id; caso contrário compara texto livre.
+  function _normalizarBuscaSessao(busca) {
+    const m = busca.match(/([a-z]{3}-[a-z]{4}-[a-z]{3})/i);
+    return (m ? m[1] : busca).toLowerCase();
+  }
+
+  function filtrarSessoes() {
+    const buscaRaw = (document.getElementById('sessao-busca').value || '').trim();
+    const busca    = _normalizarBuscaSessao(buscaRaw);
+    const status   = document.getElementById('sessao-status').value;
+    const de       = document.getElementById('sessao-data-de').value;
+    const ate      = document.getElementById('sessao-data-ate').value;
+    const horaDe   = document.getElementById('sessao-hora-de').value;
+    const horaAte  = document.getElementById('sessao-hora-ate').value;
+    const ordem    = document.getElementById('sessao-ordem').value;
+
+    let filtradas = _sessoesCache.filter(function (s) {
+      const cliente  = (s.cliente_nome || '').toLowerCase();
+      const empresa  = (s.cliente_empresa || '').toLowerCase();
+      const meetId   = (s.meeting_id || '').toLowerCase();
+      const dataStr  = (s.created_at || '').slice(0, 10);
+      const horaStr  = _fmtLocal(s.created_at).slice(-5);
+
+      const matchBusca  = !busca || cliente.includes(busca) || empresa.includes(busca) || meetId.includes(busca);
+      const matchStatus = !status || _statusSessao(s) === status;
+      const matchData   = (!de || dataStr >= de) && (!ate || dataStr <= ate);
+      const matchHora   = (!horaDe || horaStr >= horaDe) && (!horaAte || horaStr <= horaAte);
+      return matchBusca && matchStatus && matchData && matchHora;
+    });
+
+    filtradas.sort(function (a, b) {
+      if (ordem === 'antiga')   return new Date(a.created_at) - new Date(b.created_at);
+      if (ordem === 'cliente')  return (a.cliente_nome || a.meeting_id || '').localeCompare(b.cliente_nome || b.meeting_id || '');
+      if (ordem === 'status')   return _statusSessao(a).localeCompare(_statusSessao(b));
+      return new Date(b.created_at) - new Date(a.created_at); // recente (padrão)
+    });
+
+    const contEl = document.getElementById('sessao-filtro-contador');
+    if (contEl) {
+      contEl.style.display = '';
+      contEl.textContent = filtradas.length + ' de ' + _sessoesCache.length + ' sessões';
+    }
+    renderizarSessoes(filtradas);
+  }
+
+  function renderizarSessoes(lista) {
+    const container = document.getElementById('lista-sessoes');
+    container.innerHTML = lista.map(s => cardSessaoHTML(s)).join('') || '<div style="color:var(--muted)">Nenhuma sessão encontrada.</div>';
+  }
+
+  function limparFiltrosSessoes() {
+    document.getElementById('sessao-busca').value     = '';
+    document.getElementById('sessao-status').value    = '';
+    document.getElementById('sessao-periodo').value   = '';
+    document.getElementById('sessao-data-de').value   = '';
+    document.getElementById('sessao-data-ate').value  = '';
+    document.getElementById('sessao-hora-de').value   = '';
+    document.getElementById('sessao-hora-ate').value  = '';
+    document.getElementById('sessao-ordem').value     = 'recente';
+    filtrarSessoes();
+  }
+
+  function aplicarPeriodoSessao() {
+    const val = document.getElementById('sessao-periodo').value;
+    const de  = document.getElementById('sessao-data-de');
+    const ate = document.getElementById('sessao-data-ate');
+    const fmt = (d) => d.toISOString().slice(0, 10);
+    const hoje = new Date();
+    if (val === 'hoje') {
+      de.value = fmt(hoje); ate.value = fmt(hoje);
+    } else if (val === 'ontem') {
+      const on = new Date(hoje); on.setDate(on.getDate() - 1);
+      de.value = fmt(on); ate.value = fmt(on);
+    } else if (val === '7d') {
+      const d7 = new Date(hoje); d7.setDate(d7.getDate() - 7);
+      de.value = fmt(d7); ate.value = fmt(hoje);
+    } else if (val === '30d') {
+      const d30 = new Date(hoje); d30.setDate(d30.getDate() - 30);
+      de.value = fmt(d30); ate.value = fmt(hoje);
+    } else {
+      de.value = ''; ate.value = '';
+    }
+    filtrarSessoes();
+  }
+
   function cardSessaoHTML(s) {
     const meetId  = escHtml(s.meeting_id || 'default');
     const disc    = escHtml(s.disc_identificado || '?');
     const num     = s.num_analises || 0;
     const criado  = escHtml(_fmtLocal(s.created_at));
-    const atualiz = escHtml(_fmtLocal(s.updated_at));
     const preview = escHtml((s.preview || '').slice(0, 120));
     const discCor = disc === 'D' ? '#f87171' : disc === 'I' ? '#fbbf24' : disc === 'S' ? '#2dd4bf' : disc === 'C' ? '#90caf9' : '#555';
+    const cliente = escHtml(s.cliente_nome || '');
+    const empresa = escHtml(s.cliente_empresa || '');
+    const tituloHTML = cliente
+      ? `${cliente}${empresa ? ' · ' + empresa : ''}`
+      : meetId;
+    const status      = _statusSessao(s);
+    const statusLabel = status === 'ao_vivo' ? '🔴 Ao vivo' : 'Finalizada';
+    const statusCor   = status === 'ao_vivo' ? '#f87171' : '#555';
+    const duracao     = _duracaoSessao(s);
     return `<div class="reuniao-card" onclick="verSessaoDetalhe(${s.id})" style="position:relative">
       <div class="score-circle" style="border-color:${discCor};color:${discCor};font-size:.85rem">${disc}</div>
       <div class="reuniao-info">
-        <div class="reuniao-titulo">${meetId}</div>
-        <div class="reuniao-meta">${criado} · ${num} análise(s) · atualizado ${atualiz}</div>
+        <div class="reuniao-titulo">${tituloHTML}</div>
+        <div class="reuniao-meta">${criado}${duracao ? ' · ' + duracao : ''} · ${num} análise(s) · <span style="color:${statusCor}">${statusLabel}</span></div>
+        <div style="color:var(--muted);font-size:.75rem;margin-top:2px">${meetId}</div>
         <div style="color:var(--muted);font-size:.8rem;margin-top:4px">${preview}...</div>
       </div>
       <button onclick="excluirSessao(${s.id}, event)" title="Excluir sessão"

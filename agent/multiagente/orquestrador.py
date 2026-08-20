@@ -14,6 +14,7 @@ from agent.multiagente.coach_agent import analisar_coach
 from agent.multiagente.disc_agent import analisar_disc
 from agent.multiagente.finance_agent import analisar_finance
 from agent.multiagente.closer_agent import analisar_closer
+from agent.propensao_rules import classificar_propensao
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +99,12 @@ def _mesclar(coach: dict, disc: dict, finance: dict, closer: dict) -> dict:
     resultado["proxima_acao"]    = closer.get("proxima_acao") or closer.get("acao_recomendada")
     resultado["acao_recomendada"] = resultado["proxima_acao"]
     resultado["proxima_pergunta"] = closer.get("proxima_pergunta")
+
+    # Propensão de Compra — rótulo determinístico derivado do score interno
+    # (Alta/Média/Baixa/Não determinada), sem nenhuma chamada de IA extra.
+    # score_compra continua calculado e persistido normalmente; só deixa de
+    # ser exibido como número na extensão.
+    resultado["propensao"] = {"nivel": classificar_propensao(resultado["score_compra"].get("valor"))}
 
     # Cross-links para backward compat
     resultado["next_best_question"] = _nba_para_nbq(resultado["next_best_action"])

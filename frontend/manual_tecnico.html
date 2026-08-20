@@ -132,7 +132,7 @@
   <div class="hero-title">Dev Manual — SALEIA</div>
   <div class="hero-sub">Referência técnica para manutenção, deploy e operação em produção.</div>
   <div class="hero-badges">
-    <span class="badge badge-gold">V.1.4.37</span>
+    <span class="badge badge-gold">V.1.4.40</span>
     <span class="badge badge-green">FastAPI + Python 3.14</span>
     <span class="badge badge-blue">MySQL + SQLite</span>
     <span class="badge badge-orange">Hetzner VPS</span>
@@ -404,6 +404,27 @@ for k in ['DEEPSEEK_API_KEY','OPENAI_API_KEY','ANTHROPIC_API_KEY','GEMINI_API_KE
         </table>
       </div>
       <div class="card">
+        <div class="card-title">Sessões ao Vivo</div>
+        <table>
+          <tr><th>Método</th><th>Rota</th><th>Descrição</th></tr>
+          <tr><td><span class="tag tag-get">GET</span></td><td><code>/sessoes</code></td><td>Lista até 200 sessões, enriquecidas com <code>cliente_nome</code>/<code>cliente_empresa</code> via subquery em <code>client_meetings</code>+<code>client_profiles</code> (V.1.4.40). Busca/filtro/ordenação são client-side no dashboard.</td></tr>
+          <tr><td><span class="tag tag-get">GET</span></td><td><code>/sessoes/{id}</code></td><td>Detalhe de uma sessão.</td></tr>
+          <tr><td><span class="tag tag-delete">DELETE</span></td><td><code>/sessoes/{id}</code></td><td>Remove a sessão.</td></tr>
+          <tr><td><span class="tag tag-post">POST</span></td><td><code>/sessoes/{id}/exportar-base</code></td><td>Converte a transcrição da sessão em documento da Base de Conhecimento.</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">Base de Conhecimento (RAG)</div>
+        <table>
+          <tr><th>Método</th><th>Rota</th><th>Descrição</th></tr>
+          <tr><td><span class="tag tag-get">GET</span></td><td><code>/base</code></td><td>Lista documentos (sem embeddings). Cada item traz <code>arquivo_nome</code>/<code>arquivo_tamanho</code> quando há arquivo original anexado (V.1.4.40).</td></tr>
+          <tr><td><span class="tag tag-post">POST</span></td><td><code>/base</code></td><td><strong>Multipart</strong> desde V.1.4.40 (era JSON): <code>Form(titulo, tipo, texto)</code> + <code>File(arquivo)</code> opcional. Gera embedding via <code>services.embeddings</code>; se um arquivo for enviado, grava em <code>data/base_arquivos/&lt;uuid&gt;_&lt;nome&gt;</code> e referencia nas colunas <code>arquivo_*</code>.</td></tr>
+          <tr><td><span class="tag tag-get">GET</span></td><td><code>/base/{id}/download</code></td><td><span class="tag tag-auth">AUTH</span> <span class="badge badge-gold" style="font-size:.65rem">V.1.4.40</span> Baixa o arquivo original via <code>FileResponse</code>. Exige JWT (<code>_req_auth</code> — base é global, sem tenant, permissão é só "estar logado"). 404 se o documento não tiver arquivo.</td></tr>
+          <tr><td><span class="tag tag-delete">DELETE</span></td><td><code>/base/{id}</code></td><td>Remove o documento e, se houver, apaga também o arquivo em disco.</td></tr>
+          <tr><td><span class="tag tag-post">POST</span></td><td><code>/base/ocr</code></td><td>Extrai texto de imagem via Claude/GPT-4o Vision (multipart, <code>UploadFile</code>). A imagem nunca é persistida — só o texto extraído retorna.</td></tr>
+        </table>
+      </div>
+      <div class="card">
         <div class="card-title">Sales Brain — Memórias, Playbooks, Skills <span class="tag tag-auth">AUTH</span></div>
         <table>
           <tr><th>Método</th><th>Rota</th><th>Descrição</th></tr>
@@ -500,11 +521,11 @@ json.dumps({'order':['deepseek','openai','anthropic','gemini'],'updated_at':time
         <div class="card-title">RAG — Base de Conhecimento</div>
         <ul>
           <li>Arquivo: <code>agent/base_conhecimento.py</code></li>
-          <li>Embedding: <code>text-embedding-3-small</code> via OpenAI (1536 dimensões)</li>
+          <li>Embedding: provedor configurável via <code>services/embeddings/</code> (V.1.4.39) — <code>ollama</code>/<code>embeddinggemma</code> local é o padrão, <code>openai</code>/<code>text-embedding-3-small</code> é opcional. Metadados <code>embedding_provider</code>/<code>embedding_model</code>/<code>embedding_dim</code> por linha evitam comparar vetores de dimensões diferentes</li>
           <li>Cache em memória carregado no primeiro acesso</li>
-          <li>49+ transcrições indexadas no banco MySQL</li>
           <li>Busca cosine similarity para top-k contextos similares</li>
           <li>Falha silenciosa: se embedding falhar, IA responde sem contexto RAG</li>
+          <li><span class="badge badge-gold" style="font-size:.65rem">V.1.4.40</span> Cada documento pode ter um arquivo original anexado (colunas <code>arquivo_nome_original</code>/<code>arquivo_path</code>/<code>arquivo_mime</code>/<code>arquivo_tamanho</code>, gravado em <code>data/base_arquivos/</code>) — o texto/embedding não mudam, o arquivo é só preservado para download em <code>GET /base/{id}/download</code></li>
         </ul>
       </div>
       <div class="card">
@@ -534,7 +555,8 @@ json.dumps({'order':['deepseek','openai','anthropic','gemini'],'updated_at':time
           <tr><td><code>conversation_stage</code></td><td>string</td><td>Estágio SPIN atual: abertura | situação | problema | implicação | necessidade | apresentação | negociação | compromisso</td></tr>
           <tr><td><code>kare_type</code></td><td>string</td><td>Tipo da conta: keep | attain | recapture | expand</td></tr>
           <tr><td><code>maturity_score</code></td><td>object</td><td>Score 0-100 + 7 critérios booleanos</td></tr>
-          <tr><td><code>score_compra</code></td><td>number</td><td>Propensão de compra 0-100 (independente do maturity)</td></tr>
+          <tr><td><code>score_compra</code></td><td>object</td><td><code>{valor, justificativa}</code> — score interno 0-100 (independente do maturity). Não é mais exibido diretamente na sidebar desde a V.1.4.40 (ver <code>propensao</code>)</td></tr>
+          <tr><td><code>propensao</code></td><td>object</td><td><span class="badge badge-gold" style="font-size:.65rem">V.1.4.40</span> <code>{nivel}</code> — alta | media | baixa | nao_determinada. Derivado deterministicamente de <code>score_compra.valor</code> por <code>agent/propensao_rules.py::classificar_propensao</code> (limiares: ≥70 alta, ≥45 media, senão baixa) dentro de <code>orquestrador.py::_mesclar</code> — nenhuma chamada de IA extra por fragmento. É o único campo de propensão que a extensão renderiza.</td></tr>
           <tr><td><code>next_best_question</code></td><td>string</td><td>Alias backward-compat — derivado de <code>next_best_action.message</code></td></tr>
         </table>
       </div>
@@ -640,6 +662,7 @@ json.dumps({'order':['deepseek','openai','anthropic','gemini'],'updated_at':time
           <tr><td>Closer</td><td><code>multiagente/closer_agent.py</code></td><td>score_compra, maturity_score, resumo_vivo, proxima_pergunta</td></tr>
         </table>
         <div class="alert alert-blue" style="margin-top:12px"><strong>Backward compat:</strong> <code>next_best_question</code> é gerado por <code>_nba_para_nbq()</code> no orquestrador — extensões Chrome antigas continuam funcionando sem alteração.</div>
+        <div class="alert alert-gold" style="margin-top:8px"><strong>V.1.4.40:</strong> logo após montar <code>score_compra</code>, <code>_mesclar()</code> também calcula <code>resultado["propensao"] = {"nivel": classificar_propensao(score.get("valor"))}</code> via <code>agent/propensao_rules.py</code> — puramente determinístico, sem chamada de IA adicional. É esse campo (não <code>score_compra</code>) que a extensão Chrome lê para exibir a Propensão de Compra na sidebar.</div>
       </div>
 
       <!-- Skills -->
@@ -909,11 +932,12 @@ skill_context = resolver_skill_context(
       </div>
 
       <div class="card">
-        <div class="card-title">RAG não funciona (embedding 401)</div>
-        <ul>
-          <li>A chave <code>OPENAI_API_KEY</code> está inválida ou expirada</li>
-          <li>Atualizar via painel admin → APIs → OpenAI → Salvar</li>
-          <li>Testar: <code>ssh root@37.27.214.33 "cd /opt/saleia && venv/bin/python3 -c \"from openai import OpenAI; import os; from dotenv import load_dotenv; load_dotenv('.env'); r=OpenAI(api_key=os.environ.get('OPENAI_API_KEY')).embeddings.create(model='text-embedding-3-small',input='teste'); print('OK',len(r.data[0].embedding))\""</code></li>
+        <div class="card-title">RAG não funciona / documento salvo sem embedding</div>
+        <p>Desde a V.1.4.39, o provedor padrão é <code>EMBEDDING_PROVIDER=ollama</code> (local) — o erro mais comum não é mais 401 da OpenAI, é o Ollama inacessível.</p>
+        <ul style="margin-top:8px">
+          <li><strong>Se <code>EMBEDDING_PROVIDER=ollama</code> (padrão):</strong> verificar <code>ollama.service</code> ativo na VPS (<code>ssh root@37.27.214.33 "systemctl status ollama"</code>) e que escuta em <code>127.0.0.1:11434</code>. Checar status agregado em <code>GET /admin/embeddings/status</code> (JWT admin).</li>
+          <li><strong>Se <code>EMBEDDING_PROVIDER=openai</code>:</strong> a chave <code>OPENAI_API_KEY</code> está inválida ou expirada — atualizar via painel admin → APIs → OpenAI → Salvar.</li>
+          <li>Em ambos os casos a falha é graciosa: o documento é salvo <em>sem</em> embedding (aviso no retorno de <code>POST /base</code>) em vez de derrubar a requisição — rodar <code>scripts/reindex_embeddings.py</code> depois de corrigir o provedor.</li>
         </ul>
       </div>
 

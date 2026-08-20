@@ -13,6 +13,7 @@ Endpoints:
 """
 
 import os
+import re
 import json
 import uuid
 import asyncio
@@ -26,9 +27,9 @@ from typing import Optional, List
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect, Header
+from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect, Header, Form, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -154,6 +155,10 @@ ultimo_relatorio: dict = {}
 # Pasta para persistência de relatórios em arquivo (fallback legado)
 PASTA_RELATORIOS = Path("data/relatorios")
 PASTA_RELATORIOS.mkdir(parents=True, exist_ok=True)
+
+# Pasta para os arquivos originais anexados a documentos da Base de Conhecimento
+PASTA_BASE_ARQUIVOS = Path("data/base_arquivos")
+PASTA_BASE_ARQUIVOS.mkdir(parents=True, exist_ok=True)
 
 async def _loop_metricas() -> None:
     """Background task: grava snapshot de métricas a cada 60s e verifica thresholds."""
@@ -316,10 +321,6 @@ class ExportarBaseRequest(BaseModel):
     tipo: Optional[str] = "reuniao"
 
 
-class AdicionarBaseRequest(BaseModel):
-    titulo: str
-    tipo: Optional[str] = "instrucao"
-    texto: str
 
 
 class AudioTranscricaoRequest(BaseModel):
@@ -437,6 +438,21 @@ CONTEXTO DOS PRODUTOS:
 - Produto Intermediário: R$ 15.984
 - Produto Completo: R$ 29.892
 
+REGRAS PARA O BLOCO "propensao" (classificação de propensão de compra):
+- Cada fator em fatores_positivos/fatores_negativos precisa vir de algo
+  realmente dito na transcrição — nunca invente um fator genérico sem
+  evidência. Quando houver uma fala que sustente o fator, cite-a
+  literalmente (curta) em "evidencia"; se não houver fala específica,
+  use null em "evidencia" em vez de inventar uma citação.
+- fatores_pendentes lista o que ainda não foi identificado/confirmado na
+  conversa (não são "negativos", são lacunas de informação).
+- como_avancar são ações objetivas e práticas para o vendedor, não
+  reafirmações do resumo.
+- Se a transcrição for curta ou insuficiente para uma leitura confiável,
+  retorne "nivel": "nao_determinada" (nunca force alta/media/baixa sem
+  base) e explique a insuficiência em "resumo".
+- Nunca inclua raciocínio interno, apenas fatores/evidências/conclusões.
+
 Retorne APENAS um JSON válido (sem markdown):
 {
   "resumo_executivo": "3 linhas resumindo o essencial",
@@ -472,7 +488,20 @@ Retorne APENAS um JSON válido (sem markdown):
     }
   ],
   "probabilidade_fechamento": "alta|média|baixa",
-  "justificativa_probabilidade": "por que esta probabilidade"
+  "justificativa_probabilidade": "por que esta probabilidade",
+  "propensao": {
+    "nivel": "alta|media|baixa|nao_determinada",
+    "confianca": "alta|media|baixa",
+    "resumo": "1-2 linhas sobre a leitura geral de propensão",
+    "fatores_positivos": [
+      {"fator": "sinal objetivo identificado", "evidencia": "citação curta e literal ou null"}
+    ],
+    "fatores_negativos": [
+      {"fator": "sinal de atenção identificado", "evidencia": "citação curta e literal ou null"}
+    ],
+    "fatores_pendentes": ["o que ainda não foi identificado/confirmado"],
+    "como_avancar": ["próximas ações objetivas para aumentar a propensão"]
+  }
 }"""
 
 # ─────────────────────────────────────────────
@@ -501,7 +530,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.39",
+        "versao":              "1.4.40",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -539,7 +568,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.39",
+        "versao":          "1.4.40",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -1696,7 +1725,7 @@ def listar_sessoes_endpoint():
     """
     try:
         from agent.sessao_manager import listar_sessoes
-        sessoes = listar_sessoes(limite=50)
+        sessoes = listar_sessoes(limite=200)
         return {"total": len(sessoes), "sessoes": sessoes}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1772,12 +1801,14 @@ def exportar_base_endpoint(sessao_id: int, req: ExportarBaseRequest):
 @app.get("/base")
 def listar_base():
     """Lista todos os documentos da base de conhecimento (sem embeddings)."""
-    from agent.sessao_manager import _get_conn
+    from agent.sessao_manager import _get_conn, migrar_colunas_embedding_metadata_base_conhecimento
+    migrar_colunas_embedding_metadata_base_conhecimento()
     try:
         conn = _get_conn()
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, titulo, tipo, CHAR_LENGTH(texto) AS chars, created_at "
+                "SELECT id, titulo, tipo, CHAR_LENGTH(texto) AS chars, created_at, "
+                "arquivo_nome_original, arquivo_tamanho "
                 "FROM base_conhecimento ORDER BY created_at DESC"
             )
             rows = cur.fetchall()
@@ -1788,6 +1819,7 @@ def listar_base():
         {
             "id": r[0], "titulo": r[1], "tipo": r[2], "chars": r[3],
             "created_at": r[4].isoformat() if r[4] else None,
+            "arquivo_nome": r[5], "arquivo_tamanho": r[6],
         }
         for r in rows
     ]
@@ -1795,12 +1827,22 @@ def listar_base():
 
 
 @app.post("/base")
-async def adicionar_base(req: AdicionarBaseRequest):
+async def adicionar_base(
+    titulo: str = Form(...),
+    tipo: str = Form("instrucao"),
+    texto: str = Form(...),
+    arquivo: Optional[UploadFile] = File(None),
+):
     """Adiciona um documento à base de conhecimento, gerando embedding via
-    o EmbeddingProvider configurado (Ollama por padrão, OpenAI opcional)."""
-    if not req.titulo or not req.titulo.strip():
+    o EmbeddingProvider configurado (Ollama por padrão, OpenAI opcional).
+
+    O texto continua sendo o já extraído/colado pelo usuário (mesmo fluxo de
+    sempre, incl. via OCR) — `arquivo`, quando enviado, é preservado à parte
+    em disco só para permitir o download do documento original depois.
+    """
+    if not titulo or not titulo.strip():
         raise HTTPException(status_code=400, detail="Título obrigatório")
-    if not req.texto or len(req.texto.strip()) < 10:
+    if not texto or len(texto.strip()) < 10:
         raise HTTPException(status_code=400, detail="Texto muito curto (mínimo 10 caracteres)")
 
     import json as _json
@@ -1812,7 +1854,7 @@ async def adicionar_base(req: AdicionarBaseRequest):
     provider_name_configurado = os.environ.get("EMBEDDING_PROVIDER", "ollama").strip().lower()
     try:
         provider = get_embedding_provider()
-        resultado = await provider.embed_async(req.texto[:8000])
+        resultado = await provider.embed_async(texto[:8000])
         if resultado is None:
             raise RuntimeError("provedor de embedding não retornou vetor")
         embedding_json = _json.dumps(resultado.vector)
@@ -1829,6 +1871,20 @@ async def adicionar_base(req: AdicionarBaseRequest):
         )
         logger.warning("[base] embedding falhou, salvando sem: %s", e)
 
+    arquivo_nome_original = arquivo_path = arquivo_mime = None
+    arquivo_tamanho = None
+    if arquivo is not None and arquivo.filename:
+        conteudo = await arquivo.read()
+        if len(conteudo) > 20 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="Arquivo muito grande (máx 20 MB).")
+        nome_seguro = re.sub(r"[^A-Za-z0-9._-]+", "_", arquivo.filename)[:150]
+        arquivo_path = str(PASTA_BASE_ARQUIVOS / f"{uuid.uuid4().hex}_{nome_seguro}")
+        with open(arquivo_path, "wb") as f:
+            f.write(conteudo)
+        arquivo_nome_original = arquivo.filename
+        arquivo_mime = arquivo.content_type
+        arquivo_tamanho = len(conteudo)
+
     from agent.sessao_manager import _get_conn, migrar_colunas_embedding_metadata_base_conhecimento
     migrar_colunas_embedding_metadata_base_conhecimento()
     try:
@@ -1836,10 +1892,12 @@ async def adicionar_base(req: AdicionarBaseRequest):
         with conn.cursor() as cur:
             cur.execute(
                 "INSERT INTO base_conhecimento "
-                "(titulo, tipo, texto, embedding, embedding_provider, embedding_model, embedding_dim) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                (req.titulo.strip(), req.tipo or "instrucao", req.texto, embedding_json,
-                 embedding_provider, embedding_model, embedding_dim),
+                "(titulo, tipo, texto, embedding, embedding_provider, embedding_model, embedding_dim, "
+                "arquivo_nome_original, arquivo_path, arquivo_mime, arquivo_tamanho) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                (titulo.strip(), tipo or "instrucao", texto, embedding_json,
+                 embedding_provider, embedding_model, embedding_dim,
+                 arquivo_nome_original, arquivo_path, arquivo_mime, arquivo_tamanho),
             )
             novo_id = cur.lastrowid
         conn.commit()
@@ -1849,16 +1907,45 @@ async def adicionar_base(req: AdicionarBaseRequest):
 
     from agent.base_conhecimento import invalidar_cache
     invalidar_cache()
-    return {"ok": True, "id": novo_id, "chars": len(req.texto), "aviso": aviso}
+    return {"ok": True, "id": novo_id, "chars": len(texto), "aviso": aviso}
 
 
-@app.delete("/base/{doc_id}")
-def remover_base(doc_id: int):
-    """Remove um documento da base de conhecimento."""
+@app.get("/base/{doc_id}/download")
+def baixar_documento_base(doc_id: int, authorization: str | None = Header(default=None)):
+    """Baixa o arquivo original de um documento da Base. Exige usuário
+    autenticado (JWT) — a base é global/compartilhada, sem conceito de
+    tenant hoje, então a permissão é simplesmente "estar logado"."""
+    _req_auth(authorization)
     from agent.sessao_manager import _get_conn
     try:
         conn = _get_conn()
         with conn.cursor() as cur:
+            cur.execute(
+                "SELECT arquivo_path, arquivo_nome_original, arquivo_mime "
+                "FROM base_conhecimento WHERE id = %s",
+                (doc_id,),
+            )
+            row = cur.fetchone()
+        conn.close()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    if not row or not row[0]:
+        raise HTTPException(status_code=404, detail="Este documento não possui arquivo original para download.")
+    arquivo_path, nome_original, mime = row
+    if not os.path.isfile(arquivo_path):
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado no servidor.")
+    return FileResponse(arquivo_path, filename=nome_original or "documento", media_type=mime or "application/octet-stream")
+
+
+@app.delete("/base/{doc_id}")
+def remover_base(doc_id: int):
+    """Remove um documento da base de conhecimento (e o arquivo original, se houver)."""
+    from agent.sessao_manager import _get_conn
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute("SELECT arquivo_path FROM base_conhecimento WHERE id = %s", (doc_id,))
+            row = cur.fetchone()
             cur.execute("DELETE FROM base_conhecimento WHERE id = %s", (doc_id,))
             affected = cur.rowcount
         conn.commit()
@@ -1867,6 +1954,11 @@ def remover_base(doc_id: int):
         raise HTTPException(status_code=500, detail=str(e))
     if affected == 0:
         raise HTTPException(status_code=404, detail="Documento não encontrado")
+    if row and row[0]:
+        try:
+            os.remove(row[0])
+        except OSError:
+            pass
     from agent.base_conhecimento import invalidar_cache
     invalidar_cache()
     return {"ok": True}
@@ -2473,7 +2565,6 @@ def auth_redefinir_senha(req: AuthRedefinirSenhaRequest):
 # ─────────────────────────────────────────────
 # OCR de imagem via AI Vision
 # ─────────────────────────────────────────────
-from fastapi import UploadFile, File
 import base64 as _b64
 
 

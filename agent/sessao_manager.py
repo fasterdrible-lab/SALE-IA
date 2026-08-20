@@ -110,17 +110,30 @@ def salvar_analise(meeting_id: str, transcricao_parcial: str, analise: dict):
         logger.error("[Sessões] Erro ao salvar análise: %s", e)
 
 
-def listar_sessoes(limite: int = 50) -> list:
-    """Lista sessões mais recentes com preview da transcrição."""
+def listar_sessoes(limite: int = 200) -> list:
+    """Lista sessões mais recentes com preview da transcrição.
+
+    Enriquece cada sessão com cliente/empresa vinculados (client_meetings +
+    client_profiles, Sales Brain Fase 4) quando existir, para permitir busca
+    por cliente no dashboard sem precisar de coluna nova em `sessoes`.
+    """
     try:
         conn = _get_conn()
         with conn.cursor() as cur:
             cur.execute(
-                """SELECT id, meeting_id, disc_identificado, num_analises,
-                          created_at, updated_at,
-                          LEFT(transcricao_acumulada, 300) AS preview
-                   FROM sessoes
-                   ORDER BY created_at DESC
+                """SELECT s.id, s.meeting_id, s.disc_identificado, s.num_analises,
+                          s.created_at, s.updated_at,
+                          LEFT(s.transcricao_acumulada, 300) AS preview,
+                          (SELECT cp.nome FROM client_meetings cm
+                             JOIN client_profiles cp ON cp.id = cm.client_id
+                            WHERE cm.meeting_id = s.meeting_id
+                            ORDER BY cm.data DESC LIMIT 1) AS cliente_nome,
+                          (SELECT cp.empresa FROM client_meetings cm
+                             JOIN client_profiles cp ON cp.id = cm.client_id
+                            WHERE cm.meeting_id = s.meeting_id
+                            ORDER BY cm.data DESC LIMIT 1) AS cliente_empresa
+                   FROM sessoes s
+                   ORDER BY s.created_at DESC
                    LIMIT %s""",
                 (limite,),
             )
@@ -277,6 +290,12 @@ def migrar_colunas_embedding_metadata_base_conhecimento():
                 ("embedding_provider", "VARCHAR(20)"),
                 ("embedding_model", "VARCHAR(100)"),
                 ("embedding_dim", "INT"),
+                # Arquivo original preservado à parte do texto extraído (download na Base).
+                # Nulos para documentos legados que só têm texto — sem arquivo para baixar.
+                ("arquivo_nome_original", "VARCHAR(255)"),
+                ("arquivo_path", "VARCHAR(500)"),
+                ("arquivo_mime", "VARCHAR(100)"),
+                ("arquivo_tamanho", "INT"),
             ):
                 cur.execute("SHOW COLUMNS FROM base_conhecimento LIKE %s", (nome,))
                 if cur.fetchone() is None:

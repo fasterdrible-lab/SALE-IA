@@ -10,8 +10,10 @@ O SALEIA monitora reunioes de vendas, captura transcricoes, orienta o vendedor e
 
 - Captura legendas/transcricao do Google Meet.
 - Envia trechos novos para o backend.
-- Exibe dicas, alertas, proxima pergunta, acoes recomendadas e recapitulacao viva na sidebar.
+- Exibe dicas, alertas, proxima pergunta, acoes recomendadas, recapitulacao viva e propensao de compra (Alta/Media/Baixa/Nao determinada) na sidebar.
+- Toggle "API ativa/desligada" (V.1.4.40): usuario pode pausar todo envio de dados ao backend sem encerrar a reuniao; estado persiste em `chrome.storage.local`.
 - Nao possui chaves de IA.
+- Nao exibe informacoes tecnicas/administrativas (URL do backend, nome/modelo de provedor de IA, score numerico) — ficam restritas ao Dashboard.
 
 ### Backend FastAPI
 
@@ -66,8 +68,9 @@ Cenario / Conducao (exige JWT):
 Base de Conhecimento:
 
 - `GET /base`
-- `POST /base`
-- `DELETE /base/{id}`
+- `POST /base` (multipart desde V.1.4.40 — texto + arquivo original opcional)
+- `GET /base/{id}/download` (V.1.4.40, exige JWT — base é global, sem tenant)
+- `DELETE /base/{id}` (apaga tambem o arquivo em disco, se houver)
 - `POST /base/ocr`
 
 ### Meeting Memory
@@ -98,6 +101,25 @@ independente do AI Router (que trata apenas chat/LLM).
 - `get_embedding_provider()`: única forma de obter o provider — nenhum módulo de negócio instancia um provider diretamente.
 - Metadados (`embedding_provider`, `embedding_model`, `embedding_dim`) em `base_conhecimento` e `sales_memories` garantem que vetores de dimensões/modelos diferentes nunca sejam comparados entre si.
 - Reindexação: `scripts/reindex_embeddings.py`.
+
+### Propensão de Compra (agent/propensao_rules.py, V.1.4.40)
+
+Classificação qualitativa (Alta/Média/Baixa/Não determinada) que substitui o
+score numérico de compra na extensão Chrome.
+
+- `classificar_propensao(score_valor)`: função pura e determinística — único
+  lugar com os limiares (`LIMIAR_ALTA=70`, `LIMIAR_MEDIA=45`).
+- Usada em `agent/multiagente/orquestrador.py::_mesclar`, logo após o
+  `score_compra` do Closer — adiciona `resultado["propensao"] = {"nivel": ...}`
+  ao JSON de `POST /tempo-real` sem nenhuma chamada de IA extra por
+  fragmento (`score_compra` continua calculado e persistido normalmente,
+  só deixa de ser exibido como número).
+- Para o detalhamento pós-reunião (fatores, evidências, o que falta para
+  avançar), `PROMPT_RECAPITULACAO` (`api/main.py`) retorna um bloco
+  `propensao` mais rico (com `confianca`, `resumo`, `fatores_positivos`,
+  `fatores_negativos`, `fatores_pendentes`, `como_avancar`), consumido pelo
+  Dashboard em `verDetalhe()` — gerado uma única vez por recapitulação e
+  nunca regenerado ao abrir o relatório.
 
 ### AI Router
 
@@ -132,9 +154,10 @@ Tabelas relevantes:
 
 O dashboard web permite:
 
-- Ver relatorios.
-- Ver sessoes ao vivo.
+- Ver relatorios, com propensao de compra e detalhamento expansivel (fatores, evidencias, o que falta avancar).
+- Ver sessoes ao vivo, com busca por cliente/empresa/link/data/hora, filtros de status e ordenacao (V.1.4.40).
 - Colar transcricao manual para analise.
+- Gerenciar Base de Conhecimento, incluindo baixar o arquivo original de um documento (V.1.4.40).
 - Configurar URL da API.
 - Visualizar status basico do backend.
 

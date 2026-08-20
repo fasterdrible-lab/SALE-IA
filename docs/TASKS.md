@@ -306,14 +306,30 @@ EMAIL_FROM=noreply@saleia.com.br
 - Achado corrigido: `agent/sessao_manager.py::_get_conn()` nao tinha `connect_timeout` (diferente das outras 3 conexoes do projeto) — adicionado `connect_timeout=10`.
 - Versao: `1.4.38` → `1.4.39`.
 
+## Concluido (Deploy V.1.4.39 — 19/08/2026)
+
+- [x] Deploy V.1.4.39 na VPS nova (`37.27.214.33`, via SSH com chave `saleia_vps`): `reunioes_ativas: 0` confirmado em `/health` antes de agir; `git pull origin main` (fast-forward `670ad5a..85dd554`); `systemctl restart saleia` — servico `active`.
+- Commit adicional trazido pelo pull (nao documentado antes do deploy): `85dd554` — fix `_call_anthropic` em `api/ai_router.py` para nao assumir que `content[0]` e sempre bloco de texto (claude-sonnet-5 pode antepor bloco `thinking`); resolveu os 138 `falhas_consecutivas` do provedor Anthropic vistos em producao antes do restart.
+- Pos-deploy: `/health` retornou `versao: 1.4.39`, 4 provedores (`deepseek`/`openai`/`anthropic`/`gemini`) com `status: ok` e `falhas_consecutivas: 0`; `/dashboard` retornou `200`.
+
+## Concluido (V.1.4.40 — Simplificacao extensao + download Base + busca Sessoes + Propensao)
+
+- [x] Extensao: auditoria e gate completo do toggle "API ativa/desligada" em todos os pontos de rede (incl. heartbeat) + bug de persistencia do estado no service worker corrigido.
+- [x] Extensao: removidos Visual Cenario, Mapa Financeiro (card), Score de Compra (numero), Cenario do Cliente (botao) e "Backend online + URL" do popup/sidebar. Backend mantido intocado onde outros agentes ainda dependem do dado.
+- [x] Base de Conhecimento: novas colunas de arquivo original + `POST /base` multipart + `GET /base/{id}/download` (JWT) + botao Baixar no dashboard.
+- [x] Sessoes ao Vivo: busca por cliente/link/data/hora, filtros e ordenacao (client-side, mesmo padrao de Filtros de Reunioes); `listar_sessoes` enriquecida com cliente vinculado via `client_meetings`.
+- [x] Propensao de Compra: `agent/propensao_rules.py` (classificacao deterministica no tempo real, sem custo de IA extra) + `propensao` estruturado no prompt de recapitulacao (fatores/evidencias/como_avancar) + UI atualizada (extensao mostra so o rotulo; dashboard tem Detalhamento expansivel).
+- Achado nao corrigido (fora do escopo): 8 falhas pre-existentes em `tests/test_next_best_question.py` e `tests/test_realtime_memory.py`, nao relacionadas a esta rodada (arquivos `api/processador_tempo_real.py`/`api/database.py` nao tocados).
+- Pendente pos-deploy: validar manualmente upload/download da Base contra o MySQL de producao (nao foi possivel testar localmente — sem MySQL acessivel desta maquina).
+
 ## Pendente
 
 - [ ] Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI).
-- [ ] Recarregar extensao Chrome: `chrome://extensions` → 🔄 recarregar SALEIA (aplica migracao de URL).
+- [ ] Recarregar extensao Chrome: `chrome://extensions` → 🔄 recarregar SALEIA (aplica migracao de URL e V.1.4.3).
 - [ ] Descomissionar VPS antiga `204.168.180.25` apos validacao.
 - [ ] Alterar senha do admin `phpos35@gmail.com` via dashboard.
-- [ ] **Deploy V.1.4.39**: `cd /opt/saleia && git pull origin main && systemctl restart saleia`. Adiado em 17/08/2026 por haver 1 reuniao ativa — fazer quando `reunioes_ativas: 0` em `/health`.
-- [ ] **Apos o deploy**: `python -m scripts.reindex_embeddings --dry-run --table all` (conferir) e depois sem `--dry-run` (embeddings atuais sao da OpenAI, incompativeis com Ollama).
+- [ ] **Reindex de embeddings pos-deploy**: `python -m scripts.reindex_embeddings --dry-run --table all` (conferir) e depois sem `--dry-run` (embeddings atuais sao da OpenAI, incompativeis com Ollama). Ainda nao executado.
+- [ ] **Deploy V.1.4.40 pendente**: checar `reunioes_ativas` em `/health` antes de `git pull origin main && systemctl restart saleia`; validar upload/download na Base em producao apos o deploy.
 
 ## Concluido (Ollama na VPS — 17/08/2026)
 

@@ -157,6 +157,7 @@
       }, 15000);
     }
     function enviarChunkWhisper(blob) {
+      if (!estado.ativo) return; // API desligada — nenhuma chamada ao backend
       var reader = new FileReader();
       reader.onloadend = function () {
         var base64 = reader.result;
@@ -230,11 +231,14 @@
       if (msg.tipo === 'toggle') { estado.ativo = msg.valor; atualizarStatusSidebar(); }
       if (msg.tipo === 'backendUrl') { CONFIG.backendUrl = msg.valor; }
       if (msg.tipo === 'backendStatus') {
+        // Enquanto a API estiver desligada, o status já mostra "API desligada" —
+        // não sobrescrever com o resultado do heartbeat.
+        if (!estado.ativo) return;
         const dot = document.querySelector('#saleia-status .saleia-dot');
         const txt = document.getElementById('saleia-status');
         if (dot && txt) {
           dot.style.background = msg.online ? '#00d4aa' : '#ff4444';
-          txt.childNodes[1].textContent = msg.online ? ' Monitorando...' : ' Backend offline — reconectando...';
+          txt.childNodes[1].textContent = msg.online ? ' Conectado' : ' Desconectado';
         }
       }
     });
@@ -246,11 +250,10 @@
     sidebar.innerHTML = `
       <div id="saleia-header">
         <button id="saleia-toggle-btn" title="Minimizar/Expandir">≡</button>
-        <button id="saleia-btn-foto" title="Capturar foto do cliente para o Visual Scenario">📸</button>
         <span>🤖 SALEIA AO VIVO</span>
       </div>
       <div id="saleia-body">
-        <div id="saleia-status"><span class="saleia-dot"></span> Monitorando...</div>
+        <div id="saleia-status"><span class="saleia-dot"></span> Conectando...</div>
         <button id="saleia-btn-participantes" class="saleia-discreto-btn" type="button">Editar participantes</button>
         <div id="saleia-participantes-resumo" class="saleia-participantes-resumo"></div>
 
@@ -280,11 +283,6 @@
         <div id="saleia-disc" class="saleia-secao">
           <div class="saleia-secao-titulo">🎯 PERFIL DISC</div>
           <div id="saleia-disc-texto">Aguardando análise...</div>
-        </div>
-
-        <div id="saleia-mapa-financeiro" class="saleia-secao saleia-mapa-financeiro">
-          <div class="saleia-secao-titulo">💰 MAPA FINANCEIRO</div>
-          <div id="saleia-mapa-financeiro-texto">Aguardando dados financeiros...</div>
         </div>
 
         <div id="saleia-temperatura" class="saleia-secao saleia-temperatura">
@@ -322,18 +320,9 @@
           <div id="saleia-dado-esquecido-texto"></div>
         </div>
 
-        <div id="saleia-score" class="saleia-secao" style="display:none">
-          <div class="saleia-secao-titulo">📊 SCORE DE COMPRA</div>
-          <div id="saleia-score-valor" style="font-size:1.6rem;font-weight:700;color:#00d4aa">--</div>
-          <div id="saleia-score-barra" style="background:#333;border-radius:4px;height:8px;margin:6px 0">
-            <div id="saleia-score-fill" style="height:100%;border-radius:4px;transition:width .6s ease;background:#00d4aa"></div>
-          </div>
-          <div id="saleia-score-texto" style="font-size:.8rem;color:#aaa"></div>
-          <button id="saleia-btn-cenario"
-            style="margin-top:10px;width:100%;padding:8px;background:linear-gradient(135deg,#00d4aa,#0099cc);
-                   color:#fff;border:none;border-radius:6px;font-size:.85rem;font-weight:600;cursor:pointer">
-            📊 Abrir cenário do cliente
-          </button>
+        <div id="saleia-propensao" class="saleia-secao" style="display:none">
+          <div class="saleia-secao-titulo">🎯 PROPENSÃO DE COMPRA</div>
+          <div id="saleia-propensao-valor" style="font-size:1.3rem;font-weight:700;color:#00d4aa">--</div>
         </div>
 
         <div id="saleia-legenda-aviso" class="saleia-secao saleia-aviso" style="display:none">
@@ -374,13 +363,6 @@
       this.textContent = estado.sidebarMinimizada ? '▶' : '≡';
       sidebar.style.width = estado.sidebarMinimizada ? '44px' : '280px';
     });
-    document.getElementById('saleia-btn-cenario').addEventListener('click', function () {
-      if (!chrome.runtime || !chrome.runtime.id) return;
-      chrome.runtime.sendMessage({ tipo: 'abrirCenario', url: CONFIG.backendUrl + '/cenario/' + MEETING_ID });
-    });
-
-    var btnFoto = document.getElementById('saleia-btn-foto');
-    if (btnFoto) btnFoto.addEventListener('click', capturarFotoCliente);
     atualizarResumoParticipantes();
     var btnParticipantes = document.getElementById('saleia-btn-participantes');
     if (btnParticipantes) btnParticipantes.addEventListener('click', abrirModalParticipantes);
@@ -824,6 +806,7 @@
   }
 
   function registrarSessao() {
+    if (!estado.ativo) return; // API desligada — nenhuma chamada ao backend
     const url = CONFIG.backendUrl + '/iniciar-sessao';
     if (!chrome.runtime || !chrome.runtime.id) return;
     chrome.runtime.sendMessage(
@@ -941,6 +924,7 @@
   }
 
   function solicitarRegeneracaoRecapitulacao() {
+    if (!estado.ativo) return; // API desligada — nenhuma chamada ao backend
     const url = CONFIG.backendUrl + '/recapitulacao-viva';
     if (!chrome.runtime || !chrome.runtime.id) return;
     const botao = document.getElementById('saleia-btn-regenerar-recap');
@@ -978,6 +962,7 @@
   }
 
   function enviarParaBackend() {
+    if (!estado.ativo) return; // API desligada — nenhuma chamada ao backend
     const transcricaoParcial = montarTranscricaoParcial();
 
     // GUARDA: só envia se houver transcrição real com pelo menos 20 caracteres
@@ -1091,20 +1076,6 @@
         (disc.como_tratar ? '<br><span class="saleia-como-tratar">' + escaparHtml(disc.como_tratar) + '</span>' : '');
     }
 
-    // 💰 MAPA FINANCEIRO
-    var mapa = estado.mapaFinanceiro;
-    var mapaLinhas = [];
-    if (mapa.faturamento_mensal) mapaLinhas.push('<div class="saleia-mapa-linha"><span class="saleia-mapa-label">Faturamento:</span> ' + escaparHtml(mapa.faturamento_mensal) + '</div>');
-    if (mapa.renda_clt) mapaLinhas.push('<div class="saleia-mapa-linha"><span class="saleia-mapa-label">Renda CLT:</span> ' + escaparHtml(mapa.renda_clt) + '</div>');
-    if (mapa.capacidade_investimento) mapaLinhas.push('<div class="saleia-mapa-linha"><span class="saleia-mapa-label">Capacidade:</span> ' + escaparHtml(mapa.capacidade_investimento) + '</div>');
-    if (mapa.cartao_credito_limite) mapaLinhas.push('<div class="saleia-mapa-linha"><span class="saleia-mapa-label">Cartão:</span> ' + escaparHtml(mapa.cartao_credito_limite) + '</div>');
-    if (mapa.produto_indicado && mapa.produto_indicado.nome) {
-      mapaLinhas.push('<div class="saleia-mapa-linha saleia-mapa-produto"><span class="saleia-mapa-label">Produto:</span> <strong>' + escaparHtml(mapa.produto_indicado.nome) + '</strong>' +
-        (mapa.produto_indicado.justificativa ? '<br><em>' + escaparHtml(mapa.produto_indicado.justificativa) + '</em>' : '') + '</div>');
-    }
-    document.getElementById('saleia-mapa-financeiro-texto').innerHTML =
-      mapaLinhas.length > 0 ? mapaLinhas.join('') : 'Aguardando dados financeiros...';
-
     // 🌡️ TEMPERATURA
     if (dados.temperatura) {
       var temp = dados.temperatura;
@@ -1147,20 +1118,8 @@
       dadoEsquecidoEl.style.display = 'none';
     }
 
-    // 📊 SCORE DE COMPRA
-    const scoreEl = document.getElementById('saleia-score');
-    if (dados.score_compra && dados.score_compra.valor !== undefined) {
-      const val = Math.min(98, Math.max(5, Number(dados.score_compra.valor)));
-      const cor = val >= 70 ? '#00d4aa' : val >= 45 ? '#ffaa00' : '#ff4444';
-      document.getElementById('saleia-score-valor').textContent = val + '/100';
-      document.getElementById('saleia-score-valor').style.color = cor;
-      document.getElementById('saleia-score-fill').style.width = val + '%';
-      document.getElementById('saleia-score-fill').style.background = cor;
-      document.getElementById('saleia-score-texto').textContent = dados.score_compra.justificativa || '';
-      scoreEl.style.display = 'block';
-    } else {
-      scoreEl.style.display = 'none';
-    }
+    // 🎯 PROPENSÃO DE COMPRA
+    renderizarPropensao(dados);
 
     animarAtualizacao();
   }
@@ -1349,6 +1308,20 @@
     gridEl.innerHTML = html;
   }
 
+  var _PROPENSAO_LABEL = { alta: 'Alta', media: 'Média', baixa: 'Baixa', nao_determinada: 'Não determinada' };
+  var _PROPENSAO_COR = { alta: '#00d4aa', media: '#ffaa00', baixa: '#ff4444', nao_determinada: '#888' };
+
+  function renderizarPropensao(dados) {
+    var el = document.getElementById('saleia-propensao');
+    var valorEl = document.getElementById('saleia-propensao-valor');
+    if (!el || !valorEl) return;
+    var nivel = dados.propensao && dados.propensao.nivel;
+    if (!nivel) { el.style.display = 'none'; return; }
+    valorEl.textContent = _PROPENSAO_LABEL[nivel] || nivel;
+    valorEl.style.color = _PROPENSAO_COR[nivel] || '#fff';
+    el.style.display = 'block';
+  }
+
   function animarAtualizacao() {
     const body = document.getElementById('saleia-body');
     if (!body) return;
@@ -1359,133 +1332,17 @@
 
   function exibirErroBackend() {
     const statusEl = document.getElementById('saleia-status');
-    if (statusEl) statusEl.innerHTML = '<span class="saleia-dot saleia-dot-vermelho"></span> Backend offline — verifique se o SALEIA está rodando';
+    if (statusEl) statusEl.innerHTML = '<span class="saleia-dot saleia-dot-vermelho"></span> Desconectado';
   }
 
   function atualizarStatusSidebar() {
     const statusEl = document.getElementById('saleia-status');
     if (!statusEl) return;
     if (estado.ativo) {
-      statusEl.innerHTML = '<span class="saleia-dot"></span> Monitorando...';
+      statusEl.innerHTML = '<span class="saleia-dot"></span> Conectado';
     } else {
-      statusEl.innerHTML = '<span class="saleia-dot saleia-dot-cinza"></span> Pausado';
+      statusEl.innerHTML = '<span class="saleia-dot saleia-dot-cinza"></span> API desligada';
     }
-  }
-
-  // ── Captura foto do cliente via elemento <video> do Meet ──
-  function capturarFotoCliente() {
-    var btn = document.getElementById('saleia-btn-foto');
-    if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
-
-    try {
-      // Coleta todos os <video> visíveis com conteúdo
-      var videos = Array.from(document.querySelectorAll('video')).filter(function (v) {
-        return v.videoWidth > 0 && v.videoHeight > 0 && !v.paused && v.readyState >= 2;
-      });
-
-      if (videos.length === 0) {
-        _fotoBtnReset(btn, '📸');
-        _fotoToast('Nenhum vídeo encontrado. Aguarde o cliente entrar na chamada.', true);
-        return;
-      }
-
-      // Ordena por área: maior = participante principal (cliente)
-      videos.sort(function (a, b) {
-        return (b.videoWidth * b.videoHeight) - (a.videoWidth * a.videoHeight);
-      });
-
-      // Se houver mais de 1, tenta excluir o self-view (vídeo menor ou em container de self)
-      var alvo = videos[0];
-      if (videos.length > 1) {
-        var remoto = videos.find(function (v) {
-          var el = v;
-          while (el && el !== document.body) {
-            var cls = (el.getAttribute('data-self-name') || '') +
-                      (el.className || '') +
-                      (el.getAttribute('jsname') || '');
-            if (/self|local|you|preview/i.test(cls)) return false;
-            el = el.parentElement;
-          }
-          return true;
-        });
-        if (remoto) alvo = remoto;
-      }
-
-      // Redimensiona para max 800px (evita mensagem gigante)
-      var maxW   = 800;
-      var scale  = Math.min(1, maxW / alvo.videoWidth);
-      var canvas = document.createElement('canvas');
-      canvas.width  = Math.round(alvo.videoWidth  * scale);
-      canvas.height = Math.round(alvo.videoHeight * scale);
-      canvas.getContext('2d').drawImage(alvo, 0, 0, canvas.width, canvas.height);
-
-      var dataURL;
-      try {
-        dataURL = canvas.toDataURL('image/jpeg', 0.82);
-      } catch (e) {
-        // Canvas taint — abre o VS sem foto
-        _fotoBtnReset(btn, '📸');
-        _fotoToast('Captura bloqueada. Use "Fazer Upload" no Visual Scenario.', true);
-        if (chrome.runtime && chrome.runtime.id) {
-          chrome.runtime.sendMessage({ tipo: 'abrirCenario', url: CONFIG.backendUrl + '/visual-scenario?meeting=' + MEETING_ID });
-        }
-        return;
-      }
-
-      // Persiste no storage da extensão (sem limite cross-origin, sobrevive ao SW sleep)
-      chrome.storage.local.set({ saleia_foto_pendente: { foto: dataURL, meetingId: MEETING_ID } }, function () {
-        if (chrome.runtime && chrome.runtime.id) {
-          chrome.runtime.sendMessage({
-            tipo: 'abrirCenarioComFoto',
-            url: CONFIG.backendUrl + '/visual-scenario?meeting=' + MEETING_ID,
-            meetingId: MEETING_ID,
-          });
-        }
-      });
-
-      _fotoBtnReset(btn, '✅');
-      _fotoToast('Foto capturada! Abrindo Visual Scenario...', false);
-      setTimeout(function () { _fotoBtnReset(btn, '📸'); }, 3000);
-
-    } catch (e) {
-      _fotoBtnReset(btn, '📸');
-      _fotoToast('Erro: ' + e.message, true);
-    }
-  }
-
-  function _fotoBtnReset(btn, icon) {
-    if (!btn) return;
-    btn.textContent = icon;
-    btn.disabled = false;
-  }
-
-  function _fotoToast(msg, erro) {
-    var t = document.getElementById('saleia-foto-toast');
-    if (!t) {
-      t = document.createElement('div');
-      t.id = 'saleia-foto-toast';
-      t.style.cssText = [
-        'position:fixed', 'bottom:70px', 'right:16px', 'z-index:999999',
-        'background:#252338', 'color:#F8FAFC', 'border-radius:8px',
-        'padding:10px 16px', 'font-size:12px', 'max-width:260px',
-        'box-shadow:0 4px 16px rgba(0,0,0,.5)', 'transition:opacity .3s',
-        'border:1px solid ' + (erro ? 'rgba(239,68,68,.4)' : 'rgba(20,184,166,.4)'),
-      ].join(';');
-      document.body.appendChild(t);
-    }
-    t.style.color = erro ? '#FCA5A5' : '#2DD4BF';
-    t.textContent = msg;
-    t.style.opacity = '1';
-    clearTimeout(t._hide);
-    t._hide = setTimeout(function () { t.style.opacity = '0'; }, 4000);
-  }
-
-  function _fotoAbrirVS() {
-    if (!chrome.runtime || !chrome.runtime.id) return;
-    chrome.runtime.sendMessage({
-      tipo: 'abrirCenario',
-      url: CONFIG.backendUrl + '/visual-scenario?meeting=' + MEETING_ID,
-    });
   }
 
 })();

@@ -41,8 +41,10 @@ chrome.runtime.onInstalled.addListener(function () {
   console.log('[SALEIA] Extensão instalada/atualizada.');
 });
 
-// Corrige URL na inicialização do service worker (não só no install)
-chrome.storage.local.get(['saleiaBackendUrl'], function (result) {
+// Corrige URL e restaura o estado ativo/desligado na inicialização do
+// service worker (não só no install — MV3 pode reciclar o worker a
+// qualquer momento, e sem isso o toggle "API desligada" seria perdido).
+chrome.storage.local.get(['saleiaBackendUrl', 'saleiaAtivo'], function (result) {
   // Se estiver com IP direto, corrigir para o domínio canônico
   const stored = result.saleiaBackendUrl || '';
   const urlObsoleta = !stored
@@ -55,6 +57,7 @@ chrome.storage.local.get(['saleiaBackendUrl'], function (result) {
   } else {
     estadoExtensao.backendUrl = stored;
   }
+  estadoExtensao.ativo = result.saleiaAtivo !== false;
 });
 
 // ─────────────────────────────────────────────
@@ -133,54 +136,6 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
       sendResponse({ ok: true });
     });
     return true;
-  }
-
-  // Abre a página de cenário do cliente numa nova aba (evita popup blocker do Meet)
-  if (msg.tipo === 'abrirCenario') {
-    chrome.tabs.create({ url: msg.url, active: true });
-    return false;
-  }
-
-  // Abre o Visual Scenario e injeta a foto do cliente diretamente no DOM.
-  // A foto é lida do chrome.storage.local (saleia_foto_pendente) porque o
-  // content.js a grava lá antes de enviar esta mensagem — msg.foto não existe.
-  if (msg.tipo === 'abrirCenarioComFoto') {
-    var targetUrl = msg.url;
-
-    chrome.tabs.create({ url: targetUrl, active: true }, function (tab) {
-      if (!tab) return;
-
-      function onUpdated(tabId, info) {
-        if (tabId !== tab.id || info.status !== 'complete') return;
-        chrome.tabs.onUpdated.removeListener(onUpdated);
-
-        chrome.storage.local.get(['saleia_foto_pendente'], function (result) {
-          var fotoData = result.saleia_foto_pendente ? result.saleia_foto_pendente.foto : null;
-          if (!fotoData) return;
-
-          chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            func: function (foto) {
-              // Tenta usar a função central da página
-              if (typeof _aplicarDataUrl === 'function') {
-                _aplicarDataUrl(foto);
-                if (typeof toast === 'function') toast('📸 Foto do cliente carregada!', 'ok', 4000);
-                return;
-              }
-              // Fallback direto no DOM
-              var img = document.getElementById('foto-cliente');
-              var ph  = document.getElementById('placeholder-cliente');
-              if (img) { img.src = foto; img.classList.remove('hidden'); }
-              if (ph)  { ph.style.display = 'none'; }
-            },
-            args: [fotoData],
-          });
-        });
-      }
-
-      chrome.tabs.onUpdated.addListener(onUpdated);
-    });
-    return false;
   }
 
   // Content.js → chunk de áudio do microfone via MediaRecorder (rota direta sem offscreen)
@@ -292,6 +247,8 @@ chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
 // e sem o problema de 502 do WebSocket).
 // ─────────────────────────────────────────────
 function verificarHeartbeat() {
+  // API desligada pelo usuário — nenhuma chamada de rede deve ocorrer.
+  if (!estadoExtensao.ativo) return;
   const url = BACKEND_URL_CANONICAL + '/health';
   fetch(url, { method: 'GET' })
     .then(function (res) {

@@ -55,29 +55,6 @@
   color: #D4AF37;
 }
 
-#saleia-btn-foto {
-  background: rgba(212,175,55,0.12);
-  border: 1px solid rgba(212,175,55,0.35);
-  color: #D4AF37;
-  font-size: 15px;
-  cursor: pointer;
-  padding: 3px 10px;
-  border-radius: 6px;
-  line-height: 1;
-  transition: background 0.2s, border-color 0.2s;
-  flex-shrink: 0;
-}
-
-#saleia-btn-foto:hover {
-  background: rgba(212,175,55,0.25);
-  border-color: #D4AF37;
-}
-
-#saleia-btn-foto:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 /* ── Corpo com scroll ── */
 #saleia-body {
   overflow-y: auto;
@@ -391,12 +368,6 @@
 }
 
 #saleia-sidebar * { box-sizing: border-box; }
-
-/* ── Mapa Financeiro ── */
-.saleia-mapa-financeiro {
-  background: rgba(212,175,55,0.08);
-  border-left: 3px solid #D4AF37;
-}
 
 .saleia-discreto-btn {
   width: 100%;

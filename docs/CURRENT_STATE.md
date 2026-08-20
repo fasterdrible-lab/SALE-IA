@@ -25,7 +25,7 @@ Atualizado em: 2026-08-17 (V.1.4.39)
 
 ## Versao Atual
 
-`V.1.4.39` — local + GitHub (pendente deploy VPS) | VPS antiga (`204.168.180.25`) deprecada
+`V.1.4.40` — local + GitHub (pendente deploy VPS) | extensao Chrome `V.1.4.3` | VPS antiga (`204.168.180.25`) deprecada
 
 ## Funcionalidades Entregues
 
@@ -180,14 +180,38 @@ Modelos padrao:
 - `docs/EMBEDDINGS_LOCAL.md`: guia de instalação do Ollama (Windows/Linux) e configuração.
 - Testes: `tests/test_embeddings.py` (32 testes, mockado, sem rede/DB) + `tests/test_embeddings_semantic_ranking.py` (integração real, auto-skip sem Ollama local).
 
+## Funcionalidades Novas (V.1.4.40 — 19/08/2026)
+
+### Extensao Chrome simplificada
+- Toggle "API ativa/desligada" com gate completo em todos os pontos de rede (incl. heartbeat) e bug de persistencia no service worker corrigido (estado nao era restaurado do storage fora do `onInstalled`).
+- Removidos da UI: Visual Cenario, Mapa Financeiro (card), Score de Compra (numero), Cenario do Cliente (botao), "Backend online + URL" no popup — substituido por indicador simples Conectado/Desconectado/Conectando.
+- `manifest.json`: permissao `scripting` removida (ficou orfa); versao `1.4.2` → `1.4.3`.
+
+### Base de Conhecimento — download do documento original
+- `base_conhecimento` ganhou colunas `arquivo_nome_original/arquivo_path/arquivo_mime/arquivo_tamanho`; `POST /base` agora multipart (texto + arquivo opcional); novo `GET /base/{id}/download` (JWT); arquivos em `data/base_arquivos/`.
+
+### Sessoes ao Vivo — busca e filtros
+- Busca por cliente/empresa/link/data/hora, filtros de status/periodo e ordenacao no dashboard (client-side); `listar_sessoes` enriquecida com cliente vinculado via `client_meetings`+`client_profiles`.
+
+### Propensao de Compra
+- `agent/propensao_rules.py`: classificacao deterministica (Alta/Media/Baixa/Nao determinada) a partir do score interno, sem custo de IA extra no tempo real.
+- `PROMPT_RECAPITULACAO` ganhou bloco `propensao` estruturado (fatores + evidencias + como avancar) para o Detalhamento no dashboard, gerado uma unica vez por recapitulacao (sem chamada extra ao abrir).
+
 ## O Que Falta
 
-- Reinstalar extensao Chrome (mudanças desde V.1.4.28). *(tarefa manual)*
+- Reinstalar extensao Chrome (mudanças desde V.1.4.40). *(tarefa manual)*
 - Descomissionar VPS antiga (`204.168.180.25`).
 - Alterar senha do admin via dashboard.
-- Corrigir remote `origin` do git em `/opt/saleia` na VPS nova — URL atual contem placeholder invalido `https://SEU_TOKEN@github.com`, impedindo `git pull` funcional (necessario token real do GitHub).
-- **Deploy V.1.4.39 pendente**: `cd /opt/saleia && git pull origin main && systemctl restart saleia`. Adiado propositalmente em 17/08/2026 porque havia 1 reuniao ativa no SALEIA no momento — reiniciar o servico a interromperia. Fazer o deploy na proxima janela sem reunioes ativas (checar `reunioes_ativas` em `/health` antes).
-- Apos o deploy: rodar `python -m scripts.reindex_embeddings --dry-run --table all` (conferir) e depois sem `--dry-run` (a base atual tem embeddings antigos gerados pela OpenAI, incompativeis com o Ollama).
+- **Reindex de embeddings pendente**: rodar `python -m scripts.reindex_embeddings --dry-run --table all` (conferir) e depois sem `--dry-run` (a base atual tem embeddings antigos gerados pela OpenAI, incompativeis com o Ollama).
+- **Deploy V.1.4.40 pendente**: checar `reunioes_ativas` em `/health` antes de `git pull origin main && systemctl restart saleia`. Validar manualmente upload/download da Base em producao (nao testavel localmente — sem MySQL acessivel desta maquina).
+- 8 falhas de teste pre-existentes e nao relacionadas encontradas em `tests/test_next_best_question.py`/`tests/test_realtime_memory.py` (nao corrigidas — fora do escopo desta rodada).
+
+## Deploy V.1.4.39 Confirmado (19/08/2026)
+
+- `reunioes_ativas: 0` checado em `/health` antes de agir (deploy havia sido adiado em 17/08/2026 por reuniao ativa).
+- `git pull origin main` na VPS nova: fast-forward `670ad5a..85dd554` (trouxe fix nao documentado do Anthropic em `api/ai_router.py`).
+- `systemctl restart saleia` — servico `active`; `/health` = `versao 1.4.39`, 4 provedores `status: ok`; `/dashboard` = `200`.
+- Achado: o commit trazido pelo pull corrigia `_call_anthropic` para nao assumir `content[0]` como bloco de texto — isso resolveu os 138 `falhas_consecutivas` do provedor Anthropic que estavam visiveis em producao antes do restart.
 
 ## Ollama instalado na VPS nova (17/08/2026)
 

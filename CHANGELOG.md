@@ -3,6 +3,158 @@
 
 ---
 
+## V.1.4.40 — Simplificação da extensão, download na Base, busca em Sessões e Propensão de Compra
+> Data: 19/08/2026 | Feature (extensão Chrome + Base de Conhecimento + Sessões + Propensão)
+
+### VISÃO
+Rodada de limpeza/simplificação: extensão Chrome reduzida ao essencial para o
+vendedor durante a reunião (sem informação técnica/administrativa), download
+do arquivo original na Base de Conhecimento, busca/filtro em Sessões ao Vivo,
+e substituição do score numérico de compra por uma classificação de
+Propensão (Alta/Média/Baixa/Não determinada) explicável.
+
+### EXTENSÃO CHROME — Toggle "API ativa/desligada" completo
+- Auditados todos os pontos de chamada de rede em `content.js`/`background.js`
+  e adicionado guard `if (!estado.ativo) return;` em todos que faltavam:
+  `enviarParaBackend`, `enviarChunkWhisper`, `registrarSessao`,
+  `solicitarRegeneracaoRecapitulacao`. O heartbeat de 15s em `background.js`
+  (`verificarHeartbeat`) também passa a não disparar `/health` quando a API
+  está desligada — antes rodava incondicionalmente.
+- **Bug de persistência corrigido**: `estadoExtensao.ativo` (background.js)
+  nunca era restaurado do `chrome.storage.local` fora do evento `onInstalled`
+  — se o service worker MV3 reciclasse (comum), o estado "API desligada"
+  salvo pelo usuário era perdido e a extensão voltava a enviar dados sem
+  avisar. Corrigido lendo `saleiaAtivo` do storage também na inicialização
+  normal do service worker.
+- Rótulos "API ativa" / "API desligada" com as mensagens de confirmação
+  ("A extensão não enviará dados até ser reativada." / "Conexão
+  restabelecida.") no popup (`#api-toggle-feedback`) e na sidebar
+  (`#saleia-status`).
+
+### EXTENSÃO CHROME — Remoções de UI (mantendo processamento interno)
+- **Visual Cenário**: removido botão de captura de foto (📸) e todo o fluxo
+  `capturarFotoCliente`/`abrirCenarioComFoto`/`_fotoAbrirVS` do content.js;
+  handler `abrirCenarioComFoto` removido de background.js (órfão). Backend
+  (`agent/visual_scenario.py`, `frontend/visual-scenario.html`) intocado —
+  a funcionalidade nunca era disparada automaticamente pelo tempo real.
+- **Mapa Financeiro**: removido o card da sidebar e seu bloco de renderização.
+  Mantido o merge de `estado.mapaFinanceiro` que é reenviado ao backend a
+  cada ciclo — `finance_agent`/`closer_agent` continuam recebendo esse dado.
+- **Score de Compra → Propensão de Compra**: removido o card numérico
+  (valor/100 + barra de progresso). Novo card `#saleia-propensao` mostra
+  apenas o rótulo textual (Alta/Média/Baixa/Não determinada).
+- **Cenário do Cliente**: removido o botão "📊 Abrir cenário do cliente" (fazia
+  parte do card de Score). `buscar_resumo_cliente_para_reuniao()` mantido no
+  backend — é input direto do prompt do coach_agent.
+- **"Backend online" + URL**: popup não exibe mais a URL do backend nem a
+  tabela detalhada de provedores/modelos/falhas (`#api-status`). Substituído
+  por um indicador simples "Conectado"/"Desconectado"/"Conectando..."
+  (`#conexao-status`). Campo de edição de URL removido da interface — a URL
+  continua configurada internamente (auto-correção já existente em
+  `background.js` para o domínio canônico).
+- `manifest.json`: permissão `scripting` removida (só era usada pelo fluxo
+  de Visual Cenário agora removido). Versão da extensão `1.4.2` → `1.4.3`.
+
+### BASE DE CONHECIMENTO — Download do arquivo original
+- Novas colunas nullable em `base_conhecimento`:
+  `arquivo_nome_original`, `arquivo_path`, `arquivo_mime`, `arquivo_tamanho`
+  (migração idempotente em `migrar_colunas_embedding_metadata_base_conhecimento`,
+  `agent/sessao_manager.py`) — nulas para os documentos legados (sem arquivo
+  original, sem botão de download para eles).
+- `POST /base` passou de JSON puro para multipart (`Form` + `UploadFile`
+  opcional) — o texto extraído continua vindo do mesmo fluxo de sempre
+  (colado ou via OCR client-side); quando um arquivo é anexado, ele é
+  gravado em `data/base_arquivos/<uuid>_<nome>` e referenciado nas novas
+  colunas. Nenhuma extração automática nova de PDF/DOCX no backend.
+- Novo `GET /base/{id}/download` — exige JWT (`_req_auth`, mesmo padrão de
+  `/historico/uso`); base é global/compartilhada, sem conceito de tenant, a
+  permissão é "estar autenticado". 404 se o documento não tiver arquivo ou
+  se o arquivo não existir mais em disco.
+- `DELETE /base/{id}` agora também apaga o arquivo em disco, se houver.
+- Dashboard: botão "⬇️ Baixar" por documento (só aparece quando há arquivo);
+  `adicionarDocumento()` envia `FormData` (com o `File` original guardado em
+  `_arquivoBaseSelecionado` desde a seleção/drop) em vez de JSON.
+
+### SESSÕES AO VIVO — Busca, filtros e ordenação
+- `listar_sessoes()` (`agent/sessao_manager.py`) enriquecida com
+  `cliente_nome`/`cliente_empresa` via subquery em `client_meetings` +
+  `client_profiles` (Sales Brain Fase 4) — sem alterar o schema de
+  `sessoes`. Limite de listagem `50` → `200` (para filtro client-side).
+- Dashboard: busca única por cliente/empresa/link (aceita URL completa do
+  Meet, extrai o código `xxx-yyyy-zzz`), filtros de data/hora, atalhos
+  Hoje/Ontem/7 dias/30 dias, filtro por status e ordenação (recente/antiga/
+  cliente/status) — mesmo padrão client-side já usado em "Filtros de
+  Reuniões" (V.1.4.0).
+- **Simplificação deliberada**: sem coluna de status persistida no banco,
+  status é derivado apenas como "Ao vivo" (atualizado nos últimos 5 min) ou
+  "Finalizada" — não foram inventados os estados "Processando"/"Erro" por
+  falta de sinal real no banco para sustentá-los.
+- Card de sessão agora mostra cliente/empresa (quando vinculado), duração
+  aproximada (`updated_at - created_at`) e badge de status.
+
+### PROPENSÃO DE COMPRA — substitui o score numérico
+- Novo `agent/propensao_rules.py`: único lugar com os limiares
+  (`LIMIAR_ALTA=70`, `LIMIAR_MEDIA=45` — mesmos limiares já usados na
+  coloração do score na extensão/dashboard antes desta versão) e
+  `classificar_propensao(score)` →
+  `alta|media|baixa|nao_determinada`.
+- **Tempo real (extensão)**: `orquestrador.py::_mesclar` passa a incluir
+  `resultado["propensao"] = {"nivel": classificar_propensao(score_compra.valor)}`
+  — classificação puramente determinística a partir do score já calculado
+  pelo `closer_agent`, sem nenhuma chamada de IA extra por fragmento.
+  `score_compra` continua calculado e persistido normalmente (uso interno).
+- **Dashboard (pós-reunião)**: `PROMPT_RECAPITULACAO` (`api/main.py`) ganhou
+  o bloco `propensao` (nivel, confiança, resumo, fatores_positivos/
+  negativos/pendentes com evidência literal da transcrição, como_avancar).
+  Regras explícitas no prompt: nunca inventar fator sem evidência real,
+  `nivel: "nao_determinada"` em vez de forçar uma classificação quando a
+  transcrição for insuficiente. `probabilidade_fechamento`/
+  `justificativa_probabilidade` mantidos intactos (usados por
+  `playbook_generator.py`).
+- **Cache/custo**: nenhuma tabela ou versionamento novo — `propensao` chega
+  dentro do mesmo JSON que já é salvo uma única vez por recapitulação; abrir
+  "Ver detalhamento" no dashboard só lê o que já foi persistido, sem nova
+  chamada de IA.
+- Dashboard: card "📊 Score de Compra" (número + barra) removido de
+  `verDetalhe()` e do card de lista de reuniões (`cardReuniaoHTML` — círculo
+  agora mostra a letra da propensão, não o score). Card "🎯 Probabilidade de
+  Fechamento" evoluído para "🎯 Propensão de Compra" com `<details>`
+  expansível mostrando sinais positivos (✓), sinais de atenção (!) e "o que
+  falta para avançar".
+
+### VERSÃO
+- Backend: `1.4.39` → `1.4.40` (`/health`, `/monitor/metricas`).
+- Extensão Chrome: `1.4.2` → `1.4.3` (`manifest.json`).
+
+### VERIFICAÇÃO
+- `python -m unittest tests.test_smoke -v`: 8/8 OK (sem regressão).
+- `agent/multiagente/orquestrador.py::_mesclar` testado isoladamente para as
+  4 faixas de score (alta/média/baixa/não determinada) — classificação
+  correta em todos os casos.
+- Sintaxe verificada (Node) em `content.js`, `popup.js`, `background.js` e
+  no bloco `<script>` de `dashboard.html`.
+- **Achado, não corrigido (fora do escopo desta rodada)**: `python -m
+  unittest discover -s tests` mostra 8 falhas pré-existentes em
+  `test_next_best_question.py` e `test_realtime_memory.py`, todas em
+  `api/processador_tempo_real.py`/`api/database.py` — arquivos não tocados
+  nesta sessão. Parecem testes desatualizados desde a migração para o
+  orquestrador multiagente (V.1.4.36) que nunca foram revisados.
+- **Limitação do ambiente local**: sem MySQL acessível desta máquina (aponta
+  para o host de produção), não foi possível validar o fluxo completo de
+  upload/download da Base contra um banco real — validado via leitura
+  cuidadosa do código, compilação e smoke tests. Recomenda-se validar
+  upload → listagem → download → exclusão manualmente após o deploy.
+
+### ARQUIVOS ALTERADOS
+- `chrome-extension/background.js`, `content.js`, `popup.html`, `popup.js`,
+  `popup.css`, `sidebar.css`, `manifest.json`
+- `agent/sessao_manager.py`, `agent/multiagente/orquestrador.py`,
+  `agent/propensao_rules.py` (novo)
+- `api/main.py` (versão `1.4.39` → `1.4.40`)
+- `frontend/dashboard.html`
+
+---
+
 ## V.1.4.39 — Embeddings desacoplados: Ollama local (padrão) + OpenAI opcional
 > Data: 17/08/2026 | Feature (infraestrutura de RAG / Sales Memory)
 

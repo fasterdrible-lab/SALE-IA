@@ -238,7 +238,7 @@
 <header>
   <div class="logo">SALE<span>IA</span></div>
   <p class="tagline">Assistente de Vendas com Inteligência Artificial — Manual do Usuário</p>
-  <div class="versao">Versão 1.4.37 · Junho 2026</div>
+  <div class="versao">Versão 1.4.40 · Agosto 2026</div>
 </header>
 
 <nav class="indice">
@@ -252,7 +252,7 @@
     <a class="nav-link" href="#motor-nba">Motor de Ação</a>
     <a class="nav-link" href="#cenario-cliente">Cenário do Cliente</a>
     <a class="nav-link" href="#visual-cenario">Visual Cenário AI</a>
-    <a class="nav-link" href="#score">Score</a>
+    <a class="nav-link" href="#score">Propensão</a>
     <a class="nav-link" href="#relatorio">Relatório</a>
     <a class="nav-link" href="#sales-brain">Sales Brain</a>
     <a class="nav-link" href="#dashboard">Dashboard</a>
@@ -272,7 +272,7 @@
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:8px">
       <div class="feature">
         <div class="feature-icon">🎯</div>
-        <div><h3>Score de Compra</h3><p>Probabilidade do cliente fechar, de 0 a 100, atualizada em tempo real pela IA</p></div>
+        <div><h3>Propensão de Compra</h3><p>Classificação Alta/Média/Baixa atualizada em tempo real pela IA, com detalhamento e evidências disponível no Dashboard após a reunião</p></div>
       </div>
       <div class="feature">
         <div class="feature-icon">🎙️</div>
@@ -321,6 +321,18 @@
       <div class="feature">
         <div class="feature-icon">📩</div>
         <div><h3>Follow-up Inteligente</h3><p>Mensagens para WhatsApp, e-mail e LinkedIn adaptadas ao perfil DISC e ao score, com agenda de envio automática</p></div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🔌</div>
+        <div><h3>API ativa/desligada</h3><p>Pause temporariamente o envio de dados da extensão para o backend a qualquer momento, sem encerrar a reunião</p></div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🔍</div>
+        <div><h3>Busca em Sessões ao Vivo</h3><p>Encontre reuniões capturadas por cliente, link do Meet, data ou horário direto no Dashboard</p></div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">⬇️</div>
+        <div><h3>Download na Base de Conhecimento</h3><p>Baixe o arquivo original de qualquer documento enviado à Base, além do texto já indexado pela IA</p></div>
       </div>
     </div>
 
@@ -457,6 +469,24 @@
         <tr><td>api.saleia.app.br</td><td>Enviar chunks de áudio e receber análises da IA</td></tr>
       </table>
     </div>
+
+    <div class="card">
+      <div class="card-title">🔌 Ligar/desligar a API <span class="badge badge-green">V.1.4.40</span></div>
+      <p style="color:var(--muted);font-size:.92rem;margin-bottom:12px">
+        A chave no popup da extensão (clique no ícone SALEIA na barra do Chrome) liga e desliga o envio de dados para o backend a qualquer momento.
+      </p>
+      <table>
+        <tr><th>Estado</th><th>O que acontece</th></tr>
+        <tr><td><strong>API ativa</strong></td><td>A extensão continua enviando transcrição e recebendo análises normalmente</td></tr>
+        <tr><td><strong>API desligada</strong></td><td>Nenhuma chamada nova é feita ao backend (nem a checagem periódica de conexão) até você reativar</td></tr>
+      </table>
+      <div class="callout callout-tip" style="margin-top:12px">
+        <div class="callout-icon">💡</div>
+        <div class="callout-body">
+          Desligar a API <strong>não encerra a reunião</strong> — é diferente de clicar em "Parar captura". A sessão continua existindo; a extensão só fica temporariamente muda. O estado escolhido persiste mesmo se você fechar o popup ou o Chrome reiniciar a extensão.
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- ── 4. REUNIÃO ── -->
@@ -503,7 +533,7 @@
         <div class="step-body">
           <h3>Conduza a reunião normalmente</h3>
           <p>A cada análise, a sidebar atualiza com sugestões em tempo real. O contador "Próxima análise em Xs" mostra quando a IA processará novamente.</p>
-          <p style="margin-top:6px">Use o botão <strong>🎬 Cenário</strong> para abrir a tela <em>Cenário do Cliente</em> — slides interativos com perfil DISC, score, diagnóstico financeiro e roteiros gerados pela IA.</p>
+          <p style="margin-top:6px">Para abrir a tela <em>Cenário do Cliente</em> — slides interativos com perfil DISC, score, diagnóstico financeiro e roteiros gerados pela IA — acesse o Dashboard em outra aba/monitor e use o menu lateral (o atalho direto dentro da sidebar da extensão foi removido na V.1.4.40 para simplificar o painel durante a reunião).</p>
         </div>
       </div>
       <div class="step">
@@ -642,11 +672,11 @@
 
       <div class="card" style="border-top:3px solid var(--purple)">
         <div class="card-title">📊 Maturity Score (NOVO)</div>
-        <p style="color:var(--muted);font-size:.92rem;margin-bottom:10px">Grid com 7 critérios de maturidade da oportunidade, independente do Score de Compra:</p>
+        <p style="color:var(--muted);font-size:.92rem;margin-bottom:10px">Grid com 7 critérios de maturidade da oportunidade, independente da Propensão de Compra:</p>
         <div style="font-size:.85rem;display:flex;flex-direction:column;gap:4px">
           <div><span class="badge badge-green">verde</span> critério confirmado · <span class="badge badge-orange">amarelo</span> parcial · <span class="badge badge-blue" style="opacity:.5">cinza</span> ausente</div>
         </div>
-        <p style="color:var(--muted);font-size:.85rem;margin-top:8px">A soma dos 7 critérios forma o score de maturidade (0-100). Score ≥ 60 com compra ≥ 70 → hora de propor!</p>
+        <p style="color:var(--muted);font-size:.85rem;margin-top:8px">A soma dos 7 critérios forma o score de maturidade (0-100). Score ≥ 60 com Propensão Alta → hora de propor!</p>
       </div>
 
       <div class="card">
@@ -675,8 +705,8 @@
       </div>
 
       <div class="card">
-        <div class="card-title">🎬 Botão Cenário</div>
-        <p style="color:var(--muted);font-size:.92rem">Abre a tela <strong>Cenário do Cliente</strong> em uma nova aba — slides interativos com análise completa e roteiros de condução para a reunião atual.</p>
+        <div class="card-title">🎯 Propensão de Compra <span class="badge badge-green">V.1.4.40</span></div>
+        <p style="color:var(--muted);font-size:.92rem">Rótulo <strong>Alta / Média / Baixa / Não determinada</strong> — substituiu o antigo número "Score de Compra" na sidebar. O score numérico continua sendo calculado internamente pela IA (e aparece no Dashboard), mas na extensão você vê só a classificação, sem ruído. O detalhamento completo — por que essa propensão, sinais de atenção e o que falta para avançar — fica disponível no relatório da reunião no Dashboard.</p>
       </div>
 
       <div class="card">
@@ -776,7 +806,7 @@
     <!-- Maturity Score -->
     <div class="card">
       <div class="card-title">📊 Maturity Score — 7 Critérios</div>
-      <p style="color:var(--muted);font-size:.92rem;margin-bottom:14px">Independente do Score de Compra, o Maturity Score mede se a oportunidade está madura o suficiente para avançar:</p>
+      <p style="color:var(--muted);font-size:.92rem;margin-bottom:14px">Independente da Propensão de Compra, o Maturity Score mede se a oportunidade está madura o suficiente para avançar:</p>
       <table>
         <tr><th>#</th><th>Critério</th><th>O que confirma?</th></tr>
         <tr><td>1</td><td><strong>Dor Identificada</strong></td><td>O cliente verbalizou pelo menos um problema claro</td></tr>
@@ -791,7 +821,7 @@
         <div class="callout-icon">💡</div>
         <div class="callout-body">
           <strong>Quando propor?</strong>
-          Maturity Score ≥ 60 <em>e</em> Score de Compra ≥ 70 → condições ideais para apresentar proposta ou pedir fechamento. Abaixo disso, continue investigando antes de avançar.
+          Maturity Score ≥ 60 <em>e</em> Propensão de Compra <strong>Alta</strong> → condições ideais para apresentar proposta ou pedir fechamento. Abaixo disso, continue investigando antes de avançar.
         </div>
       </div>
     </div>
@@ -868,7 +898,7 @@
   <!-- ── 8. CENÁRIO DO CLIENTE ── -->
   <section id="cenario-cliente">
     <h2><span class="section-num">8</span> Cenário do Cliente</h2>
-    <p class="section-desc">Tela de slides interativos aberta durante a reunião. Acesso via botão 🎬 na sidebar ou pelo link <code>/cenario/{meeting_id}</code>.</p>
+    <p class="section-desc">Tela de slides interativos aberta durante a reunião. Acesse pelo menu lateral do Dashboard ou diretamente pelo link <code>/cenario/{meeting_id}</code> (não há mais atalho dentro da sidebar da extensão desde a V.1.4.40, para manter o painel durante a reunião mais enxuto).</p>
 
     <div class="callout callout-gold">
       <div class="callout-icon">🎬</div>
@@ -914,7 +944,7 @@
   <!-- ── 9. VISUAL CENÁRIO AI ── -->
   <section id="visual-cenario">
     <h2><span class="section-num">9</span> Visual Cenário AI</h2>
-    <p class="section-desc">Gera imagens do estado atual e futuro do cliente com DALL-E 3. Acesse pelo menu lateral do Dashboard → <strong>Visual Cenário</strong> ou pelo botão na extensão.</p>
+    <p class="section-desc">Gera imagens do estado atual e futuro do cliente com DALL-E 3. Acesse pelo menu lateral do Dashboard → <strong>Visual Cenário</strong> (desde a V.1.4.40 não há mais botão de captura de foto dentro da sidebar da extensão — a foto do cliente é adicionada direto nesta tela, por upload ou captura de área).</p>
 
     <div class="callout callout-gold">
       <div class="callout-icon">🖼️</div>
@@ -929,7 +959,7 @@
       <div class="grid-3" style="margin-top:12px">
         <div style="background:#111;border:1px solid rgba(212,175,55,.3);border-radius:10px;padding:16px;color:#F0F0F0">
           <div style="color:#D4AF37;font-weight:700;margin-bottom:8px">📷 Cliente</div>
-          <p style="font-size:.85rem;color:#888">Foto do cliente capturada pela extensão ou feita upload manualmente. Contexto visual para a geração de cenários.</p>
+          <p style="font-size:.85rem;color:#888">Foto do cliente enviada por upload ou capturada da tela do Meet direto nesta tela. Contexto visual para a geração de cenários.</p>
         </div>
         <div style="background:#111;border:1px solid rgba(212,175,55,.3);border-radius:10px;padding:16px;color:#F0F0F0">
           <div style="color:#D4AF37;font-weight:700;margin-bottom:8px">🏚️ Cenário Atual</div>
@@ -956,7 +986,7 @@
           <div class="step-num"></div>
           <div class="step-body">
             <h3>Vincule à reunião</h3>
-            <p>O campo <strong>Reunião</strong> no cabeçalho aparece preenchido automaticamente se você acessou pelo botão 🎬 da extensão. Caso contrário, cole o link do Google Meet (ex: <code>https://meet.google.com/abc-defg-hij</code>) ou apenas o código (<code>abc-defg-hij</code>) e clique <strong>Entrar</strong>.</p>
+            <p>No campo <strong>Reunião</strong> do cabeçalho, cole o link do Google Meet (ex: <code>https://meet.google.com/abc-defg-hij</code>) ou apenas o código (<code>abc-defg-hij</code>) e clique <strong>Entrar</strong>.</p>
             <div class="callout callout-info" style="margin-top:8px">
               <div class="callout-icon">ℹ️</div>
               <div class="callout-body">Vincular à reunião carrega automaticamente o contexto (DISC, score, mapa financeiro, transcrição) para gerar cenários personalizados.</div>
@@ -968,7 +998,6 @@
           <div class="step-body">
             <h3>Adicione a foto do cliente (opcional)</h3>
             <p>Na coluna <strong>Cliente</strong>: clique <strong>Fazer Upload</strong> para enviar uma imagem, <strong>Selecionar Área</strong> para capturar da tela do Meet, ou arraste uma imagem direto para o painel.</p>
-            <p style="margin-top:4px">Se a extensão capturou a foto automaticamente durante a reunião, ela aparecerá nesta coluna.</p>
           </div>
         </div>
         <div class="step">
@@ -1012,8 +1041,8 @@
 
   <!-- ── 10. SCORE ── -->
   <section id="score">
-    <h2><span class="section-num">10</span> Score de Compra (0 a 100)</h2>
-    <p class="section-desc">A probabilidade do cliente fechar, calculada em tempo real com base nos sinais detectados na conversa.</p>
+    <h2><span class="section-num">10</span> Propensão de Compra</h2>
+    <p class="section-desc">A probabilidade do cliente fechar, calculada em tempo real com base nos sinais detectados na conversa. A IA continua calculando um score interno de 0 a 100 (veja no relatório do Dashboard), mas na sidebar da extensão você vê apenas a classificação — sem número, sem ruído.</p>
 
     <div class="card">
       <div class="score-demo">
@@ -1059,6 +1088,26 @@
       <div class="callout-body">
         <strong>O score começa em 50</strong>
         Sobe com: temperatura emocional alta, dados financeiros confirmados, perguntas sobre o produto. Cai com: objeções de preço, resistência, sinais negativos. É normal ficar em 50 em reuniões curtas.
+      </div>
+    </div>
+
+    <div class="card" style="border-top:3px solid var(--gold)">
+      <div class="card-title">🔎 Ver Detalhamento (Dashboard) <span class="badge badge-green">V.1.4.40</span></div>
+      <p style="color:var(--muted);font-size:.92rem;margin-bottom:10px">
+        No relatório da reunião no Dashboard, o card <strong>Propensão de Compra</strong> tem um botão <strong>Ver detalhamento</strong> que explica objetivamente a classificação:
+      </p>
+      <table>
+        <tr><th>Bloco</th><th>O que mostra</th></tr>
+        <tr><td>✓ Sinais positivos</td><td>Fatores que sustentam a propensão, com a fala do cliente que os confirma quando existir</td></tr>
+        <tr><td>! Sinais de atenção</td><td>Pontos que ainda pesam contra o fechamento</td></tr>
+        <tr><td>O que falta para avançar</td><td>Informações ainda não confirmadas na conversa (decisor, orçamento, prazo etc.)</td></tr>
+        <tr><td>Próximas ações</td><td>O que fazer para aumentar a propensão na próxima interação</td></tr>
+      </table>
+      <div class="callout callout-tip" style="margin-top:12px">
+        <div class="callout-icon">💡</div>
+        <div class="callout-body">
+          Se a transcrição for curta demais para uma leitura confiável, a propensão aparece como <strong>Não determinada</strong> em vez de forçar uma classificação — melhor não opinar do que opinar errado.
+        </div>
       </div>
     </div>
   </section>
@@ -1305,6 +1354,10 @@
         <div class="card-title">📄 Relatórios</div>
         <p style="color:var(--muted);font-size:.92rem">Análises manuais com suporte a <strong>múltiplos clientes</strong>. Cole uma transcrição e informe todos os participantes para gerar relatório sem precisar da extensão.</p>
       </div>
+      <div class="card" style="border-top:3px solid var(--gold)">
+        <div class="card-title">🔴 Sessões ao Vivo <span class="badge badge-green">V.1.4.40</span></div>
+        <p style="color:var(--muted);font-size:.92rem">Reuniões capturadas em tempo real pela extensão. Busque por cliente, empresa, link do Meet (aceita o código ou a URL completa), data ou horário; filtre por status (Ao vivo/Finalizada) e ordene por recência, cliente ou status.</p>
+      </div>
       <div class="card">
         <div class="card-title">🎬 Cenário do Cliente</div>
         <p style="color:var(--muted);font-size:.92rem">Slides interativos com análise completa da reunião: DISC, score, diagnóstico financeiro e roteiros de condução gerados pela IA em tempo real.</p>
@@ -1385,9 +1438,10 @@
       <p style="color:var(--muted);font-size:.92rem;margin-bottom:10px">Documentos que a IA usa como contexto extra — scripts de vendas, objeções comuns, cases de sucesso.</p>
       <table>
         <tr><th>Ação</th><th>Descrição</th></tr>
-        <tr><td>Adicionar documento</td><td>Título + tipo + texto → Adicionar → embedding gerado automaticamente</td></tr>
+        <tr><td>Adicionar documento</td><td>Título + tipo + texto (colado ou extraído de um arquivo arrastado) → Adicionar → embedding gerado automaticamente</td></tr>
+        <tr><td>Baixar <span class="badge badge-green">V.1.4.40</span></td><td>Botão ⬇️ → baixa o arquivo original (PDF/DOCX/TXT/imagem) enviado junto do texto. Só aparece quando o documento tem um arquivo anexado — documentos antigos, adicionados só com texto colado, não têm esse botão</td></tr>
         <tr><td>Exportar sessão</td><td>Converte a transcrição de uma reunião em documento da base</td></tr>
-        <tr><td>Excluir</td><td>Botão 🗑 → remove o documento e invalida o cache de busca</td></tr>
+        <tr><td>Excluir</td><td>Botão 🗑 → remove o documento (e o arquivo original, se houver) e invalida o cache de busca</td></tr>
       </table>
     </div>
   </section>
@@ -1402,7 +1456,7 @@
         <div class="step-num"></div>
         <div class="step-body">
           <h3>Siga o badge de estágio — não pule etapas</h3>
-          <p>O Motor detecta quando você está em Investigação e tenta avançar para Fechamento. A sidebar vai sinalizar — respeitando o estágio, você evita pressão prematura que reduz o score de compra.</p>
+          <p>O Motor detecta quando você está em Investigação e tenta avançar para Fechamento. A sidebar vai sinalizar — respeitando o estágio, você evita pressão prematura que reduz a propensão de compra.</p>
         </div>
       </div>
       <div class="step">
@@ -1556,7 +1610,8 @@
     <details>
       <summary>As análises em tempo real pararam de atualizar</summary>
       <div class="faq-body">
-        <p>Verifique o contador "Próxima análise em Xs". Se estiver parado, o backend pode ter tido um pico de uso — aguarde o próximo ciclo automático. Se o problema persistir por mais de 2 minutos, verifique <code>https://api.saleia.app.br/health</code> e recarregue a página do Meet.</p>
+        <p>Primeiro confira se a <strong>API não está desligada</strong>: clique no ícone SALEIA na barra do Chrome e veja se a chave está em "API ativa". Se estiver em "API desligada", a extensão para de enviar dados de propósito até você reativar.</p>
+        <p style="margin-top:8px">Se a API estiver ativa, verifique o contador "Próxima análise em Xs". Se estiver parado, o backend pode ter tido um pico de uso — aguarde o próximo ciclo automático. Se o problema persistir por mais de 2 minutos, verifique <code>https://api.saleia.app.br/health</code> e recarregue a página do Meet.</p>
       </div>
     </details>
 
