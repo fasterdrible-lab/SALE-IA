@@ -3,6 +3,50 @@
 
 ---
 
+## Migração de reuniões históricas (Google Drive → Sales Memory)
+> Data: 20/08/2026 | Utilitário / dados (não é versão de produto — sem bump de versão)
+
+### VISÃO
+Usuário tinha uma base de ~74 reuniões antigas exportadas do Google Meet
+(notas do Gemini em `.docx`, com resumo + transcrição verbatim completa)
+guardada no Google Drive, sem estar alimentando o Sales Memory do SALEIA.
+
+### NOVO — `scripts/migrar_reunioes_historico.py`
+- Processa uma pasta de arquivos `.txt`/`.docx` (1 reunião por arquivo)
+  chamando `POST /recapitulacao-manual` (local ou remoto) — reaproveita
+  100% do pipeline existente, sem duplicar lógica de negócio: gera
+  relatório completo (recapitulação + DISC + diagnóstico financeiro +
+  propensão) e dispara a extração de Sales Memory (e Playbook automático
+  em reuniões "ganhas") em background, como qualquer reunião analisada
+  manualmente no dashboard.
+- Leitura de `.docx` sem depender de `python-docx` — extração via
+  `zipfile` + `xml` da stdlib (um `.docx` é um zip com `word/document.xml`);
+  remove boilerplate fixo do Gemini (aviso de pesquisa, disclaimer de
+  transcrição) que não agrega sinal e só consome tokens.
+- Idempotente: `meeting_id` estável (hash do nome do arquivo) registrado
+  em arquivo de estado local — reexecutar pula o que já deu certo.
+- Retry automático (1x, com 30s de espera) em erros 503/504, sob a
+  hipótese de o circuit breaker de IA estar em cooldown.
+
+### EXECUÇÃO — 51/74 migradas com sucesso (20/08/2026)
+- Rodado contra produção (`api.saleia.app.br`): 51 relatórios + entradas
+  de Sales Memory criados a partir de reuniões reais.
+- 23 reuniões falharam consistentemente com 503, mesmo após retry —
+  DeepSeek/OpenAI/Anthropic entraram em estado degradado durante o lote
+  (só Gemini saudável) e as falhas parecem correlacionadas a reuniões
+  maiores (média 127k chars nas que falharam vs 99k nas que deram certo,
+  sem corte limpo — não é só tamanho, causa raiz não confirmada sem
+  acesso a logs da VPS/nginx).
+- Estado da migração persistido em `data/migracao_reunioes_estado.json`
+  (não commitado — dado de execução local) — permite retomar só as 23
+  pendentes numa próxima rodada sem reprocessar as 51 já feitas.
+- Pendência documentada em `docs/TASKS.md`.
+
+### ARQUIVOS ALTERADOS
+- `scripts/migrar_reunioes_historico.py` (novo)
+
+---
+
 ## V.1.4.42 — Visual Cenário removido da navegação visível (dashboard + cenario.html)
 > Data: 20/08/2026 | Ajuste (Visual Cenário)
 

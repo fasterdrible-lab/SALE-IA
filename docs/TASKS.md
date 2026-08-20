@@ -329,7 +329,16 @@ EMAIL_FROM=noreply@saleia.com.br
 - [ ] Descomissionar VPS antiga `204.168.180.25` apos validacao.
 - [ ] Alterar senha do admin `phpos35@gmail.com` via dashboard.
 - [ ] **Reindex de embeddings pos-deploy**: `python -m scripts.reindex_embeddings --dry-run --table all` (conferir) e depois sem `--dry-run` (embeddings atuais sao da OpenAI, incompativeis com Ollama). Ainda nao executado.
-- [ ] **Deploy V.1.4.40 pendente**: checar `reunioes_ativas` em `/health` antes de `git pull origin main && systemctl restart saleia`; validar upload/download na Base em producao apos o deploy.
+- [ ] **Deploy V.1.4.40/41/42 pendente**: checar `reunioes_ativas` em `/health` antes de `git pull origin main && systemctl restart saleia`; validar upload/download na Base em producao apos o deploy.
+- [ ] **Migracao de reunioes historicas (Drive) — 23/74 restantes**: `scripts/migrar_reunioes_historico.py` processou 51/74 reunioes exportadas do Google Drive (Gemini Notes) direto contra producao — cada uma virou um relatorio completo + entrada de Sales Memory. As 23 restantes falharam consistentemente com 503 mesmo apos retry com backoff, mesmo com DeepSeek/OpenAI/Anthropic parcialmente recuperados — parece timeout de infraestrutura em reunioes grandes (media 127k chars nas que falham vs 99k nas que deram certo, sem corte limpo) combinado com degradacao dos provedores no momento. Para retomar (idempotente — pula as 51 ja feitas):
+  ```bash
+  # extrair o zip baixado do Drive de novo se a pasta de trabalho nao existir mais:
+  # unzip "C:\Users\phpos\Downloads\drive-download-20260820T182045Z-1-001.zip" -d <pasta>
+  python -m scripts.migrar_reunioes_historico --pasta <pasta_com_os_docx> \
+    --base-url https://api.saleia.app.br \
+    --estado-file data/migracao_reunioes_estado.json
+  ```
+  Zip original ainda em `C:\Users\phpos\Downloads\drive-download-20260820T182045Z-1-001.zip` (74 `.docx` + 5 `.txt` de chat — os `.txt` de chat foram propositalmente excluidos desta migracao).
 
 ## Concluido (Ollama na VPS — 17/08/2026)
 
