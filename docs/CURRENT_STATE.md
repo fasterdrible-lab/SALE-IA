@@ -222,11 +222,11 @@ recebido apos o deploy) encontrou 6 lacunas; 2 foram corrigidas nesta versao
 - **Reindex de embeddings pendente**: rodar `python -m scripts.reindex_embeddings --dry-run --table all` (conferir) e depois sem `--dry-run` (a base atual tem embeddings antigos gerados pela OpenAI, incompativeis com o Ollama).
 - **Deploy V.1.4.40/V.1.4.41 pendente**: checar `reunioes_ativas` em `/health` antes de `git pull origin main && systemctl restart saleia`. Validar manualmente upload/download da Base em producao (nao testavel localmente — sem MySQL acessivel desta maquina).
 - 8 falhas de teste pre-existentes e nao relacionadas encontradas em `tests/test_next_best_question.py`/`tests/test_realtime_memory.py` (nao corrigidas — fora do escopo desta rodada).
-- **Lacunas conhecidas da V.1.4.40 (decisao de produto pendente, nao implementadas)**:
-  - Download da Base (`GET /base/{id}/download`) exige so JWT valido — nao ha isolamento por empresa/tenant porque o sistema nao tem esse conceito hoje (`organization_id` em `sales_memory.py` e um placeholder nullable "tenant futuro"). Implementar exigiria desenhar multi-tenancy do zero.
-  - Sessoes ao Vivo so derivam status "Ao vivo"/"Finalizada" — "Processando"/"Erro" nao existem por falta de coluna de status persistida no banco (decisao deliberada, documentada na V.1.4.40, para nao inventar estado sem sinal real).
-  - Limpeza de codigo morto do Visual Cenario/Mapa Financeiro/Score/Cenario do Cliente no backend ainda nao feita como etapa separada (backend intencionalmente intocado na V.1.4.40 para nao quebrar compatibilidade).
-  - Sem suite automatizada especifica para: toggle API on/off + persistencia na extensao, download de documentos multi-formato, busca de sessoes, responsividade da extensao — cobertos hoje so por verificacao de sintaxe (Node) + smoke tests existentes.
+- **Decisoes tomadas sobre as 4 lacunas remanescentes da V.1.4.40 (20/08/2026)**:
+  - Download da Base sem isolamento por empresa/tenant: **aceito como esta** — SALEIA e uso interno de uma unica empresa, multi-tenancy nao se aplica. `GET /base/{id}/download` continua exigindo so JWT valido.
+  - Sessoes ao Vivo so com status "Ao vivo"/"Finalizada": **aceito como esta** — nao inventar "Processando"/"Erro" sem sinal real no banco continua sendo a decisao correta.
+  - Codigo morto de Visual Cenario/Mapa Financeiro/Score/Cenario do Cliente: **auditado, nada para remover** — a limpeza da V.1.4.40 ja foi completa (nenhum handler orfao encontrado); o que parecia candidato a remocao (backend de mapa financeiro, score_compra, resumo do cliente, Visual Cenario) esta ativamente em uso por outras partes do sistema.
+  - Testes automatizados: **parcialmente feito** — `tests/test_base_download.py` (7 testes) e `tests/test_propensao_rules.py` (7 testes) cobrem download da Base e classificacao de propensao. Testes de UI/JS (toggle da extensao, busca de sessoes, responsividade) ficam de fora por decisao — projeto nao tem infra de teste JS (Jest/jsdom) e o custo de introduzi-la agora nao foi considerado necessario.
 
 ## Deploy V.1.4.39 Confirmado (19/08/2026)
 

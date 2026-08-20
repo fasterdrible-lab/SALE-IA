@@ -29,13 +29,30 @@ nomeadas, e os limiares de classificação eram constantes fixas no código.
 ### VERSÃO
 - Backend: `1.4.40` → `1.4.41` (`/health`, `/monitor/metricas`).
 
+### TESTES — cobertura das lacunas #49 e #51 do spec original
+- `tests/test_base_download.py` (7 testes, novo): `GET /base/{doc_id}/download`
+  — exige JWT válido, preserva conteúdo/nome/mime original (PDF e DOCX
+  testados), 404 quando o documento não tem arquivo, quando o documento não
+  existe e quando o arquivo foi removido do disco. Sem MySQL: `_get_conn` é
+  mockado com uma conexão/cursor falsos.
+- `tests/test_propensao_rules.py` (7 testes, novo): as 4 faixas de
+  classificação (incluindo limites inclusivos), score ausente/inválido,
+  limiares padrão e limiares configuráveis via `.env` (incluindo fallback
+  em valor inválido).
+- Auditoria de código morto (Visual Cenário/Mapa Financeiro/Score/Cenário do
+  Cliente): nenhum resquício órfão encontrado — a limpeza da V.1.4.40 já
+  removeu handlers junto com a UI; o backend relacionado que ainda existe
+  está em uso ativo por outras partes do sistema.
+- Testes de UI/JS (toggle da extensão, busca de sessões, responsividade)
+  ficam fora do escopo — projeto não tem infraestrutura de teste JS
+  (Jest/jsdom); decisão de não introduzi-la agora.
+
 ### VERIFICAÇÃO
-- `python -m unittest tests.test_smoke -v`: 8/8 OK (sem regressão).
-- `classificar_propensao()` testado manualmente com limiares padrão e com
-  override via variável de ambiente — comportamento correto em ambos.
+- `python -m unittest tests.test_smoke tests.test_propensao_rules tests.test_base_download -v`: 22/22 OK (sem regressão).
 
 ### ARQUIVOS ALTERADOS
-- `api/main.py` (prompt + versão), `agent/propensao_rules.py`, `.env.example`
+- `api/main.py` (prompt + versão), `agent/propensao_rules.py`, `.env.example`,
+  `tests/test_base_download.py` (novo), `tests/test_propensao_rules.py` (novo)
 
 ---
 
