@@ -34,6 +34,47 @@ class Relatorio(SQLModel, table=True):
     dados_json: str  # JSON serializado do relatório completo
 
 
+class ClaudeConnection(SQLModel, table=True):
+    """Conexao individual de um usuario com sua propria conta Claude (piloto).
+
+    Uma linha por usuario (upsert). O token OAuth so e gravado criptografado
+    (ver agent/claude_account.py) e nunca e devolvido pela API.
+    """
+
+    __tablename__ = "claude_connections"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    usuario_id: str = Field(sa_column=Column(String(36), unique=True, index=True, nullable=False))
+    status: str = Field(default="inativo", sa_column=Column(String(20), nullable=False))
+    oauth_token_encrypted: Optional[str] = Field(default=None, sa_column=Column(Text))
+    connected_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    last_used_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    updated_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+
+
+class ClaudeMeetingAnalysis(SQLModel, table=True):
+    """Analise de uma reuniao feita com a conta Claude individual do usuario (piloto).
+
+    Cobre tanto o resultado (MeetingAnalysis) quanto o log de execucao
+    (aiExecution) do spec do piloto — sao o mesmo registro.
+    """
+
+    __tablename__ = "claude_meeting_analyses"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    meeting_id: str = Field(sa_column=Column(String(200), index=True, nullable=False))
+    usuario_id: str = Field(sa_column=Column(String(36), index=True, nullable=False))
+    transcript_hash: str = Field(sa_column=Column(String(64), index=True, nullable=False))
+    status: str = Field(default="pendente", sa_column=Column(String(20), nullable=False))
+    result_json: Optional[str] = Field(default=None, sa_column=Column(Text))
+    error_code: Optional[str] = Field(default=None, sa_column=Column(String(40)))
+    error_message: Optional[str] = Field(default=None, sa_column=Column(Text))
+    feedback_rating: Optional[str] = Field(default=None, sa_column=Column(String(20)))
+    feedback_tags_json: Optional[str] = Field(default=None, sa_column=Column(Text))
+    started_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+    completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+
+
 class MeetingMemory(SQLModel, table=True):
     """Memoria persistente da reuniao por meeting_id."""
 
@@ -644,3 +685,240 @@ def buscar_ultimo_relatorio() -> Optional[dict]:
         if row:
             return json.loads(row.dados_json)
     return None
+
+
+# ─────────────────────────────────────────────
+# CLAUDE ACCOUNT MODE — piloto de conta Claude individual por usuário
+# ─────────────────────────────────────────────
+def _claude_connection_to_dict(row: ClaudeConnection) -> dict:
+    return {
+        "id": row.id,
+        "usuario_id": row.usuario_id,
+        "status": row.status,
+        "oauth_token_encrypted": row.oauth_token_encrypted,
+        "connected_at": row.connected_at.isoformat() if row.connected_at else None,
+        "last_used_at": row.last_used_at.isoformat() if row.last_used_at else None,
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+    }
+
+
+def obter_claude_connection(usuario_id: str) -> Optional[dict]:
+    """Retorna a conexão Claude do usuário, ou None se ele nunca conectou."""
+    if not usuario_id:
+        return None
+    with Session(engine) as session:
+        stmt = select(ClaudeConnection).where(ClaudeConnection.usuario_id == usuario_id)
+        row = session.exec(stmt).first()
+        return _claude_connection_to_dict(row) if row else None
+
+
+def salvar_claude_connection(usuario_id: str, oauth_token_encrypted: str) -> dict:
+    """Cria ou substitui a conexão Claude do usuário (conectar/reconectar)."""
+    if not usuario_id:
+        raise ValueError("usuario_id e obrigatorio")
+
+    now = datetime.now()
+    with Session(engine) as session:
+        stmt = select(ClaudeConnection).where(ClaudeConnection.usuario_id == usuario_id)
+        row = session.exec(stmt).first()
+        if not row:
+            row = ClaudeConnection(usuario_id=usuario_id)
+
+        row.status = "ativo"
+        row.oauth_token_encrypted = oauth_token_encrypted
+        row.connected_at = now
+        row.updated_at = now
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _claude_connection_to_dict(row)
+
+
+def desconectar_claude_connection(usuario_id: str) -> Optional[dict]:
+    """Marca a conexão como inativa e apaga o token — reconectar exige novo token."""
+    with Session(engine) as session:
+        stmt = select(ClaudeConnection).where(ClaudeConnection.usuario_id == usuario_id)
+        row = session.exec(stmt).first()
+        if not row:
+            return None
+        row.status = "inativo"
+        row.oauth_token_encrypted = None
+        row.updated_at = datetime.now()
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _claude_connection_to_dict(row)
+
+
+def marcar_status_claude_connection(usuario_id: str, status: str) -> None:
+    """Atualiza apenas o status da conexão (ex.: 'expirado' após falha de auth do provedor)."""
+    with Session(engine) as session:
+        stmt = select(ClaudeConnection).where(ClaudeConnection.usuario_id == usuario_id)
+        row = session.exec(stmt).first()
+        if not row:
+            return
+        row.status = status
+        row.updated_at = datetime.now()
+        session.add(row)
+        session.commit()
+
+
+def registrar_uso_claude_connection(usuario_id: str) -> None:
+    """Atualiza last_used_at após uma execução bem-sucedida."""
+    with Session(engine) as session:
+        stmt = select(ClaudeConnection).where(ClaudeConnection.usuario_id == usuario_id)
+        row = session.exec(stmt).first()
+        if not row:
+            return
+        row.last_used_at = datetime.now()
+        session.add(row)
+        session.commit()
+
+
+def _claude_analysis_to_dict(row: ClaudeMeetingAnalysis) -> dict:
+    return {
+        "id": row.id,
+        "meeting_id": row.meeting_id,
+        "usuario_id": row.usuario_id,
+        "transcript_hash": row.transcript_hash,
+        "status": row.status,
+        "resultado": _json_load(row.result_json, None),
+        "error_code": row.error_code,
+        "error_message": row.error_message,
+        "feedback_rating": row.feedback_rating,
+        "feedback_tags": _json_load(row.feedback_tags_json, None),
+        "started_at": row.started_at.isoformat() if row.started_at else None,
+        "completed_at": row.completed_at.isoformat() if row.completed_at else None,
+    }
+
+
+def obter_claude_analysis_por_hash(meeting_id: str, usuario_id: str, transcript_hash: str) -> Optional[dict]:
+    """Retorna a última análise bem-sucedida deste usuário para essa versão exata da transcrição."""
+    with Session(engine) as session:
+        stmt = (
+            select(ClaudeMeetingAnalysis)
+            .where(
+                ClaudeMeetingAnalysis.meeting_id == meeting_id,
+                ClaudeMeetingAnalysis.usuario_id == usuario_id,
+                ClaudeMeetingAnalysis.transcript_hash == transcript_hash,
+                ClaudeMeetingAnalysis.status == "sucesso",
+            )
+            .order_by(ClaudeMeetingAnalysis.completed_at.desc())
+        )
+        row = session.exec(stmt).first()
+        return _claude_analysis_to_dict(row) if row else None
+
+
+def criar_claude_analysis_pendente(meeting_id: str, usuario_id: str, transcript_hash: str) -> dict:
+    with Session(engine) as session:
+        row = ClaudeMeetingAnalysis(
+            meeting_id=meeting_id,
+            usuario_id=usuario_id,
+            transcript_hash=transcript_hash,
+            status="pendente",
+        )
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _claude_analysis_to_dict(row)
+
+
+def finalizar_claude_analysis(
+    analysis_id: int,
+    *,
+    status: str,
+    resultado: Optional[dict] = None,
+    error_code: Optional[str] = None,
+    error_message: Optional[str] = None,
+) -> Optional[dict]:
+    with Session(engine) as session:
+        row = session.get(ClaudeMeetingAnalysis, analysis_id)
+        if not row:
+            return None
+        row.status = status
+        row.result_json = json.dumps(resultado, ensure_ascii=False) if resultado is not None else None
+        row.error_code = error_code
+        row.error_message = error_message
+        row.completed_at = datetime.now()
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _claude_analysis_to_dict(row)
+
+
+def listar_claude_analyses(meeting_id: str, usuario_id: str, limite: int = 20) -> List[dict]:
+    with Session(engine) as session:
+        stmt = (
+            select(ClaudeMeetingAnalysis)
+            .where(
+                ClaudeMeetingAnalysis.meeting_id == meeting_id,
+                ClaudeMeetingAnalysis.usuario_id == usuario_id,
+            )
+            .order_by(ClaudeMeetingAnalysis.started_at.desc())
+            .limit(limite)
+        )
+        rows = session.exec(stmt).all()
+        return [_claude_analysis_to_dict(row) for row in rows]
+
+
+def obter_claude_analysis(analysis_id: int) -> Optional[dict]:
+    with Session(engine) as session:
+        row = session.get(ClaudeMeetingAnalysis, analysis_id)
+        return _claude_analysis_to_dict(row) if row else None
+
+
+def salvar_claude_analysis_feedback(analysis_id: int, usuario_id: str, rating: str, tags: Optional[list] = None) -> Optional[dict]:
+    """Grava o feedback do piloto. Só o dono da análise pode avaliar."""
+    with Session(engine) as session:
+        row = session.get(ClaudeMeetingAnalysis, analysis_id)
+        if not row or row.usuario_id != usuario_id:
+            return None
+        row.feedback_rating = rating
+        row.feedback_tags_json = json.dumps(tags, ensure_ascii=False) if tags else None
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _claude_analysis_to_dict(row)
+
+
+def metricas_claude_account() -> dict:
+    """Agregados simples para o painel admin do piloto (Tarefa 20)."""
+    with Session(engine) as session:
+        total_analises = session.exec(select(func.count(ClaudeMeetingAnalysis.id))).one() or 0
+        sucesso = session.exec(
+            select(func.count(ClaudeMeetingAnalysis.id)).where(ClaudeMeetingAnalysis.status == "sucesso")
+        ).one() or 0
+        erros = session.exec(
+            select(func.count(ClaudeMeetingAnalysis.id)).where(ClaudeMeetingAnalysis.status == "erro")
+        ).one() or 0
+        limite_atingido = session.exec(
+            select(func.count(ClaudeMeetingAnalysis.id)).where(ClaudeMeetingAnalysis.error_code == "USAGE_LIMIT_REACHED")
+        ).one() or 0
+        usuarios_ativos = session.exec(
+            select(func.count(func.distinct(ClaudeMeetingAnalysis.usuario_id)))
+        ).one() or 0
+        reunioes_analisadas = session.exec(
+            select(func.count(func.distinct(ClaudeMeetingAnalysis.meeting_id))).where(ClaudeMeetingAnalysis.status == "sucesso")
+        ).one() or 0
+        conexoes_ativas = session.exec(
+            select(func.count(ClaudeConnection.id)).where(ClaudeConnection.status == "ativo")
+        ).one() or 0
+
+        avaliacoes = {"positivo": 0, "parcial": 0, "negativo": 0}
+        stmt_avaliacoes = select(ClaudeMeetingAnalysis.feedback_rating, func.count(ClaudeMeetingAnalysis.id)).where(
+            ClaudeMeetingAnalysis.feedback_rating.is_not(None)
+        ).group_by(ClaudeMeetingAnalysis.feedback_rating)
+        for rating, contagem in session.exec(stmt_avaliacoes).all():
+            if rating in avaliacoes:
+                avaliacoes[rating] = contagem
+
+    return {
+        "reunioes_analisadas": reunioes_analisadas,
+        "usuarios_ativos_no_piloto": usuarios_ativos,
+        "conexoes_ativas": conexoes_ativas,
+        "analises_total": total_analises,
+        "analises_sucesso": sucesso,
+        "analises_erro": erros,
+        "limites_atingidos": limite_atingido,
+        "avaliacoes": avaliacoes,
+    }

@@ -1499,6 +1499,12 @@
               </div>
             </div>
           </div>
+
+          <!-- Claude Account Mode (piloto) — métricas admin -->
+          <div class="card" id="mon-claude-piloto-card" style="padding:16px 20px;margin-top:16px;display:none">
+            <div class="cfg-section-header"><h3 style="margin:0;font-size:.95rem">Claude Account Mode — piloto</h3></div>
+            <div id="mon-claude-piloto-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-top:10px"></div>
+          </div>
         </div>
       </div><!-- /page-monitor -->
 
@@ -1596,6 +1602,24 @@
                   ✏️ Gerenciar Base de IA
                 </button>
               </div>
+            </div>
+          </div>
+
+          <!-- Claude Account Mode (piloto) -->
+          <div class="acc-item" id="acc-claude">
+            <button class="acc-header" onclick="toggleAcc('claude')">
+              <div class="acc-icon" style="background:rgba(212,175,55,.18)">🤖</div>
+              <div class="acc-label">
+                <h4>Claude (piloto)</h4>
+                <p>Conecte sua própria conta Claude para analisar suas reuniões</p>
+              </div>
+              <span class="acc-chevron">▾</span>
+            </button>
+            <div class="acc-body" id="acc-body-claude">
+              <hr class="acc-divider">
+              <div id="claude-acc-loading" class="cfg-loading">Carregando...</div>
+              <div id="claude-acc-indisponivel" class="cfg-erro hidden">Funcionalidade piloto indisponível no momento.</div>
+              <div id="claude-acc-conteudo" class="hidden"></div>
             </div>
           </div>
 
@@ -2036,6 +2060,7 @@
       if (id === 'apis')        carregarProvedoresApi();
       if (id === 'transcricao') carregarTranscricaoConfig();
       if (id === 'base')        carregarResumoBase();
+      if (id === 'claude')      carregarClaudeAccountConfig();
     }
   }
 
@@ -2051,6 +2076,135 @@
     } catch {
       if (dot) dot.className = 'dot';
       if (txt) txt.textContent = 'Backend offline';
+    }
+  }
+
+  /* ─── Claude Account Mode (piloto) ───────────────
+     Cada usuário conecta sua própria conta Claude (Pro/Max) via token gerado
+     por `claude setup-token` na própria máquina — a SALEIA nunca vê a senha
+     e nunca envia o token de volta ao navegador. ── */
+  function _claudeAuthHeaders() {
+    return { Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') };
+  }
+
+  async function carregarClaudeAccountConfig() {
+    const loading = document.getElementById('claude-acc-loading');
+    const indisp  = document.getElementById('claude-acc-indisponivel');
+    const conteudo = document.getElementById('claude-acc-conteudo');
+    if (!loading) return;
+    loading.classList.remove('hidden');
+    indisp.classList.add('hidden');
+    conteudo.classList.add('hidden');
+    try {
+      const r = await fetch(API + '/claude-account/status', { headers: _claudeAuthHeaders() });
+      if (r.status === 404) {
+        loading.classList.add('hidden');
+        indisp.classList.remove('hidden');
+        return;
+      }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const dados = await r.json();
+      renderizarClaudeAccountStatus(dados);
+      loading.classList.add('hidden');
+      conteudo.classList.remove('hidden');
+    } catch (e) {
+      loading.classList.add('hidden');
+      indisp.classList.remove('hidden');
+      indisp.textContent = 'Não foi possível carregar o status da conta Claude.';
+    }
+  }
+
+  function renderizarClaudeAccountStatus(dados) {
+    const el = document.getElementById('claude-acc-conteudo');
+    if (!el) return;
+
+    const fmtData = iso => iso ? new Date(iso).toLocaleString('pt-BR') : '—';
+
+    if (dados.conectado) {
+      el.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <span class="cfg-badge cfg-badge-ativo">● Conectado</span>
+          <span style="color:var(--muted);font-size:.82rem">conectado em ${fmtData(dados.connected_at)}</span>
+        </div>
+        <p style="color:var(--muted);font-size:.82rem;margin:0 0 14px">
+          Último uso: ${fmtData(dados.last_used_at)}. O uso da IA nesta reunião é associado à sua própria conta Claude —
+          nenhum limite é compartilhado com outros vendedores.
+        </p>
+        <button class="cfg-btn-provedor inativar" onclick="desconectarClaudeAccount()">Desconectar Claude</button>
+      `;
+      return;
+    }
+
+    const statusMsg = dados.status === 'expirado'
+      ? '<p style="color:#FCA5A5;font-size:.82rem;margin:0 0 12px">Sua sessão Claude expirou. Gere um novo token e reconecte.</p>'
+      : '';
+
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <span class="cfg-badge cfg-badge-inativo">○ Desconectado</span>
+      </div>
+      ${statusMsg}
+      <p style="color:var(--muted);font-size:.85rem;margin:0 0 12px">
+        Conecte sua conta Claude para utilizar a inteligência da SALEIA durante o piloto.
+        O uso será associado à sua própria conta Claude (Pro/Max) — não a uma conta central da SALEIA.
+      </p>
+      <ol style="color:var(--muted);font-size:.82rem;margin:0 0 14px;padding-left:18px;line-height:1.7">
+        <li>No terminal da sua própria máquina (com Claude Code instalado), rode <code>claude setup-token</code>.</li>
+        <li>Faça login com a sua conta Claude quando o navegador abrir.</li>
+        <li>Copie o token gerado e cole no campo abaixo.</li>
+      </ol>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input type="password" id="claude-acc-token" placeholder="Cole aqui o token gerado por claude setup-token" autocomplete="new-password" style="flex:1">
+        <button class="cfg-btn-provedor" onclick="toggleVerClaudeToken(this)" title="Mostrar/ocultar token" style="padding:0 10px;font-size:1rem">👁</button>
+        <button class="cfg-btn-provedor primario" onclick="conectarClaudeAccount()">Conectar Claude</button>
+      </div>
+      <div id="claude-acc-erro" class="cfg-erro hidden" style="margin-top:10px"></div>
+    `;
+  }
+
+  function toggleVerClaudeToken(btn) {
+    const input = document.getElementById('claude-acc-token');
+    if (!input) return;
+    input.type = input.type === 'password' ? 'text' : 'password';
+  }
+
+  async function conectarClaudeAccount() {
+    const input = document.getElementById('claude-acc-token');
+    const erroEl = document.getElementById('claude-acc-erro');
+    const token = (input.value || '').trim();
+    if (!token) {
+      erroEl.textContent = 'Cole o token gerado por claude setup-token.';
+      erroEl.classList.remove('hidden');
+      return;
+    }
+    erroEl.classList.add('hidden');
+    try {
+      const r = await fetch(API + '/claude-account/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ..._claudeAuthHeaders() },
+        body: JSON.stringify({ oauth_token: token }),
+      });
+      if (!r.ok) {
+        const detalhe = await r.json().catch(() => ({}));
+        throw new Error(detalhe.detail || ('HTTP ' + r.status));
+      }
+      const dados = await r.json();
+      renderizarClaudeAccountStatus(dados);
+    } catch (e) {
+      erroEl.textContent = 'Não foi possível conectar: ' + e.message;
+      erroEl.classList.remove('hidden');
+    }
+  }
+
+  async function desconectarClaudeAccount() {
+    if (!confirm('Desconectar sua conta Claude? Novas análises exigirão reconectar.')) return;
+    try {
+      const r = await fetch(API + '/claude-account/disconnect', { method: 'POST', headers: _claudeAuthHeaders() });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const dados = await r.json();
+      renderizarClaudeAccountStatus(dados);
+    } catch (e) {
+      alert('Não foi possível desconectar: ' + e.message);
     }
   }
 
@@ -4323,11 +4477,108 @@
     html = `<div style="display:flex;justify-content:flex-end;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
       <button onclick="exportarParaBase(${s.id})" style="background:var(--primary);border:none;color:#022c22;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:.85rem;font-weight:600">📚 Adicionar à Base de IA</button>
       <span id="exportar-feedback" style="font-size:.8rem;color:var(--muted)"></span>
+      <button id="btn-analisar-claude" onclick="analisarComClaude('${(s.meeting_id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')" style="background:none;border:1px solid rgba(212,175,55,.5);color:#D4AF37;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:.85rem;font-weight:600">🤖 Analisar com Claude</button>
       <button onclick="excluirSessaoDetalhe(${s.id})" style="background:none;border:1px solid var(--danger);color:var(--danger);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:.85rem">🗑️ Excluir sessão</button>
-    </div>` + html;
+    </div>
+    <div id="claude-analise-resultado" style="margin-bottom:16px"></div>` + html;
 
     document.getElementById('sd-conteudo').innerHTML = html;
     window._sessaoTranscricao = transcricao;
+  }
+
+  /* ─── Analisar reunião com a conta Claude do usuário (piloto) ─── */
+  async function analisarComClaude(meetingId) {
+    const btn = document.getElementById('btn-analisar-claude');
+    const container = document.getElementById('claude-analise-resultado');
+    if (!meetingId) { alert('Esta sessão não tem meeting_id associado.'); return; }
+    if (btn) { btn.disabled = true; btn.textContent = '🤖 Analisando...'; }
+    container.innerHTML = '';
+    try {
+      const r = await fetch(API + '/claude-account/analisar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ..._claudeAuthHeaders() },
+        body: JSON.stringify({ meeting_id: meetingId }),
+      });
+      const dados = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        let mensagem = 'Erro ' + r.status;
+        let codigo = '';
+        if (typeof dados.detail === 'string') {
+          mensagem = dados.detail;
+        } else if (dados.detail && typeof dados.detail === 'object') {
+          mensagem = dados.detail.erro || mensagem;
+          codigo = dados.detail.codigo || '';
+        }
+        if (codigo === 'LOGIN_REQUIRED') {
+          container.innerHTML = `<div class="info-card" style="border-color:rgba(212,175,55,.3)">
+            <p style="color:#cbd5e1;margin:0 0 10px">${escHtml(mensagem)}</p>
+            <button class="cfg-btn-provedor primario" onclick="mostrarPagina('configuracoes', document.querySelector('[data-page=configuracoes]'))">Conectar Claude</button>
+          </div>`;
+        } else {
+          container.innerHTML = `<div class="info-card" style="border-color:rgba(239,68,68,.3)">
+            <p style="color:#FCA5A5;margin:0">${escHtml(mensagem)}</p>
+          </div>`;
+        }
+        return;
+      }
+      renderizarAnaliseClaude(dados);
+    } catch (e) {
+      container.innerHTML = `<div class="info-card" style="border-color:rgba(239,68,68,.3)">
+        <p style="color:#FCA5A5;margin:0">Não foi possível concluir a análise: ${escHtml(e.message)}</p>
+      </div>`;
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '🤖 Analisar com Claude'; }
+    }
+  }
+
+  function renderizarAnaliseClaude(analise) {
+    const container = document.getElementById('claude-analise-resultado');
+    const r = analise.resultado || {};
+    const lista = (titulo, itens) => (itens && itens.length)
+      ? `<div class="info-card"><h3>${titulo}</h3><ul style="margin:6px 0 0;padding-left:18px;color:#cbd5e1">${itens.map(i => `<li>${escHtml(i)}</li>`).join('')}</ul></div>`
+      : '';
+
+    const reusoTag = analise.reused
+      ? '<span class="cfg-badge cfg-badge-ativo" style="margin-left:8px">resultado já existente</span>'
+      : '';
+
+    container.innerHTML = `
+      <div class="info-card" style="border-color:rgba(212,175,55,.3);margin-bottom:12px">
+        <h3 style="margin:0 0 6px">🤖 Análise Claude (piloto)${reusoTag}</h3>
+        ${r.recapitulacao ? `<p style="color:#cbd5e1">${escHtml(r.recapitulacao)}</p>` : ''}
+        ${r.proxima_acao_sugerida ? `<p style="color:var(--primary);font-weight:600">➡️ ${escHtml(r.proxima_acao_sugerida)}</p>` : ''}
+      </div>
+      <div class="grid-2">
+        ${lista('😣 Dores', r.dores)}
+        ${lista('🎯 Metas', r.metas)}
+        ${lista('🛡️ Objeções', r.objecoes)}
+        ${lista('👤 Decisores', r.decisores)}
+        ${lista('⚠️ Riscos', r.riscos)}
+      </div>
+      <div class="info-card" style="margin-top:12px">
+        <p style="color:var(--muted);font-size:.85rem;margin:0 0 8px">Essa análise ajudou você?</p>
+        <div id="claude-feedback-${analise.id}" style="display:flex;gap:8px">
+          <button onclick="enviarFeedbackClaude(${analise.id}, 'positivo')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:6px 12px;cursor:pointer">👍</button>
+          <button onclick="enviarFeedbackClaude(${analise.id}, 'parcial')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:6px 12px;cursor:pointer">😐</button>
+          <button onclick="enviarFeedbackClaude(${analise.id}, 'negativo')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:6px 12px;cursor:pointer">👎</button>
+        </div>
+      </div>
+    `;
+  }
+
+  async function enviarFeedbackClaude(analysisId, rating) {
+    const el = document.getElementById('claude-feedback-' + analysisId);
+    try {
+      const r = await fetch(API + '/claude-account/analises/' + analysisId + '/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ..._claudeAuthHeaders() },
+        body: JSON.stringify({ rating }),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      if (el) el.innerHTML = '<span style="color:var(--muted);font-size:.85rem">Obrigado pelo feedback!</span>';
+    } catch (e) {
+      alert('Não foi possível registrar o feedback: ' + e.message);
+    }
   }
 
   function copiarTranscricao() {
@@ -4593,10 +4844,36 @@
     _pararMonitor(); // garante apenas um timer ativo
     carregarMonitor();
     _carregarHistoricoMonitor();
+    _carregarMetricasClaudePiloto();
     _monitorTimer = setInterval(() => {
       carregarMonitor();
       _carregarHistoricoMonitor();
+      _carregarMetricasClaudePiloto();
     }, 15000);
+  }
+
+  async function _carregarMetricasClaudePiloto() {
+    const card = document.getElementById('mon-claude-piloto-card');
+    if (!card) return;
+    try {
+      const r = await fetch(API + '/admin/claude-account/metricas', { headers: _claudeAuthHeaders() });
+      if (!r.ok) { card.style.display = 'none'; return; } // não-admin ou piloto sem dados ainda
+      const d = await r.json();
+      const av = d.avaliacoes || {};
+      document.getElementById('mon-claude-piloto-cards').innerHTML = [
+        _monCard('🔌', 'Conexões Ativas', d.conexoes_ativas ?? 0),
+        _monCard('👤', 'Usuários no Piloto', d.usuarios_ativos_no_piloto ?? 0),
+        _monCard('📋', 'Reuniões Analisadas', d.reunioes_analisadas ?? 0),
+        _monCard('✅', 'Análises OK', d.analises_sucesso ?? 0, '#4ade80'),
+        _monCard('❌', 'Análises com Erro', d.analises_erro ?? 0, (d.analises_erro || 0) > 0 ? '#f87171' : 'var(--muted)'),
+        _monCard('🚫', 'Limites Atingidos', d.limites_atingidos ?? 0, (d.limites_atingidos || 0) > 0 ? '#fbbf24' : 'var(--muted)'),
+        _monCard('👍', 'Avaliações Positivas', av.positivo ?? 0, '#4ade80'),
+        _monCard('👎', 'Avaliações Negativas', av.negativo ?? 0, (av.negativo || 0) > 0 ? '#f87171' : 'var(--muted)'),
+      ].join('');
+      card.style.display = '';
+    } catch (_) {
+      card.style.display = 'none';
+    }
   }
 
   function _pararMonitor() {

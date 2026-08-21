@@ -2821,6 +2821,166 @@ def _admin_set_status(uid: str, status: str):
         conn.close()
 
 
+# ─────────────────────────────────────────────
+# CLAUDE ACCOUNT MODE — piloto: cada usuário usa sua própria conta Claude
+#
+# Modo experimental e controlado (Tarefa 22). Não é infraestrutura definitiva
+# de produção — pode ser desativado a qualquer momento via CLAUDE_ACCOUNT_PILOT.
+# ─────────────────────────────────────────────
+import hashlib as _hashlib
+
+from agent.claude_account import (
+    PROMPT_ANALISE_CLAUDE_ACCOUNT,
+    ClaudeAccountError,
+    claude_account_executor,
+    claude_pilot_habilitado,
+    criptografar_token,
+    sanitizar_erro_claude,
+)
+from api.database import (
+    criar_claude_analysis_pendente,
+    desconectar_claude_connection,
+    finalizar_claude_analysis,
+    listar_claude_analyses,
+    metricas_claude_account,
+    obter_claude_analysis_por_hash,
+    obter_claude_connection,
+    salvar_claude_analysis_feedback,
+    salvar_claude_connection,
+)
+
+
+def _req_claude_pilot(authorization: str | None) -> dict:
+    """Confirma JWT válido e que a feature flag do piloto está ativa."""
+    payload = _req_auth(authorization)
+    if not claude_pilot_habilitado():
+        raise HTTPException(status_code=404, detail="Funcionalidade indisponível.")
+    return payload
+
+
+class ClaudeConnectRequest(BaseModel):
+    oauth_token: str
+
+
+class ClaudeAnalisarRequest(BaseModel):
+    meeting_id: str
+
+
+class ClaudeFeedbackRequest(BaseModel):
+    rating: str  # positivo | parcial | negativo
+    tags: Optional[list[str]] = None
+
+
+def _claude_connection_publica(conexao: dict | None) -> dict:
+    """Formato seguro para o frontend — nunca inclui o token."""
+    if not conexao:
+        return {"conectado": False, "status": "inativo"}
+    return {
+        "conectado": conexao["status"] == "ativo",
+        "status": conexao["status"],
+        "connected_at": conexao.get("connected_at"),
+        "last_used_at": conexao.get("last_used_at"),
+    }
+
+
+@app.get("/claude-account/status")
+def claude_account_status(authorization: str | None = _Header(default=None)):
+    payload = _req_claude_pilot(authorization)
+    conexao = obter_claude_connection(payload["sub"])
+    return _claude_connection_publica(conexao)
+
+
+@app.post("/claude-account/connect")
+def claude_account_connect(req: ClaudeConnectRequest, authorization: str | None = _Header(default=None)):
+    payload = _req_claude_pilot(authorization)
+    token = (req.oauth_token or "").strip()
+    if not token:
+        raise HTTPException(status_code=400, detail="Token da conta Claude não informado.")
+
+    token_criptografado = criptografar_token(token)
+    conexao = salvar_claude_connection(payload["sub"], token_criptografado)
+    logger.info("[ClaudeAccount] Usuário %s conectou sua conta Claude.", payload["sub"])
+    return _claude_connection_publica(conexao)
+
+
+@app.post("/claude-account/disconnect")
+def claude_account_disconnect(authorization: str | None = _Header(default=None)):
+    payload = _req_claude_pilot(authorization)
+    conexao = desconectar_claude_connection(payload["sub"])
+    logger.info("[ClaudeAccount] Usuário %s desconectou sua conta Claude.", payload["sub"])
+    return _claude_connection_publica(conexao)
+
+
+@app.post("/claude-account/analisar")
+async def claude_account_analisar(req: ClaudeAnalisarRequest, authorization: str | None = _Header(default=None)):
+    payload = _req_claude_pilot(authorization)
+    usuario_id = payload["sub"]
+    meeting_id = (req.meeting_id or "").strip()
+    if not meeting_id:
+        raise HTTPException(status_code=400, detail="meeting_id é obrigatório.")
+
+    from agent.sessao_manager import obter_transcricao_mais_recente
+
+    transcricao = obter_transcricao_mais_recente(meeting_id)
+    if not transcricao.strip():
+        raise HTTPException(status_code=404, detail="Nenhuma transcrição encontrada para esta reunião.")
+
+    transcript_hash = _hashlib.sha256(transcricao.encode("utf-8")).hexdigest()
+
+    existente = obter_claude_analysis_por_hash(meeting_id, usuario_id, transcript_hash)
+    if existente:
+        return {**existente, "reused": True}
+
+    registro = criar_claude_analysis_pendente(meeting_id, usuario_id, transcript_hash)
+
+    try:
+        resultado = await claude_account_executor.execute(
+            usuario_id=usuario_id,
+            prompt=PROMPT_ANALISE_CLAUDE_ACCOUNT,
+            context=transcricao,
+        )
+    except ClaudeAccountError as exc:
+        finalizar_claude_analysis(
+            registro["id"],
+            status="erro",
+            error_code=exc.code,
+            error_message=sanitizar_erro_claude(exc.detalhe or exc.message),
+        )
+        raise HTTPException(status_code=422, detail={"erro": exc.message, "codigo": exc.code}) from exc
+    except Exception as exc:  # nunca deixar exceção crua vazar token/detalhe não sanitizado
+        detalhe = sanitizar_erro_claude(str(exc))
+        finalizar_claude_analysis(registro["id"], status="erro", error_code="GENERIC_ERROR", error_message=detalhe)
+        logger.error("[ClaudeAccount] Falha não classificada ao analisar meeting_id=%s: %s", meeting_id, detalhe)
+        raise HTTPException(status_code=500, detail={"erro": "Não foi possível concluir a análise.", "codigo": "GENERIC_ERROR"}) from exc
+
+    final = finalizar_claude_analysis(registro["id"], status="sucesso", resultado=resultado)
+    return {**final, "reused": False}
+
+
+@app.get("/claude-account/analises/{meeting_id}")
+def claude_account_listar_analises(meeting_id: str, authorization: str | None = _Header(default=None)):
+    payload = _req_claude_pilot(authorization)
+    return {"analises": listar_claude_analyses(meeting_id, payload["sub"])}
+
+
+@app.post("/claude-account/analises/{analysis_id}/feedback")
+def claude_account_feedback(analysis_id: int, req: ClaudeFeedbackRequest, authorization: str | None = _Header(default=None)):
+    payload = _req_claude_pilot(authorization)
+    if req.rating not in ("positivo", "parcial", "negativo"):
+        raise HTTPException(status_code=400, detail="rating inválido.")
+
+    atualizado = salvar_claude_analysis_feedback(analysis_id, payload["sub"], req.rating, req.tags)
+    if not atualizado:
+        raise HTTPException(status_code=404, detail="Análise não encontrada.")
+    return atualizado
+
+
+@app.get("/admin/claude-account/metricas")
+def claude_account_metricas_admin(authorization: str | None = _Header(default=None)):
+    _req_admin(authorization)
+    return metricas_claude_account()
+
+
 # ── APIs / Provedores ─────────────────────────
 
 _ultimo_teste: dict[str, dict] = {}  # {pid: {"ok": bool, "ts": float, "detalhe": str}} — cache local do worker

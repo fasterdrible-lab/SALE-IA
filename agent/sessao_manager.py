@@ -431,6 +431,30 @@ def migrar_colunas_usuarios():
         logger.error("[Auth] Erro ao migrar colunas de reset: %s", e)
 
 
+def obter_transcricao_mais_recente(meeting_id: str) -> str:
+    """Retorna a transcrição acumulada mais recente para um meeting_id (sem limite de 6h).
+
+    Usado pelo piloto Claude Account Mode (analisar reunião sob demanda),
+    diferente de salvar_analise/obter_ultima_analise que só olham sessões
+    ativas nas últimas 6h.
+    """
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT transcricao_acumulada FROM sessoes
+                   WHERE meeting_id = %s
+                   ORDER BY created_at DESC LIMIT 1""",
+                (meeting_id,),
+            )
+            row = cur.fetchone()
+        conn.close()
+        return (row[0] if row else "") or ""
+    except Exception as e:
+        logger.error("[Sessões] Erro ao obter transcrição por meeting_id=%s: %s", meeting_id, e)
+        return ""
+
+
 def buscar_sessao(sessao_id: int) -> dict:
     """Busca sessão completa pelo ID incluindo transcrição e análise."""
     try:
