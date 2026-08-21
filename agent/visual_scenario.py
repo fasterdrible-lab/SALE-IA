@@ -286,15 +286,15 @@ class ImageGenerator:
         from openai import OpenAI
 
         def _call():
-            client = OpenAI(api_key=api_key, timeout=90)
-            response = client.images.generate(
-                model="dall-e-3",
-                prompt=prompt,
-                size=size,
-                quality="standard",
-                n=1,
-                response_format="b64_json",
-            )
+            with OpenAI(api_key=api_key, timeout=90) as client:
+                response = client.images.generate(
+                    model="dall-e-3",
+                    prompt=prompt,
+                    size=size,
+                    quality="standard",
+                    n=1,
+                    response_format="b64_json",
+                )
             b64 = response.data[0].b64_json
             return f"data:image/png;base64,{b64}"
 

@@ -60,8 +60,8 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
             raise
         try:
             from openai import OpenAI
-            client = OpenAI(api_key=api_key, timeout=self._timeout)
-            resp = client.embeddings.create(model=self._model, input=text)
+            with OpenAI(api_key=api_key, timeout=self._timeout) as client:
+                resp = client.embeddings.create(model=self._model, input=text)
             vec = resp.data[0].embedding
         except EmbeddingProviderError:
             raise
@@ -78,8 +78,8 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
             raise
         try:
             from openai import AsyncOpenAI
-            client = AsyncOpenAI(api_key=api_key, timeout=self._timeout)
-            resp = await client.embeddings.create(model=self._model, input=text)
+            async with AsyncOpenAI(api_key=api_key, timeout=self._timeout) as client:
+                resp = await client.embeddings.create(model=self._model, input=text)
             vec = resp.data[0].embedding
         except EmbeddingProviderError:
             raise
@@ -98,8 +98,8 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
             raise
         try:
             from openai import OpenAI
-            client = OpenAI(api_key=api_key, timeout=self._timeout)
-            resp = client.embeddings.create(model=self._model, input=texts)
+            with OpenAI(api_key=api_key, timeout=self._timeout) as client:
+                resp = client.embeddings.create(model=self._model, input=texts)
             results: list[Optional[EmbeddingResult]] = []
             for item in resp.data:
                 vec = item.embedding

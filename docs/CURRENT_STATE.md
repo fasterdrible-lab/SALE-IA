@@ -25,7 +25,7 @@ Atualizado em: 2026-08-17 (V.1.4.39)
 
 ## Versao Atual
 
-`V.1.4.42` — local + GitHub (pendente deploy VPS) | extensao Chrome `V.1.4.3` | VPS antiga (`204.168.180.25`) deprecada
+`V.1.4.43` — local + GitHub (pendente deploy VPS URGENTE — fix de incidente ativo em producao) | extensao Chrome `V.1.4.3` | VPS antiga (`204.168.180.25`) deprecada
 
 ## Funcionalidades Entregues
 
@@ -233,7 +233,8 @@ recebido apos o deploy) encontrou 6 lacunas; 2 foram corrigidas nesta versao
 - Descomissionar VPS antiga (`204.168.180.25`).
 - Alterar senha do admin via dashboard.
 - **Reindex de embeddings pendente**: rodar `python -m scripts.reindex_embeddings --dry-run --table all` (conferir) e depois sem `--dry-run` (a base atual tem embeddings antigos gerados pela OpenAI, incompativeis com o Ollama).
-- **Deploy V.1.4.40/V.1.4.41/V.1.4.42 pendente**: checar `reunioes_ativas` em `/health` antes de `git pull origin main && systemctl restart saleia`. Validar manualmente upload/download da Base em producao (nao testavel localmente — sem MySQL acessivel desta maquina).
+- **URGENTE — Deploy V.1.4.43 pendente**: fix de vazamento de file descriptors que estava deixando DeepSeek/OpenAI/Anthropic "degradado" em producao (ver CHANGELOG). `git pull origin main && systemctl restart saleia` — o restart e obrigatorio aqui, nao so recomendado, pois libera os FDs ja vazados no processo atual. Confirmado: deploy da V.1.4.40/41/42 ja tinha sido feito (producao respondia `versao: 1.4.42` em 21/08/2026 antes deste fix).
+- **URGENTE — Faturamento do Google Cloud (Gemini)**: `PermissionDenied: 403 Lightning dunning decision is deny for project: projects/493614671182` — conta de faturamento inadimplente/suspensa, resolver no Google Cloud Console. Nao e bug de codigo.
 - Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI) continua pendente — agora so acessivel por URL direta (`/visual-scenario?meeting=<id>`), sem botao/menu (removido na V.1.4.42).
 - 8 falhas de teste pre-existentes e nao relacionadas encontradas em `tests/test_next_best_question.py`/`tests/test_realtime_memory.py` (nao corrigidas — fora do escopo desta rodada).
 - **Decisoes tomadas sobre as 4 lacunas remanescentes da V.1.4.40 (20/08/2026)**:

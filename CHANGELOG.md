@@ -3,6 +3,79 @@
 
 ---
 
+## V.1.4.43 — Fix crítico: vazamento de file descriptors nos clientes de IA
+> Data: 21/08/2026 | Bug fix (produção)
+
+### INCIDENTE
+Todos os 4 provedores de IA apareciam como "degradado" em `/health` em
+produção, com contadores de falhas consecutivas subindo continuamente
+mesmo sem tráfego novo sendo gerado. Investigação via SSH (`journalctl -u
+saleia`) revelou dois problemas distintos:
+
+1. **Gemini**: `PermissionDenied: 403 Lightning dunning decision is deny
+   for project: projects/493614671182` — a conta de faturamento do Google
+   Cloud do projeto está inadimplente/suspensa. **Não é bug de código —
+   requer ação humana no Google Cloud Console** (forma de pagamento/fatura).
+2. **DeepSeek/OpenAI/Anthropic**: `OSError: [Errno 24] Too many open
+   files` — o servidor esgotou o limite de file descriptors do SO. Causa
+   raiz: `_call_openai`, `_call_deepseek` e `_call_anthropic`
+   (`api/ai_router.py`) criavam um cliente HTTP novo a cada chamada de IA
+   sem nunca fechá-lo (nem `client.close()`, nem `with`) — o fechamento
+   ficava a cargo do garbage collector, que falhava silenciosamente sob
+   carga (`Exception ignored while calling deallocator
+   SyncHttpxClientWrapper.__del__`), vazando sockets/FDs a cada fragmento
+   de reunião em tempo real. O lote de migração de 74 reuniões históricas
+   (rodado nesta mesma data) acelerou drasticamente o esgotamento por
+   gerar um volume grande de chamadas de IA em pouco tempo.
+
+### CORREÇÃO — clientes de IA fechados deterministicamente
+Mesma classe de bug já corrigida uma vez para o RAG (V.1.4.38, bug #5:
+`AsyncOpenAI` recriado a cada chamada) — dessa vez no caminho de chat/LLM
+e em mais alguns pontos que nunca tinham sido auditados. Todos os pontos
+que criam um cliente `OpenAI`/`AsyncOpenAI`/`Anthropic`/`AsyncAnthropic`
+por chamada agora usam `with`/`async with` para garantir o fechamento do
+pool de conexões, mesmo em erro:
+- `api/ai_router.py`: `_call_openai`, `_call_deepseek`, `_call_anthropic`
+  (os 3 usados em toda chamada de tempo real e recapitulação — a fonte
+  principal do vazamento)
+- `api/main.py`: transcrição Whisper (`OpenAI`), OCR com fallback
+  Anthropic→OpenAI (`AsyncAnthropic`/`AsyncOpenAI`), teste de conexão de
+  provedor no painel admin (`AsyncOpenAI`/`AsyncAnthropic` para os 3
+  provedores)
+- `agent/visual_scenario.py`: geração de imagem DALL-E 3 (`OpenAI`)
+- `services/embeddings/openai_provider.py`: `embed`, `embed_async`,
+  `embed_batch` (só ativo se `EMBEDDING_PROVIDER=openai`; o padrão
+  `ollama` já usava `async with httpx.AsyncClient()` corretamente — não
+  contribuía para o incidente)
+
+### NÃO CORRIGIDO NESTA RODADA
+- Faturamento do Gemini no Google Cloud (ação humana, fora do código).
+- Árvore duplicada `SALEIA/SALEIA/` (fora do escopo — CLAUDE.md pede para
+  não analisar essa pasta).
+
+### TESTES
+- 3 testes de `tests/test_ai_router.py` e `tests/test_embeddings.py`
+  quebraram porque os mocks (`fake_client`/`MagicMock`) não implementavam
+  o protocolo de context manager (`__enter__`/`__exit__` /
+  `__aenter__`/`__aexit__`) — corrigidos para configurar o retorno do
+  `__enter__`/`__aenter__` como o próprio mock configurado, em vez de
+  deixar o mock auto-gerar um objeto novo e não configurado.
+- `python -m unittest tests.test_smoke tests.test_propensao_rules
+  tests.test_base_download tests.test_ai_router tests.test_embeddings`:
+  65/65 OK.
+
+### DEPLOY
+Restart do `saleia.service` necessário após o deploy — o fix impede
+*novos* vazamentos, mas não libera os file descriptors já vazados no
+processo atualmente rodando.
+
+### ARQUIVOS ALTERADOS
+- `api/ai_router.py`, `api/main.py` (3 pontos + versão),
+  `agent/visual_scenario.py`, `services/embeddings/openai_provider.py`,
+  `tests/test_ai_router.py`, `tests/test_embeddings.py`
+
+---
+
 ## Migração de reuniões históricas (Google Drive → Sales Memory)
 > Data: 20/08/2026 | Utilitário / dados (não é versão de produto — sem bump de versão)
 

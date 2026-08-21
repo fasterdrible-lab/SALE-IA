@@ -221,16 +221,20 @@ def _save_provider_order(order: list[str]) -> None:
 def _call_openai(system_prompt: str, user_content: str, api_key: str, model: str, timeout: float) -> dict:
     from openai import OpenAI
 
-    client = OpenAI(api_key=api_key, timeout=timeout)
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_content},
-        ],
-        temperature=0.3,
-        response_format={"type": "json_object"},
-    )
+    # Cliente criado por chamada (chave pode ser rotacionada em runtime pelo
+    # painel admin) — `with` fecha o pool de conexoes httpx no final, senao
+    # o fechamento fica a merce do GC e pode vazar file descriptors sob
+    # carga (accept()/socket nao liberado -> OSError: Too many open files).
+    with OpenAI(api_key=api_key, timeout=timeout) as client:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content},
+            ],
+            temperature=0.3,
+            response_format={"type": "json_object"},
+        )
     return _extract_json(response.choices[0].message.content)
 
 
@@ -238,32 +242,32 @@ def _call_deepseek(system_prompt: str, user_content: str, api_key: str, model: s
     from openai import OpenAI
 
     base_url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-    client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout)
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_content},
-        ],
-        temperature=0.3,
-        response_format={"type": "json_object"},
-    )
+    with OpenAI(api_key=api_key, base_url=base_url, timeout=timeout) as client:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content},
+            ],
+            temperature=0.3,
+            response_format={"type": "json_object"},
+        )
     return _extract_json(response.choices[0].message.content)
 
 
 def _call_anthropic(system_prompt: str, user_content: str, api_key: str, model: str, timeout: float) -> dict:
     import anthropic
 
-    client = anthropic.Anthropic(api_key=api_key, timeout=timeout)
-    response = client.messages.create(
-        model=model,
-        max_tokens=4096,
-        system=(
-            f"{system_prompt}\n\n"
-            "Responda apenas com JSON valido, sem markdown e sem texto adicional."
-        ),
-        messages=[{"role": "user", "content": user_content}],
-    )
+    with anthropic.Anthropic(api_key=api_key, timeout=timeout) as client:
+        response = client.messages.create(
+            model=model,
+            max_tokens=4096,
+            system=(
+                f"{system_prompt}\n\n"
+                "Responda apenas com JSON valido, sem markdown e sem texto adicional."
+            ),
+            messages=[{"role": "user", "content": user_content}],
+        )
     # content[0] nem sempre e texto: alguns modelos (ex.: claude-sonnet-5)
     # podem antepor blocos de outro tipo (ex.: thinking) antes do texto.
     texto = next((b.text for b in response.content if getattr(b, "type", None) == "text"), None)

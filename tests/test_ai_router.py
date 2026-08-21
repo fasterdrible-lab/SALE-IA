@@ -253,6 +253,8 @@ class CallAnthropicContentParsingTest(unittest.TestCase):
         fake_response = type("Response", (), {"content": [thinking_block, text_block]})()
         fake_client = type("Client", (), {
             "messages": type("Messages", (), {"create": lambda self, **kw: fake_response})(),
+            "__enter__": lambda self: self,
+            "__exit__": lambda self, *exc: False,
         })()
 
         with patch("anthropic.Anthropic", return_value=fake_client):
@@ -266,6 +268,8 @@ class CallAnthropicContentParsingTest(unittest.TestCase):
         fake_response = type("Response", (), {"content": [thinking_block]})()
         fake_client = type("Client", (), {
             "messages": type("Messages", (), {"create": lambda self, **kw: fake_response})(),
+            "__enter__": lambda self: self,
+            "__exit__": lambda self, *exc: False,
         })()
 
         with patch("anthropic.Anthropic", return_value=fake_client):

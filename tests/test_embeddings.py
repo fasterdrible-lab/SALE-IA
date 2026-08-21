@@ -227,6 +227,7 @@ class TestOpenAIProvider(unittest.IsolatedAsyncioTestCase):
         fake_resp = MagicMock()
         fake_resp.data = [MagicMock(embedding=[0.1] * 1536)]
         with patch("openai.OpenAI") as MockClient:
+            MockClient.return_value.__enter__.return_value = MockClient.return_value
             MockClient.return_value.embeddings.create.return_value = fake_resp
             resultado = provider.embed("cliente achou caro")
         self.assertIsNotNone(resultado)
@@ -239,6 +240,8 @@ class TestOpenAIProvider(unittest.IsolatedAsyncioTestCase):
         fake_resp.data = [MagicMock(embedding=[0.2] * 1536)]
 
         with patch("openai.AsyncOpenAI") as MockClient:
+            MockClient.return_value.__aenter__ = AsyncMock(return_value=MockClient.return_value)
+            MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
             MockClient.return_value.embeddings.create = AsyncMock(return_value=fake_resp)
             resultado = await provider.embed_async("texto")
         self.assertIsNotNone(resultado)
@@ -247,6 +250,7 @@ class TestOpenAIProvider(unittest.IsolatedAsyncioTestCase):
     def test_embed_swallows_transient_errors(self):
         provider = OpenAIEmbeddingProvider(api_key="sk-fake")
         with patch("openai.OpenAI") as MockClient:
+            MockClient.return_value.__enter__.return_value = MockClient.return_value
             MockClient.return_value.embeddings.create.side_effect = RuntimeError("timeout")
             resultado = provider.embed("texto")
         self.assertIsNone(resultado)

@@ -534,7 +534,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.42",
+        "versao":              "1.4.43",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -572,7 +572,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.42",
+        "versao":          "1.4.43",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -2173,8 +2173,7 @@ async def audio_transcricao(req: AudioTranscricaoRequest):
             openai_key = os.getenv("OPENAI_API_KEY", "")
             if not openai_key:
                 raise HTTPException(status_code=500, detail="OPENAI_API_KEY não configurada. Configure em Configurações > APIs.")
-            openai_client = OpenAI(api_key=openai_key)
-            with open(tmp_path, 'rb') as f:
+            with OpenAI(api_key=openai_key) as openai_client, open(tmp_path, 'rb') as f:
                 transcript = openai_client.audio.transcriptions.create(
                     model="whisper-1",
                     file=f,
@@ -2594,18 +2593,18 @@ async def base_ocr_imagem(arquivo: UploadFile = File(...)):
         import anthropic as _anth
         chave = os.environ.get("ANTHROPIC_API_KEY", "")
         if chave:
-            cliente = _anth.AsyncAnthropic(api_key=chave)
-            msg = await cliente.messages.create(
-                model="claude-sonnet-4-6",
-                max_tokens=4096,
-                messages=[{
-                    "role": "user",
-                    "content": [
-                        {"type": "image", "source": {"type": "base64", "media_type": mime, "data": b64}},
-                        {"type": "text", "text": prompt},
-                    ],
-                }],
-            )
+            async with _anth.AsyncAnthropic(api_key=chave) as cliente:
+                msg = await cliente.messages.create(
+                    model="claude-sonnet-4-6",
+                    max_tokens=4096,
+                    messages=[{
+                        "role": "user",
+                        "content": [
+                            {"type": "image", "source": {"type": "base64", "media_type": mime, "data": b64}},
+                            {"type": "text", "text": prompt},
+                        ],
+                    }],
+                )
             texto = msg.content[0].text.strip()
             if texto:
                 return {"ok": True, "texto": texto, "provedor": "anthropic"}
@@ -2617,18 +2616,18 @@ async def base_ocr_imagem(arquivo: UploadFile = File(...)):
         from openai import AsyncOpenAI as _OAI
         chave = os.environ.get("OPENAI_API_KEY", "")
         if chave:
-            cliente = _OAI(api_key=chave)
-            resp = await cliente.chat.completions.create(
-                model="gpt-4o",
-                max_tokens=4096,
-                messages=[{
-                    "role": "user",
-                    "content": [
-                        {"type": "image_url", "image_url": {"url": data_url}},
-                        {"type": "text", "text": prompt},
-                    ],
-                }],
-            )
+            async with _OAI(api_key=chave) as cliente:
+                resp = await cliente.chat.completions.create(
+                    model="gpt-4o",
+                    max_tokens=4096,
+                    messages=[{
+                        "role": "user",
+                        "content": [
+                            {"type": "image_url", "image_url": {"url": data_url}},
+                            {"type": "text", "text": prompt},
+                        ],
+                    }],
+                )
             texto = resp.choices[0].message.content.strip()
             if texto:
                 return {"ok": True, "texto": texto, "provedor": "openai"}
@@ -2939,16 +2938,16 @@ async def admin_testar_provedor(req: AdminTesteRequest, authorization: str | Non
     try:
         if pid == "openai":
             from openai import AsyncOpenAI as _OAI
-            c = _OAI(api_key=chave)
-            await c.chat.completions.create(model="gpt-4o-mini", messages=[{"role":"user","content":"ping"}], max_tokens=1)
+            async with _OAI(api_key=chave) as c:
+                await c.chat.completions.create(model="gpt-4o-mini", messages=[{"role":"user","content":"ping"}], max_tokens=1)
         elif pid == "deepseek":
             from openai import AsyncOpenAI as _OAI
-            c = _OAI(api_key=chave, base_url="https://api.deepseek.com")
-            await c.chat.completions.create(model="deepseek-chat", messages=[{"role":"user","content":"ping"}], max_tokens=1)
+            async with _OAI(api_key=chave, base_url="https://api.deepseek.com") as c:
+                await c.chat.completions.create(model="deepseek-chat", messages=[{"role":"user","content":"ping"}], max_tokens=1)
         elif pid == "anthropic":
             import anthropic as _anth
-            c = _anth.AsyncAnthropic(api_key=chave)
-            await c.messages.create(model="claude-haiku-4-5-20251001", max_tokens=1, messages=[{"role":"user","content":"ping"}])
+            async with _anth.AsyncAnthropic(api_key=chave) as c:
+                await c.messages.create(model="claude-haiku-4-5-20251001", max_tokens=1, messages=[{"role":"user","content":"ping"}])
         elif pid == "gemini":
             import google.generativeai as _gem
             _gem.configure(api_key=chave)
