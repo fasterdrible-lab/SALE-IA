@@ -1,6 +1,6 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-08-17 (V.1.4.39)
+Atualizado em: 2026-08-21 (V.1.4.44)
 
 ## Ambiente
 
@@ -25,7 +25,7 @@ Atualizado em: 2026-08-17 (V.1.4.39)
 
 ## Versao Atual
 
-`V.1.4.43` — local + GitHub (pendente deploy VPS URGENTE — fix de incidente ativo em producao) | extensao Chrome `V.1.4.3` | VPS antiga (`204.168.180.25`) deprecada
+`V.1.4.44` — local + GitHub (V.1.4.43 confirmado deployado na VPS nova em 21/08/2026; V.1.4.44 ainda pendente de deploy completo — ver "O Que Falta") | extensao Chrome `V.1.4.3` | VPS antiga (`204.168.180.25`) deprecada
 
 ## Funcionalidades Entregues
 
@@ -227,8 +227,36 @@ recebido apos o deploy) encontrou 6 lacunas; 2 foram corrigidas nesta versao
 - `agent/propensao_rules.py`: classificacao deterministica (Alta/Media/Baixa/Nao determinada) a partir do score interno, sem custo de IA extra no tempo real.
 - `PROMPT_RECAPITULACAO` ganhou bloco `propensao` estruturado (fatores + evidencias + como avancar) para o Detalhamento no dashboard, gerado uma unica vez por recapitulacao (sem chamada extra ao abrir).
 
+## Funcionalidades Novas (V.1.4.44 — 21/08/2026)
+
+### Piloto Claude Account Mode
+Cada vendedor conecta a própria assinatura Claude (Pro/Max) via token de
+`claude setup-token` e analisa suas reuniões sob demanda pelo Dashboard, sem
+depender de uma conta de IA central da SALEIA. Atrás da feature flag
+`CLAUDE_ACCOUNT_PILOT` (desligada por padrão). Detalhe completo no
+CHANGELOG (V.1.4.44) — resumo:
+- `agent/claude_account.py`: `ClaudeAccountExecutor`, único ponto de chamada
+  ao Claude Agent SDK; criptografia do token (Fernet), sanitização de erros,
+  classificação `LOGIN_REQUIRED`/`AUTH_REQUIRED`/`USAGE_LIMIT_REACHED`/`GENERIC_ERROR`.
+- Tabelas novas `ClaudeConnection`/`ClaudeMeetingAnalysis` (`api/database.py`);
+  reusa análise existente se a transcrição não mudou.
+- 7 endpoints novos (`/claude-account/*`, `/admin/claude-account/metricas`)
+  — conexão sempre resolvida pelo JWT de quem está logado, nunca por id vindo
+  do cliente (isolamento por usuário sem precisar de "dono da reunião").
+  Não existe hoje na SALEIA — extensão Chrome e tabela `sessoes` continuam
+  anônimas, fora do escopo deste piloto.
+- Dashboard: card de conexão em Configurações, botão "Analisar com Claude" na
+  sessão, feedback 👍/😐/👎, painel de métricas admin no Monitor.
+- 19 testes novos em `tests/test_claude_account.py`.
+
 ## O Que Falta
 
+- **Deploy do piloto Claude Account Mode (V.1.4.44) — parcialmente feito em 21/08/2026, nao confirmado**:
+  - OK: Node.js + `npm install -g @anthropic-ai/claude-code` na VPS nova — `which claude` retornou `/usr/bin/claude`, mas o npm avisou que o script de pos-instalacao (`postinstall: node install.cjs`) nao rodou (`allow-scripts`); `claude --version` ainda nao confirmado.
+  - OK: `.env`: `CLAUDE_ACCOUNT_PILOT=true` e `CLAUDE_TOKEN_ENC_KEY` adicionados.
+  - PENDENTE: `pip install -r requirements.txt` travou em backtracking pesado do resolvedor (novo `claude-agent-sdk` -> `mcp` -> `httpx2`); mitigacao passada: instalar `claude-agent-sdk` isolado antes do `requirements.txt` completo. Resultado final nao confirmado.
+  - PENDENTE: `git pull origin main` + `systemctl restart saleia` com o codigo desta versao — nao confirmado apos o commit `f23b8e0` (21/08/2026) que trouxe o piloto para o GitHub.
+  - Antes de qualquer vendedor tentar conectar a propria conta, confirmar os 3 pontos acima nesta ordem: `claude --version` -> `pip install` sem erro -> `journalctl -u saleia` sem excecoes no import de `agent/claude_account.py`.
 - Reinstalar extensao Chrome (mudanças desde V.1.4.40). *(tarefa manual)*
 - Descomissionar VPS antiga (`204.168.180.25`).
 - Alterar senha do admin via dashboard.

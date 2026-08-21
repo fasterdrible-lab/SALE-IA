@@ -3,6 +3,120 @@
 
 ---
 
+## V.1.4.44 — Piloto Claude Account Mode (conta Claude individual por vendedor)
+> Data: 21/08/2026 | Feature (piloto controlado, atrás de feature flag)
+
+### VISÃO
+Modo experimental para validar o valor comercial da SALEIA com baixo custo de
+infra: em vez de a SALEIA pagar uma conta de IA central para todos os
+usuários, cada vendedor conecta sua **própria** assinatura Claude (Pro/Max) e
+usa seus próprios limites para analisar as próprias reuniões, sob demanda
+(nunca automaticamente). Especificado originalmente como 23 tarefas em
+pseudocódigo TypeScript; adaptado à stack real da SALEIA (FastAPI + SQLModel +
+dashboard HTML/JS vanilla) durante a implementação — duas decisões de
+arquitetura relevantes documentadas abaixo.
+
+### DECISÕES DE ARQUITETURA (spec original vs. o que existe de fato)
+- **Não existe "Sign in with Claude" OAuth para apps de terceiros.** O único
+  mecanismo oficial para usar uma assinatura Claude.ai fora do próprio Claude
+  Code é o vendedor rodar `claude setup-token` na própria máquina (login real
+  dele) e colar o token de longa duração gerado na SALEIA — não é um
+  redirect/popup de OAuth dentro do app. Por isso a análise roda via **Claude
+  Agent SDK** (`claude-agent-sdk`, que shell-a para o CLI
+  `@anthropic-ai/claude-code`) autenticado por `CLAUDE_CODE_OAUTH_TOKEN` por
+  execução, não via `anthropic.Anthropic(api_key=...)` (o cliente já usado
+  para a conta compartilhada em `api/ai_router.py`).
+- **Não existe "dono da reunião" hoje na SALEIA** — a tabela `sessoes` e a
+  extensão Chrome são anônimas (sem `usuario_id`, sem login na extensão);
+  refazer isso está fora do escopo do piloto. A ação "Analisar com Claude" é
+  disparada manualmente do **Dashboard** (onde login JWT já existe) sobre
+  qualquer `meeting_id` visível, e o isolamento por usuário exigido pelo spec
+  é garantido de forma estruturalmente mais simples: a conexão Claude usada
+  em cada execução é **sempre resolvida a partir do JWT de quem está
+  logado**, nunca de um id vindo do cliente — torna impossível por
+  construção o vendedor B usar a conta Claude do vendedor A, sem precisar
+  migrar a propriedade de reuniões.
+
+### BACKEND
+- `agent/claude_account.py` (novo) — `ClaudeAccountExecutor.execute()` é o
+  único ponto de chamada ao Claude Agent SDK no projeto; concentra:
+  criptografia do token em repouso (`cryptography.fernet.Fernet`, chave em
+  `CLAUDE_TOKEN_ENC_KEY`), `sanitizar_erro_claude()` (redige token/Bearer/
+  Authorization antes de logar ou persistir qualquer erro), classificação de
+  falhas em `LOGIN_REQUIRED` / `AUTH_REQUIRED` (marca a conexão como
+  `expirado`) / `USAGE_LIMIT_REACHED` (usa o `RateLimitEvent` nativo do SDK,
+  com heurística de texto como reforço) / `GENERIC_ERROR`, e o prompt fechado
+  nos 7 blocos pedidos (dores, metas, objeções, decisores, riscos,
+  recapitulação, próxima ação — nada além disso). `CLAUDE_ACCOUNT_PILOT`
+  (env var) é a feature flag; desligada por padrão, os endpoints somem (404).
+- `api/database.py` — tabelas novas `ClaudeConnection` (uma por usuário,
+  upsert) e `ClaudeMeetingAnalysis` (cobre tanto o resultado quanto o log de
+  execução do spec — é o mesmo registro) + funções de persistência,
+  incluindo `obter_claude_analysis_por_hash` (reusa análise existente se a
+  transcrição não mudou, evitando reprocessar sem necessidade) e
+  `metricas_claude_account()` (agregados para o painel admin).
+- `agent/sessao_manager.py` — `obter_transcricao_mais_recente(meeting_id)`,
+  sem o filtro de 6h que `salvar_analise`/`obter_ultima_analise` usam (o
+  piloto precisa analisar reuniões antigas também).
+- `api/main.py` — 7 endpoints novos: `GET/POST /claude-account/status`,
+  `connect`, `disconnect`, `POST /claude-account/analisar`,
+  `GET /claude-account/analises/{meeting_id}`,
+  `POST /claude-account/analises/{id}/feedback`,
+  `GET /admin/claude-account/metricas`. Nenhum devolve o token ao frontend.
+- `requirements.txt` — `claude-agent-sdk` adicionado (requer o CLI
+  `@anthropic-ai/claude-code` instalado no host via npm).
+- `.env.example` — documentadas `CLAUDE_ACCOUNT_PILOT`, `CLAUDE_TOKEN_ENC_KEY`
+  e `CLAUDE_CLI_PATH` (opcional, para quando o serviço systemd não acha o
+  binário `claude` via `PATH`).
+
+### FRONTEND (`frontend/dashboard.html`)
+- Configurações → novo card "Claude (piloto)": estado Conectado/Desconectado,
+  instruções de `claude setup-token`, botão Conectar/Desconectar.
+- Sessão (detalhe) → botão "🤖 Analisar com Claude"; resultado num card com os
+  7 blocos + widget de feedback 👍/😐/👎 (`POST /claude-account/analises/{id}/feedback`).
+- Monitor (admin) → card de métricas do piloto (conexões ativas, usuários,
+  reuniões analisadas, sucesso/erro, limites atingidos, avaliações).
+
+### TESTES
+- `tests/test_claude_account.py` (19 testes novos): isolamento entre
+  conexões de usuários diferentes, reuso de análise por hash de transcrição
+  (não reanalisa sem necessidade), feedback só gravável pelo dono da análise,
+  classificação de erro (limite/auth/genérico), sanitização de token em
+  mensagens de erro, criptografia/decriptografia do token.
+- Suite completa (115 testes) rodada após a mudança: sem regressões
+  introduzidas por este trabalho — as 8 falhas pré-existentes em
+  `tests/test_next_best_question.py`/`tests/test_realtime_memory.py`
+  continuam fora do escopo (já não relacionadas a este código antes desta
+  rodada).
+
+### NÃO IMPLEMENTADO NESTA RODADA (documentado, fora do escopo do piloto)
+- Login/identidade na extensão Chrome e "dono da reunião" real.
+- E-mail/plano da conta Claude no card de status — o SDK não expõe isso hoje;
+  o card mostra só Conectado/Desconectado + datas.
+- Qualquer automação/análise fora dos 7 blocos.
+
+### DEPLOY
+Precisa, na VPS (fora do alcance via SSH nesta sessão — sem credenciais
+válidas confirmadas até então):
+1. `curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && apt-get install -y nodejs && npm install -g @anthropic-ai/claude-code`
+   — feito em 21/08/2026, mas com aviso `allow-scripts` do npm (script de
+   pós-instalação não rodou); `claude --version` ainda não confirmado.
+2. `.env`: `CLAUDE_ACCOUNT_PILOT=true` + `CLAUDE_TOKEN_ENC_KEY=<gerada na
+   própria VPS>` — feito em 21/08/2026.
+3. `pip install -r requirements.txt` — travou em *backtracking* pesado do
+   resolvedor do pip (o novo `claude-agent-sdk` traz `mcp`→`httpx2`, cuja
+   resolução em conjunto com o restante do arquivo gera muitas combinações);
+   mitigação: instalar `claude-agent-sdk` isolado primeiro, depois o
+   `requirements.txt` completo. **Não confirmado como concluído** até o
+   fechamento desta entrada — ver `docs/CURRENT_STATE.md`.
+
+### ARQUIVOS ALTERADOS
+- Novos: `agent/claude_account.py`, `tests/test_claude_account.py`
+- Alterados: `api/database.py`, `api/main.py` (+ versão), `agent/sessao_manager.py`,
+  `frontend/dashboard.html`, `requirements.txt`, `.env.example`
+
+---
+
 ## V.1.4.43 — Fix crítico: vazamento de file descriptors nos clientes de IA
 > Data: 21/08/2026 | Bug fix (produção)
 
