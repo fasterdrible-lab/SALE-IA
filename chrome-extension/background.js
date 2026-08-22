@@ -17,6 +17,8 @@
 let estadoExtensao = {
   ativo: true,
   backendUrl: 'https://api.saleia.app.br',
+  token: null,
+  usuario: null,
 };
 
 // Estado da captura de áudio (Whisper)
@@ -44,7 +46,7 @@ chrome.runtime.onInstalled.addListener(function () {
 // Corrige URL e restaura o estado ativo/desligado na inicialização do
 // service worker (não só no install — MV3 pode reciclar o worker a
 // qualquer momento, e sem isso o toggle "API desligada" seria perdido).
-chrome.storage.local.get(['saleiaBackendUrl', 'saleiaAtivo'], function (result) {
+chrome.storage.local.get(['saleiaBackendUrl', 'saleiaAtivo', 'saleiaToken', 'saleiaUsuario'], function (result) {
   // Se estiver com IP direto, corrigir para o domínio canônico
   const stored = result.saleiaBackendUrl || '';
   const urlObsoleta = !stored
@@ -58,6 +60,10 @@ chrome.storage.local.get(['saleiaBackendUrl', 'saleiaAtivo'], function (result) 
     estadoExtensao.backendUrl = stored;
   }
   estadoExtensao.ativo = result.saleiaAtivo !== false;
+  // Reidrata login — o Service Worker MV3 pode ser reciclado a qualquer
+  // momento, entao o token em memoria sozinho nao e suficiente.
+  estadoExtensao.token = result.saleiaToken || null;
+  estadoExtensao.usuario = result.saleiaUsuario || null;
 });
 
 // ─────────────────────────────────────────────
@@ -88,6 +94,48 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   }
 
   // ─────────────────────────────────────────────
+  // LOGIN OPCIONAL — habilita o fallback pra conta Claude
+  // do vendedor no tempo real quando os provedores centrais
+  // falharem (agent/multiagente/claude_fallback.py). Quem nao
+  // loga continua funcionando exatamente como antes (anonimo).
+  // ─────────────────────────────────────────────
+
+  // Popup → tentar login
+  if (msg.tipo === 'fazerLogin') {
+    fetch(estadoExtensao.backendUrl + '/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: msg.email, senha: msg.senha }),
+    })
+      .then(function (res) { return res.json().then(function (data) { return { status: res.status, data: data }; }); })
+      .then(function (r) {
+        if (r.status !== 200 || !r.data.token) {
+          sendResponse({ ok: false, error: (r.data && (r.data.detail || r.data.erro)) || 'Não foi possível entrar.' });
+          return;
+        }
+        estadoExtensao.token = r.data.token;
+        estadoExtensao.usuario = r.data.usuario || null;
+        chrome.storage.local.set({ saleiaToken: r.data.token, saleiaUsuario: r.data.usuario || null });
+        sendResponse({ ok: true, usuario: estadoExtensao.usuario });
+      })
+      .catch(function (err) { sendResponse({ ok: false, error: err.message }); });
+    return true;
+  }
+
+  // Popup → sair
+  if (msg.tipo === 'logout') {
+    estadoExtensao.token = null;
+    estadoExtensao.usuario = null;
+    chrome.storage.local.remove(['saleiaToken', 'saleiaUsuario']);
+    sendResponse({ ok: true });
+  }
+
+  // Popup → estado atual de login (ao abrir o popup)
+  if (msg.tipo === 'getAuth') {
+    sendResponse({ logado: !!estadoExtensao.token, usuario: estadoExtensao.usuario });
+  }
+
+  // ─────────────────────────────────────────────
   // PROXY DE FETCH — contorna bloqueio do meetsw.js
   // O content.js delega o fetch aqui para evitar que o
   // Service Worker do Google Meet intercepte e bloqueie
@@ -101,6 +149,12 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
         'Content-Type': 'application/json',
       },
     };
+    // Login e opcional — so anexa o token quando o vendedor esta logado.
+    // Ponto unico: cobre /tempo-real e todas as outras chamadas via
+    // fetchBackend automaticamente, sem precisar mexer no content.js.
+    if (estadoExtensao.token) {
+      options.headers['Authorization'] = 'Bearer ' + estadoExtensao.token;
+    }
 
     if (method !== 'GET' && method !== 'HEAD') {
       options.body = JSON.stringify(msg.payload || {});

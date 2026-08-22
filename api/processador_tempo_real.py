@@ -446,6 +446,7 @@ async def analyzeRealtimeMeeting(
     mapa_financeiro: dict = None,
     meeting_id: str = "default",
     transcricao_nova: str = "",
+    usuario_id: str | None = None,
 ) -> dict:
     from api.database import (
         obter_meeting_memory,
@@ -550,6 +551,7 @@ async def analyzeRealtimeMeeting(
             eventos=(memoria_atual or {}).get("events") or [],
             skill_context=skill_context,
             client_context=client_context,
+            usuario_id=usuario_id,
         )
     except Exception as _e:
         logger.exception("[TempoReal] Falha ao analisar fragmento: %s", _e)

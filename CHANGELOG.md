@@ -3,6 +3,108 @@
 
 ---
 
+## V.1.4.49 — Login opcional na extensão Chrome + fallback do tempo real para a conta Claude
+> Data: 22/08/2026 | Feature (extensão Chrome + tempo real)
+
+### VISÃO
+Os 4 provedores de IA centrais (DeepSeek/OpenAI/Anthropic/Gemini) ficaram
+sem saldo em 22/08/2026, derrubando também o coach em tempo real da
+extensão Chrome — e hoje, quando os 4 falham, `agent/multiagente/orquestrador.py`
+engole o erro silenciosamente (`asyncio.gather(..., return_exceptions=True)`)
+e devolve dados antigos/placeholder ao vendedor, sem avisar. O piloto
+"Claude Account Mode" (V.1.4.44+) já resolve isso no Dashboard, mas a
+extensão continuava 100% anônima (sem login, sem `usuario_id`).
+
+Login fica **opcional**: quem não loga continua exatamente como antes
+(anônimo, só os 4 provedores centrais, sem fallback). Decisão de produto
+deliberada: o tempo real NÃO troca de vez os 4 centrais pela conta Claude
+pessoal (custaria a janela de uso de 5h da assinatura a cada 60s, mais o
+overhead do CLI subindo a cada fragmento) — só cai para ela quando os 4
+já se esgotaram, como fallback automático.
+
+### BACKEND — `agent/multiagente/claude_fallback.py` (novo arquivo)
+- `chamar_ia_com_fallback_claude(system_prompt, user_content, usuario_id)`:
+  tenta `chamar_ia_async` normalmente; se levantar `HTTPException(503)`
+  (os 4 provedores centrais esgotados) e houver `usuario_id`, checa a
+  feature flag `CLAUDE_ACCOUNT_PILOT` e se o usuário tem uma
+  `ClaudeConnection` ativa — se sim, tenta `ClaudeAccountExecutor.execute()`
+  com `system_prompt + user_content` concatenados (mesmo padrão já usado
+  pelo piloto do Dashboard) e timeout de 45s (mais curto que os 90s padrão,
+  concorrendo com o ciclo de 60s do tempo real). Se o fallback também
+  falhar, relança a exceção **original** (503) — preserva o comportamento
+  atual de degradar graciosamente via `_safe()` no orquestrador.
+- Import tardio de `agent.claude_account`/`api.database` dentro do
+  `except` — import no topo do arquivo criaria ciclo (`agent.claude_account`
+  já importa `api.ai_router._extract_json`).
+
+### BACKEND — threading do `usuario_id` pela cadeia existente
+Mesmo padrão já usado para `skill_context`/`client_context` (V.1.4.34/36):
+parâmetro opcional `usuario_id: str | None = None` em cada nível, sem
+quebrar nenhum chamador existente:
+- `agent/multiagente/{coach,disc,finance,closer}_agent.py`: trocam
+  `chamar_ia_async` por `chamar_ia_com_fallback_claude`.
+- `orquestrador.py::analisar_fragmento_multi`: repassa `usuario_id` às 4
+  corrotinas.
+- `processador_tempo_real.py::analyzeRealtimeMeeting`: repassa ao
+  orquestrador.
+- `api/main.py::analisar_tempo_real` (`POST /tempo-real`): ganha
+  `authorization: str | None = Header(default=None)`. Resolve
+  `usuario_id = _req_auth(authorization)["sub"]` só se o header existir,
+  e **nunca quebra a requisição** por token ausente/inválido/expirado —
+  cai para `usuario_id=None` (comportamento anônimo de sempre).
+
+### EXTENSÃO CHROME — login opcional
+- `popup.html`/`popup.css`: novo bloco "Conta" entre o toggle da API e o
+  status da reunião — formulário e-mail/senha quando deslogado, "Conectado
+  como `<nome>` · Sair" quando logado. Reaproveita `/auth/login` já
+  existente (mesmo usado pelo Dashboard) — nenhum backend novo.
+- `background.js`: `estadoExtensao` ganha `token`/`usuario`, reidratados
+  de `chrome.storage.local` na inicialização do service worker (mesmo
+  padrão de `.ativo`/`.backendUrl`). Novos tipos de mensagem `fazerLogin`,
+  `logout`, `getAuth`. O handler `fetchBackend` (ponto único por onde
+  passam `/tempo-real` e as demais chamadas) anexa
+  `Authorization: Bearer <token>` quando logado — nenhuma mudança
+  necessária em `content.js`.
+- `manifest.json`: `1.4.3` → `1.4.4`. Nenhuma permissão nova (login é
+  e-mail/senha direto contra `/auth/login`, não OAuth do Chrome).
+
+### TESTES
+- `tests/test_multiagente_claude_fallback.py` (novo, 7 testes): sucesso
+  normal não toca em `claude_account`; 503 sem `usuario_id` relança; erro
+  não-503 relança sem tentar fallback; 503 com flag desligada relança;
+  503 com flag ligada mas sem conexão ativa relança; 503 com conexão
+  ativa cai no fallback e retorna o resultado do `claude_account_executor`
+  (tag `_provedor_ia: "claude_account"`); fallback que também falha
+  relança a exceção original (503).
+- `tests/test_tempo_real_auth.py` (novo, 3 testes): `/tempo-real` sem
+  `Authorization` segue anônimo; com JWT válido resolve `usuario_id`; com
+  JWT inválido/expirado não quebra a resposta (cai pra anônimo). Achado
+  durante a escrita deste teste: `authorization: str | None = _Header(...)`
+  usava o alias `_Header` definido só na linha 2655 do arquivo (muito
+  depois do endpoint `/tempo-real` na linha 617) — `NameError` no
+  import do módulo. Corrigido usando `Header` (já importado no topo,
+  linha 30).
+- Suite completa (142 testes): sem regressão — as mesmas 8 falhas
+  pré-existentes e não relacionadas em `test_next_best_question.py`/
+  `test_realtime_memory.py` continuam fora do escopo (mockam
+  `agent.agente_tempo_real`, substituído pelo orquestrador multiagente
+  desde a V.1.4.36).
+
+### VERSÃO
+- Backend: `1.4.48` → `1.4.49` (`/health`, `/monitor/metricas`).
+- Extensão Chrome: `1.4.3` → `1.4.4` (`manifest.json`).
+
+### ARQUIVOS ALTERADOS
+- Novos: `agent/multiagente/claude_fallback.py`,
+  `tests/test_multiagente_claude_fallback.py`, `tests/test_tempo_real_auth.py`
+- Backend: `agent/multiagente/{coach,disc,finance,closer}_agent.py`,
+  `agent/multiagente/orquestrador.py`, `api/processador_tempo_real.py`,
+  `api/main.py` (endpoint + versão)
+- Extensão: `chrome-extension/background.js`, `popup.html`, `popup.js`,
+  `popup.css`, `manifest.json`
+
+---
+
 ## V.1.4.48 — Fix: piloto Claude Account esgotava max_turns por usar o campo errado do SDK
 > Data: 22/08/2026 | Bug fix (piloto Claude Account Mode)
 

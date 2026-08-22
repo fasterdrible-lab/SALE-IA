@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from api.ai_router import chamar_ia_async
+from agent.multiagente.claude_fallback import chamar_ia_com_fallback_claude
 
 _PROMPT = Path(__file__).parent.parent / "prompt_templates" / "multiagente_coach.txt"
 
@@ -16,6 +16,7 @@ async def analisar_coach(
     eventos: list,
     skill_context: str = "",
     client_context: str = "",
+    usuario_id: str | None = None,
 ) -> dict:
     template = _PROMPT.read_text(encoding="utf-8")
     prompt = (
@@ -28,7 +29,8 @@ async def analisar_coach(
         .replace("{client_context}", client_context or "")
         .replace("{skill_context}", skill_context or "")
     )
-    return await chamar_ia_async(
+    return await chamar_ia_com_fallback_claude(
         "Voce e um Coach de vendas consultivas. Responda SEMPRE em JSON valido, sem texto antes ou depois.",
         prompt,
+        usuario_id,
     )

@@ -131,6 +131,7 @@ async def analisar_fragmento_multi(
     eventos: list = None,
     skill_context: str = "",
     client_context: str = "",
+    usuario_id: str | None = None,
 ) -> dict:
     diag = diagnostico_atual or {}
     scores = historico_scores or []
@@ -155,10 +156,10 @@ async def analisar_fragmento_multi(
     except Exception as _e:
         logger.debug("[Multiagente] Sales Memory falhou: %s", _e)
 
-    coach_coro   = analisar_coach(transcricao_parcial, historico, rv, diag, evts, skill_context, client_context)
-    disc_coro    = analisar_disc(transcricao_parcial, historico, perfil_disc_atual, diag)
-    finance_coro = analisar_finance(transcricao_parcial, historico, mapa)
-    closer_coro  = analisar_closer(transcricao_parcial, rv, scores, diag)
+    coach_coro   = analisar_coach(transcricao_parcial, historico, rv, diag, evts, skill_context, client_context, usuario_id)
+    disc_coro    = analisar_disc(transcricao_parcial, historico, perfil_disc_atual, diag, usuario_id)
+    finance_coro = analisar_finance(transcricao_parcial, historico, mapa, usuario_id)
+    closer_coro  = analisar_closer(transcricao_parcial, rv, scores, diag, usuario_id)
 
     resultados = await asyncio.gather(
         coach_coro, disc_coro, finance_coro, closer_coro,

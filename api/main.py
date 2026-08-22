@@ -534,7 +534,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.48",
+        "versao":              "1.4.49",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -572,7 +572,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.48",
+        "versao":          "1.4.49",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -615,13 +615,24 @@ async def websocket_heartbeat(websocket: WebSocket):
 
 
 @app.post("/tempo-real")
-async def analisar_tempo_real(req: TempoRealRequest):
+async def analisar_tempo_real(req: TempoRealRequest, authorization: str | None = Header(default=None)):
     """
     Análise em tempo real durante a reunião.
     Chamado pela extensão Chrome a cada 60 segundos.
     """
     if not req.transcricao_parcial and not req.historico:
         raise HTTPException(status_code=400, detail="Transcrição vazia — ative as legendas no Meet")
+
+    # Extensao continua anonima por padrao — login e opcional. Quando logado,
+    # o usuario_id habilita o fallback pra conta Claude pessoal se os 4
+    # provedores centrais falharem (agent/multiagente/claude_fallback.py).
+    # Token ausente/invalido/expirado nunca pode quebrar o tempo real.
+    usuario_id = None
+    if authorization:
+        try:
+            usuario_id = _req_auth(authorization)["sub"]
+        except HTTPException:
+            pass
 
     # Salvar transcrição bruta ANTES do GPT — garante persistência mesmo se GPT falhar
     # Usa transcricao_nova (delta) se disponível para evitar duplicatas no DB.
@@ -643,6 +654,7 @@ async def analisar_tempo_real(req: TempoRealRequest):
             mapa_financeiro=req.mapa_financeiro,
             meeting_id=req.meeting_id or "default",
             transcricao_nova=req.transcricao_nova or "",
+            usuario_id=usuario_id,
         )
     except Exception as e:
         logger.error("Erro ao processar fragmento tempo real: %s", e)

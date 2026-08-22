@@ -25,6 +25,21 @@
     <!-- Status da API (ligada/desligada) -->
     <div id="api-toggle-feedback" class="popup-api-toggle-status"></div>
 
+    <!-- Conta (login opcional) -->
+    <div class="popup-secao">
+      <div class="popup-secao-titulo">Conta</div>
+      <div id="popup-login-form">
+        <input type="email" id="login-email" class="popup-login-input" placeholder="E-mail" autocomplete="username" />
+        <input type="password" id="login-senha" class="popup-login-input" placeholder="Senha" autocomplete="current-password" />
+        <button type="button" id="btn-login" class="popup-login-btn">Entrar</button>
+        <div id="login-feedback" class="popup-feedback"></div>
+      </div>
+      <div id="popup-login-logado" class="popup-login-logado" style="display:none">
+        <span id="login-usuario-nome"></span>
+        <button type="button" id="btn-logout" class="popup-logout-link">Sair</button>
+      </div>
+    </div>
+
     <!-- Status da reunião -->
     <div id="popup-status" class="popup-status popup-status-aguardando">
       <span class="status-dot"></span>

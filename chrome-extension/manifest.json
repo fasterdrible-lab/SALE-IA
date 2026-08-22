@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SALEIA — Assistente de Vendas em Tempo Real",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "description": "Monitora reuniões do Google Meet e fornece dicas de vendas em tempo real usando IA",
   "permissions": ["activeTab", "storage", "alarms", "offscreen", "tabs"],
   "host_permissions": [

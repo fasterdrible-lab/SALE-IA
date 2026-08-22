@@ -191,6 +191,51 @@ body {
 .popup-feedback-success { color: #D4AF37; }
 .popup-feedback-error   { color: #FCA5A5; }
 
+/* ── Conta (login opcional) ── */
+.popup-login-input {
+  width: 100%;
+  background: #111111;
+  border: 1px solid rgba(212,175,55,0.3);
+  border-radius: 6px;
+  color: #F0F0F0;
+  padding: 6px 10px;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.popup-login-input:focus { outline: none; border-color: #D4AF37; }
+
+.popup-login-btn {
+  width: 100%;
+  background: #D4AF37;
+  color: #0A0A0A;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.popup-login-btn:hover:not(:disabled) { background: #e0bd4a; }
+.popup-login-btn:disabled { opacity: .6; cursor: default; }
+
+.popup-login-logado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #D0D0D0;
+}
+
+.popup-logout-link {
+  background: none;
+  border: none;
+  color: #D4AF37;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  text-decoration: underline;
+}
+
 /* ── Rodapé ── */
 .popup-footer {
   display: flex;

@@ -29,6 +29,15 @@ document.addEventListener('DOMContentLoaded', function () {
   const ultimasDicas = document.getElementById('ultimas-dicas');
   const btnRelatorio = document.getElementById('btn-relatorio');
 
+  const loginForm = document.getElementById('popup-login-form');
+  const loginLogado = document.getElementById('popup-login-logado');
+  const loginEmail = document.getElementById('login-email');
+  const loginSenha = document.getElementById('login-senha');
+  const btnLogin = document.getElementById('btn-login');
+  const loginFeedback = document.getElementById('login-feedback');
+  const loginUsuarioNome = document.getElementById('login-usuario-nome');
+  const btnLogout = document.getElementById('btn-logout');
+
   // URL do backend — configurada internamente (auto-corrigida em background.js),
   // nunca exibida na interface. Carregada uma vez para montar links/requisições.
   var backendUrlAtual = 'https://api.saleia.app.br';
@@ -56,6 +65,69 @@ document.addEventListener('DOMContentLoaded', function () {
       if (ativo) verificarConexao(); else marcarConexaoInativa();
     }
   );
+
+  // ─────────────────────────────────────────────
+  // CONTA — login opcional (habilita o fallback pra conta Claude
+  // do vendedor no tempo real quando os provedores centrais falharem)
+  // ─────────────────────────────────────────────
+  function exibirLogado(usuario) {
+    loginForm.style.display = 'none';
+    loginLogado.style.display = 'flex';
+    loginUsuarioNome.textContent = 'Conectado como ' + ((usuario && usuario.nome) || 'vendedor');
+  }
+
+  function exibirFormularioLogin() {
+    loginForm.style.display = 'block';
+    loginLogado.style.display = 'none';
+    loginEmail.value = '';
+    loginSenha.value = '';
+    loginFeedback.textContent = '';
+    loginFeedback.className = 'popup-feedback';
+  }
+
+  chrome.runtime.sendMessage({ tipo: 'getAuth' }, function (resp) {
+    if (resp && resp.logado) {
+      exibirLogado(resp.usuario);
+    } else {
+      exibirFormularioLogin();
+    }
+  });
+
+  function tentarLogin() {
+    const email = loginEmail.value.trim();
+    const senha = loginSenha.value;
+    if (!email || !senha) {
+      loginFeedback.textContent = 'Preencha e-mail e senha.';
+      loginFeedback.className = 'popup-feedback popup-feedback-error';
+      return;
+    }
+    btnLogin.disabled = true;
+    loginFeedback.textContent = 'Entrando...';
+    loginFeedback.className = 'popup-feedback';
+    chrome.runtime.sendMessage({ tipo: 'fazerLogin', email: email, senha: senha }, function (resp) {
+      btnLogin.disabled = false;
+      if (resp && resp.ok) {
+        exibirLogado(resp.usuario);
+      } else {
+        loginFeedback.textContent = (resp && resp.error) || 'Não foi possível entrar.';
+        loginFeedback.className = 'popup-feedback popup-feedback-error';
+      }
+    });
+  }
+
+  if (btnLogin) btnLogin.addEventListener('click', tentarLogin);
+  if (loginSenha) {
+    loginSenha.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') tentarLogin();
+    });
+  }
+  if (btnLogout) {
+    btnLogout.addEventListener('click', function () {
+      chrome.runtime.sendMessage({ tipo: 'logout' }, function () {
+        exibirFormularioLogin();
+      });
+    });
+  }
 
   // ─────────────────────────────────────────────
   // VERIFICAR SE HÁ ABA DO MEET ATIVA
