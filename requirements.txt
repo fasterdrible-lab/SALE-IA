@@ -1,8 +1,12 @@
 # Dependências do SALEIA — Backend FastAPI
 
 # Framework web
-fastapi==0.111.0
-uvicorn[standard]==0.30.1
+# Sem pino de versao exata: claude-agent-sdk -> mcp/sse-starlette exigem
+# starlette >=0.48/0.49 no Python 3.14, incompativel com o range de
+# starlette exigido pelo fastapi 0.111.0 (<0.38.0) — deixar o resolvedor
+# escolher uma versao de fastapi compativel com starlette moderno.
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.1
 
 # Variáveis de ambiente
 python-dotenv==1.0.1
