@@ -262,6 +262,23 @@ CHANGELOG (V.1.4.44) — resumo:
 - Pos-deploy: `/health` retornou `versao: 1.4.44`, 4 provedores `status: ok` com `falhas_consecutivas: 0` (restart tambem liberou os FDs vazados da V.1.4.43 — resolve o "URGENTE" anterior); `/dashboard` = `200`; `GET /claude-account/status` sem JWT retornou `401` (feature flag `CLAUDE_ACCOUNT_PILOT` confirmada ativa — endpoint existe e exige auth, nao `404`).
 - Aviso pre-existente e sem relacao com este deploy: `OpenTelemetry não configurado: No module named 'opentelemetry.sdk'` no startup — `opentelemetry-sdk` nunca esteve em `requirements.txt` (instalado manualmente fora do pip na epoca da V.1.4.11-13); tratado como falha graciosa pelo proprio codigo, nao derruba o servico.
 
+### Fix pos-deploy: `CLAUDE_TOKEN_ENC_KEY` invalida (22/08/2026)
+- Primeiro teste real do "Analisar com Claude" no dashboard (usuario colou
+  o proprio token de `claude setup-token`) retornou `HTTP 500`.
+- `journalctl -u saleia` apontou a causa exata: `POST /claude-account/connect`
+  → `agent/claude_account.py::criptografar_token` → `ValueError: Fernet key
+  must be 32 url-safe base64-encoded bytes` — o valor de `CLAUDE_TOKEN_ENC_KEY`
+  gravado no `.env` durante o setup da V.1.4.44 (21/08/2026) nao era uma
+  chave Fernet valida.
+- Corrigido gerando uma nova chave valida (`Fernet.generate_key()`) e
+  substituindo a variavel no `.env` da VPS (backup do arquivo original em
+  `/opt/saleia/.env.bak_fernet_fix`); `systemctl restart saleia` aplicado.
+  Nenhum dado orfao: como a criptografia falhava antes de qualquer escrita
+  no banco, nenhuma `ClaudeConnection` chegou a ser persistida com a chave
+  antiga.
+- **Pendente**: usuario precisa tentar conectar de novo pelo dashboard para
+  confirmar que o fluxo completo funciona ponta a ponta agora.
+
 ## O Que Falta
 
 - Reinstalar extensao Chrome (mudanças desde V.1.4.40). *(tarefa manual)*
