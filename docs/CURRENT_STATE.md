@@ -285,7 +285,13 @@ CHANGELOG (V.1.4.44) — resumo:
 - Descomissionar VPS antiga (`204.168.180.25`).
 - Alterar senha do admin via dashboard.
 - **Reindex de embeddings pendente**: rodar `python -m scripts.reindex_embeddings --dry-run --table all` (conferir) e depois sem `--dry-run` (a base atual tem embeddings antigos gerados pela OpenAI, incompativeis com o Ollama).
-- **URGENTE — Faturamento do Google Cloud (Gemini)**: `PermissionDenied: 403 Lightning dunning decision is deny for project: projects/493614671182` — conta de faturamento inadimplente/suspensa, resolver no Google Cloud Console. Nao e bug de codigo.
+- **URGENTE — Todos os 4 provedores de IA centrais sem saldo (22/08/2026)**: primeiro teste real de `POST /recapitulacao-manual` apos o deploy da V.1.4.44 falhou nos 4 provedores simultaneamente — nao e bug de codigo, e financeiro:
+  - `deepseek`: `APIStatusError 402 Insufficient Balance`.
+  - `openai`: `RateLimitError 429 insufficient_quota` — "You have no credits remaining".
+  - `anthropic`: `BadRequestError 400` — "Your credit balance is too low to access the Anthropic API".
+  - `gemini`: `PermissionDenied 403 Lightning dunning decision is deny for project: projects/493614671182` — conta de faturamento do Google Cloud inadimplente/suspensa (mesmo problema ja documentado, ainda nao resolvido).
+  - Resolver adicionando credito/saldo nos paineis do DeepSeek, OpenAI e Anthropic, e regularizando o faturamento no Google Cloud Console. Ate isso ser feito, nenhuma analise de reuniao (recapitulacao manual, tempo real, ou piloto Claude Account) funciona.
+  - Achado: `/health` continua reportando os 4 provedores como `status: ok` / `falhas_consecutivas: 0` mesmo apos essa falha real — o contador de falhas do `/health` nao esta sendo incrementado pelo caminho de `/recapitulacao-manual` (investigar separadamente, fora do escopo desta rodada; `/health` nao pode ser usado como sinal confiavel de que os provedores tem saldo).
 - Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI) continua pendente — agora so acessivel por URL direta (`/visual-scenario?meeting=<id>`), sem botao/menu (removido na V.1.4.42).
 - Validar manualmente o fluxo "Analisar com Claude" end-to-end no Dashboard (conectar via `claude setup-token`, disparar analise, checar os 7 blocos) — deploy tecnico confirmado, mas nenhum vendedor testou a jornada completa ainda.
 - 8 falhas de teste pre-existentes e nao relacionadas encontradas em `tests/test_next_best_question.py`/`tests/test_realtime_memory.py` (nao corrigidas — fora do escopo desta rodada).
