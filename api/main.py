@@ -534,7 +534,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.44",
+        "versao":              "1.4.45",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -572,7 +572,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.44",
+        "versao":          "1.4.45",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -2864,6 +2864,9 @@ class ClaudeConnectRequest(BaseModel):
 
 class ClaudeAnalisarRequest(BaseModel):
     meeting_id: str
+    # Transcrição colada diretamente (análise manual) — quando presente, pula
+    # a busca por sessão gravada em `sessoes` e usa esse texto como contexto.
+    transcricao: Optional[str] = None
 
 
 class ClaudeFeedbackRequest(BaseModel):
@@ -2919,11 +2922,15 @@ async def claude_account_analisar(req: ClaudeAnalisarRequest, authorization: str
     if not meeting_id:
         raise HTTPException(status_code=400, detail="meeting_id é obrigatório.")
 
-    from agent.sessao_manager import obter_transcricao_mais_recente
+    transcricao_colada = (req.transcricao or "").strip()
+    if transcricao_colada:
+        transcricao = transcricao_colada
+    else:
+        from agent.sessao_manager import obter_transcricao_mais_recente
 
-    transcricao = obter_transcricao_mais_recente(meeting_id)
-    if not transcricao.strip():
-        raise HTTPException(status_code=404, detail="Nenhuma transcrição encontrada para esta reunião.")
+        transcricao = obter_transcricao_mais_recente(meeting_id)
+        if not transcricao.strip():
+            raise HTTPException(status_code=404, detail="Nenhuma transcrição encontrada para esta reunião.")
 
     transcript_hash = _hashlib.sha256(transcricao.encode("utf-8")).hexdigest()
 

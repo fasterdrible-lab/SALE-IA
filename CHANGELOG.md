@@ -3,6 +3,57 @@
 
 ---
 
+## V.1.4.45 — Piloto Claude Account também na Análise Manual (texto colado)
+> Data: 22/08/2026 | Feature (piloto Claude Account Mode)
+
+### VISÃO
+Após o deploy da V.1.4.44, o único ponto de entrada do piloto era o botão
+"Analisar com Claude" no detalhe de uma sessão gravada (exige `meeting_id`
+com transcrição já salva em `sessoes`). Usuário tentou usar o piloto pela
+tela de "Analisar Transcrição" (texto colado manualmente) e recebeu o erro
+dos 4 provedores centrais sem saldo — na verdade clicou no botão errado,
+porque não havia opção de piloto ali. Adicionado um segundo caminho de
+entrada equivalente, para texto colado sem sessão gravada.
+
+### BACKEND — `api/main.py`
+- `ClaudeAnalisarRequest` ganhou campo opcional `transcricao: Optional[str]`.
+  Quando presente (e não vazio após `.strip()`), `POST /claude-account/analisar`
+  usa esse texto diretamente como contexto, pulando a busca por sessão via
+  `obter_transcricao_mais_recente(meeting_id)`. Sem o campo (ou em branco),
+  comportamento anterior preservado — 404 se a sessão não tiver transcrição.
+- `meeting_id` continua obrigatório mesmo com texto colado — usado como
+  chave de persistência/reuso em `ClaudeMeetingAnalysis`; para texto colado
+  o frontend gera um id sintético (`manual-<timestamp>-<random>`), já que
+  não existe uma sessão real por trás.
+
+### FRONTEND — `frontend/dashboard.html`
+- Novo botão "🤖 Analisar com Claude (piloto)" na tela "Analisar Transcrição",
+  ao lado do botão normal "🔍 Analisar Transcrição".
+- `analisarComClaude`/`renderizarAnaliseClaude` refatoradas para aceitar um
+  container de resultado configurável (`containerId`) — antes hardcoded para
+  o detalhe de sessão, agora reusadas também pela tela de análise manual
+  (`analisarComClaudeManual`, novo) sem duplicar a lógica de request/erro/
+  feedback.
+- Mesmo pipeline de detecção de falas (`detectarFalas`) do botão normal é
+  aplicado antes de enviar ao piloto, para consistência de formatação.
+
+### TESTES
+- `tests/test_claude_account.py`: nova classe `ClaudeAnalisarEndpointTest`
+  (3 testes, via `TestClient`) — transcrição colada pula a busca de sessão
+  gravada; sem transcrição, comportamento antigo preservado (404 se sessão
+  vazia); transcrição só com espaços é tratada como ausente.
+- Suite completa (87 testes: smoke, claude_account, propensao_rules,
+  base_download, ai_router, embeddings): sem regressões.
+
+### VERSÃO
+- Backend: `1.4.44` → `1.4.45` (`/health`, `/monitor/metricas`).
+
+### ARQUIVOS ALTERADOS
+- `api/main.py` (endpoint + versão), `frontend/dashboard.html`,
+  `tests/test_claude_account.py`
+
+---
+
 ## V.1.4.44 — Piloto Claude Account Mode (conta Claude individual por vendedor)
 > Data: 21/08/2026 | Feature (piloto controlado, atrás de feature flag)
 

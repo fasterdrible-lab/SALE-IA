@@ -206,5 +206,104 @@ class CriptografiaTokenTest(unittest.TestCase):
                 claude_account.criptografar_token("qualquer-token")
 
 
+class ClaudeAnalisarEndpointTest(unittest.TestCase):
+    """POST /claude-account/analisar — cobre o campo opcional `transcricao`
+    (análise manual/texto colado, sem sessão gravada em `sessoes`)."""
+
+    @classmethod
+    def setUpClass(cls):
+        import api.main as _main  # noqa: dispara setup a nivel de modulo
+
+        # Nota: NAO mockar api.database.criar_tabelas aqui — os testes desta
+        # classe chamam a versao real em setUp() contra o engine sqlite
+        # temporario de cada teste (mesmo padrao de ClaudeAccountDbTest).
+        cls._patches = []
+        for target in (
+            "agent.sessao_manager.criar_tabela_sessoes",
+            "agent.sessao_manager.criar_tabela_usuarios",
+            "agent.visual_scenario.criar_tabela_visual_scenarios",
+            "agent.sales_memory.criar_tabela_sales_memories",
+        ):
+            try:
+                p = patch(target)
+                p.start()
+                cls._patches.append(p)
+            except Exception:
+                pass
+
+        from fastapi.testclient import TestClient
+
+        cls._ctx = TestClient(_main.app)
+        cls.client = cls._ctx.__enter__()
+        cls._main = _main
+        cls.token = _main._gerar_token("user-manual", "vendedor@saleia.app.br", "vendedor")
+        cls.auth_header = {"Authorization": f"Bearer {cls.token}"}
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._ctx.__exit__(None, None, None)
+        for p in cls._patches:
+            p.stop()
+
+    def setUp(self):
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmpdir.cleanup)
+        db_path = Path(self._tmpdir.name) / "saleia_claude_analisar.db"
+        self.engine = create_engine(f"sqlite:///{db_path}")
+        self.addCleanup(self.engine.dispose)
+        engine_patch = patch.object(database, "engine", self.engine)
+        engine_patch.start()
+        self.addCleanup(engine_patch.stop)
+        database.criar_tabelas()
+
+        flag_patch = patch.dict(os.environ, {"CLAUDE_ACCOUNT_PILOT": "true"}, clear=False)
+        flag_patch.start()
+        self.addCleanup(flag_patch.stop)
+
+    def _mock_execute(self, resultado):
+        async def fake_execute(*args, **kwargs):
+            return resultado
+
+        return patch.object(claude_account.claude_account_executor, "execute", side_effect=fake_execute)
+
+    def test_transcricao_colada_pula_busca_de_sessao_gravada(self):
+        with patch(
+            "agent.sessao_manager.obter_transcricao_mais_recente"
+        ) as mock_busca, self._mock_execute({"recapitulacao": "ok", "dores": []}):
+            r = self.client.post(
+                "/claude-account/analisar",
+                json={"meeting_id": "manual-abc123", "transcricao": "Vendedor: oi\nCliente: oi"},
+                headers=self.auth_header,
+            )
+
+        self.assertEqual(r.status_code, 200)
+        mock_busca.assert_not_called()
+        self.assertEqual(r.json()["resultado"]["recapitulacao"], "ok")
+
+    def test_sem_transcricao_ainda_busca_sessao_gravada_e_404_se_vazia(self):
+        with patch("agent.sessao_manager.obter_transcricao_mais_recente", return_value="") as mock_busca:
+            r = self.client.post(
+                "/claude-account/analisar",
+                json={"meeting_id": "meeting-real-1"},
+                headers=self.auth_header,
+            )
+
+        self.assertEqual(r.status_code, 404)
+        mock_busca.assert_called_once_with("meeting-real-1")
+
+    def test_transcricao_colada_em_branco_e_tratada_como_ausente(self):
+        with patch(
+            "agent.sessao_manager.obter_transcricao_mais_recente", return_value=""
+        ) as mock_busca:
+            r = self.client.post(
+                "/claude-account/analisar",
+                json={"meeting_id": "meeting-real-2", "transcricao": "   "},
+                headers=self.auth_header,
+            )
+
+        self.assertEqual(r.status_code, 404)
+        mock_busca.assert_called_once_with("meeting-real-2")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1222,6 +1222,12 @@
               <span id="btn-text">🔍 Analisar Transcrição</span>
               <div class="btn-spinner" id="btn-spinner"></div>
             </button>
+            <button
+              id="btn-analisar-claude-manual"
+              onclick="analisarComClaudeManual()"
+              aria-label="Analisar transcrição com Claude (piloto)"
+              style="background:none;border:1px solid rgba(212,175,55,.5);color:#D4AF37;padding:0 18px;border-radius:8px;cursor:pointer;font-size:.9rem;font-weight:600;height:44px"
+            >🤖 Analisar com Claude (piloto)</button>
             <span class="action-hint">ou pressione Ctrl + Enter</span>
           </div>
 
@@ -1229,6 +1235,9 @@
           <div id="an-erro" class="form-error" role="alert" style="display:none"></div>
 
         </div><!-- /form-card -->
+
+        <!-- Resultado da análise via conta Claude do usuário (piloto) -->
+        <div id="claude-analise-resultado-manual" style="margin-bottom:16px"></div>
 
         <!-- Área de resultado -->
         <div id="an-resultado"></div>
@@ -4488,16 +4497,54 @@
 
   /* ─── Analisar reunião com a conta Claude do usuário (piloto) ─── */
   async function analisarComClaude(meetingId) {
-    const btn = document.getElementById('btn-analisar-claude');
-    const container = document.getElementById('claude-analise-resultado');
     if (!meetingId) { alert('Esta sessão não tem meeting_id associado.'); return; }
+    return _analisarComClaudeCore({
+      meetingId,
+      btnId: 'btn-analisar-claude',
+      containerId: 'claude-analise-resultado',
+      btnLabel: '🤖 Analisar com Claude',
+    });
+  }
+
+  /* ─── Idem, a partir da tela de Analisar Transcrição (texto colado) ─── */
+  async function analisarComClaudeManual() {
+    const transcricao = document.getElementById('an-transcricao').value.trim();
+    if (!transcricao) {
+      alert('Cole a transcrição antes de analisar com Claude.');
+      return;
+    }
+    const vendedor = document.getElementById('an-vendedor')?.value.trim() || '';
+    const clientes = _clientesLista.map(c => c.nome.trim()).filter(Boolean);
+    const extras   = _participantesExtras.filter(p => p.nome.trim());
+    const falasSeparadas = detectarFalas(transcricao, { vendedor, clientes }, extras);
+    const transcricaoComParticipantes = falasSeparadas.length
+      ? falasSeparadas.map(f => `${f.speaker}: ${f.text}`).join('\n')
+      : transcricao;
+
+    // Texto colado não tem meeting_id real (não veio de sessão gravada) —
+    // gerado só para persistência/reuso da análise no backend.
+    const meetingId = 'manual-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+
+    return _analisarComClaudeCore({
+      meetingId,
+      transcricao: transcricaoComParticipantes,
+      btnId: 'btn-analisar-claude-manual',
+      containerId: 'claude-analise-resultado-manual',
+      btnLabel: '🤖 Analisar com Claude (piloto)',
+    });
+  }
+
+  async function _analisarComClaudeCore({ meetingId, transcricao, btnId, containerId, btnLabel }) {
+    const btn = document.getElementById(btnId);
+    const container = document.getElementById(containerId);
     if (btn) { btn.disabled = true; btn.textContent = '🤖 Analisando...'; }
     container.innerHTML = '';
     try {
+      const body = transcricao ? { meeting_id: meetingId, transcricao } : { meeting_id: meetingId };
       const r = await fetch(API + '/claude-account/analisar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ..._claudeAuthHeaders() },
-        body: JSON.stringify({ meeting_id: meetingId }),
+        body: JSON.stringify(body),
       });
       const dados = await r.json().catch(() => ({}));
       if (!r.ok) {
@@ -4521,18 +4568,18 @@
         }
         return;
       }
-      renderizarAnaliseClaude(dados);
+      renderizarAnaliseClaude(dados, containerId);
     } catch (e) {
       container.innerHTML = `<div class="info-card" style="border-color:rgba(239,68,68,.3)">
         <p style="color:#FCA5A5;margin:0">Não foi possível concluir a análise: ${escHtml(e.message)}</p>
       </div>`;
     } finally {
-      if (btn) { btn.disabled = false; btn.textContent = '🤖 Analisar com Claude'; }
+      if (btn) { btn.disabled = false; btn.textContent = btnLabel; }
     }
   }
 
-  function renderizarAnaliseClaude(analise) {
-    const container = document.getElementById('claude-analise-resultado');
+  function renderizarAnaliseClaude(analise, containerId = 'claude-analise-resultado') {
+    const container = document.getElementById(containerId);
     const r = analise.resultado || {};
     const lista = (titulo, itens) => (itens && itens.length)
       ? `<div class="info-card"><h3>${titulo}</h3><ul style="margin:6px 0 0;padding-left:18px;color:#cbd5e1">${itens.map(i => `<li>${escHtml(i)}</li>`).join('')}</ul></div>`
