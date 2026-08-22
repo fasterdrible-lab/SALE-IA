@@ -198,6 +198,30 @@ class ClaudeAccountExecutorTest(unittest.TestCase):
         self.assertEqual(env_enviado.get("ANTHROPIC_AUTH_TOKEN"), "")
         self.assertEqual(env_enviado.get("CLAUDE_CODE_OAUTH_TOKEN"), "plain-cripto-a")
 
+    def test_executar_query_desabilita_ferramentas_de_verdade(self):
+        """`allowed_tools=[]` sozinho so remove a pre-aprovacao, nao torna as
+        ferramentas indisponiveis (doc do SDK) — sem `tools=[]`, o modelo tenta
+        usar ferramentas, cai em permissao negada e esgota o max_turns
+        (reproduzia `error_max_turns` em producao). Confirma que `tools=[]`
+        e passado e que ha margem de turnos (>1) para a resposta completar."""
+        database.salvar_claude_connection("user-a", "cripto-a")
+        capturado = {}
+
+        async def fake_query(**kwargs):
+            capturado["options"] = kwargs["options"]
+            return
+            yield  # pragma: no cover - torna a funcao um async generator vazio
+
+        with patch.object(claude_account, "descriptografar_token", side_effect=lambda v: f"plain-{v}"):
+            with patch("claude_agent_sdk.query", side_effect=fake_query):
+                executor = claude_account.ClaudeAccountExecutor()
+                with self.assertRaises(claude_account.ClaudeAccountError):
+                    asyncio.run(executor.execute(usuario_id="user-a", prompt="p", context="c"))
+
+        options = capturado["options"]
+        self.assertEqual(options.tools, [])
+        self.assertGreater(options.max_turns, 1)
+
     def test_execute_propaga_erro_classificado_sem_marcar_uso(self):
         database.salvar_claude_connection("user-a", "cripto-a")
 

@@ -3,6 +3,50 @@
 
 ---
 
+## V.1.4.48 — Fix: piloto Claude Account esgotava max_turns por usar o campo errado do SDK
+> Data: 22/08/2026 | Bug fix (piloto Claude Account Mode)
+
+### INCIDENTE
+Após os fixes das V.1.4.46 (ANTHROPIC_API_KEY herdada) e V.1.4.47 (token
+corrompido por espaço), o usuário conectou com sucesso e disparou uma
+análise real — autenticação funcionou (sem mais 401), mas a análise falhou
+com `GENERIC_ERROR: error_max_turns`.
+
+### CAUSA RAIZ
+`agent/claude_account.py::_executar_query` passava `allowed_tools=[]` na
+tentativa de rodar a análise sem nenhuma ferramenta (prompt fechado,
+"nada além disso", conforme decisão de arquitetura da V.1.4.44). Só que
+`allowed_tools` **não controla quais ferramentas existem** — controla
+apenas quais são *pré-aprovadas sem pedir permissão*. A própria
+documentação do `claude-agent-sdk` é explícita: *"To restrict which tools
+are available at all, use `tools`"*. Com `allowed_tools=[]` e `tools` no
+padrão (`None` → conjunto padrão disponível), o modelo continuava vendo o
+conjunto padrão de ferramentas, tentava usá-las, esbarrava em permissão
+negada (nenhum callback de aprovação configurado) e esgotava o
+`max_turns=1` tentando de novo — o que a SDK reporta como
+`error_max_turns` (via `ResultError`, subclasse de `ProcessError`).
+
+### CORREÇÃO — `agent/claude_account.py::_executar_query`
+- Adicionado `tools=[]` (o campo correto para desabilitar ferramentas de
+  verdade) mantendo `allowed_tools=[]`.
+- `max_turns`: `1` → `3` — margem de segurança para a resposta completar
+  mesmo sem depender de nenhuma ferramenta, sem abrir mão do caráter
+  "fechado" da interação (segue não sendo uma conversa multi-turno real).
+
+### TESTES
+- `tests/test_claude_account.py`: novo
+  `test_executar_query_desabilita_ferramentas_de_verdade` — confirma que
+  `tools=[]` é enviado ao SDK e que `max_turns > 1`.
+- Suite completa do piloto (26 testes): sem regressão.
+
+### VERSÃO
+- Backend: `1.4.47` → `1.4.48` (`/health`, `/monitor/metricas`).
+
+### ARQUIVOS ALTERADOS
+- `agent/claude_account.py`, `tests/test_claude_account.py`, `api/main.py` (versão)
+
+---
+
 ## V.1.4.47 — Fix: token do piloto corrompido por espaço/quebra de linha na cópia
 > Data: 22/08/2026 | Bug fix (piloto Claude Account Mode)
 

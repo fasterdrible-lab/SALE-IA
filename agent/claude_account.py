@@ -189,8 +189,17 @@ class ClaudeAccountExecutor:
 
         options = ClaudeAgentOptions(
             system_prompt=None,
+            # `allowed_tools` só remove a pré-aprovação automática — não torna
+            # as ferramentas indisponíveis (doc do SDK: "To restrict which
+            # tools are available at all, use `tools`"). Sem isso, o modelo
+            # ainda "vê" o conjunto padrão de ferramentas, tenta usá-las, cai
+            # em permissão negada (sem callback de aprovação configurado) e
+            # esgota o max_turns tentando de novo — reproduzia
+            # `error_max_turns` em toda análise real. `tools=[]` é o que de
+            # fato implementa o "nada além do prompt fechado" pretendido.
             allowed_tools=[],
-            max_turns=1,
+            tools=[],
+            max_turns=3,
             # O SDK monta o env do subprocesso CLI como
             # {**os.environ herdado, **este dict} — herda TUDO do processo do
             # saleia.service, incluindo a ANTHROPIC_API_KEY central usada pelo
