@@ -3,6 +3,55 @@
 
 ---
 
+## V.1.4.47 — Fix: token do piloto corrompido por espaço/quebra de linha na cópia
+> Data: 22/08/2026 | Bug fix (piloto Claude Account Mode)
+
+### INCIDENTE
+Após o fix da V.1.4.46, usuário conectou a conta Claude com sucesso
+(`POST /claude-account/connect` = 200 OK) mas toda análise continuou
+falhando — dashboard mostrava "Sua sessão Claude expirou", e o
+`error_message` persistido era `Failed to authenticate. API Error: 401
+OAuth access token is invalid.` (não mais o erro de saldo da V.1.4.44/45,
+confirmando que o fix anterior funcionou — este é um problema diferente).
+
+### CAUSA RAIZ
+Token real recém-conectado inspecionado no banco (decriptografado só para
+diagnóstico, nunca exposto): 110 caracteres, prefixo `sk-ant-oat01-`
+correto, mas **contendo um espaço no meio da string**. `POST
+/claude-account/connect` só fazia `.strip()` (remove só das pontas) antes
+de criptografar e salvar — um espaço ou quebra de linha inserida ao copiar
+o token de um terminal onde a linha longa quebra visualmente (artefato
+comum de copiar-colar) corrompe o token silenciosamente: a conexão salva
+sem erro, e só a análise revela o problema, com uma mensagem que não deixa
+claro que a causa é o próprio token salvo.
+
+### CORREÇÃO — `api/main.py::claude_account_connect`
+Troca de `.strip()` por `re.sub(r"\s+", "", ...)` — remove **todo**
+whitespace (espaços, tabs, quebras de linha), não só das pontas. Tokens
+OAuth do Claude Code nunca contêm whitespace legítimo, então essa
+sanitização é segura para qualquer token válido e neutraliza exatamente
+essa classe de corrupção por copiar-colar.
+
+### IMPORTANTE — usuários já conectados antes deste fix
+O fix vale só para novas conexões. Quem conectou com um token corrompido
+antes da V.1.4.47 precisa desconectar e reconectar (colar o token de novo)
+para que a sanitização seja aplicada — a linha já salva no banco continua
+com o espaço até isso acontecer.
+
+### TESTES
+- `tests/test_claude_account.py`: nova classe `ClaudeConnectEndpointTest`
+  (2 testes) — espaço/quebra de linha no meio do token são removidos antes
+  de criptografar; token só com espaços continua sendo rejeitado (400).
+- Suite completa do piloto (25 testes): sem regressão.
+
+### VERSÃO
+- Backend: `1.4.46` → `1.4.47` (`/health`, `/monitor/metricas`).
+
+### ARQUIVOS ALTERADOS
+- `api/main.py` (endpoint + versão), `tests/test_claude_account.py`
+
+---
+
 ## V.1.4.46 — Fix crítico: piloto Claude Account cobrava da conta central, não do vendedor
 > Data: 22/08/2026 | Bug fix (piloto Claude Account Mode)
 

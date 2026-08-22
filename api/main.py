@@ -534,7 +534,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.46",
+        "versao":              "1.4.47",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -572,7 +572,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.46",
+        "versao":          "1.4.47",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -2896,7 +2896,13 @@ def claude_account_status(authorization: str | None = _Header(default=None)):
 @app.post("/claude-account/connect")
 def claude_account_connect(req: ClaudeConnectRequest, authorization: str | None = _Header(default=None)):
     payload = _req_claude_pilot(authorization)
-    token = (req.oauth_token or "").strip()
+    # Remove qualquer espaço/quebra de linha (incluindo no meio do token) —
+    # tokens OAuth do Claude Code nunca contêm whitespace legítimo; o caso
+    # real observado foi um espaço inserido ao copiar do terminal onde o
+    # token longo quebrava linha, o que corrompia o token silenciosamente
+    # (conectava com sucesso, mas toda análise falhava com "OAuth access
+    # token is invalid").
+    token = re.sub(r"\s+", "", req.oauth_token or "")
     if not token:
         raise HTTPException(status_code=400, detail="Token da conta Claude não informado.")
 

@@ -330,5 +330,87 @@ class ClaudeAnalisarEndpointTest(unittest.TestCase):
         mock_busca.assert_called_once_with("meeting-real-2")
 
 
+class ClaudeConnectEndpointTest(unittest.TestCase):
+    """POST /claude-account/connect — remove whitespace interno do token colado.
+
+    Caso real observado: token copiado de um terminal onde a linha longa
+    quebrava visualmente ganhou um espaço no meio durante a cópia. O token
+    corrompido salvava com sucesso (200 OK), mas toda análise falhava com
+    "OAuth access token is invalid" — sem sinal nenhum de que o problema
+    era o próprio token salvo, não a conta Claude do usuário."""
+
+    @classmethod
+    def setUpClass(cls):
+        import api.main as _main  # noqa: dispara setup a nivel de modulo
+
+        cls._patches = []
+        for target in (
+            "agent.sessao_manager.criar_tabela_sessoes",
+            "agent.sessao_manager.criar_tabela_usuarios",
+            "agent.visual_scenario.criar_tabela_visual_scenarios",
+            "agent.sales_memory.criar_tabela_sales_memories",
+        ):
+            try:
+                p = patch(target)
+                p.start()
+                cls._patches.append(p)
+            except Exception:
+                pass
+
+        from fastapi.testclient import TestClient
+
+        cls._ctx = TestClient(_main.app)
+        cls.client = cls._ctx.__enter__()
+        cls._main = _main
+        cls.token = _main._gerar_token("user-connect", "vendedor@saleia.app.br", "vendedor")
+        cls.auth_header = {"Authorization": f"Bearer {cls.token}"}
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._ctx.__exit__(None, None, None)
+        for p in cls._patches:
+            p.stop()
+
+    def setUp(self):
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmpdir.cleanup)
+        db_path = Path(self._tmpdir.name) / "saleia_claude_connect.db"
+        self.engine = create_engine(f"sqlite:///{db_path}")
+        self.addCleanup(self.engine.dispose)
+        engine_patch = patch.object(database, "engine", self.engine)
+        engine_patch.start()
+        self.addCleanup(engine_patch.stop)
+        database.criar_tabelas()
+
+        flag_patch = patch.dict(os.environ, {"CLAUDE_ACCOUNT_PILOT": "true"}, clear=False)
+        flag_patch.start()
+        self.addCleanup(flag_patch.stop)
+
+    def test_espaco_e_quebra_de_linha_no_meio_do_token_sao_removidos(self):
+        capturado = {}
+
+        def fake_criptografar(token):
+            capturado["token"] = token
+            return "cripto-fake"
+
+        with patch.object(self._main, "criptografar_token", side_effect=fake_criptografar):
+            r = self.client.post(
+                "/claude-account/connect",
+                json={"oauth_token": "sk-ant-oat01-abc123 def456\nghi789"},
+                headers=self.auth_header,
+            )
+
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(capturado["token"], "sk-ant-oat01-abc123def456ghi789")
+
+    def test_token_so_com_espacos_e_rejeitado(self):
+        r = self.client.post(
+            "/claude-account/connect",
+            json={"oauth_token": "   \n  "},
+            headers=self.auth_header,
+        )
+        self.assertEqual(r.status_code, 400)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -25,7 +25,7 @@ Atualizado em: 2026-08-21 (V.1.4.44)
 
 ## Versao Atual
 
-`V.1.4.46` — fix critico: piloto Claude Account estava herdando ANTHROPIC_API_KEY central do processo e cobrando da conta compartilhada em vez da assinatura do vendedor (ver secao abaixo). V.1.4.45 (piloto tambem na tela de Analisar Transcricao) e V.1.4.44 (piloto Claude Account) confirmadas deployadas na VPS nova | extensao Chrome `V.1.4.3` | VPS antiga (`204.168.180.25`) deprecada
+`V.1.4.47` — fix: token do piloto podia ser corrompido por espaço/quebra de linha ao colar (POST /claude-account/connect agora remove todo whitespace, nao so das pontas). V.1.4.46 (fix ANTHROPIC_API_KEY herdada), V.1.4.45 (piloto tambem em Analisar Transcricao) e V.1.4.44 (piloto Claude Account) confirmadas deployadas na VPS nova | extensao Chrome `V.1.4.3` | VPS antiga (`204.168.180.25`) deprecada
 
 ## Funcionalidades Entregues
 
@@ -295,7 +295,8 @@ CHANGELOG (V.1.4.44) — resumo:
 - Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI) continua pendente — agora so acessivel por URL direta (`/visual-scenario?meeting=<id>`), sem botao/menu (removido na V.1.4.42).
 - **Conectar** via `claude setup-token` confirmado funcionando em producao (22/08/2026, `POST /claude-account/connect` = 200 OK).
 - **Fix critico (V.1.4.46, 22/08/2026)**: primeiro teste real de `POST /claude-account/analisar` (apos a V.1.4.45 adicionar o botao na tela de Analisar Transcricao) falhou com `GENERIC_ERROR` — `error_message` persistido: "Credit balance is too low", a mesma mensagem do provedor Anthropic central sem saldo. Causa: `claude_agent_sdk` monta o env do subprocesso CLI herdando **todo** o `os.environ` do `saleia.service` (incluindo `ANTHROPIC_API_KEY` central), e o Claude Code prioriza essa variavel sobre `CLAUDE_CODE_OAUTH_TOKEN` quando as duas existem — o piloto estava cobrando da conta compartilhada (sem saldo), nao da assinatura do vendedor. Corrigido em `agent/claude_account.py::_executar_query` limpando `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` no `env` passado ao SDK. Teste novo cobrindo o comportamento. Deploy confirmado (ver Deploy V.1.4.46 abaixo).
-- **Ainda nao validado**: disparar uma analise real completa (`POST /claude-account/analisar`) e ver os 7 blocos renderizados com sucesso — o fix corrige a causa conhecida, mas ninguem confirmou uma execucao bem-sucedida ainda.
+- **Fix (V.1.4.47, 22/08/2026)**: apos o fix da V.1.4.46, usuario conectou com sucesso mas a analise continuou falhando — dessa vez com `AUTH_REQUIRED`/"401 OAuth access token is invalid" (nao mais o erro de saldo, confirmando que o fix anterior funcionou). Diagnostico (token decriptografado só para inspecao, nunca exposto): o token salvo tinha **um espaco no meio da string** — artefato de copiar um token longo de um terminal com quebra de linha visual. `POST /claude-account/connect` so fazia `.strip()` (pontas); trocado por `re.sub(r"\s+", "", ...)` que remove whitespace em qualquer posicao. **Vale so para novas conexoes** — quem conectou antes precisa desconectar/reconectar colando o token de novo.
+- **Ainda nao validado**: disparar uma analise real completa (`POST /claude-account/analisar`) e ver os 7 blocos renderizados com sucesso, apos reconectar com o fix da V.1.4.47 no ar.
 - 8 falhas de teste pre-existentes e nao relacionadas encontradas em `tests/test_next_best_question.py`/`tests/test_realtime_memory.py` (nao corrigidas — fora do escopo desta rodada).
 - **Decisoes tomadas sobre as 4 lacunas remanescentes da V.1.4.40 (20/08/2026)**:
   - Download da Base sem isolamento por empresa/tenant: **aceito como esta** — SALEIA e uso interno de uma unica empresa, multi-tenancy nao se aplica. `GET /base/{id}/download` continua exigindo so JWT valido.
