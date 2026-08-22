@@ -191,7 +191,19 @@ class ClaudeAccountExecutor:
             system_prompt=None,
             allowed_tools=[],
             max_turns=1,
-            env={"CLAUDE_CODE_OAUTH_TOKEN": token},
+            # O SDK monta o env do subprocesso CLI como
+            # {**os.environ herdado, **este dict} — herda TUDO do processo do
+            # saleia.service, incluindo a ANTHROPIC_API_KEY central usada pelo
+            # provedor Anthropic compartilhado (api/ai_router.py). O Claude
+            # Code prioriza ANTHROPIC_API_KEY sobre CLAUDE_CODE_OAUTH_TOKEN
+            # quando as duas existem, então sem isso o piloto cobra da conta
+            # central (e falha se ela estiver sem saldo) em vez da assinatura
+            # Pro/Max do próprio vendedor. Strings vazias limpam a herança.
+            env={
+                "CLAUDE_CODE_OAUTH_TOKEN": token,
+                "ANTHROPIC_API_KEY": "",
+                "ANTHROPIC_AUTH_TOKEN": "",
+            },
             # Serviços systemd costumam ter PATH restrito e podem não achar o
             # binário `claude` instalado via npm global — permite apontar um
             # caminho absoluto pelo .env sem precisar mexer no unit file.

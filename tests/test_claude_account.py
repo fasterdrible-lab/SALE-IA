@@ -173,6 +173,31 @@ class ClaudeAccountExecutorTest(unittest.TestCase):
         conexao_a = database.obter_claude_connection("user-a")
         self.assertIsNotNone(conexao_a["last_used_at"])
 
+    def test_executar_query_limpa_anthropic_api_key_herdada_do_processo(self):
+        """O SDK monta o env do subprocesso como {**os.environ herdado, **options.env}
+        — sem limpar ANTHROPIC_API_KEY explicitamente, o piloto herdaria a chave
+        central (agent/claude_account.py::_executar_query) e cobraria da conta
+        compartilhada em vez da assinatura do proprio vendedor."""
+        database.salvar_claude_connection("user-a", "cripto-a")
+        capturado = {}
+
+        async def fake_query(**kwargs):
+            capturado["options"] = kwargs["options"]
+            return
+            yield  # pragma: no cover - torna a funcao um async generator vazio
+
+        with patch.object(claude_account, "descriptografar_token", side_effect=lambda v: f"plain-{v}"):
+            with patch("claude_agent_sdk.query", side_effect=fake_query):
+                with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "chave-central-secreta"}, clear=False):
+                    executor = claude_account.ClaudeAccountExecutor()
+                    with self.assertRaises(claude_account.ClaudeAccountError):
+                        asyncio.run(executor.execute(usuario_id="user-a", prompt="p", context="c"))
+
+        env_enviado = capturado["options"].env
+        self.assertEqual(env_enviado.get("ANTHROPIC_API_KEY"), "")
+        self.assertEqual(env_enviado.get("ANTHROPIC_AUTH_TOKEN"), "")
+        self.assertEqual(env_enviado.get("CLAUDE_CODE_OAUTH_TOKEN"), "plain-cripto-a")
+
     def test_execute_propaga_erro_classificado_sem_marcar_uso(self):
         database.salvar_claude_connection("user-a", "cripto-a")
 

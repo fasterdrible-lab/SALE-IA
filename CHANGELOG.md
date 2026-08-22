@@ -3,6 +3,54 @@
 
 ---
 
+## V.1.4.46 — Fix crítico: piloto Claude Account cobrava da conta central, não do vendedor
+> Data: 22/08/2026 | Bug fix (piloto Claude Account Mode)
+
+### INCIDENTE
+Primeiro teste real ponta a ponta do piloto (conectar conta + analisar) na
+V.1.4.45 falhou com `GENERIC_ERROR` — mensagem persistida em
+`ClaudeMeetingAnalysis.error_message`: **"Credit balance is too low"**, a
+mesma mensagem literal do provedor Anthropic central (que estava sem saldo,
+ver V.1.4.44/CURRENT_STATE.md). Isso não fazia sentido para uma feature cujo
+propósito inteiro é usar a assinatura Claude do próprio vendedor.
+
+### CAUSA RAIZ
+`claude_agent_sdk` (biblioteca usada por `agent/claude_account.py::_executar_query`
+para spawnar o CLI `claude`) monta o ambiente do subprocesso como
+`{**os.environ herdado do processo pai, **ClaudeAgentOptions.env}` — ou seja,
+o subprocesso herda **todo** o ambiente do `saleia.service`, incluindo a
+`ANTHROPIC_API_KEY` central usada por `api/ai_router.py` para o provedor
+Anthropic compartilhado. O Claude Code prioriza `ANTHROPIC_API_KEY` sobre
+`CLAUDE_CODE_OAUTH_TOKEN` quando as duas credenciais estão presentes —
+resultado: toda análise do piloto tentava debitar da conta central (sem
+saldo) em vez da assinatura Pro/Max do vendedor, silenciosamente, sem
+nenhum aviso de que a credencial errada estava sendo usada.
+
+### CORREÇÃO — `agent/claude_account.py::_executar_query`
+`ClaudeAgentOptions.env` passa a incluir `"ANTHROPIC_API_KEY": ""` e
+`"ANTHROPIC_AUTH_TOKEN": ""` junto com `CLAUDE_CODE_OAUTH_TOKEN` — como o
+dict de `options.env` é aplicado por cima do ambiente herdado na mesclagem
+do próprio SDK, strings vazias limpam a herança dessas duas variáveis para
+o subprocesso do piloto, forçando o CLI a autenticar só via OAuth token do
+vendedor.
+
+### TESTES
+- `tests/test_claude_account.py`: novo
+  `test_executar_query_limpa_anthropic_api_key_herdada_do_processo` — injeta
+  `ANTHROPIC_API_KEY` no ambiente do processo de teste, mocka
+  `claude_agent_sdk.query` para capturar o `ClaudeAgentOptions` recebido, e
+  confirma que `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` chegam vazias e
+  `CLAUDE_CODE_OAUTH_TOKEN` chega com o token do vendedor.
+- Suite completa do piloto (23 testes): sem regressão.
+
+### VERSÃO
+- Backend: `1.4.45` → `1.4.46` (`/health`, `/monitor/metricas`).
+
+### ARQUIVOS ALTERADOS
+- `agent/claude_account.py`, `tests/test_claude_account.py`, `api/main.py` (versão)
+
+---
+
 ## V.1.4.45 — Piloto Claude Account também na Análise Manual (texto colado)
 > Data: 22/08/2026 | Feature (piloto Claude Account Mode)
 
