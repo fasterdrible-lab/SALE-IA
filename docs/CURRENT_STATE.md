@@ -25,7 +25,7 @@ Atualizado em: 2026-08-21 (V.1.4.44)
 
 ## Versao Atual
 
-`V.1.4.44` — local + GitHub (V.1.4.43 confirmado deployado na VPS nova em 21/08/2026; V.1.4.44 ainda pendente de deploy completo — ver "O Que Falta") | extensao Chrome `V.1.4.3` | VPS antiga (`204.168.180.25`) deprecada
+`V.1.4.44` — confirmado deployado e ativo na VPS nova em 22/08/2026 (ver "Deploy V.1.4.44 Confirmado") | extensao Chrome `V.1.4.3` | VPS antiga (`204.168.180.25`) deprecada
 
 ## Funcionalidades Entregues
 
@@ -249,21 +249,28 @@ CHANGELOG (V.1.4.44) — resumo:
   sessão, feedback 👍/😐/👎, painel de métricas admin no Monitor.
 - 19 testes novos em `tests/test_claude_account.py`.
 
+## Deploy V.1.4.44 Confirmado (22/08/2026)
+
+- `reunioes_ativas: 0` checado em `/health` antes de agir (duas vezes: antes do `git pull` e novamente antes do `systemctl restart`).
+- SSH root na VPS nova exigia senha (chave `saleia_vps` parou de funcionar) — acesso restabelecido com senha fornecida pelo usuario.
+- `git fetch origin main` mostrou que o cache local de `origin/main` na VPS estava atrasado (ainda via `f23b8e0`); `git pull origin main` trouxe o fast-forward para `13f74f4` (bump de versao 1.4.43 -> 1.4.44).
+- **Achado durante o `pip install -r requirements.txt`**: o resolvedor bateu em `error: resolution-too-deep` e instalou um ambiente inconsistente — `mcp` (trazido por `claude-agent-sdk`) exige `starlette>=0.48` no Python 3.14 (`sse-starlette` exige `>=0.49.1`), incompativel com o range `starlette<0.38.0,>=0.37.2` exigido por `fastapi==0.111.0`. Pip instalou `starlette 1.6.0` (quebraria o FastAPI, nucleo de toda a API, no proximo restart).
+  - Corrigido removendo o pino exato de `fastapi==0.111.0`/`uvicorn[standard]==0.30.1` para `>=0.111.0`/`>=0.30.1` em `requirements.txt` (commit `249fd9a`) — ao rodar `pip install` de novo com o grafo completo (nao isolado), o resolvedor achou uma solucao consistente por conta propria: manteve `fastapi==0.111.0` e baixou `mcp` de `2.0.0` para `1.27.2` (compativel com `starlette==0.37.2`). `pip check`: "No broken requirements found."
+  - Validado antes do restart: `import claude_agent_sdk`, `import agent.claude_account` e `import api.main` (com `PYTHONPATH=/opt/saleia`) — todos OK, sem excecao.
+- `claude --version` = `2.1.239 (Claude Code)` confirmado funcional (o aviso de `allow-scripts` do npm nao impediu o binario de funcionar).
+- `systemctl restart saleia`: servico `active`; `journalctl -u saleia` sem excecoes, todas as tabelas (incluindo as novas `ClaudeConnection`/`ClaudeMeetingAnalysis`) verificadas/criadas no startup.
+- Pos-deploy: `/health` retornou `versao: 1.4.44`, 4 provedores `status: ok` com `falhas_consecutivas: 0` (restart tambem liberou os FDs vazados da V.1.4.43 — resolve o "URGENTE" anterior); `/dashboard` = `200`; `GET /claude-account/status` sem JWT retornou `401` (feature flag `CLAUDE_ACCOUNT_PILOT` confirmada ativa — endpoint existe e exige auth, nao `404`).
+- Aviso pre-existente e sem relacao com este deploy: `OpenTelemetry não configurado: No module named 'opentelemetry.sdk'` no startup — `opentelemetry-sdk` nunca esteve em `requirements.txt` (instalado manualmente fora do pip na epoca da V.1.4.11-13); tratado como falha graciosa pelo proprio codigo, nao derruba o servico.
+
 ## O Que Falta
 
-- **Deploy do piloto Claude Account Mode (V.1.4.44) — parcialmente feito em 21/08/2026, nao confirmado**:
-  - OK: Node.js + `npm install -g @anthropic-ai/claude-code` na VPS nova — `which claude` retornou `/usr/bin/claude`, mas o npm avisou que o script de pos-instalacao (`postinstall: node install.cjs`) nao rodou (`allow-scripts`); `claude --version` ainda nao confirmado.
-  - OK: `.env`: `CLAUDE_ACCOUNT_PILOT=true` e `CLAUDE_TOKEN_ENC_KEY` adicionados.
-  - PENDENTE: `pip install -r requirements.txt` travou em backtracking pesado do resolvedor (novo `claude-agent-sdk` -> `mcp` -> `httpx2`); mitigacao passada: instalar `claude-agent-sdk` isolado antes do `requirements.txt` completo. Resultado final nao confirmado.
-  - PENDENTE: `git pull origin main` + `systemctl restart saleia` com o codigo desta versao — nao confirmado apos o commit `f23b8e0` (21/08/2026) que trouxe o piloto para o GitHub.
-  - Antes de qualquer vendedor tentar conectar a propria conta, confirmar os 3 pontos acima nesta ordem: `claude --version` -> `pip install` sem erro -> `journalctl -u saleia` sem excecoes no import de `agent/claude_account.py`.
 - Reinstalar extensao Chrome (mudanças desde V.1.4.40). *(tarefa manual)*
 - Descomissionar VPS antiga (`204.168.180.25`).
 - Alterar senha do admin via dashboard.
 - **Reindex de embeddings pendente**: rodar `python -m scripts.reindex_embeddings --dry-run --table all` (conferir) e depois sem `--dry-run` (a base atual tem embeddings antigos gerados pela OpenAI, incompativeis com o Ollama).
-- **URGENTE — Deploy V.1.4.43 pendente**: fix de vazamento de file descriptors que estava deixando DeepSeek/OpenAI/Anthropic "degradado" em producao (ver CHANGELOG). `git pull origin main && systemctl restart saleia` — o restart e obrigatorio aqui, nao so recomendado, pois libera os FDs ja vazados no processo atual. Confirmado: deploy da V.1.4.40/41/42 ja tinha sido feito (producao respondia `versao: 1.4.42` em 21/08/2026 antes deste fix).
 - **URGENTE — Faturamento do Google Cloud (Gemini)**: `PermissionDenied: 403 Lightning dunning decision is deny for project: projects/493614671182` — conta de faturamento inadimplente/suspensa, resolver no Google Cloud Console. Nao e bug de codigo.
 - Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI) continua pendente — agora so acessivel por URL direta (`/visual-scenario?meeting=<id>`), sem botao/menu (removido na V.1.4.42).
+- Validar manualmente o fluxo "Analisar com Claude" end-to-end no Dashboard (conectar via `claude setup-token`, disparar analise, checar os 7 blocos) — deploy tecnico confirmado, mas nenhum vendedor testou a jornada completa ainda.
 - 8 falhas de teste pre-existentes e nao relacionadas encontradas em `tests/test_next_best_question.py`/`tests/test_realtime_memory.py` (nao corrigidas — fora do escopo desta rodada).
 - **Decisoes tomadas sobre as 4 lacunas remanescentes da V.1.4.40 (20/08/2026)**:
   - Download da Base sem isolamento por empresa/tenant: **aceito como esta** — SALEIA e uso interno de uma unica empresa, multi-tenancy nao se aplica. `GET /base/{id}/download` continua exigindo so JWT valido.

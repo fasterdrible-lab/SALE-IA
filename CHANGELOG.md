@@ -110,6 +110,21 @@ válidas confirmadas até então):
    `requirements.txt` completo. **Não confirmado como concluído** até o
    fechamento desta entrada — ver `docs/CURRENT_STATE.md`.
 
+### DEPLOY — Concluído em 22/08/2026 (ver `docs/CURRENT_STATE.md`)
+O `pip install` completo expôs um conflito real: `mcp` exige
+`starlette>=0.48` no Python 3.14 (`sse-starlette` exige `>=0.49.1`),
+incompatível com `starlette<0.38.0,>=0.37.2` exigido por `fastapi==0.111.0`
+— faixas sem interseção. O resolvedor do pip acusou
+`error: resolution-too-deep` e deixou um ambiente quebrado (`starlette
+1.6.0` instalado, violando o FastAPI). Corrigido removendo o pino exato de
+`fastapi`/`uvicorn[standard]` em `requirements.txt` (commit `249fd9a`) —
+com o grafo completo, o resolvedor optou por manter `fastapi==0.111.0` e
+baixar `mcp` para `1.27.2` (compatível com `starlette==0.37.2`) em vez de
+subir o FastAPI. `pip check` limpo; `import api.main` e `import
+agent.claude_account` validados antes do restart. Serviço reiniciado sem
+exceções; `/health` confirma `versao: 1.4.44`, 4 provedores `ok`, e
+`GET /claude-account/status` retorna `401` (feature flag ativa).
+
 ### ARQUIVOS ALTERADOS
 - Novos: `agent/claude_account.py`, `tests/test_claude_account.py`
 - Alterados: `api/database.py`, `api/main.py` (+ versão), `agent/sessao_manager.py`,
