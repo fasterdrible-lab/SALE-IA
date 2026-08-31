@@ -160,7 +160,7 @@ class ClaudeAccountExecutor:
         token = descriptografar_token(conexao["oauth_token_encrypted"])
         prompt_completo = f"{prompt}\n\n--- TRANSCRIÇÃO ---\n{context}" if context else prompt
 
-        resultado_texto = await self._executar_query(usuario_id, prompt_completo, token, timeout)
+        resultado_texto, custo_usd = await self._executar_query(usuario_id, prompt_completo, token, timeout)
 
         try:
             resultado = _extract_json(resultado_texto)
@@ -169,10 +169,15 @@ class ClaudeAccountExecutor:
                 "GENERIC_ERROR", MSG_GENERIC_ERROR, detalhe=sanitizar_erro_claude(str(exc))
             ) from exc
 
+        # Cost Intelligence Fase 1 — o SDK ja devolve o custo real (nao
+        # estimado); antes desta fase esse valor so era logado e descartado.
+        resultado["_custo_real_usd"] = custo_usd
+        resultado["_usage_source_ia"] = "provider"
+
         registrar_uso_claude_connection(usuario_id)
         return resultado
 
-    async def _executar_query(self, usuario_id: str, prompt: str, token: str, timeout: float) -> str:
+    async def _executar_query(self, usuario_id: str, prompt: str, token: str, timeout: float) -> "tuple[str, float]":
         # Import tardio: mantém o app subindo mesmo em ambientes onde o CLI
         # @anthropic-ai/claude-code / o pacote claude-agent-sdk ainda não
         # foram instalados (o piloto fica indisponível via feature flag).
@@ -265,7 +270,7 @@ class ClaudeAccountExecutor:
             usuario_id,
             custo_usd,
         )
-        return texto_final
+        return texto_final, custo_usd
 
     @staticmethod
     def _levantar_erro_classificado(usuario_id: str, detalhe: str, limite_atingido: bool) -> None:

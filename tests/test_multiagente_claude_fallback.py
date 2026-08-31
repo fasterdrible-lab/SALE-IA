@@ -18,9 +18,9 @@ from agent.multiagente.claude_fallback import chamar_ia_com_fallback_claude
 
 
 class ChamarIaComFallbackClaudeTest(unittest.TestCase):
-    def _run(self, usuario_id=None):
+    def _run(self, usuario_id=None, feature="teste"):
         return asyncio.run(
-            chamar_ia_com_fallback_claude("system", "user", usuario_id)
+            chamar_ia_com_fallback_claude("system", "user", usuario_id, feature=feature)
         )
 
     def test_sucesso_normal_nao_toca_em_claude_account(self):
@@ -89,9 +89,10 @@ class ChamarIaComFallbackClaudeTest(unittest.TestCase):
                 with patch("api.database.obter_claude_connection", return_value=conexao):
                     with patch(
                         "agent.claude_account.claude_account_executor.execute",
-                        new=AsyncMock(return_value={"dores": ["dor-x"]}),
+                        new=AsyncMock(return_value={"dores": ["dor-x"], "_custo_real_usd": 0.05}),
                     ) as mock_execute:
-                        resultado = self._run(usuario_id="user-a")
+                        with patch("api.database.registrar_evento_uso_ia") as mock_registrar:
+                            resultado = self._run(usuario_id="user-a", feature="realtime.coach")
 
         mock_execute.assert_awaited_once()
         _, kwargs = mock_execute.call_args
@@ -100,6 +101,13 @@ class ChamarIaComFallbackClaudeTest(unittest.TestCase):
         self.assertIn("user", kwargs["prompt"])
         self.assertEqual(resultado["dores"], ["dor-x"])
         self.assertEqual(resultado["_provedor_ia"], "claude_account")
+
+        mock_registrar.assert_called_once()
+        reg_kwargs = mock_registrar.call_args.kwargs
+        self.assertEqual(reg_kwargs["provider"], "claude_account")
+        self.assertEqual(reg_kwargs["feature"], "realtime.coach")
+        self.assertTrue(reg_kwargs["fallback_used"])
+        self.assertEqual(reg_kwargs["cost_usd"], 0.05)
 
     def test_fallback_tambem_falhando_relanca_excecao_original(self):
         conexao = {"status": "ativo", "oauth_token_encrypted": "cripto"}

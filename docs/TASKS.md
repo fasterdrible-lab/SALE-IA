@@ -322,6 +322,27 @@ EMAIL_FROM=noreply@saleia.com.br
 - Achado nao corrigido (fora do escopo): 8 falhas pre-existentes em `tests/test_next_best_question.py` e `tests/test_realtime_memory.py`, nao relacionadas a esta rodada (arquivos `api/processador_tempo_real.py`/`api/database.py` nao tocados).
 - Pendente pos-deploy: validar manualmente upload/download da Base contra o MySQL de producao (nao foi possivel testar localmente — sem MySQL acessivel desta maquina).
 
+## Concluido (V.1.4.50 — Extensao informa a propria versao)
+
+- [x] Incidente ao vivo (31/08/2026): reuniao real com os 4 provedores centrais falhando de verdade por mais de 1h e o fallback Claude Account (V.1.4.49) nao disparando para essa sessao. Investigacao mostrou que o servidor nao tinha como diferenciar "extensao desatualizada" de "extensao atualizada mas sem login" — so via a ausencia do header `Authorization`, ambigua nos dois casos.
+- [x] `chrome-extension/background.js`: header `X-Extensao-Versao` adicionado em toda chamada ao backend (`fetchBackend`, `whisperChunk`/`audioChunk` → `/audio-transcricao`, heartbeat de `/health`). `manifest.json` `1.4.4` → `1.4.5`.
+- [x] `api/main.py`: `_ext_ver_var` (ContextVar, mesmo padrao do `cid`) exposto em todo log JSON estruturado via `_CorrelationMiddleware`/`_JsonFormatter` — funciona em qualquer rota, nao so `/tempo-real`.
+- [x] `tests/test_extensao_versao_log.py` (5 testes, novo) + suite completa `tests.test_smoke` (8) sem regressao — 13/13 OK.
+- Versao: backend `1.4.49` → `1.4.50`; extensao Chrome `1.4.4` → `1.4.5`.
+- **Pendente pos-implementacao**: deploy do backend na VPS (checar `reunioes_ativas` antes) + reinstalar a extensao nos navegadores dos vendedores — sem isso o `ext_ver` continua aparecendo como `"-"` nos logs.
+
+## Concluido (V.1.4.51 — Cost Intelligence Fase 1)
+
+- [x] Auditoria read-only da arquitetura de custo de IA (`docs/cost-intelligence-audit.md`) — achado critico: custo do tempo real sempre zerado (bug de propagacao em `orquestrador.py::_mesclar`).
+- [x] `api/pricing_catalog.py` (catalogo por provider+model) + `api/cost_engine.py` (calculo puro) — novos.
+- [x] Captura de uso real de tokens dos 4 provedores em `api/ai_router.py` (antes 100% estimativa char/4).
+- [x] Tabela `ai_usage_events` (aditiva) + `registrar_evento_uso_ia`/`custo_por_reuniao` em `api/database.py`.
+- [x] Fix do bug de propagacao: `_custo_ciclo_ia_usd` somado antes do merge em `orquestrador.py`/`processador_tempo_real.py`.
+- [x] `api/ai_features.py` (novo) + threading de `feature`/`meeting_id` pelos ~15 pontos de chamada de IA (tempo real, relatorios, playbook, followup, skill, knowledge extractor, cenario/conducao).
+- [x] `agent/claude_account.py`: custo real do SDK (`total_cost_usd`) deixa de ser descartado apos o log.
+- [x] Suite completa: 168 testes, 8 falhas pre-existentes e nao relacionadas (`test_next_best_question.py`/`test_realtime_memory.py`, ja documentadas desde V.1.4.36) — sem regressao.
+- **Pendente**: deploy na VPS + validacao manual dos nomes de campo de cache do DeepSeek/Gemini contra chamada real (ver `docs/CURRENT_STATE.md`). Fases 2-6 do roadmap (dashboard de custos, Budget Guard, Cost Router inteligente) ainda nao iniciadas.
+
 ## Pendente
 
 - [ ] Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI).

@@ -552,6 +552,7 @@ async def analyzeRealtimeMeeting(
             skill_context=skill_context,
             client_context=client_context,
             usuario_id=usuario_id,
+            meeting_id=meeting_id,
         )
     except Exception as _e:
         logger.exception("[TempoReal] Falha ao analisar fragmento: %s", _e)
@@ -586,7 +587,13 @@ async def analyzeRealtimeMeeting(
                 key_moments=resultado.get("key_moments") or (memoria_atual or {}).get("key_moments") or [],
                 events=resultado.get("eventos") or resultado.get("events") or (memoria_atual or {}).get("events") or [],
                 trigger=trigger_recap,
+                meeting_id=meeting_id,
             )
+            # Cost Intelligence Fase 1 — soma o custo da recap viva ao total do
+            # ciclo (mesmo motivo do fix em orquestrador.py::analisar_fragmento_multi).
+            custo_recap = recap_viva.get("_custo_estimado_ia") if isinstance(recap_viva, dict) else None
+            if custo_recap:
+                resultado["_custo_ciclo_ia_usd"] = round((resultado.get("_custo_ciclo_ia_usd") or 0.0) + custo_recap, 6)
             resultado["recapitulacao_viva"] = _normalizar_recapitulacao_viva(recap_viva, trigger_recap)
             resultado["live_recap"] = resultado["recapitulacao_viva"]
             if resultado["recapitulacao_viva"].get("texto_falavel"):

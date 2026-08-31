@@ -3,6 +3,204 @@
 
 ---
 
+## V.1.4.51 — Cost Intelligence Fase 1: fundação de dados reais de custo
+> Data: 31/08/2026 | Feature (infraestrutura de custo de IA)
+
+### VISÃO
+Primeira fase de um pedido maior (60 tarefas) de "Cost Intelligence, Cost
+Router e Controle de Gastos com APIs". Uma auditoria read-only prévia
+(`docs/cost-intelligence-audit.md`) mapeou a arquitetura atual de chamadas de
+IA e encontrou um bug crítico: **o custo do tráfego de tempo real — o maior
+volume de chamadas do sistema — estava silenciosamente sempre zerado**. O
+`api/ai_router.py::chamar_ia` calculava custo estimado a cada chamada, mas
+`agent/multiagente/orquestrador.py::_mesclar()` descartava esses campos ao
+montar o resultado final dos 4 agentes — `MeetingMemory.provider_cost_estimate`
+nunca recebia valor real para tempo real, e `GET /historico/uso` sempre
+mostrava R$0. Adicionalmente, nenhum dos 4 provedores lia o `usage` real que
+a própria API já devolve (100% estimativa char/4), e o preço era por
+*provedor*, não por *modelo*.
+
+Esta fase entrega só a fundação de dados corretos — sem dashboards, budget
+guard ou cost router ainda (fases futuras, roadmap em
+`docs/cost-intelligence-audit.md`).
+
+### NOVO — `api/pricing_catalog.py`
+Catálogo de preços por `(provider, model)` — não mais por provedor genérico.
+`obter_preco()`: catálogo específico → fallback por-provedor (preserva as
+taxas que já existiam hardcoded em `ai_router.py`) → override via env
+(`PRICE_<PROVIDER>_<MODELO>_<CAMPO>_PER_MILLION`, sem deploy). Cada preço
+carrega `source`/`effective_date` — proveniência mínima, sem pretender ser
+eterno.
+
+### NOVO — `api/cost_engine.py`
+`ProviderUsage` (adapter comum de tokens), `estimar_usage()` (fallback char/4,
+mesma heurística de sempre, agora isolada e reutilizável) e `calcular_custo()`
+(função pura e determinística — sem I/O, sem rede).
+
+### BACKEND — `api/ai_router.py`: captura de uso real por provedor
+- `_usage_from_openai_like` (compartilhado por `_call_openai`/`_call_deepseek`),
+  `_usage_from_anthropic`, `_usage_from_gemini`: leem `response.usage`/
+  `response.usage_metadata` — antes descartados assim que o texto era
+  extraído. `getattr(..., default)` em tudo — nunca quebra se um campo não
+  existir, só perde granularidade (validação manual de nomes de campo de
+  cache do DeepSeek/Gemini ainda pendente, ver "O Que Falta").
+- `chamar_ia`/`chamar_ia_async` ganham `feature`/`meeting_id`/`usuario_id`
+  keyword-only com default — os ~15 chamadores existentes continuam
+  funcionando sem alteração. Resultado ganha `_tokens_cache_entrada_ia`/
+  `_usage_source_ia` ("provider"|"estimated") além dos campos já existentes.
+- As taxas hardcoded (`ESTIMATED_COST_INPUT_PER_MILLION`/`OUTPUT`) e
+  `_estimate_call_cost`/`_estimate_token_count` foram removidas — substituídas
+  por `api/pricing_catalog.py`/`api/cost_engine.py`.
+
+### BACKEND — `api/database.py`: tabela `ai_usage_events`
+Tabela nova (aditiva, `SQLModel`, mesmo padrão de `ClaudeConnection`) — um
+registro por chamada de IA: `meeting_id`, `usuario_id`, `feature`, `provider`,
+`model`, tokens (input/output/cache), `usage_source`, `cost_usd`,
+`latency_ms`, `success`, `fallback_used`, `request_id` (reaproveita `_cid_var`
+de correlação). `registrar_evento_uso_ia()`: escrita sempre melhor esforço —
+nunca propaga exceção, nunca derruba o fluxo de vendas. `custo_por_reuniao()`:
+agregação simples por `feature`/`provider` (sem endpoint HTTP nesta fase —
+prova a fundação ponta a ponta, dashboards ficam para a Fase 2).
+
+### FIX — bug de propagação de custo no tempo real
+- `orquestrador.py::analisar_fragmento_multi`: soma o custo dos 4 agentes em
+  `resultado["_custo_ciclo_ia_usd"]` **antes** do merge (que descarta os
+  campos `_*_ia` individuais).
+- `api/processador_tempo_real.py`: soma o custo da recapitulação viva
+  (quando disparada) ao mesmo total.
+- `api/database.py::_extrair_custo_estimado`: `_custo_ciclo_ia_usd` vira o
+  primeiro candidato verificado, preservando os 4 candidatos antigos (que
+  continuam servindo os relatórios pós-reunião).
+- Resultado: `MeetingMemory.provider_cost_estimate` deixa de ser sempre
+  `0.0` no tempo real.
+
+### BACKEND — `api/ai_features.py` (novo) + threading pelos ~15 pontos de chamada
+Constantes string (`REALTIME_COACH`, `PLAYBOOK_GERACAO`, `TACTIQ_*`, etc.)
+passadas em toda chamada de IA: `api/main.py::chamar_gpt` e seus 9 usos
+diretos, `agent/playbook_generator.py`, `agent/followup_generator.py`,
+`agent/skill_resolver.py`, `agent/knowledge_extractor.py`,
+`agent/recapitulacao.py::generateLiveRecapMindMap`, os 4 agentes
+multiagente (`agent/multiagente/{coach,disc,finance,closer}_agent.py`) e
+`agent/multiagente/claude_fallback.py::chamar_ia_com_fallback_claude`
+(`feature` obrigatório aqui — maior volume do sistema, não pode cair em
+`"unspecified"`).
+
+### BACKEND — Claude Account: capturar o custo real que já existia e era descartado
+`agent/claude_account.py::_executar_query` já recebia `total_cost_usd` real
+do SDK (`ResultMessage.total_cost_usd`) mas só logava e descartava. Passa a
+retornar `(texto, custo_usd)`; `execute()` adiciona `_custo_real_usd`/
+`_usage_source_ia="provider"` ao resultado (tipo de retorno continua `dict`,
+nenhum chamador quebra). `claude_fallback.py` grava um evento próprio
+(`provider="claude_account"`, `fallback_used=True`) — tokens ficam em 0
+(SDK não expõe contagem, só custo agregado, limitação documentada).
+
+### TESTES
+- `tests/test_pricing_catalog.py` (8, novo), `tests/test_cost_engine.py` (9,
+  novo), `tests/test_ai_usage_events.py` (4, novo, engine SQLite em memória
+  isolado).
+- `tests/test_ai_router.py`: contrato de `Provider.caller` migrado para
+  `(dict, ProviderUsage | None)` em todos os testes existentes; +13 testes
+  novos (extratores de usage por provedor, uso real vs. estimado, gravação
+  de evento no sucesso/falha, falha ao gravar nunca quebra `chamar_ia`).
+- `tests/test_multiagente_claude_fallback.py`: `feature` obrigatório nas 7
+  chamadas existentes; novo teste confirma gravação do evento
+  `claude_account` no fallback bem-sucedido.
+- `tests/test_claude_account.py` (26): ajustado o mock de `_executar_query`
+  para a nova tupla de retorno; novo assert de `_custo_real_usd`/
+  `_usage_source_ia` no resultado.
+- Suíte completa (`python -m unittest discover tests`): 168 testes, 8 falhas
+  — as mesmas pré-existentes e não relacionadas em
+  `test_next_best_question.py`/`test_realtime_memory.py` (mockam
+  `agent.agente_tempo_real`, legado, substituído pelo orquestrador
+  multiagente desde a V.1.4.36) — nenhuma regressão introduzida.
+
+### O QUE FALTA (documentado, fora do escopo desta fase)
+- Validação manual pontual: 1 chamada real a cada um dos 4 provedores em
+  homologação, para confirmar os nomes exatos de campo de cache do DeepSeek
+  (`prompt_cache_hit_tokens`) e do Gemini (`cached_content_token_count`) —
+  degradam com segurança para `0` via `getattr`, mas a granularidade de
+  cache não foi validada contra uma resposta real ainda.
+- Fases 2–6 do roadmap completo (agregações/dashboard, Budget Guard/alertas/
+  projeção, Cost Router inteligente, otimização/cache, observabilidade
+  final) — ver `docs/cost-intelligence-audit.md`.
+- `/audio-transcricao`, `/base/ocr` e `/generate-visual-scenario` (DALL-E)
+  continuam fora do AI Router e sem captura de custo — modelos de cobrança
+  diferentes (por minuto/por imagem), deliberadamente fora do escopo desta
+  fase.
+- Deploy na VPS pendente — checar `reunioes_ativas` em `/health` antes de
+  `git pull origin main && systemctl restart saleia` (migração de
+  `ai_usage_events` é aditiva e automática no startup, sem passo manual).
+
+### VERSÃO
+- Backend: `1.4.50` → `1.4.51` (`/health`, `/monitor/metricas`).
+
+### ARQUIVOS ALTERADOS
+- Novos: `api/pricing_catalog.py`, `api/cost_engine.py`, `api/ai_features.py`,
+  `docs/cost-intelligence-audit.md`, `tests/test_pricing_catalog.py`,
+  `tests/test_cost_engine.py`, `tests/test_ai_usage_events.py`
+- Backend: `api/ai_router.py`, `api/database.py`, `api/main.py`,
+  `api/processador_tempo_real.py`, `agent/multiagente/orquestrador.py`,
+  `agent/multiagente/claude_fallback.py`,
+  `agent/multiagente/{coach,disc,finance,closer}_agent.py`,
+  `agent/recapitulacao.py`, `agent/claude_account.py`,
+  `agent/playbook_generator.py`, `agent/followup_generator.py`,
+  `agent/skill_resolver.py`, `agent/knowledge_extractor.py`
+- Testes: `tests/test_ai_router.py`, `tests/test_multiagente_claude_fallback.py`,
+  `tests/test_claude_account.py`
+
+---
+
+## V.1.4.50 — Extensão Chrome informa sua versão em toda chamada ao backend
+> Data: 31/08/2026 | Observabilidade (extensão Chrome + backend)
+
+### VISÃO
+Durante um incidente ao vivo em produção (31/08/2026, ver `docs/CURRENT_STATE.md`)
+não foi possível determinar, a partir do servidor, se um vendedor com uma
+reunião real travada (4 provedores centrais falhando) estava com a extensão
+desatualizada (sem o login opcional da V.1.4.49) ou com a extensão nova mas
+sem login. Nenhuma requisição da extensão jamais informava sua própria versão
+ao backend, e a única pista disponível (ausência do header `Authorization`)
+não distingue os dois casos.
+
+### EXTENSÃO CHROME — `chrome-extension/background.js`
+- Header `X-Extensao-Versao: <chrome.runtime.getManifest().version>` adicionado
+  em toda chamada ao backend: o proxy único `fetchBackend` (cobre `/tempo-real`
+  e as demais chamadas via `content.js`), as duas rotas de transcrição de áudio
+  (`whisperChunk`, `audioChunk` → `/audio-transcricao`) e o heartbeat de 15s
+  (`/health`). Sem custo de rede extra — é só mais um header na mesma requisição.
+- `manifest.json`: `1.4.4` → `1.4.5`.
+
+### BACKEND — `api/main.py`
+- Novo `_ext_ver_var` (`ContextVar`), mesmo padrão já usado pelo `cid` de
+  correlação (`_cid_var`/`_CorrelationMiddleware`): `_CorrelationMiddleware`
+  lê `X-Extensao-Versao` de qualquer requisição (não só `/tempo-real`) e o
+  `_JsonFormatter` passa a incluir o campo `ext_ver` em toda linha de log —
+  `"-"` quando a requisição não é da extensão (Dashboard) ou vem de uma
+  versão anterior a esta que ainda não envia o header.
+- Nenhuma persistência em banco — é só uma correlação de log, para permitir
+  `journalctl -u saleia | grep ext_ver` durante um incidente futuro sem
+  precisar perguntar ao vendedor qual versão está instalada.
+
+### TESTES
+- `tests/test_extensao_versao_log.py` (novo, 5 testes): middleware expõe a
+  versão do header no `ContextVar` durante a requisição, usa `"-"` sem
+  header, reseta o `ContextVar` após a requisição (não vaza entre
+  requisições concorrentes), e o `_JsonFormatter` inclui `ext_ver` (com e
+  sem valor).
+- `python -m unittest tests.test_smoke tests.test_extensao_versao_log`:
+  13/13 OK (sem regressão).
+
+### VERSÃO
+- Backend: `1.4.49` → `1.4.50` (`/health`, `/monitor/metricas`).
+- Extensão Chrome: `1.4.4` → `1.4.5` (`manifest.json`).
+
+### ARQUIVOS ALTERADOS
+- `api/main.py` (middleware + formatter + versão),
+  `chrome-extension/background.js`, `chrome-extension/manifest.json`
+- Novo: `tests/test_extensao_versao_log.py`
+
+---
+
 ## V.1.4.49 — Login opcional na extensão Chrome + fallback do tempo real para a conta Claude
 > Data: 22/08/2026 | Feature (extensão Chrome + tempo real)
 

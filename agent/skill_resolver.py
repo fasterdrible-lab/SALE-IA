@@ -338,12 +338,14 @@ def gerar_skill(contexto: str, source_playbook_id: Optional[str] = None) -> Opti
         Dict com campos da skill, ou None se falhou.
     """
     from api.ai_router import chamar_ia
+    from api import ai_features
     prompt = _get_prompt_skill().replace("{contexto}", contexto)
 
     try:
         resposta = chamar_ia(
             system_prompt=prompt,
             user_content="Crie uma skill reutilizável baseada neste caso.",
+            feature=ai_features.SKILL_GERACAO,
         )
     except Exception as e:
         logger.error("[Skills] Erro ao chamar IA: %s", e)

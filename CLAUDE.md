@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.49** (backend) · extensão Chrome **V.1.4.4** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.51** (backend) · extensão Chrome **V.1.4.5** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -72,3 +72,21 @@ Cada vendedor conecta a própria assinatura Claude via `claude setup-token` (das
 ### Fallback no tempo real (V.1.4.49)
 
 A extensão Chrome pode opcionalmente logar (`/auth/login`, mesmo endpoint do Dashboard) — login é sempre opcional, quem não loga continua 100% anônimo como antes. Quando logado, `POST /tempo-real` resolve `usuario_id` via JWT e o repassa por toda a cadeia (`processador_tempo_real.py` → `orquestrador.py` → os 4 agentes). Se os 4 provedores centrais se esgotarem (`HTTPException(503)` de `api/ai_router.py`), `agent/multiagente/claude_fallback.py::chamar_ia_com_fallback_claude` tenta a conta Claude pessoal do usuário antes de desistir — só como fallback, nunca substitui os 4 centrais no caminho normal (evita drenar a janela de uso de 5h da assinatura a cada ciclo de 60s). Se o fallback também falhar, relança a exceção original, preservando a degradação graciosa já existente (`orquestrador.py::_safe()`).
+
+**Limitação conhecida (achado em incidente real, 31/08/2026)**: o servidor não consegue distinguir "vendedor com extensão desatualizada" de "vendedor com extensão atualizada mas sem login" — a única pista era a ausência do header `Authorization`, que ocorre nos dois casos. Ver `X-Extensao-Versao` (V.1.4.50) abaixo.
+
+### Versão da extensão nos logs (V.1.4.50)
+
+Toda chamada da extensão ao backend (`fetchBackend`, `/audio-transcricao`, heartbeat de `/health`) envia `X-Extensao-Versao: <manifest.version>`. `api/main.py::_CorrelationMiddleware` lê esse header em qualquer rota (não só `/tempo-real`) e expõe via `_ext_ver_var` (`ContextVar`, mesmo padrão do `cid` de correlação) — todo log JSON estruturado (`_JsonFormatter`) ganha o campo `ext_ver`. Durante um incidente, `journalctl -u saleia | grep ext_ver` mostra imediatamente se a extensão do vendedor está desatualizada, sem precisar perguntar a ele.
+
+## Cost Intelligence (Fase 1, V.1.4.51)
+
+Fundação de custo real de IA — primeira fase de um roadmap maior (ver `docs/cost-intelligence-audit.md`). Ainda **não** tem dashboard, budget guard ou cost router; só captura e persiste dados corretos.
+
+- **`api/pricing_catalog.py::obter_preco(provider, model)`** — preço por *modelo* (não mais por provedor genérico), com fallback e override por env (`PRICE_<PROVIDER>_<MODELO>_<CAMPO>_PER_MILLION`).
+- **`api/cost_engine.py::calcular_custo(...)`** — cálculo puro; `estimar_usage(...)` é o fallback char/4 usado só quando o provedor não devolve tokens reais.
+- **`api/ai_router.py::chamar_ia`/`chamar_ia_async`** ganharam `feature`/`meeting_id`/`usuario_id` keyword-only (default preserva os chamadores antigos) e agora leem o `usage` real de cada SDK (antes descartado) — `_usage_source_ia` no resultado diz `"provider"` ou `"estimated"`.
+- **`api/database.py::AiUsageEvent`** (tabela `ai_usage_events`) — um registro por chamada de IA. Gravação é sempre melhor esforço (`registrar_evento_uso_ia`): nunca derruba o fluxo de vendas.
+- **`api/ai_features.py`** — constantes de `feature` (ex.: `REALTIME_COACH`, `PLAYBOOK_GERACAO`) usadas em toda chamada de IA para saber depois onde o dinheiro foi gasto.
+- **Bug fechado**: `agent/multiagente/orquestrador.py::_mesclar()` não preserva os campos `_*_ia` dos 4 agentes — por isso `analisar_fragmento_multi` agora soma o custo dos agentes em `resultado["_custo_ciclo_ia_usd"]` **antes** do merge. Sem isso, `MeetingMemory.provider_cost_estimate` (e `GET /historico/uso`) ficavam sempre em `R$0` para tempo real — o maior volume de chamadas do sistema.
+- **Limitação conhecida**: nomes de campo de cache do DeepSeek/Gemini não foram validados contra uma resposta real (degradam com segurança para `0`); Claude Account fallback não expõe contagem de tokens, só custo agregado.

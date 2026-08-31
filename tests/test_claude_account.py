@@ -160,7 +160,7 @@ class ClaudeAccountExecutorTest(unittest.TestCase):
 
         async def fake_query(self_exec, usuario_id, prompt, token, timeout):
             chamadas.append((usuario_id, token))
-            return '{"dores": ["dor-x"]}'
+            return '{"dores": ["dor-x"]}', 0.0123
 
         with patch.object(claude_account, "descriptografar_token", side_effect=lambda v: f"plain-{v}"):
             with patch.object(claude_account.ClaudeAccountExecutor, "_executar_query", new=fake_query):
@@ -169,6 +169,8 @@ class ClaudeAccountExecutorTest(unittest.TestCase):
 
         self.assertEqual(resultado["dores"], ["dor-x"])
         self.assertEqual(chamadas, [("user-a", "plain-cripto-a")])
+        self.assertEqual(resultado["_custo_real_usd"], 0.0123)
+        self.assertEqual(resultado["_usage_source_ia"], "provider")
 
         conexao_a = database.obter_claude_connection("user-a")
         self.assertIsNotNone(conexao_a["last_used_at"])

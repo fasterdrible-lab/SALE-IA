@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from agent.multiagente.claude_fallback import chamar_ia_com_fallback_claude
+from api import ai_features
 
 _PROMPT = Path(__file__).parent.parent / "prompt_templates" / "multiagente_closer.txt"
 
@@ -14,6 +15,7 @@ async def analisar_closer(
     historico_scores: list,
     diagnostico_atual: dict,
     usuario_id: str | None = None,
+    meeting_id: str | None = None,
 ) -> dict:
     template = _PROMPT.read_text(encoding="utf-8")
     prompt = (
@@ -27,4 +29,6 @@ async def analisar_closer(
         "Voce e um especialista em fechamento consultivo. Responda SEMPRE em JSON valido, sem texto antes ou depois.",
         prompt,
         usuario_id,
+        feature=ai_features.REALTIME_CLOSER,
+        meeting_id=meeting_id,
     )

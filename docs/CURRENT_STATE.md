@@ -1,6 +1,6 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-08-21 (V.1.4.44)
+Atualizado em: 2026-08-31 (V.1.4.51)
 
 ## Ambiente
 
@@ -25,7 +25,37 @@ Atualizado em: 2026-08-21 (V.1.4.44)
 
 ## Versao Atual
 
-`V.1.4.49` — login opcional na extensao Chrome + fallback do tempo real pra conta Claude do vendedor quando os 4 provedores centrais se esgotarem (ver secao abaixo). V.1.4.48 (fix allowed_tools/tools), V.1.4.47 (token corrompido por espaco), V.1.4.46 (ANTHROPIC_API_KEY herdada), V.1.4.45 (piloto em Analisar Transcricao) e V.1.4.44 (piloto Claude Account) confirmadas deployadas | extensao Chrome `V.1.4.4` | VPS antiga (`204.168.180.25`) deprecada
+`V.1.4.51` — Cost Intelligence Fase 1: fundacao de dados reais de custo de IA
+(catalogo de precos por modelo, captura de uso real dos 4 provedores, tabela
+`ai_usage_events`, fix do bug que zerava o custo do tempo real). Local/GitHub
+apenas — deploy na VPS pendente (migracao aditiva, automatica no startup,
+sem passo manual). Ver `docs/cost-intelligence-audit.md` para a auditoria
+completa e o roadmap das Fases 2-6 (agregacoes/dashboard, Budget Guard,
+Cost Router inteligente, otimizacao, observabilidade). V.1.4.50 — extensao Chrome passa a informar sua propria versao (`X-Extensao-Versao`) em toda chamada ao backend, exposta como `ext_ver` em todo log estruturado (mesmo padrao do `cid` de correlacao) — motivado pelo incidente de 31/08/2026 (ver abaixo), onde nao foi possivel diferenciar remotamente "extensao desatualizada" de "extensao atualizada mas sem login". V.1.4.49 (login opcional na extensao + fallback do tempo real pra conta Claude do vendedor quando os 4 provedores centrais se esgotarem), V.1.4.48 (fix allowed_tools/tools), V.1.4.47 (token corrompido por espaco), V.1.4.46 (ANTHROPIC_API_KEY herdada), V.1.4.45 (piloto em Analisar Transcricao) e V.1.4.44 (piloto Claude Account) confirmadas deployadas | extensao Chrome `V.1.4.5` (local/GitHub — deploy pendente, so precisa reinstalar a extensao no navegador do vendedor) | VPS antiga (`204.168.180.25`) deprecada
+
+## Incidente ao vivo — 31/08/2026 (reuniao real sem IA por mais de 1h)
+
+Durante checagem de rotina (deploy V.1.4.49 ja confirmado em producao, commit
+`12a23d8`), encontrada reuniao real em andamento com o coach 100% fora do ar:
+- Os 4 provedores centrais falhando de verdade a cada ciclo de 60s desde
+  pelo menos 11:08 (>1h): DeepSeek `402 Insufficient Balance`, OpenAI
+  `429 insufficient_quota`, Anthropic `400 credit balance too low`, Gemini
+  `400 API_KEY_INVALID` (esse ultimo e novo — antes era faturamento
+  suspenso, agora e chave invalida).
+- Transcricao de audio (Groq) tambem quebrada: `401 Invalid API Key` em
+  todo `POST /audio-transcricao`. **Corrigido pelo usuario durante a sessao**
+  (chave Groq atualizada no `.env` da VPS, 31/08/2026) — nao validado
+  end-to-end ainda (reuniao ao vivo continuava rodando, sem reiniciar o
+  servico pra nao derrubar a sessao).
+- O fallback da V.1.4.49 (Claude Account) **nao disparou** para essa
+  reuniao: existe 1 conexao `claude_connections` ativa no banco (de testes
+  anteriores), mas o `/tempo-real` dessa sessao especifica chegava sempre
+  sem `Authorization` — vendedor anonimo, extensao sem login. Nao da pra
+  saber pelo servidor se a extensao dele e a 1.4.3/1.4.4 antiga (sem bloco
+  de login) ou se e mais nova mas ele nao logou — motivou o fix da V.1.4.50
+  acima.
+- Nao foi reiniciado o `saleia.service` em nenhum momento desta
+  investigacao (`reunioes_ativas: 1` confirmado antes de qualquer comando).
 
 ## Funcionalidades Entregues
 
@@ -281,17 +311,18 @@ CHANGELOG (V.1.4.44) — resumo:
 
 ## O Que Falta
 
-- Reinstalar extensao Chrome (mudanças desde V.1.4.40). *(tarefa manual)*
+- **Deploy V.1.4.50/1.4.51 pendente**: checar `reunioes_ativas` em `/health` antes de `git pull origin main && systemctl restart saleia` (na madrugada de 31/08/2026 havia reuniao ao vivo em andamento, deploy adiado de proposito). Alem do deploy no backend, a extensao Chrome precisa ser reinstalada (`chrome://extensions`) pra vendedores passarem a enviar `X-Extensao-Versao` — sem isso o incidente de 31/08 (ver secao acima) continua indiferenciavel do lado do servidor.
+- **Cost Intelligence — validacao manual pendente (V.1.4.51)**: os nomes exatos de campo de cache do DeepSeek (`prompt_cache_hit_tokens`) e Gemini (`cached_content_token_count`) nao foram confirmados contra uma resposta real de producao — degradam com seguranca para `0` via `getattr`, mas a granularidade de cache pode estar subestimada ate essa validacao. Fazer 1 chamada real por provedor em homologacao/producao logando `response.usage`/`response.usage_metadata` bruto (`api/ai_router.py::_usage_from_*`). Fases 2-6 do roadmap (dashboard de custos, Budget Guard, Cost Router) ainda nao iniciadas — ver `docs/cost-intelligence-audit.md`.
 - Descomissionar VPS antiga (`204.168.180.25`).
 - Alterar senha do admin via dashboard.
 - **Reindex de embeddings pendente**: rodar `python -m scripts.reindex_embeddings --dry-run --table all` (conferir) e depois sem `--dry-run` (a base atual tem embeddings antigos gerados pela OpenAI, incompativeis com o Ollama).
-- **URGENTE — Todos os 4 provedores de IA centrais sem saldo (22/08/2026)**: primeiro teste real de `POST /recapitulacao-manual` apos o deploy da V.1.4.44 falhou nos 4 provedores simultaneamente — nao e bug de codigo, e financeiro:
+- **Provedores de IA centrais — status em 31/08/2026**: ainda sem saldo/chave valida (mesmo incidente aberto desde 22/08/2026, agravado). Groq (transcricao) teve a chave corrigida pelo usuario durante a sessao de 31/08, ainda sem validacao end-to-end.
   - `deepseek`: `APIStatusError 402 Insufficient Balance`.
   - `openai`: `RateLimitError 429 insufficient_quota` — "You have no credits remaining".
   - `anthropic`: `BadRequestError 400` — "Your credit balance is too low to access the Anthropic API".
-  - `gemini`: `PermissionDenied 403 Lightning dunning decision is deny for project: projects/493614671182` — conta de faturamento do Google Cloud inadimplente/suspensa (mesmo problema ja documentado, ainda nao resolvido).
-  - Resolver adicionando credito/saldo nos paineis do DeepSeek, OpenAI e Anthropic, e regularizando o faturamento no Google Cloud Console. Ate isso ser feito, nenhuma analise de reuniao (recapitulacao manual, tempo real, ou piloto Claude Account) funciona.
-  - Achado: `/health` continua reportando os 4 provedores como `status: ok` / `falhas_consecutivas: 0` mesmo apos essa falha real — o contador de falhas do `/health` nao esta sendo incrementado pelo caminho de `/recapitulacao-manual` (investigar separadamente, fora do escopo desta rodada; `/health` nao pode ser usado como sinal confiavel de que os provedores tem saldo).
+  - `gemini`: **mudou de causa** — em 22/08 era `403` de faturamento suspenso no Google Cloud; em 31/08 passou a ser `400 API_KEY_INVALID` (chave de API rejeitada, nao mais faturamento). Verificar se a chave em uso ainda e valida/nao expirou.
+  - Resolver adicionando credito/saldo nos paineis do DeepSeek, OpenAI e Anthropic, e gerando/validando uma chave Gemini nova. Ate isso ser feito, nenhuma analise de reuniao (recapitulacao manual, tempo real, ou piloto Claude Account) funciona pelos provedores centrais — so pelo fallback Claude Account, e so para vendedores logados na extensao (ver incidente acima).
+  - Achado (22/08/2026, ainda nao investigado): `/health` pode reportar os 4 provedores como `status: ok` / `falhas_consecutivas: 0` mesmo com falha real recente — o contador de falhas do `/health` nem sempre e incrementado pelo caminho de `/recapitulacao-manual`; `/health` sozinho nao e sinal confiavel de saldo. Em 31/08 o `/health` já refletia corretamente o estado degradado (`status: "degradado"`, `falhas_consecutivas` alto em todos), entao esse achado pode ja estar resolvido ou ser intermitente — nao confirmado.
 - Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI) continua pendente — agora so acessivel por URL direta (`/visual-scenario?meeting=<id>`), sem botao/menu (removido na V.1.4.42).
 - **Conectar** via `claude setup-token` confirmado funcionando em producao (22/08/2026, `POST /claude-account/connect` = 200 OK).
 - **Fix critico (V.1.4.46, 22/08/2026)**: primeiro teste real de `POST /claude-account/analisar` (apos a V.1.4.45 adicionar o botao na tela de Analisar Transcricao) falhou com `GENERIC_ERROR` — `error_message` persistido: "Credit balance is too low", a mesma mensagem do provedor Anthropic central sem saldo. Causa: `claude_agent_sdk` monta o env do subprocesso CLI herdando **todo** o `os.environ` do `saleia.service` (incluindo `ANTHROPIC_API_KEY` central), e o Claude Code prioriza essa variavel sobre `CLAUDE_CODE_OAUTH_TOKEN` quando as duas existem — o piloto estava cobrando da conta compartilhada (sem saldo), nao da assinatura do vendedor. Corrigido em `agent/claude_account.py::_executar_query` limpando `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` no `env` passado ao SDK. Teste novo cobrindo o comportamento. Deploy confirmado (ver Deploy V.1.4.46 abaixo).

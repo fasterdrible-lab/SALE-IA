@@ -147,6 +147,7 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
       method: method,
       headers: {
         'Content-Type': 'application/json',
+        'X-Extensao-Versao': chrome.runtime.getManifest().version,
       },
     };
     // Login e opcional — so anexa o token quando o vendedor esta logado.
@@ -197,7 +198,7 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     const url = (msg.backendUrl || estadoExtensao.backendUrl) + '/audio-transcricao';
     fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Extensao-Versao': chrome.runtime.getManifest().version },
       body: JSON.stringify({
         audio_base64: msg.audio_base64,
         mime_type: msg.mime_type,
@@ -218,7 +219,7 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     const url = estadoExtensao.backendUrl + '/audio-transcricao';
     fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Extensao-Versao': chrome.runtime.getManifest().version },
       body: JSON.stringify({
         audio_base64: msg.base64,
         mime_type: msg.mimeType,
@@ -304,7 +305,7 @@ function verificarHeartbeat() {
   // API desligada pelo usuário — nenhuma chamada de rede deve ocorrer.
   if (!estadoExtensao.ativo) return;
   const url = BACKEND_URL_CANONICAL + '/health';
-  fetch(url, { method: 'GET' })
+  fetch(url, { method: 'GET', headers: { 'X-Extensao-Versao': chrome.runtime.getManifest().version } })
     .then(function (res) {
       const online = res.ok;
       propagarParaMeet({ tipo: 'backendStatus', online: online });

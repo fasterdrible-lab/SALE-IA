@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Optional, List
 
 from dotenv import load_dotenv
-from sqlalchemy import Column, DateTime, Float, String, Text, func, text
+from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, Text, func, text
 from sqlalchemy.engine import URL as SA_URL
 from sqlalchemy.exc import OperationalError
 from sqlmodel import Field, Session, SQLModel, create_engine, select
@@ -94,6 +94,35 @@ class MeetingMemory(SQLModel, table=True):
     provider_cost_estimate: float = Field(default=0.0, sa_column=Column(Float, nullable=False))
     created_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
     updated_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+
+
+class AiUsageEvent(SQLModel, table=True):
+    """Evento de uso de IA — um registro por chamada a chamar_ia()/fallback
+    Claude Account (Cost Intelligence Fase 1).
+
+    Escrita e sempre melhor esforco: ver registrar_evento_uso_ia() — nunca
+    deve derrubar o fluxo de vendas por falha aqui.
+    """
+
+    __tablename__ = "ai_usage_events"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    criado_em: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False, index=True))
+    meeting_id: Optional[str] = Field(default=None, sa_column=Column(String(200), index=True))
+    usuario_id: Optional[str] = Field(default=None, sa_column=Column(String(36), index=True))
+    feature: str = Field(default="unspecified", sa_column=Column(String(80), index=True, nullable=False))
+    provider: str = Field(sa_column=Column(String(40), index=True, nullable=False))
+    model: Optional[str] = Field(default=None, sa_column=Column(String(120)))
+    input_tokens: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    output_tokens: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    cached_input_tokens: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    usage_source: str = Field(default="estimated", sa_column=Column(String(20), nullable=False))
+    cost_usd: float = Field(default=0.0, sa_column=Column(Float, nullable=False))
+    latency_ms: Optional[int] = Field(default=None, sa_column=Column(Integer))
+    success: bool = Field(default=True, sa_column=Column(Boolean, nullable=False))
+    fallback_used: bool = Field(default=False, sa_column=Column(Boolean, nullable=False))
+    request_id: Optional[str] = Field(default=None, sa_column=Column(String(40), index=True))
+    error_message: Optional[str] = Field(default=None, sa_column=Column(String(240)))
 
 
 # ─────────────────────────────────────────────
@@ -181,6 +210,7 @@ def _extrair_custo_estimado(valor) -> float:
         return 0.0
 
     candidatos = (
+        valor.get("_custo_ciclo_ia_usd"),
         valor.get("_custo_estimado_ia"),
         valor.get("custo_estimado_ia"),
         valor.get("custo_estimado_usd"),
@@ -558,6 +588,96 @@ def registrar_analise_meeting(meeting_id: str, analise: dict) -> dict:
         last_recap_trigger_at=ultima_deixa,
         provider_cost_estimate_delta=custo_estimado,
     )
+
+
+def registrar_evento_uso_ia(
+    *,
+    feature: str,
+    provider: str,
+    model: Optional[str],
+    input_tokens: int,
+    output_tokens: int,
+    cached_input_tokens: int = 0,
+    usage_source: str,
+    cost_usd: float,
+    latency_ms: Optional[int] = None,
+    success: bool,
+    fallback_used: bool = False,
+    meeting_id: Optional[str] = None,
+    usuario_id: Optional[str] = None,
+    error_message: Optional[str] = None,
+) -> None:
+    """Grava um evento de uso de IA (Cost Intelligence Fase 1).
+
+    Melhor esforco: nunca propaga excecao — uma falha aqui nao pode derrubar
+    o fluxo de vendas (tempo real, relatorios, etc.).
+    """
+    try:
+        try:
+            from api.main import _cid_var  # import tardio — api.main importa api.ai_router no topo
+            request_id = _cid_var.get("-")
+        except Exception:
+            request_id = "-"
+
+        evento = AiUsageEvent(
+            feature=feature,
+            provider=provider,
+            model=model,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cached_input_tokens=cached_input_tokens,
+            usage_source=usage_source,
+            cost_usd=cost_usd,
+            latency_ms=latency_ms,
+            success=success,
+            fallback_used=fallback_used,
+            meeting_id=meeting_id,
+            usuario_id=usuario_id,
+            request_id=None if request_id == "-" else request_id,
+            error_message=(error_message or "")[:240] or None,
+        )
+        with Session(engine) as session:
+            session.add(evento)
+            session.commit()
+    except Exception as exc:
+        logger.warning("[CostIntelligence] Falha ao registrar evento de uso de IA: %s", exc)
+
+
+def custo_por_reuniao(meeting_id: str) -> dict:
+    """Agrega custo/tokens de ai_usage_events para uma reuniao.
+
+    So leitura, sem endpoint HTTP nesta fase (Cost Intelligence Fase 1) —
+    prova que a fundacao de dados funciona ponta a ponta.
+    """
+    with Session(engine) as session:
+        eventos = session.exec(
+            select(AiUsageEvent).where(AiUsageEvent.meeting_id == meeting_id)
+        ).all()
+
+    por_feature: dict = {}
+    por_provider: dict = {}
+    for evento in eventos:
+        pf = por_feature.setdefault(
+            evento.feature, {"chamadas": 0, "custo_usd": 0.0, "tokens_entrada": 0, "tokens_saida": 0}
+        )
+        pf["chamadas"] += 1
+        pf["custo_usd"] = round(pf["custo_usd"] + evento.cost_usd, 6)
+        pf["tokens_entrada"] += evento.input_tokens
+        pf["tokens_saida"] += evento.output_tokens
+
+        pp = por_provider.setdefault(evento.provider, {"chamadas": 0, "custo_usd": 0.0, "falhas": 0})
+        pp["chamadas"] += 1
+        pp["custo_usd"] = round(pp["custo_usd"] + evento.cost_usd, 6)
+        if not evento.success:
+            pp["falhas"] += 1
+
+    return {
+        "meeting_id": meeting_id,
+        "total_eventos": len(eventos),
+        "total_usd": round(sum(e.cost_usd for e in eventos), 6),
+        "por_feature": por_feature,
+        "por_provider": por_provider,
+    }
 
 
 def _erro_tabela_ja_existe(exc: OperationalError) -> bool:

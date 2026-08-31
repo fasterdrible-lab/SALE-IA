@@ -25,6 +25,8 @@ from typing import Callable
 from dotenv import load_dotenv
 from fastapi import HTTPException
 
+from api.cost_engine import ProviderUsage, calcular_custo, estimar_usage
+
 load_dotenv()
 
 logger = logging.getLogger("saleia.ai")
@@ -62,18 +64,10 @@ FORBIDDEN_TRIGGER_RULE = (
 )
 ROOT_DIR = Path(__file__).resolve().parents[1]
 STATE_FILE = ROOT_DIR / "data" / "ai_provider_order.json"
-ESTIMATED_COST_INPUT_PER_MILLION = {
-    "deepseek": float(os.getenv("DEEPSEEK_INPUT_COST_PER_MILLION", "0.14")),
-    "openai": float(os.getenv("OPENAI_INPUT_COST_PER_MILLION", "5.0")),
-    "anthropic": float(os.getenv("ANTHROPIC_INPUT_COST_PER_MILLION", "3.0")),
-    "gemini": float(os.getenv("GEMINI_INPUT_COST_PER_MILLION", "0.35")),
-}
-ESTIMATED_COST_OUTPUT_PER_MILLION = {
-    "deepseek": float(os.getenv("DEEPSEEK_OUTPUT_COST_PER_MILLION", "0.28")),
-    "openai": float(os.getenv("OPENAI_OUTPUT_COST_PER_MILLION", "15.0")),
-    "anthropic": float(os.getenv("ANTHROPIC_OUTPUT_COST_PER_MILLION", "15.0")),
-    "gemini": float(os.getenv("GEMINI_OUTPUT_COST_PER_MILLION", "1.05")),
-}
+# Precos por modelo (Cost Intelligence Fase 1): ver api/pricing_catalog.py.
+# As taxas hardcoded que existiam aqui viraram o fallback por-provider desse
+# catalogo — mesmos valores, mesmo comportamento para quem nao configurar
+# nada de novo.
 
 
 @dataclass(frozen=True)
@@ -82,7 +76,8 @@ class Provider:
     env_keys: tuple[str, ...]
     model_env: str
     default_model: str
-    caller: Callable[[str, str, str, str, float], dict]
+    # Retorna (payload_json, uso_real_ou_none) — Cost Intelligence Fase 1.
+    caller: Callable[[str, str, str, str, float], "tuple[dict, ProviderUsage | None]"]
 
 
 @dataclass
@@ -218,7 +213,54 @@ def _save_provider_order(order: list[str]) -> None:
     tmp_file.replace(STATE_FILE)
 
 
-def _call_openai(system_prompt: str, user_content: str, api_key: str, model: str, timeout: float) -> dict:
+def _usage_from_openai_like(response) -> ProviderUsage | None:
+    """Compartilhado por _call_openai e _call_deepseek (mesmo client openai.OpenAI)."""
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return None
+    cached = 0
+    details = getattr(usage, "prompt_tokens_details", None)
+    if details is not None:
+        cached = getattr(details, "cached_tokens", 0) or 0
+    # DeepSeek expoe cache hit por um campo proprio em vez de
+    # prompt_tokens_details — cobrir os dois nomes sem quebrar se nenhum existir.
+    cached = cached or getattr(usage, "prompt_cache_hit_tokens", 0) or 0
+    reasoning = 0
+    comp_details = getattr(usage, "completion_tokens_details", None)
+    if comp_details is not None:
+        reasoning = getattr(comp_details, "reasoning_tokens", 0) or 0
+    return ProviderUsage(
+        input_tokens=getattr(usage, "prompt_tokens", 0) or 0,
+        output_tokens=getattr(usage, "completion_tokens", 0) or 0,
+        cached_input_tokens=cached,
+        reasoning_output_tokens=reasoning,
+    )
+
+
+def _usage_from_anthropic(response) -> ProviderUsage | None:
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return None
+    cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
+    return ProviderUsage(
+        input_tokens=getattr(usage, "input_tokens", 0) or 0,
+        output_tokens=getattr(usage, "output_tokens", 0) or 0,
+        cached_input_tokens=cache_read,
+    )
+
+
+def _usage_from_gemini(response) -> ProviderUsage | None:
+    meta = getattr(response, "usage_metadata", None)
+    if meta is None:
+        return None
+    return ProviderUsage(
+        input_tokens=getattr(meta, "prompt_token_count", 0) or 0,
+        output_tokens=getattr(meta, "candidates_token_count", 0) or 0,
+        cached_input_tokens=getattr(meta, "cached_content_token_count", 0) or 0,
+    )
+
+
+def _call_openai(system_prompt: str, user_content: str, api_key: str, model: str, timeout: float) -> tuple[dict, ProviderUsage | None]:
     from openai import OpenAI
 
     # Cliente criado por chamada (chave pode ser rotacionada em runtime pelo
@@ -235,10 +277,10 @@ def _call_openai(system_prompt: str, user_content: str, api_key: str, model: str
             temperature=0.3,
             response_format={"type": "json_object"},
         )
-    return _extract_json(response.choices[0].message.content)
+    return _extract_json(response.choices[0].message.content), _usage_from_openai_like(response)
 
 
-def _call_deepseek(system_prompt: str, user_content: str, api_key: str, model: str, timeout: float) -> dict:
+def _call_deepseek(system_prompt: str, user_content: str, api_key: str, model: str, timeout: float) -> tuple[dict, ProviderUsage | None]:
     from openai import OpenAI
 
     base_url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
@@ -252,10 +294,10 @@ def _call_deepseek(system_prompt: str, user_content: str, api_key: str, model: s
             temperature=0.3,
             response_format={"type": "json_object"},
         )
-    return _extract_json(response.choices[0].message.content)
+    return _extract_json(response.choices[0].message.content), _usage_from_openai_like(response)
 
 
-def _call_anthropic(system_prompt: str, user_content: str, api_key: str, model: str, timeout: float) -> dict:
+def _call_anthropic(system_prompt: str, user_content: str, api_key: str, model: str, timeout: float) -> tuple[dict, ProviderUsage | None]:
     import anthropic
 
     with anthropic.Anthropic(api_key=api_key, timeout=timeout) as client:
@@ -273,10 +315,10 @@ def _call_anthropic(system_prompt: str, user_content: str, api_key: str, model: 
     texto = next((b.text for b in response.content if getattr(b, "type", None) == "text"), None)
     if texto is None:
         raise RuntimeError(f"Resposta da Anthropic sem bloco de texto: {response.content!r}")
-    return _extract_json(texto)
+    return _extract_json(texto), _usage_from_anthropic(response)
 
 
-def _call_gemini(system_prompt: str, user_content: str, api_key: str, model: str, timeout: float) -> dict:
+def _call_gemini(system_prompt: str, user_content: str, api_key: str, model: str, timeout: float) -> tuple[dict, ProviderUsage | None]:
     import google.generativeai as genai
 
     genai.configure(api_key=api_key)
@@ -292,7 +334,7 @@ def _call_gemini(system_prompt: str, user_content: str, api_key: str, model: str
         user_content,
         request_options={"timeout": timeout},
     )
-    return _extract_json(response.text)
+    return _extract_json(response.text), _usage_from_gemini(response)
 
 
 PROVIDERS: dict[str, Provider] = {
@@ -386,28 +428,8 @@ def _safe_error(error: Exception) -> str:
     return message
 
 
-def _estimate_token_count(text: str) -> int:
-    text = text or ""
-    if not text:
-        return 0
-    return max(1, int(round(len(text) / 4)))
-
-
-def _estimate_call_cost(provider_name: str, system_prompt: str, user_content: str, result: dict) -> dict:
-    provider_name = provider_name if provider_name in ESTIMATED_COST_INPUT_PER_MILLION else "openai"
-    prompt_text = f"{system_prompt or ''}\n{user_content or ''}"
-    output_text = json.dumps(result or {}, ensure_ascii=False)
-    input_tokens = _estimate_token_count(prompt_text)
-    output_tokens = _estimate_token_count(output_text)
-    input_rate = ESTIMATED_COST_INPUT_PER_MILLION.get(provider_name, ESTIMATED_COST_INPUT_PER_MILLION["openai"])
-    output_rate = ESTIMATED_COST_OUTPUT_PER_MILLION.get(provider_name, ESTIMATED_COST_OUTPUT_PER_MILLION["openai"])
-    estimated_cost = ((input_tokens * input_rate) + (output_tokens * output_rate)) / 1_000_000
-    return {
-        "_custo_estimado_ia": round(estimated_cost, 6),
-        "_moeda_ia": "USD",
-        "_tokens_entrada_ia": input_tokens,
-        "_tokens_saida_ia": output_tokens,
-    }
+# Estimativa char/4 e calculo de custo por modelo (Cost Intelligence Fase 1):
+# ver api/cost_engine.py::estimar_usage/calcular_custo.
 
 
 def _status_label(provider: Provider) -> str:
@@ -459,11 +481,36 @@ def snapshot_metricas() -> dict:
     return snap
 
 
-def chamar_ia(system_prompt: str, user_content: str) -> dict:
+def _registrar_evento_uso_ia_melhor_esforco(**kwargs) -> None:
+    """Import tardio: api/database.py usa SQLAlchemy/PyMySQL, que nao deve
+    virar dependencia de import-time de api/ai_router.py (mantem os testes
+    deste modulo livres de qualquer mock de banco, como ja eram antes desta
+    fase). A propria registrar_evento_uso_ia ja e melhor esforco por dentro,
+    mas o import tambem e protegido para o caso do modulo nao existir ainda
+    em algum ambiente parcialmente migrado."""
+    try:
+        from api.database import registrar_evento_uso_ia
+        registrar_evento_uso_ia(**kwargs)
+    except Exception as exc:
+        logger.warning("[CostIntelligence] Nao foi possivel registrar evento de uso de IA: %s", exc)
+
+
+def chamar_ia(
+    system_prompt: str,
+    user_content: str,
+    *,
+    feature: str = "unspecified",
+    meeting_id: str | None = None,
+    usuario_id: str | None = None,
+) -> dict:
     """
     Calls the configured AI providers in order until one returns valid JSON.
 
     Raises HTTP 503 only after every configured and available provider fails.
+
+    `feature`/`meeting_id`/`usuario_id` sao usados so para atribuicao de
+    custo (Cost Intelligence Fase 1, ver api/database.py::ai_usage_events) —
+    nao afetam a logica de roteamento/fallback.
     """
     attempts: list[dict] = []
     system_prompt = f"{system_prompt or ''}{FORBIDDEN_TRIGGER_RULE}"
@@ -491,7 +538,7 @@ def chamar_ia(system_prompt: str, user_content: str) -> dict:
         started_at = time.perf_counter()
         try:
             logger.info("Trying AI provider %s with model %s", provider.name, model)
-            result = provider.caller(
+            result, provider_usage = provider.caller(
                 system_prompt,
                 user_content,
                 key,
@@ -500,34 +547,58 @@ def chamar_ia(system_prompt: str, user_content: str) -> dict:
             )
             result = _sanitize_ai_payload(result)
             elapsed_ms = int((time.perf_counter() - started_at) * 1000)
-            metrica_custo = _estimate_call_cost(provider.name, system_prompt, user_content, result)
+
+            if provider_usage is not None:
+                usage_source = "provider"
+            else:
+                provider_usage = estimar_usage(system_prompt, user_content, result)
+                usage_source = "estimated"
+            custo = calcular_custo(provider.name, model, provider_usage, usage_source)
+
             breaker.register_success()
             attempts.append({
                 "provider": provider.name,
                 "model": model,
                 "status": "success",
                 "latency_ms": elapsed_ms,
-                "custo_estimado_usd": metrica_custo["_custo_estimado_ia"],
+                "custo_estimado_usd": custo.cost_usd,
             })
 
             failed_before = sum(1 for a in attempts[:-1] if a.get("status") == "failed")
-            custo = metrica_custo["_custo_estimado_ia"]
             with _counters_lock:
                 _counters["chamadas_sucesso"] += 1
-                _counters["custo_total_usd"] += custo
+                _counters["custo_total_usd"] += custo.cost_usd
                 _counters["por_provedor"][provider.name]["sucesso"] += 1
                 _counters["por_provedor"][provider.name]["total_ms"] += elapsed_ms
-                _counters["por_provedor"][provider.name]["custo_usd"] += custo
+                _counters["por_provedor"][provider.name]["custo_usd"] += custo.cost_usd
                 if failed_before > 0:
                     _counters["fallbacks"] += 1
 
             result.setdefault("_provedor_ia", provider.name)
             result.setdefault("_modelo_ia", model)
             result.setdefault("_tentativas_ia", attempts)
-            result.setdefault("_custo_estimado_ia", metrica_custo["_custo_estimado_ia"])
-            result.setdefault("_moeda_ia", metrica_custo["_moeda_ia"])
-            result.setdefault("_tokens_entrada_ia", metrica_custo["_tokens_entrada_ia"])
-            result.setdefault("_tokens_saida_ia", metrica_custo["_tokens_saida_ia"])
+            result.setdefault("_custo_estimado_ia", custo.cost_usd)
+            result.setdefault("_moeda_ia", custo.currency)
+            result.setdefault("_tokens_entrada_ia", custo.input_tokens)
+            result.setdefault("_tokens_saida_ia", custo.output_tokens)
+            result.setdefault("_tokens_cache_entrada_ia", custo.cached_input_tokens)
+            result.setdefault("_usage_source_ia", custo.usage_source)
+
+            _registrar_evento_uso_ia_melhor_esforco(
+                feature=feature,
+                provider=provider.name,
+                model=model,
+                input_tokens=custo.input_tokens,
+                output_tokens=custo.output_tokens,
+                cached_input_tokens=custo.cached_input_tokens,
+                usage_source=custo.usage_source,
+                cost_usd=custo.cost_usd,
+                latency_ms=elapsed_ms,
+                success=True,
+                fallback_used=failed_before > 0,
+                meeting_id=meeting_id,
+                usuario_id=usuario_id,
+            )
             return result
 
         except Exception as error:
@@ -548,6 +619,21 @@ def chamar_ia(system_prompt: str, user_content: str) -> dict:
     logger.error("All AI providers failed or were unavailable: %s", attempts)
     with _counters_lock:
         _counters["chamadas_falha"] += 1
+
+    _registrar_evento_uso_ia_melhor_esforco(
+        feature=feature,
+        provider="none",
+        model=None,
+        input_tokens=0,
+        output_tokens=0,
+        usage_source="unavailable",
+        cost_usd=0.0,
+        success=False,
+        meeting_id=meeting_id,
+        usuario_id=usuario_id,
+        error_message=str(attempts),
+    )
+
     raise HTTPException(
         status_code=503,
         detail={
@@ -607,9 +693,19 @@ def definir_provedor_preferido(provedor: str) -> dict:
     }
 
 
-async def chamar_ia_async(system_prompt: str, user_content: str) -> dict:
+async def chamar_ia_async(
+    system_prompt: str,
+    user_content: str,
+    *,
+    feature: str = "unspecified",
+    meeting_id: str | None = None,
+    usuario_id: str | None = None,
+) -> dict:
     """Async wrapper for FastAPI paths and async agents."""
-    return await asyncio.to_thread(chamar_ia, system_prompt, user_content)
+    return await asyncio.to_thread(
+        chamar_ia, system_prompt, user_content,
+        feature=feature, meeting_id=meeting_id, usuario_id=usuario_id,
+    )
 
 
 def status_provedores() -> dict:

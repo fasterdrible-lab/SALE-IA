@@ -382,6 +382,7 @@ def gerar_playbook(relatorio: dict, transcricao: str, meeting_id: Optional[str] 
     Retorna dict com name/targetPersona/steps/objections/winningArguments/closingSequence.
     """
     from api.ai_router import chamar_ia
+    from api import ai_features
     contexto = _montar_contexto_playbook(relatorio, transcricao)
     prompt = _get_prompt_playbook().replace("{contexto}", contexto)
 
@@ -389,6 +390,8 @@ def gerar_playbook(relatorio: dict, transcricao: str, meeting_id: Optional[str] 
         resposta = chamar_ia(
             system_prompt=prompt,
             user_content="Gere o playbook comercial desta reunião de sucesso.",
+            feature=ai_features.PLAYBOOK_GERACAO,
+            meeting_id=meeting_id,
         )
     except Exception as e:
         logger.error("[Playbook] Erro ao chamar IA: %s", e)

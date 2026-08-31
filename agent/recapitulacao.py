@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from api.ai_router import chamar_ia_async
+from api import ai_features
 
 RECAP_TRIGGER_PHRASES = (
     "vamos recapitular",
@@ -247,6 +248,7 @@ async def generateLiveRecapMindMap(
     key_moments: list | None,
     events: list | None,
     trigger: dict | None,
+    meeting_id: str | None = None,
 ) -> dict:
     """Gera uma recapitulação guiada com mapa mental e fala pronta."""
     prompt_template = _carregar_prompt(PROMPT_LIVE_RECAP_PATH)
@@ -269,7 +271,7 @@ async def generateLiveRecapMindMap(
     )
 
     try:
-        resposta = await chamar_ia_async(system_prompt, payload)
+        resposta = await chamar_ia_async(system_prompt, payload, feature=ai_features.REALTIME_RECAP_VIVA, meeting_id=meeting_id)
     except Exception:
         return _fallback_live_recap(
             transcricao_recente=transcricao_recente,

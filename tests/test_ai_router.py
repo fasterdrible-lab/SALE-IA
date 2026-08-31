@@ -27,7 +27,7 @@ class AiRouterTest(unittest.TestCase):
 
     def test_uses_first_available_provider(self):
         def openai_caller(*args):
-            return {"ok": True}
+            return {"ok": True}, None
 
         providers = {
             "openai": self._provider("openai", "OPENAI_API_KEY", openai_caller),
@@ -42,13 +42,32 @@ class AiRouterTest(unittest.TestCase):
         self.assertEqual(result["_tentativas_ia"][0]["status"], "success")
         self.assertIn("_custo_estimado_ia", result)
         self.assertGreater(result["_custo_estimado_ia"], 0)
+        self.assertEqual(result["_usage_source_ia"], "estimated")
+
+    def test_uses_provider_real_usage_when_caller_returns_it(self):
+        from api.cost_engine import ProviderUsage
+
+        def openai_caller(*args):
+            return {"ok": True}, ProviderUsage(input_tokens=1000, output_tokens=500)
+
+        providers = {
+            "openai": self._provider("openai", "OPENAI_API_KEY", openai_caller),
+        }
+
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "test", "AI_PROVIDER_ORDER": "openai"}, clear=False):
+            with patch.object(ai_router, "PROVIDERS", providers):
+                result = ai_router.chamar_ia("system", "user")
+
+        self.assertEqual(result["_usage_source_ia"], "provider")
+        self.assertEqual(result["_tokens_entrada_ia"], 1000)
+        self.assertEqual(result["_tokens_saida_ia"], 500)
 
     def test_uses_deepseek_when_configured_first(self):
         def deepseek_caller(*args):
-            return {"ok": True}
+            return {"ok": True}, None
 
         def openai_caller(*args):
-            return {"ok": True}
+            return {"ok": True}, None
 
         providers = {
             "deepseek": self._provider("deepseek", "DEEPSEEK_API_KEY", deepseek_caller),
@@ -73,7 +92,7 @@ class AiRouterTest(unittest.TestCase):
             raise RuntimeError("rate limit for sk-secret-token")
 
         def anthropic_caller(*args):
-            return {"resposta": "ok"}
+            return {"resposta": "ok"}, None
 
         providers = {
             "openai": self._provider("openai", "OPENAI_API_KEY", openai_caller),
@@ -99,7 +118,7 @@ class AiRouterTest(unittest.TestCase):
             raise AssertionError("OpenAI should be skipped without a key")
 
         def anthropic_caller(*args):
-            return {"resposta": "fallback"}
+            return {"resposta": "fallback"}, None
 
         providers = {
             "openai": self._provider("openai", "OPENAI_API_KEY", openai_caller),
@@ -142,10 +161,10 @@ class AiRouterTest(unittest.TestCase):
 
     def test_rotates_provider_order_and_persists_state(self):
         def openai_caller(*args):
-            return {"resposta": "openai"}
+            return {"resposta": "openai"}, None
 
         def anthropic_caller(*args):
-            return {"resposta": "anthropic"}
+            return {"resposta": "anthropic"}, None
 
         providers = {
             "openai": self._provider("openai", "OPENAI_API_KEY", openai_caller),
@@ -168,10 +187,10 @@ class AiRouterTest(unittest.TestCase):
 
     def test_defines_preferred_provider_manually(self):
         def openai_caller(*args):
-            return {"resposta": "openai"}
+            return {"resposta": "openai"}, None
 
         def anthropic_caller(*args):
-            return {"resposta": "anthropic"}
+            return {"resposta": "anthropic"}, None
 
         providers = {
             "openai": self._provider("openai", "OPENAI_API_KEY", openai_caller),
@@ -194,10 +213,10 @@ class AiRouterTest(unittest.TestCase):
         ai_router.STATE_FILE.write_text("not-json", encoding="utf-8")
 
         def openai_caller(*args):
-            return {"resposta": "ok"}
+            return {"resposta": "ok"}, None
 
         def anthropic_caller(*args):
-            return {"resposta": "ok"}
+            return {"resposta": "ok"}, None
 
         providers = {
             "openai": self._provider("openai", "OPENAI_API_KEY", openai_caller),
@@ -217,7 +236,7 @@ class AiRouterTest(unittest.TestCase):
 
     def test_rotation_with_single_provider_keeps_order(self):
         def openai_caller(*args):
-            return {"resposta": "ok"}
+            return {"resposta": "ok"}, None
 
         providers = {
             "openai": self._provider("openai", "OPENAI_API_KEY", openai_caller),
@@ -258,9 +277,10 @@ class CallAnthropicContentParsingTest(unittest.TestCase):
         })()
 
         with patch("anthropic.Anthropic", return_value=fake_client):
-            resultado = ai_router._call_anthropic("system", "user", "fake-key", "claude-sonnet-5", 30)
+            resultado, usage = ai_router._call_anthropic("system", "user", "fake-key", "claude-sonnet-5", 30)
 
         self.assertEqual(resultado, {"ok": True})
+        self.assertIsNone(usage)  # fake_response nao tem atributo `usage`
 
     def test_raises_when_no_text_block_present(self):
         thinking_block = self._fake_block("thinking")
@@ -275,6 +295,117 @@ class CallAnthropicContentParsingTest(unittest.TestCase):
         with patch("anthropic.Anthropic", return_value=fake_client):
             with self.assertRaises(RuntimeError):
                 ai_router._call_anthropic("system", "user", "fake-key", "claude-sonnet-5", 30)
+
+
+class UsageExtractorsTest(unittest.TestCase):
+    """Cost Intelligence Fase 1 — extracao de usage real por provider."""
+
+    def _obj(self, **campos):
+        return type("Obj", (), campos)()
+
+    def test_usage_from_openai_like_le_prompt_e_completion_tokens(self):
+        usage = self._obj(prompt_tokens=100, completion_tokens=50)
+        response = self._obj(usage=usage)
+        resultado = ai_router._usage_from_openai_like(response)
+        self.assertEqual(resultado.input_tokens, 100)
+        self.assertEqual(resultado.output_tokens, 50)
+        self.assertEqual(resultado.cached_input_tokens, 0)
+
+    def test_usage_from_openai_like_le_cache_do_deepseek(self):
+        usage = self._obj(prompt_tokens=100, completion_tokens=50, prompt_cache_hit_tokens=30)
+        response = self._obj(usage=usage)
+        resultado = ai_router._usage_from_openai_like(response)
+        self.assertEqual(resultado.cached_input_tokens, 30)
+
+    def test_usage_from_openai_like_sem_usage_retorna_none(self):
+        response = self._obj()
+        self.assertIsNone(ai_router._usage_from_openai_like(response))
+
+    def test_usage_from_anthropic_le_input_output_e_cache(self):
+        usage = self._obj(input_tokens=200, output_tokens=80, cache_read_input_tokens=20)
+        response = self._obj(usage=usage)
+        resultado = ai_router._usage_from_anthropic(response)
+        self.assertEqual(resultado.input_tokens, 200)
+        self.assertEqual(resultado.output_tokens, 80)
+        self.assertEqual(resultado.cached_input_tokens, 20)
+
+    def test_usage_from_gemini_le_prompt_e_candidates_token_count(self):
+        meta = self._obj(prompt_token_count=300, candidates_token_count=120)
+        response = self._obj(usage_metadata=meta)
+        resultado = ai_router._usage_from_gemini(response)
+        self.assertEqual(resultado.input_tokens, 300)
+        self.assertEqual(resultado.output_tokens, 120)
+
+    def test_usage_from_gemini_sem_metadata_retorna_none(self):
+        response = self._obj()
+        self.assertIsNone(ai_router._usage_from_gemini(response))
+
+
+class RegistrarEventoUsoIaTest(unittest.TestCase):
+    """Confirma que chamar_ia grava um evento de uso a cada chamada (Fase 1)."""
+
+    def setUp(self):
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmpdir.cleanup)
+        ai_router.STATE_FILE = Path(self._tmpdir.name) / "ai_provider_order.json"
+        ai_router.resetar_estado_ia_para_testes()
+
+    def _provider(self, name, env_key, caller):
+        return ai_router.Provider(
+            name=name, env_keys=(env_key,), model_env=f"{name.upper()}_MODEL",
+            default_model=f"{name}-model", caller=caller,
+        )
+
+    def test_grava_evento_no_sucesso_com_feature_e_meeting_id(self):
+        def openai_caller(*args):
+            return {"ok": True}, None
+
+        providers = {"openai": self._provider("openai", "OPENAI_API_KEY", openai_caller)}
+        env = {"OPENAI_API_KEY": "test", "AI_PROVIDER_ORDER": "openai"}
+
+        with patch("api.database.registrar_evento_uso_ia") as mock_registrar:
+            with patch.dict(os.environ, env, clear=False):
+                with patch.object(ai_router, "PROVIDERS", providers):
+                    ai_router.chamar_ia("system", "user", feature="teste.feature", meeting_id="m1", usuario_id="u1")
+
+        mock_registrar.assert_called_once()
+        kwargs = mock_registrar.call_args.kwargs
+        self.assertEqual(kwargs["feature"], "teste.feature")
+        self.assertEqual(kwargs["meeting_id"], "m1")
+        self.assertEqual(kwargs["usuario_id"], "u1")
+        self.assertTrue(kwargs["success"])
+
+    def test_grava_evento_de_falha_quando_todos_os_providers_falham(self):
+        def failing_caller(*args):
+            raise TimeoutError("timeout")
+
+        providers = {"openai": self._provider("openai", "OPENAI_API_KEY", failing_caller)}
+        env = {"OPENAI_API_KEY": "test", "AI_PROVIDER_ORDER": "openai"}
+
+        with patch("api.database.registrar_evento_uso_ia") as mock_registrar:
+            with patch.dict(os.environ, env, clear=False):
+                with patch.object(ai_router, "PROVIDERS", providers):
+                    with self.assertRaises(HTTPException):
+                        ai_router.chamar_ia("system", "user", feature="teste.feature")
+
+        mock_registrar.assert_called_once()
+        kwargs = mock_registrar.call_args.kwargs
+        self.assertFalse(kwargs["success"])
+        self.assertEqual(kwargs["provider"], "none")
+
+    def test_falha_ao_gravar_evento_nao_quebra_chamar_ia(self):
+        def openai_caller(*args):
+            return {"ok": True}, None
+
+        providers = {"openai": self._provider("openai", "OPENAI_API_KEY", openai_caller)}
+        env = {"OPENAI_API_KEY": "test", "AI_PROVIDER_ORDER": "openai"}
+
+        with patch("api.database.registrar_evento_uso_ia", side_effect=RuntimeError("banco fora do ar")):
+            with patch.dict(os.environ, env, clear=False):
+                with patch.object(ai_router, "PROVIDERS", providers):
+                    result = ai_router.chamar_ia("system", "user")
+
+        self.assertTrue(result["ok"])
 
 
 if __name__ == "__main__":

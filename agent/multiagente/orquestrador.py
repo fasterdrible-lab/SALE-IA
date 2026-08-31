@@ -132,6 +132,7 @@ async def analisar_fragmento_multi(
     skill_context: str = "",
     client_context: str = "",
     usuario_id: str | None = None,
+    meeting_id: str | None = None,
 ) -> dict:
     diag = diagnostico_atual or {}
     scores = historico_scores or []
@@ -156,10 +157,10 @@ async def analisar_fragmento_multi(
     except Exception as _e:
         logger.debug("[Multiagente] Sales Memory falhou: %s", _e)
 
-    coach_coro   = analisar_coach(transcricao_parcial, historico, rv, diag, evts, skill_context, client_context, usuario_id)
-    disc_coro    = analisar_disc(transcricao_parcial, historico, perfil_disc_atual, diag, usuario_id)
-    finance_coro = analisar_finance(transcricao_parcial, historico, mapa, usuario_id)
-    closer_coro  = analisar_closer(transcricao_parcial, rv, scores, diag, usuario_id)
+    coach_coro   = analisar_coach(transcricao_parcial, historico, rv, diag, evts, skill_context, client_context, usuario_id, meeting_id)
+    disc_coro    = analisar_disc(transcricao_parcial, historico, perfil_disc_atual, diag, usuario_id, meeting_id)
+    finance_coro = analisar_finance(transcricao_parcial, historico, mapa, usuario_id, meeting_id)
+    closer_coro  = analisar_closer(transcricao_parcial, rv, scores, diag, usuario_id, meeting_id)
 
     resultados = await asyncio.gather(
         coach_coro, disc_coro, finance_coro, closer_coro,
@@ -172,9 +173,21 @@ async def analisar_fragmento_multi(
         if isinstance(res, Exception):
             logger.warning("[Multiagente] %s falhou: %s", nome, res)
 
-    return _mesclar(
+    # Cost Intelligence Fase 1 — soma o custo dos 4 agentes ANTES do merge:
+    # _mesclar() nao preserva os campos _*_ia dos agentes (monta o dict final
+    # campo a campo), entao sem isso MeetingMemory.provider_cost_estimate
+    # ficava sempre 0.0 para todo o trafego de tempo real (achado da auditoria
+    # em docs/cost-intelligence-audit.md).
+    custo_ciclo = sum(
+        (_safe(r).get("_custo_estimado_ia") or _safe(r).get("_custo_real_usd") or 0.0)
+        for r in (coach_r, disc_r, finance_r, closer_r)
+    )
+
+    resultado = _mesclar(
         _safe(coach_r),
         _safe(disc_r),
         _safe(finance_r),
         _safe(closer_r),
     )
+    resultado["_custo_ciclo_ia_usd"] = round(custo_ciclo, 6)
+    return resultado

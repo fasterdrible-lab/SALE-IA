@@ -17,6 +17,7 @@ import pymysql
 import pymysql.cursors
 
 from api.ai_router import chamar_ia
+from api import ai_features
 
 logger = logging.getLogger(__name__)
 
@@ -142,6 +143,8 @@ def gerar_followups(
     return chamar_ia(
         "Voce e um especialista em follow-up de vendas consultivas. Responda SEMPRE em JSON valido, sem texto antes ou depois.",
         prompt,
+        feature=ai_features.FOLLOWUP_GERACAO,
+        meeting_id=meeting_id,
     )
 
 

@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Optional
 
 from api.ai_router import chamar_ia
+from api import ai_features
 from agent.sales_memory import salvar_memorias_em_lote, gerar_e_salvar_embeddings_em_lote, MEMORY_TYPES
 
 logger = logging.getLogger("saleia.knowledge_extractor")
@@ -163,7 +164,7 @@ def _validar_memoria(mem: dict) -> Optional[dict]:
 # PIPELINE PRINCIPAL
 # ─────────────────────────────────────────────────────────
 
-def extrair_memorias(relatorio: dict, transcricao: str) -> list:
+def extrair_memorias(relatorio: dict, transcricao: str, meeting_id: Optional[str] = None) -> list:
     """
     Chama a IA para extrair memórias comerciais do relatório.
 
@@ -178,6 +179,8 @@ def extrair_memorias(relatorio: dict, transcricao: str) -> list:
         resposta = chamar_ia(
             system_prompt=prompt,
             user_content="Extraia os aprendizados comerciais desta reunião.",
+            feature=ai_features.KNOWLEDGE_EXTRACAO_MEMORIAS,
+            meeting_id=meeting_id,
         )
     except Exception as e:
         logger.error("[KnowledgeExtractor] Erro ao chamar IA: %s", e)
@@ -226,7 +229,7 @@ def extrair_e_salvar_memorias(
         lista de UUIDs das memórias criadas
     """
     try:
-        memorias = extrair_memorias(relatorio, transcricao)
+        memorias = extrair_memorias(relatorio, transcricao, meeting_id=meeting_id)
         if not memorias:
             logger.info("[KnowledgeExtractor] Nenhuma memória extraída para reunião %s", meeting_id)
             return []

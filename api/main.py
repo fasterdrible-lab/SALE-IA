@@ -33,7 +33,8 @@ from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from api.ai_router import chamar_ia, definir_provedor_preferido, rotacionar_provedor_preferido, snapshot_provedores, snapshot_metricas, status_provedores
+from api.ai_router import chamar_ia, chamar_ia_async, definir_provedor_preferido, rotacionar_provedor_preferido, snapshot_provedores, snapshot_metricas, status_provedores
+from api import ai_features
 from api.database import (
     criar_tabelas,
     salvar_relatorio as db_salvar,
@@ -49,6 +50,7 @@ from api.database import (
 # LOGGING ESTRUTURADO JSON
 # ─────────────────────────────────────────────
 _cid_var: ContextVar[str] = ContextVar("cid", default="-")
+_ext_ver_var: ContextVar[str] = ContextVar("ext_ver", default="-")
 
 
 class _JsonFormatter(logging.Formatter):
@@ -59,6 +61,7 @@ class _JsonFormatter(logging.Formatter):
             "logger": record.name,
             "msg":    record.getMessage(),
             "cid":    _cid_var.get("-"),
+            "ext_ver": _ext_ver_var.get("-"),
         }
         if record.exc_info:
             doc["exc"] = self.formatException(record.exc_info)
@@ -88,10 +91,12 @@ class _CorrelationMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         cid = request.headers.get("X-Request-ID") or str(uuid.uuid4())[:8]
         token = _cid_var.set(cid)
+        ext_token = _ext_ver_var.set(request.headers.get("X-Extensao-Versao") or "-")
         try:
             response = await call_next(request)
         finally:
             _cid_var.reset(token)
+            _ext_ver_var.reset(ext_token)
         response.headers["X-Request-ID"] = cid
         return response
 
@@ -511,9 +516,16 @@ Retorne APENAS um JSON válido (sem markdown):
 # ─────────────────────────────────────────────
 # FUNÇÃO AUXILIAR — CHAMAR GPT-4o
 # ─────────────────────────────────────────────
-def chamar_gpt(system_prompt: str, user_content: str, modelo: str = "gpt-4o") -> dict:
+def chamar_gpt(
+    system_prompt: str,
+    user_content: str,
+    modelo: str = "gpt-4o",
+    *,
+    feature: str = "unspecified",
+    meeting_id: str | None = None,
+) -> dict:
     """Chama a IA com fallback automático: OpenAI → Anthropic → Gemini."""
-    return chamar_ia(system_prompt, user_content)
+    return chamar_ia(system_prompt, user_content, feature=feature, meeting_id=meeting_id)
 
 
 # ─────────────────────────────────────────────
@@ -534,7 +546,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.49",
+        "versao":              "1.4.51",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -572,7 +584,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.49",
+        "versao":          "1.4.51",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -696,19 +708,25 @@ def processar_transcricao_completa(req: TactiqWebhookRequest):
         # Gerar recapitulação completa
         recapitulacao = chamar_gpt(
             PROMPT_RECAPITULACAO,
-            f"REUNIÃO: {req.meeting_title}\nTRANSCRIÇÃO:\n{req.transcript}"
+            f"REUNIÃO: {req.meeting_title}\nTRANSCRIÇÃO:\n{req.transcript}",
+            feature=ai_features.TACTIQ_RECAPITULACAO,
+            meeting_id=req.meeting_title,
         )
 
         # Gerar diagnóstico financeiro
         diagnostico = chamar_gpt(
             PROMPT_DIAGNOSTICO_FINANCEIRO,
-            req.transcript
+            req.transcript,
+            feature=ai_features.TACTIQ_DIAGNOSTICO_FINANCEIRO,
+            meeting_id=req.meeting_title,
         )
 
         # Gerar perfil DISC completo
         disc = chamar_gpt(
             PROMPT_PERFIL_DISC,
-            req.transcript
+            req.transcript,
+            feature=ai_features.TACTIQ_PERFIL_DISC,
+            meeting_id=req.meeting_title,
         )
 
         ultimo_relatorio = {
@@ -749,7 +767,7 @@ def diagnostico_financeiro(req: DiagnosticoFinanceiroRequest):
     if not req.transcricao:
         raise HTTPException(status_code=400, detail="Transcrição vazia")
 
-    resultado = chamar_gpt(PROMPT_DIAGNOSTICO_FINANCEIRO, req.transcricao)
+    resultado = chamar_gpt(PROMPT_DIAGNOSTICO_FINANCEIRO, req.transcricao, feature=ai_features.REPORT_DIAGNOSTICO_FINANCEIRO)
     return resultado
 
 
@@ -761,7 +779,7 @@ def identificar_perfil_disc(req: PerfilDiscRequest):
     if not req.transcricao:
         raise HTTPException(status_code=400, detail="Transcrição vazia")
 
-    resultado = chamar_gpt(PROMPT_PERFIL_DISC, req.transcricao)
+    resultado = chamar_gpt(PROMPT_PERFIL_DISC, req.transcricao, feature=ai_features.REPORT_PERFIL_DISC)
     return resultado
 
 
@@ -777,9 +795,9 @@ def recapitulacao_completa(req: RecapitulacaoRequest, background_tasks: Backgrou
 
     conteudo = f"REUNIÃO: {req.titulo_reuniao}\nDATA: {req.data or 'não informada'}\n\nTRANSCRIÇÃO:\n{req.transcricao}"
 
-    recapitulacao = chamar_gpt(PROMPT_RECAPITULACAO, conteudo)
-    diagnostico = chamar_gpt(PROMPT_DIAGNOSTICO_FINANCEIRO, req.transcricao)
-    disc = chamar_gpt(PROMPT_PERFIL_DISC, req.transcricao)
+    recapitulacao = chamar_gpt(PROMPT_RECAPITULACAO, conteudo, feature=ai_features.REPORT_RECAPITULACAO, meeting_id=req.meeting_id)
+    diagnostico = chamar_gpt(PROMPT_DIAGNOSTICO_FINANCEIRO, req.transcricao, feature=ai_features.REPORT_DIAGNOSTICO_FINANCEIRO, meeting_id=req.meeting_id)
+    disc = chamar_gpt(PROMPT_PERFIL_DISC, req.transcricao, feature=ai_features.REPORT_PERFIL_DISC, meeting_id=req.meeting_id)
 
     resultado = {
         "titulo": req.titulo_reuniao,
@@ -843,6 +861,7 @@ async def recapitulacao_viva(req: RecapitulacaoVivaRequest):
         score_history=memoria.get("score_history") or [],
         key_moments=memoria.get("key_moments") or [],
         events=memoria.get("events") or [],
+        meeting_id=req.meeting_id,
         trigger=trigger,
     )
 
@@ -1645,9 +1664,9 @@ def recapitulacao_manual(req: RecapitulacaoRequest, background_tasks: Background
 
     conteudo = f"REUNIÃO: {req.titulo_reuniao}\nDATA: {req.data or 'não informada'}\n\nTRANSCRIÇÃO:\n{req.transcricao}"
 
-    recapitulacao = chamar_gpt(PROMPT_RECAPITULACAO, conteudo)
-    diagnostico = chamar_gpt(PROMPT_DIAGNOSTICO_FINANCEIRO, req.transcricao)
-    disc = chamar_gpt(PROMPT_PERFIL_DISC, req.transcricao)
+    recapitulacao = chamar_gpt(PROMPT_RECAPITULACAO, conteudo, feature=ai_features.REPORT_RECAPITULACAO, meeting_id=req.meeting_id)
+    diagnostico = chamar_gpt(PROMPT_DIAGNOSTICO_FINANCEIRO, req.transcricao, feature=ai_features.REPORT_DIAGNOSTICO_FINANCEIRO, meeting_id=req.meeting_id)
+    disc = chamar_gpt(PROMPT_PERFIL_DISC, req.transcricao, feature=ai_features.REPORT_PERFIL_DISC, meeting_id=req.meeting_id)
 
     resultado = {
         "titulo": req.titulo_reuniao,
@@ -2111,9 +2130,8 @@ async def cenario_conducao(meeting_id: str, req: ConducaoRequest, authorization:
         'Responda APENAS com um JSON válido sem markdown, no formato: '
         '{"conteudo": "script do vendedor aqui"}'
     )
-    from api.ai_router import chamar_ia_async
     try:
-        resultado = await chamar_ia_async(system_prompt, prompt)
+        resultado = await chamar_ia_async(system_prompt, prompt, feature=ai_features.CENARIO_CONDUCAO, meeting_id=meeting_id)
         conteudo = (
             resultado.get("conteudo")
             or resultado.get("texto")
