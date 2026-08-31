@@ -3,6 +3,77 @@
 
 ---
 
+## Validação em produção do fallback Claude Account (V.1.4.49) + fix do PAT do GitHub na VPS
+> Data: 31/08/2026 | Operacional (incidente + deploy + primeira validação real)
+
+### CONTEXTO
+Durante a mesma sessão do incidente documentado em `docs/CURRENT_STATE.md`
+(4 provedores centrais de IA fora do ar desde antes das 11h), uma reunião
+real permaneceu ativa por horas. Ao tentar fazer o deploy do V.1.4.50/1.4.51
+(commit `dde7987`), o `git pull` na VPS falhou:
+
+```
+remote: Invalid username or token. Password authentication is not supported for Git operations.
+fatal: Authentication failed
+```
+
+O Personal Access Token configurado no `git remote origin` da VPS (corrigido
+pela última vez em 16/08/2026, ver V.1.4.38) havia expirado/sido revogado de
+novo. Usuário gerou um PAT novo no GitHub; `git remote set-url origin
+https://<token>@github.com/fasterdrible-lab/SALE-IA.git` + `git fetch`
+confirmaram a correção. Código puxado (`git pull`, fast-forward para
+`dde7987`) — **seguro mesmo com reunião ativa**, pois só atualiza arquivos em
+disco; o processo `uvicorn` já em memória continua rodando a versão anterior
+até o próximo `systemctl restart saleia` (adiado de propósito enquanto havia
+reunião ativa — chegou a haver 2 simultâneas).
+
+### VALIDAÇÃO REAL DO FALLBACK CLAUDE ACCOUNT (V.1.4.49) — primeira vez em produção
+A V.1.4.49 havia ficado com a pendência "validar o fallback disparando de
+verdade" (extensão precisava ser recarregada + vendedor precisava logar).
+Nesta sessão isso foi feito ao vivo, com uma reunião real em andamento:
+1. Usuário conectou a conta Claude pelo Dashboard (Configurações → "Claude
+   (piloto)") — `claude_connections.connected_at` atualizado às 20:05:02.
+2. Usuário logou no bloco "Conta" da extensão Chrome (email/senha da própria
+   conta SALEIA, mesma usada para conectar o Claude) — `POST /auth/login`
+   retornou `200 OK` às 20:15:45 (uma tentativa anterior às 20:14:12 retornou
+   `401` — credenciais erradas na primeira tentativa).
+3. No ciclo seguinte de `/tempo-real` (20:16:31), os 4 provedores centrais
+   falharam como já esperado (mesmo incidente em andamento) e o fallback
+   `agent/multiagente/claude_fallback.py::chamar_ia_com_fallback_claude`
+   disparou pela primeira vez em produção real — **4 análises concluídas com
+   sucesso** via `agent/claude_account.py` (uma por agente: coach/disc/
+   finance/closer), com custo real logado pelo próprio SDK:
+   ```
+   [ClaudeAccount] Análise concluída (custo estimado: US$ 0.0296)
+   [ClaudeAccount] Análise concluída (custo estimado: US$ 0.0368)
+   [ClaudeAccount] Análise concluída (custo estimado: US$ 0.0387)
+   [ClaudeAccount] Análise concluída (custo estimado: US$ 0.0585)
+   ```
+   O vendedor voltou a ter coach em tempo real apesar dos 4 provedores
+   centrais estarem mortos — exatamente o comportamento desenhado na V.1.4.49.
+4. **Achado confirmado nesta validação**: conectar a conta Claude no
+   Dashboard e logar na extensão são dois passos independentes — o primeiro
+   sem o segundo não ativa o fallback no tempo real (só o `usuario_id`
+   resolvido via JWT do login da extensão aciona `chamar_ia_com_fallback_claude`
+   com um `usuario_id` não-nulo).
+
+### PENDENTE
+- **Restart do `saleia.service` ainda não feito** — aguardando `reunioes_ativas: 0`.
+  Duas coisas dependem dele: (a) o código do V.1.4.50/1.4.51 só existe em
+  disco na VPS, o processo em memória ainda roda `1.4.49`; (b) a chave nova
+  do `GROQ_API_KEY` (atualizada no `.env` mais cedo nesta sessão) só é lida
+  pelo processo no próximo start — a transcrição de áudio continua com
+  `401 Invalid API Key` até o restart.
+- Os 4 provedores centrais continuam sem saldo/chave válida (incidente
+  aberto, ver `docs/CURRENT_STATE.md`) — o fallback Claude Account é hoje a
+  única via de coach funcionando em tempo real, e só para vendedores logados
+  na extensão.
+
+### ARQUIVOS ALTERADOS
+Nenhum — esta entrada é operacional (deploy/validação), sem mudança de código.
+
+---
+
 ## V.1.4.51 — Cost Intelligence Fase 1: fundação de dados reais de custo
 > Data: 31/08/2026 | Feature (infraestrutura de custo de IA)
 

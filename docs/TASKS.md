@@ -343,6 +343,13 @@ EMAIL_FROM=noreply@saleia.com.br
 - [x] Suite completa: 168 testes, 8 falhas pre-existentes e nao relacionadas (`test_next_best_question.py`/`test_realtime_memory.py`, ja documentadas desde V.1.4.36) — sem regressao.
 - **Pendente**: deploy na VPS + validacao manual dos nomes de campo de cache do DeepSeek/Gemini contra chamada real (ver `docs/CURRENT_STATE.md`). Fases 2-6 do roadmap (dashboard de custos, Budget Guard, Cost Router inteligente) ainda nao iniciadas.
 
+## Concluido (31/08/2026 — Fallback Claude Account validado + fix PAT GitHub)
+
+- [x] PAT do GitHub no `git remote` da VPS expirado/revogado — corrigido com PAT novo gerado pelo usuario (`git remote set-url origin`).
+- [x] `git pull origin main` executado na VPS (fast-forward para `dde7987` = V.1.4.50+V.1.4.51) — codigo em disco, `systemctl restart` ainda pendente (aguardando `reunioes_ativas: 0`).
+- [x] **Fallback Claude Account (V.1.4.49) validado end-to-end em producao real pela primeira vez**: vendedor conectou conta Claude no Dashboard + logou na extensao (email/senha) durante reuniao ao vivo com os 4 provedores centrais fora do ar; 4 analises concluidas com sucesso (coach/disc/finance/closer) via conta Claude pessoal, custo real ~US$0,03-0,06 cada. Pendencia da V.1.4.49 fechada. Detalhes em `docs/CURRENT_STATE.md` e `CHANGELOG.md`.
+- **Pendente**: `systemctl restart saleia` assim que `reunioes_ativas: 0` (aplica V.1.4.50/1.4.51 + chave nova do Groq).
+
 ## Pendente
 
 - [ ] Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI).

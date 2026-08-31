@@ -25,13 +25,19 @@ Atualizado em: 2026-08-31 (V.1.4.51)
 
 ## Versao Atual
 
-`V.1.4.51` — Cost Intelligence Fase 1: fundacao de dados reais de custo de IA
-(catalogo de precos por modelo, captura de uso real dos 4 provedores, tabela
-`ai_usage_events`, fix do bug que zerava o custo do tempo real). Local/GitHub
-apenas — deploy na VPS pendente (migracao aditiva, automatica no startup,
-sem passo manual). Ver `docs/cost-intelligence-audit.md` para a auditoria
-completa e o roadmap das Fases 2-6 (agregacoes/dashboard, Budget Guard,
-Cost Router inteligente, otimizacao, observabilidade). V.1.4.50 — extensao Chrome passa a informar sua propria versao (`X-Extensao-Versao`) em toda chamada ao backend, exposta como `ext_ver` em todo log estruturado (mesmo padrao do `cid` de correlacao) — motivado pelo incidente de 31/08/2026 (ver abaixo), onde nao foi possivel diferenciar remotamente "extensao desatualizada" de "extensao atualizada mas sem login". V.1.4.49 (login opcional na extensao + fallback do tempo real pra conta Claude do vendedor quando os 4 provedores centrais se esgotarem), V.1.4.48 (fix allowed_tools/tools), V.1.4.47 (token corrompido por espaco), V.1.4.46 (ANTHROPIC_API_KEY herdada), V.1.4.45 (piloto em Analisar Transcricao) e V.1.4.44 (piloto Claude Account) confirmadas deployadas | extensao Chrome `V.1.4.5` (local/GitHub — deploy pendente, so precisa reinstalar a extensao no navegador do vendedor) | VPS antiga (`204.168.180.25`) deprecada
+`V.1.4.51` (local + GitHub, commit `dde7987`) — **na VPS**: codigo ja puxado
+(`git pull` feito em 31/08/2026 as ~20h), mas `saleia.service` **ainda nao
+reiniciado** (aguardando `reunioes_ativas: 0` — chegou a haver 2 reunioes
+simultaneas). O processo em memoria na VPS ainda roda `V.1.4.49`. Ver secao
+"Deploy pendente" abaixo para o que o restart vai aplicar.
+
+Resumo das ultimas versoes:
+- **V.1.4.51** — Cost Intelligence Fase 1: fundacao de dados reais de custo de IA (catalogo de precos por modelo, captura de uso real dos 4 provedores, tabela `ai_usage_events`, fix do bug que zerava o custo do tempo real). Ver `docs/cost-intelligence-audit.md` para a auditoria completa e o roadmap das Fases 2-6 (agregacoes/dashboard, Budget Guard, Cost Router inteligente, otimizacao, observabilidade).
+- **V.1.4.50** — extensao Chrome passa a informar sua propria versao (`X-Extensao-Versao`) em toda chamada ao backend, exposta como `ext_ver` em todo log estruturado (mesmo padrao do `cid` de correlacao) — motivado pelo incidente de 31/08/2026 (ver abaixo), onde nao foi possivel diferenciar remotamente "extensao desatualizada" de "extensao atualizada mas sem login".
+- **V.1.4.49** — login opcional na extensao + fallback do tempo real pra conta Claude do vendedor quando os 4 provedores centrais se esgotarem. **Validado end-to-end em producao real em 31/08/2026** (ver secao "Fallback Claude Account validado" abaixo) — pendencia da propria V.1.4.49 fechada.
+- V.1.4.48 (fix allowed_tools/tools), V.1.4.47 (token corrompido por espaco), V.1.4.46 (ANTHROPIC_API_KEY herdada), V.1.4.45 (piloto em Analisar Transcricao) e V.1.4.44 (piloto Claude Account) confirmadas deployadas.
+
+Extensao Chrome: `V.1.4.5` local/GitHub — deploy pendente, precisa reinstalar no navegador do vendedor. VPS antiga (`204.168.180.25`) deprecada.
 
 ## Incidente ao vivo — 31/08/2026 (reuniao real sem IA por mais de 1h)
 
@@ -56,6 +62,44 @@ Durante checagem de rotina (deploy V.1.4.49 ja confirmado em producao, commit
   acima.
 - Nao foi reiniciado o `saleia.service` em nenhum momento desta
   investigacao (`reunioes_ativas: 1` confirmado antes de qualquer comando).
+
+## Fallback Claude Account validado em producao real (31/08/2026, ~20h)
+
+Enquanto a reuniao do incidente acima continuava ativa, o vendedor conectou
+a conta Claude pelo Dashboard e depois logou no bloco "Conta" da extensao
+(email/senha da conta SALEIA — `POST /auth/login` = `200 OK` as 20:15:45,
+apos uma tentativa com credencial errada as 20:14:12 = `401`). No ciclo de
+`/tempo-real` seguinte (20:16:31), com os 4 provedores centrais falhando
+como no resto do incidente, `agent/multiagente/claude_fallback.py` disparou
+pela primeira vez em uso real de producao: **4 analises concluidas com
+sucesso** (coach/disc/finance/closer) via `agent/claude_account.py`, custo
+real logado pelo proprio SDK — `US$ 0.0296`, `0.0368`, `0.0387`, `0.0585`.
+Fecha a pendencia que a V.1.4.49 tinha deixado em aberto ("validar o
+fallback disparando de verdade").
+
+**Achado**: conectar a conta Claude no Dashboard e logar na extensao sao
+dois passos independentes — so o segundo resolve o `usuario_id` que aciona
+o fallback no tempo real. Ter so o primeiro (como estava documentado acima,
+"existe 1 conexao claude_connections ativa... mas vendedor anonimo") nao e
+suficiente.
+
+## Deploy pendente (V.1.4.50/1.4.51) + fix do PAT do GitHub na VPS
+
+- O PAT configurado no `git remote origin` da VPS expirou/foi revogado de
+  novo (mesmo tipo de problema corrigido em 16/08/2026, ver V.1.4.38) —
+  `git pull` falhava com `Invalid username or token`. Usuario gerou um PAT
+  novo no GitHub; `git remote set-url origin` corrigido, `git fetch`/`git
+  pull` testados e funcionando.
+- `git pull origin main` executado na VPS (fast-forward para `dde7987` =
+  V.1.4.50+V.1.4.51) — seguro com reuniao ativa, so atualiza arquivos em
+  disco, nao afeta o processo `uvicorn` ja em memoria.
+- **`systemctl restart saleia` ainda nao executado** — checar
+  `reunioes_ativas: 0` antes. Duas coisas dependem do restart:
+  1. O codigo do V.1.4.50/1.4.51 (extensao informa versao + Cost
+     Intelligence Fase 1) so existe em disco, o processo ainda roda `1.4.49`.
+  2. A chave nova do `GROQ_API_KEY` (atualizada no `.env` mais cedo nesta
+     mesma sessao) so e lida no proximo start — transcricao de audio
+     continua com `401 Invalid API Key` ate o restart.
 
 ## Funcionalidades Entregues
 
@@ -311,7 +355,7 @@ CHANGELOG (V.1.4.44) — resumo:
 
 ## O Que Falta
 
-- **Deploy V.1.4.50/1.4.51 pendente**: checar `reunioes_ativas` em `/health` antes de `git pull origin main && systemctl restart saleia` (na madrugada de 31/08/2026 havia reuniao ao vivo em andamento, deploy adiado de proposito). Alem do deploy no backend, a extensao Chrome precisa ser reinstalada (`chrome://extensions`) pra vendedores passarem a enviar `X-Extensao-Versao` — sem isso o incidente de 31/08 (ver secao acima) continua indiferenciavel do lado do servidor.
+- **Restart do `saleia.service` pendente** (`git pull` ja feito, ver secao "Deploy pendente" acima): checar `reunioes_ativas: 0` em `/health` antes de `systemctl restart saleia`. Alem de ativar o codigo do V.1.4.50/1.4.51 e a chave nova do Groq, a extensao Chrome precisa ser reinstalada (`chrome://extensions`) pra vendedores passarem a enviar `X-Extensao-Versao` — sem isso o incidente de 31/08 (ver secao acima) continua indiferenciavel do lado do servidor.
 - **Cost Intelligence — validacao manual pendente (V.1.4.51)**: os nomes exatos de campo de cache do DeepSeek (`prompt_cache_hit_tokens`) e Gemini (`cached_content_token_count`) nao foram confirmados contra uma resposta real de producao — degradam com seguranca para `0` via `getattr`, mas a granularidade de cache pode estar subestimada ate essa validacao. Fazer 1 chamada real por provedor em homologacao/producao logando `response.usage`/`response.usage_metadata` bruto (`api/ai_router.py::_usage_from_*`). Fases 2-6 do roadmap (dashboard de custos, Budget Guard, Cost Router) ainda nao iniciadas — ver `docs/cost-intelligence-audit.md`.
 - Descomissionar VPS antiga (`204.168.180.25`).
 - Alterar senha do admin via dashboard.
