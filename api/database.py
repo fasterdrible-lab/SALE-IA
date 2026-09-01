@@ -125,6 +125,38 @@ class AiUsageEvent(SQLModel, table=True):
     error_message: Optional[str] = Field(default=None, sa_column=Column(String(240)))
 
 
+class KnowledgeSource(SQLModel, table=True):
+    """Fonte de conhecimento comercial (livro, playbook, manual, etc.) para
+    o Knowledge Compiler / "Biblioteca de Inteligencia". Fase 1: so guarda
+    metadados + texto extraido deterministicamente (sem IA ainda — a
+    estruturacao em KnowledgeItems e a Fase 2).
+
+    Sem organization_id: decisao deliberada (mesma da V.1.4.40) — SALEIA e
+    uso interno de uma unica empresa, multi-tenancy nao se aplica hoje.
+    """
+
+    __tablename__ = "knowledge_sources"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    title: str = Field(sa_column=Column(String(255), nullable=False))
+    author: Optional[str] = Field(default=None, sa_column=Column(String(255)))
+    source_type: str = Field(default="OTHER", sa_column=Column(String(30), nullable=False))
+    original_filename: str = Field(sa_column=Column(String(255), nullable=False))
+    mime_type: Optional[str] = Field(default=None, sa_column=Column(String(100)))
+    arquivo_path: str = Field(sa_column=Column(String(500), nullable=False))
+    arquivo_tamanho: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    content_hash: str = Field(sa_column=Column(String(64), unique=True, index=True, nullable=False))
+    status: str = Field(default="UPLOADED", sa_column=Column(String(20), nullable=False))
+    texto_extraido: Optional[str] = Field(default=None, sa_column=Column(Text))
+    sections_json: Optional[str] = Field(default=None, sa_column=Column(Text))
+    char_count: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    section_count: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    error_message: Optional[str] = Field(default=None, sa_column=Column(String(500)))
+    created_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+    updated_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+    processed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+
+
 # ─────────────────────────────────────────────
 # ENGINE — MySQL ou SQLite
 # ─────────────────────────────────────────────
@@ -1042,3 +1074,127 @@ def metricas_claude_account() -> dict:
         "limites_atingidos": limite_atingido,
         "avaliacoes": avaliacoes,
     }
+
+
+# ─────────────────────────────────────────────
+# KNOWLEDGE COMPILER — Biblioteca de Inteligência (Fase 1)
+# ─────────────────────────────────────────────
+def _knowledge_source_to_dict(row: "KnowledgeSource", incluir_texto: bool = False) -> dict:
+    d = {
+        "id": row.id,
+        "title": row.title,
+        "author": row.author,
+        "source_type": row.source_type,
+        "original_filename": row.original_filename,
+        "mime_type": row.mime_type,
+        "arquivo_tamanho": row.arquivo_tamanho,
+        "content_hash": row.content_hash,
+        "status": row.status,
+        "char_count": row.char_count,
+        "section_count": row.section_count,
+        "error_message": row.error_message,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+        "processed_at": row.processed_at.isoformat() if row.processed_at else None,
+    }
+    if incluir_texto:
+        d["texto_extraido"] = row.texto_extraido
+        d["sections"] = json.loads(row.sections_json) if row.sections_json else []
+    return d
+
+
+def obter_knowledge_source_por_hash(content_hash: str) -> Optional[dict]:
+    """Usado para deduplicação no upload: se o hash já existe, o chamador
+    reaproveita o registro em vez de reprocessar."""
+    with Session(engine) as session:
+        stmt = select(KnowledgeSource).where(KnowledgeSource.content_hash == content_hash)
+        row = session.exec(stmt).first()
+        return _knowledge_source_to_dict(row) if row else None
+
+
+def criar_knowledge_source(
+    title: str,
+    original_filename: str,
+    arquivo_path: str,
+    content_hash: str,
+    source_type: str = "OTHER",
+    author: Optional[str] = None,
+    mime_type: Optional[str] = None,
+    arquivo_tamanho: int = 0,
+) -> dict:
+    with Session(engine) as session:
+        row = KnowledgeSource(
+            title=title,
+            author=author,
+            source_type=source_type,
+            original_filename=original_filename,
+            mime_type=mime_type,
+            arquivo_path=arquivo_path,
+            arquivo_tamanho=arquivo_tamanho,
+            content_hash=content_hash,
+            status="UPLOADED",
+        )
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _knowledge_source_to_dict(row)
+
+
+def obter_knowledge_source(source_id: int, incluir_texto: bool = False) -> Optional[dict]:
+    with Session(engine) as session:
+        row = session.get(KnowledgeSource, source_id)
+        return _knowledge_source_to_dict(row, incluir_texto=incluir_texto) if row else None
+
+
+def obter_knowledge_source_arquivo(source_id: int) -> Optional[tuple[str, str]]:
+    """Retorna (arquivo_path, mime_type) para uso interno da extração —
+    não exposto no dict público (é um caminho de disco no servidor)."""
+    with Session(engine) as session:
+        row = session.get(KnowledgeSource, source_id)
+        return (row.arquivo_path, row.mime_type or "") if row else None
+
+
+def listar_knowledge_sources() -> List[dict]:
+    with Session(engine) as session:
+        stmt = select(KnowledgeSource).order_by(KnowledgeSource.created_at.desc())
+        rows = session.exec(stmt).all()
+        return [_knowledge_source_to_dict(r) for r in rows]
+
+
+def marcar_knowledge_source_status(source_id: int, status: str, error_message: Optional[str] = None) -> None:
+    with Session(engine) as session:
+        row = session.get(KnowledgeSource, source_id)
+        if not row:
+            return
+        row.status = status
+        row.error_message = error_message
+        row.updated_at = datetime.now()
+        session.add(row)
+        session.commit()
+
+
+def salvar_extracao_knowledge_source(
+    source_id: int,
+    texto: str,
+    sections: list,
+    char_count: int,
+    section_count: int,
+) -> Optional[dict]:
+    """Persiste o resultado da extração determinística (Fase 1) e marca
+    status=EXTRACTED. `sections` é uma lista de dicts (já serializável)."""
+    with Session(engine) as session:
+        row = session.get(KnowledgeSource, source_id)
+        if not row:
+            return None
+        row.texto_extraido = texto
+        row.sections_json = json.dumps(sections, ensure_ascii=False)
+        row.char_count = char_count
+        row.section_count = section_count
+        row.status = "EXTRACTED"
+        row.error_message = None
+        row.processed_at = datetime.now()
+        row.updated_at = datetime.now()
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _knowledge_source_to_dict(row)

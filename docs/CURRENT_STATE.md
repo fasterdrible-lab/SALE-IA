@@ -25,11 +25,22 @@ Atualizado em: 2026-08-31 (V.1.4.51)
 
 ## Versao Atual
 
-`V.1.4.51` (local + GitHub, commit `dde7987`) — **na VPS**: codigo ja puxado
-(`git pull` feito em 31/08/2026 as ~20h), mas `saleia.service` **ainda nao
-reiniciado** (aguardando `reunioes_ativas: 0` — chegou a haver 2 reunioes
-simultaneas). O processo em memoria na VPS ainda roda `V.1.4.49`. Ver secao
-"Deploy pendente" abaixo para o que o restart vai aplicar.
+`V.1.4.52` (local + GitHub) — **Biblioteca de Inteligência / Knowledge
+Compiler Fase 1** (upload + extração determinística de PDF/DOCX/TXT/MD/
+HTML, sem IA, atrás de `KNOWLEDGE_COMPILER_ENABLED=false` por padrão) —
+ainda não deployada na VPS. Ver seção "Biblioteca de Inteligência" abaixo.
+
+Resumo da versão anterior confirmada em produção:
+
+`V.1.4.51` (local + GitHub, commit `dde7987`) — **confirmado na VPS via SSH**
+(01/09/2026, acesso por senha — a chave `saleia_vps` continua nao
+autenticando): `git log -1` na VPS confirma commit exato `dde7987`;
+`systemctl is-active saleia` = `active`, rodando desde `2026-09-01
+06:38:15 UTC`; `/health` local (`127.0.0.1:8000`) responde `versao: 1.4.51`
+e `reunioes_ativas: 0`. `GROQ_API_KEY` presente no `.env` (chave nova de
+31/08/2026), mas sem chamadas recentes de `/audio-transcricao` no journal —
+teste end-to-end da transcricao de audio ainda nao confirmado (ver
+"O Que Falta").
 
 Resumo das ultimas versoes:
 - **V.1.4.51** — Cost Intelligence Fase 1: fundacao de dados reais de custo de IA (catalogo de precos por modelo, captura de uso real dos 4 provedores, tabela `ai_usage_events`, fix do bug que zerava o custo do tempo real). Ver `docs/cost-intelligence-audit.md` para a auditoria completa e o roadmap das Fases 2-6 (agregacoes/dashboard, Budget Guard, Cost Router inteligente, otimizacao, observabilidade).
@@ -83,7 +94,7 @@ o fallback no tempo real. Ter so o primeiro (como estava documentado acima,
 "existe 1 conexao claude_connections ativa... mas vendedor anonimo") nao e
 suficiente.
 
-## Deploy pendente (V.1.4.50/1.4.51) + fix do PAT do GitHub na VPS
+## Deploy V.1.4.50/1.4.51 confirmado (01/09/2026) + fix do PAT do GitHub na VPS
 
 - O PAT configurado no `git remote origin` da VPS expirou/foi revogado de
   novo (mesmo tipo de problema corrigido em 16/08/2026, ver V.1.4.38) —
@@ -91,15 +102,48 @@ suficiente.
   novo no GitHub; `git remote set-url origin` corrigido, `git fetch`/`git
   pull` testados e funcionando.
 - `git pull origin main` executado na VPS (fast-forward para `dde7987` =
-  V.1.4.50+V.1.4.51) — seguro com reuniao ativa, so atualiza arquivos em
-  disco, nao afeta o processo `uvicorn` ja em memoria.
-- **`systemctl restart saleia` ainda nao executado** — checar
-  `reunioes_ativas: 0` antes. Duas coisas dependem do restart:
-  1. O codigo do V.1.4.50/1.4.51 (extensao informa versao + Cost
-     Intelligence Fase 1) so existe em disco, o processo ainda roda `1.4.49`.
-  2. A chave nova do `GROQ_API_KEY` (atualizada no `.env` mais cedo nesta
-     mesma sessao) so e lida no proximo start — transcricao de audio
-     continua com `401 Invalid API Key` ate o restart.
+  V.1.4.50+V.1.4.51) em 31/08/2026 — seguro com reuniao ativa, so atualiza
+  arquivos em disco, nao afeta o processo `uvicorn` ja em memoria.
+- **`systemctl restart saleia` confirmado aplicado**, verificado via SSH em
+  01/09/2026 (`ActiveEnterTimestamp = 2026-09-01 06:38:15 UTC`) — restart
+  feito fora desta sessao de doc, na madrugada/manha de 01/09. `git log -1`
+  na VPS confirma commit exato `dde7987`.
+- **Ainda nao validado**: se a chave nova do `GROQ_API_KEY` (atualizada no
+  `.env` em 31/08/2026, presente e confirmada via SSH) resolveu de fato o
+  `401 Invalid API Key` na transcricao de audio — o journal nao tem
+  nenhuma chamada recente de `/audio-transcricao` para confirmar (sem
+  trafego desde o restart). Precisa de um teste real (upload de audio em
+  uma reuniao) para fechar essa pendencia.
+
+## Biblioteca de Inteligência / Knowledge Compiler (Fase 1 — V.1.4.52)
+
+Primeira fase de uma feature grande (roadmap de 6 fases) que transforma
+documentos comerciais (livros, playbooks, treinamentos, manuais) em
+conhecimento estruturado reutilizável pelo RAG/Sales Memory/Playbook/Skill
+durante reuniões. Esta fase só cobre upload + extração determinística de
+texto — nenhuma chamada de IA ainda.
+
+- `services/knowledge_compiler/`: extratores de PDF (pypdf + fallback
+  pdfplumber), DOCX (python-docx), TXT/MD e HTML — chunking por seção
+  real (heading/tamanho de fonte), não por corte fixo de caracteres.
+  `sanitize_document_text()` remove unicode invisível e sinaliza (sem
+  remover) trechos que parecem prompt injection.
+- Tabela `knowledge_sources` (SQLModel, aditiva) + 4 endpoints
+  (`POST /biblioteca/fontes`, `POST /biblioteca/fontes/{id}/extrair`,
+  `GET /biblioteca/fontes[/{id}]`), atrás de `KNOWLEDGE_COMPILER_ENABLED`
+  (`false` por padrão — endpoints somem, `404`, mesmo padrão do
+  `CLAUDE_ACCOUNT_PILOT`).
+- Dashboard: página "Biblioteca de Inteligência" (nav 🗂️) — upload +
+  lista de fontes com status/contagens + botão "Extrair".
+- Sem multi-tenant (`organization_id`) — decisão deliberada, mantém a
+  mesma linha da V.1.4.40.
+- **Não deployado na VPS ainda.** Deploy padrão (`git pull` +
+  `systemctl restart saleia`) ativa o código, mas a feature continua
+  invisível (`404`) até alguém setar `KNOWLEDGE_COMPILER_ENABLED=true` no
+  `.env` da VPS e reiniciar de novo.
+- Fases 2-6 (compilação com IA, integração RAG/Skills/Playbook, context
+  builder, governança, UI final) documentadas no CHANGELOG mas não
+  iniciadas.
 
 ## Funcionalidades Entregues
 
@@ -355,7 +399,8 @@ CHANGELOG (V.1.4.44) — resumo:
 
 ## O Que Falta
 
-- **Restart do `saleia.service` pendente** (`git pull` ja feito, ver secao "Deploy pendente" acima): checar `reunioes_ativas: 0` em `/health` antes de `systemctl restart saleia`. Alem de ativar o codigo do V.1.4.50/1.4.51 e a chave nova do Groq, a extensao Chrome precisa ser reinstalada (`chrome://extensions`) pra vendedores passarem a enviar `X-Extensao-Versao` — sem isso o incidente de 31/08 (ver secao acima) continua indiferenciavel do lado do servidor.
+- **Chave SSH `saleia_vps` continua nao autenticando** (`Permission denied (publickey,password)`) — acesso restabelecido só por senha root em 01/09/2026 (mesmo padrao recorrente de 19/08 e 22/08/2026). A chave publica provavelmente nao esta mais em `~/.ssh/authorized_keys` da VPS nova, ou foi rotacionada — nao investigado a fundo, senha continua sendo o fallback funcional.
+- **Restart do `saleia.service` confirmado feito** (commit `dde7987` exato, ativo desde `2026-09-01 06:38:15 UTC` — ver secao "Deploy V.1.4.50/1.4.51 confirmado" acima). Falta so: (a) validar end-to-end se o `GROQ_API_KEY` novo resolveu a transcricao de audio (sem trafego real desde o restart para confirmar), (b) a extensao Chrome precisa ser reinstalada (`chrome://extensions`) pra vendedores passarem a enviar `X-Extensao-Versao` — sem isso o incidente de 31/08 (ver secao acima) continua indiferenciavel do lado do servidor.
 - **Cost Intelligence — validacao manual pendente (V.1.4.51)**: os nomes exatos de campo de cache do DeepSeek (`prompt_cache_hit_tokens`) e Gemini (`cached_content_token_count`) nao foram confirmados contra uma resposta real de producao — degradam com seguranca para `0` via `getattr`, mas a granularidade de cache pode estar subestimada ate essa validacao. Fazer 1 chamada real por provedor em homologacao/producao logando `response.usage`/`response.usage_metadata` bruto (`api/ai_router.py::_usage_from_*`). Fases 2-6 do roadmap (dashboard de custos, Budget Guard, Cost Router) ainda nao iniciadas — ver `docs/cost-intelligence-audit.md`.
 - Descomissionar VPS antiga (`204.168.180.25`).
 - Alterar senha do admin via dashboard.

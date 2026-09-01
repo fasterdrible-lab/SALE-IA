@@ -1003,6 +1003,9 @@
       <button class="nav-item" data-page="playbooks" onclick="mostrarPagina('playbooks', this)">
         <span class="nav-icon">🎯</span><span class="nav-label">Playbooks</span>
       </button>
+      <button class="nav-item" data-page="biblioteca" onclick="mostrarPagina('biblioteca', this)">
+        <span class="nav-icon">🗂️</span><span class="nav-label">Biblioteca de Inteligência</span>
+      </button>
       <button class="nav-item" data-page="clientes" onclick="mostrarPagina('clientes', this)">
         <span class="nav-icon">👤</span><span class="nav-label">Clientes</span>
       </button>
@@ -1400,6 +1403,43 @@
         </div>
       </div>
 
+      <!-- BIBLIOTECA DE INTELIGÊNCIA (Knowledge Compiler — Fase 1) -->
+      <div class="page" id="page-biblioteca">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:20px">
+          <div>
+            <h2 style="margin:0">Biblioteca de Inteligência</h2>
+            <p style="color:var(--muted);font-size:.85rem;margin:4px 0 0">Envie livros, playbooks, treinamentos e manuais comerciais — Fase 1: extração de texto, sem IA ainda.</p>
+          </div>
+          <button class="btn" onclick="carregarBiblioteca()">↻ Atualizar</button>
+        </div>
+
+        <div id="bib-form-wrap" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin-bottom:24px">
+          <h3 style="margin:0 0 12px;font-size:.95rem;color:var(--gold)">+ Adicionar fonte de conhecimento</h3>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+            <input type="text" id="bib-titulo" placeholder="Título (ex: SPIN Selling)" style="flex:1;min-width:200px;padding:7px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.85rem"/>
+            <input type="text" id="bib-autor" placeholder="Autor (opcional)" style="flex:1;min-width:160px;padding:7px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.85rem"/>
+            <select id="bib-tipo" style="padding:7px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.85rem">
+              <option value="BOOK">Livro</option>
+              <option value="PLAYBOOK">Playbook</option>
+              <option value="TRAINING">Treinamento</option>
+              <option value="MANUAL">Manual</option>
+              <option value="CASE_COLLECTION">Coleção de Cases</option>
+              <option value="FAQ">FAQ</option>
+              <option value="SCRIPT">Script</option>
+              <option value="PRODUCT_DOC">Doc de Produto</option>
+              <option value="OTHER">Outro</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <input type="file" id="bib-arquivo-input" accept=".pdf,.docx,.txt,.md,.markdown,.html,.htm" style="font-size:.82rem;color:var(--muted)"/>
+            <button class="btn" onclick="enviarFonteBiblioteca()">📤 Enviar</button>
+          </div>
+          <div id="bib-form-status" style="margin-top:8px;font-size:.82rem"></div>
+        </div>
+
+        <div id="bib-lista"><div style="color:var(--muted)">Carregando...</div></div>
+      </div>
+
       <!-- CLIENTES -->
       <div class="page" id="page-clientes">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:20px">
@@ -1712,6 +1752,7 @@
     if (nome === 'base')          { carregarBase(); initDropzone(); }
     if (nome === 'historico')     carregarHistorico();
     if (nome === 'playbooks')     { carregarPlaybooks(); carregarSkills(); }
+    if (nome === 'biblioteca')    carregarBiblioteca();
     if (nome === 'clientes')     carregarClientes();
     if (nome === 'monitor')       _iniciarMonitor();
     if (nome === 'configuracoes') {
@@ -3083,6 +3124,133 @@
     } catch (e) {
       alert('Erro ao excluir playbook: ' + e.message);
     }
+  }
+
+  /* ─── Biblioteca de Inteligência (Knowledge Compiler — Fase 1) ─── */
+  let _bibliotecaCache = [];
+
+  const _BIB_STATUS_LABEL = {
+    UPLOADED: { texto: 'Enviado', cor: '#a78bfa' },
+    EXTRACTING: { texto: 'Extraindo...', cor: '#facc15' },
+    EXTRACTED: { texto: 'Extraído', cor: '#2dd4bf' },
+    FAILED: { texto: 'Falhou', cor: '#f87171' },
+  };
+
+  async function carregarBiblioteca() {
+    const container = document.getElementById('bib-lista');
+    container.innerHTML = '<div style="color:var(--muted)">Carregando...</div>';
+    try {
+      const r = await fetchJsonWithFallback('/biblioteca/fontes');
+      if (r.status === 404) {
+        container.innerHTML = '<div style="color:var(--muted);padding:24px;text-align:center">Funcionalidade em preview — peça ao administrador para ativar <code>KNOWLEDGE_COMPILER_ENABLED</code> no backend.</div>';
+        document.getElementById('bib-form-wrap').style.display = 'none';
+        return;
+      }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+      _bibliotecaCache = d.fontes || [];
+      renderizarBiblioteca(_bibliotecaCache);
+    } catch (e) {
+      container.innerHTML = '<div style="color:#f87171">Erro ao carregar biblioteca: ' + escHtml(e.message) + '</div>';
+    }
+  }
+
+  function renderizarBiblioteca(lista) {
+    const container = document.getElementById('bib-lista');
+    if (!lista.length) {
+      container.innerHTML = '<div style="color:var(--muted);padding:32px;text-align:center">Nenhuma fonte enviada ainda.<br><span style="font-size:.82rem">Envie um livro, playbook ou manual acima para começar.</span></div>';
+      return;
+    }
+    container.innerHTML = lista.map(f => cardBibliotecaHTML(f)).join('');
+  }
+
+  function cardBibliotecaHTML(f) {
+    const titulo = escHtml(f.title || f.original_filename || 'Sem título');
+    const autor  = escHtml(f.author || '');
+    const tipo   = escHtml(f.source_type || 'OTHER');
+    const data   = escHtml((f.created_at || '').slice(0, 10));
+    const status = _BIB_STATUS_LABEL[f.status] || { texto: escHtml(f.status || ''), cor: 'var(--muted)' };
+    const fid    = escHtml(f.id);
+
+    const badgeStatus = `<span style="font-size:.72rem;padding:2px 8px;background:${status.cor}22;color:${status.cor};border-radius:4px;border:1px solid ${status.cor}">${status.texto}</span>`;
+    const infoExtracao = f.status === 'EXTRACTED'
+      ? `<span style="font-size:.72rem;color:var(--muted)">${f.char_count || 0} caracteres · ${f.section_count || 0} seções</span>`
+      : '';
+    const erro = f.status === 'FAILED' && f.error_message
+      ? `<div style="font-size:.78rem;color:#f87171;margin-top:6px">${escHtml(f.error_message)}</div>`
+      : '';
+
+    const btnExtrair = (f.status === 'UPLOADED' || f.status === 'FAILED')
+      ? `<button onclick="extrairFonteBiblioteca('${fid}')" style="padding:4px 10px;font-size:.75rem;background:transparent;border:1px solid var(--gold);color:var(--gold);border-radius:4px;cursor:pointer">▶ Extrair</button>`
+      : '';
+
+    return `<div class="reuniao-card" style="flex-direction:column;align-items:flex-start;gap:8px;padding:16px 20px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;width:100%;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.95rem;font-weight:700;color:var(--gold);margin-bottom:4px">${titulo}</div>
+          ${autor ? `<div style="font-size:.8rem;color:var(--muted);margin-bottom:6px">${autor}</div>` : ''}
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            ${badgeStatus}
+            <span style="font-size:.72rem;color:var(--muted)">${tipo}</span>
+            ${data ? `<span style="font-size:.72rem;color:var(--muted)">${data}</span>` : ''}
+            ${infoExtracao}
+          </div>
+          ${erro}
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">${btnExtrair}</div>
+      </div>
+    </div>`;
+  }
+
+  async function enviarFonteBiblioteca() {
+    const statusEl = document.getElementById('bib-form-status');
+    const tituloEl = document.getElementById('bib-titulo');
+    const arquivoEl = document.getElementById('bib-arquivo-input');
+    const titulo = tituloEl.value.trim();
+    const arquivo = arquivoEl.files[0];
+
+    if (!titulo) { statusEl.innerHTML = '<span style="color:#f87171">Título obrigatório.</span>'; return; }
+    if (!arquivo) { statusEl.innerHTML = '<span style="color:#f87171">Selecione um arquivo.</span>'; return; }
+
+    statusEl.innerHTML = '<span style="color:var(--muted)">Enviando...</span>';
+    const formData = new FormData();
+    formData.append('title', titulo);
+    formData.append('author', document.getElementById('bib-autor').value.trim());
+    formData.append('source_type', document.getElementById('bib-tipo').value);
+    formData.append('arquivo', arquivo, arquivo.name);
+
+    try {
+      const r = await fetchJsonWithFallback('/biblioteca/fontes', { method: 'POST', body: formData });
+      if (!r.ok) {
+        const erro = await r.json().catch(() => ({}));
+        throw new Error(erro.detail || ('HTTP ' + r.status));
+      }
+      const d = await r.json();
+      statusEl.innerHTML = d.ja_existia
+        ? '<span style="color:var(--muted)">Este arquivo já havia sido enviado — reaproveitando.</span>'
+        : '<span style="color:#2dd4bf">Enviado com sucesso.</span>';
+      tituloEl.value = '';
+      document.getElementById('bib-autor').value = '';
+      arquivoEl.value = '';
+      carregarBiblioteca();
+    } catch (e) {
+      statusEl.innerHTML = '<span style="color:#f87171">Erro: ' + escHtml(e.message) + '</span>';
+    }
+  }
+
+  async function extrairFonteBiblioteca(id) {
+    _bibliotecaCache = _bibliotecaCache.map(f => f.id == id ? { ...f, status: 'EXTRACTING' } : f);
+    renderizarBiblioteca(_bibliotecaCache);
+    try {
+      const r = await fetchJsonWithFallback(`/biblioteca/fontes/${encodeURIComponent(id)}/extrair`, { method: 'POST' });
+      if (!r.ok) {
+        const erro = await r.json().catch(() => ({}));
+        throw new Error(erro.detail || ('HTTP ' + r.status));
+      }
+    } catch (e) {
+      alert('Erro ao extrair: ' + e.message);
+    }
+    carregarBiblioteca();
   }
 
   /* ─── Skills ────────────────────────────────────── */

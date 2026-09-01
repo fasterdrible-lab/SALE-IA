@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.51** (backend) · extensão Chrome **V.1.4.5** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.52** (backend) · extensão Chrome **V.1.4.5** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -90,3 +90,14 @@ Fundação de custo real de IA — primeira fase de um roadmap maior (ver `docs/
 - **`api/ai_features.py`** — constantes de `feature` (ex.: `REALTIME_COACH`, `PLAYBOOK_GERACAO`) usadas em toda chamada de IA para saber depois onde o dinheiro foi gasto.
 - **Bug fechado**: `agent/multiagente/orquestrador.py::_mesclar()` não preserva os campos `_*_ia` dos 4 agentes — por isso `analisar_fragmento_multi` agora soma o custo dos agentes em `resultado["_custo_ciclo_ia_usd"]` **antes** do merge. Sem isso, `MeetingMemory.provider_cost_estimate` (e `GET /historico/uso`) ficavam sempre em `R$0` para tempo real — o maior volume de chamadas do sistema.
 - **Limitação conhecida**: nomes de campo de cache do DeepSeek/Gemini não foram validados contra uma resposta real (degradam com segurança para `0`); Claude Account fallback não expõe contagem de tokens, só custo agregado.
+
+## Biblioteca de Inteligência / Knowledge Compiler (Fase 1, V.1.4.52)
+
+Feature grande (roadmap de 6 fases) que transforma documentos comerciais (livros, playbooks, treinamentos, manuais) em conhecimento estruturado reutilizável pelo RAG/Sales Memory/Playbook/Skill. **Esta fase só cobre upload + extração determinística de texto — sem IA ainda.** Atrás de `KNOWLEDGE_COMPILER_ENABLED` (`false` por padrão, endpoints somem via `404`, mesmo padrão do `CLAUDE_ACCOUNT_PILOT`).
+
+- **`services/knowledge_compiler/`**: `get_extractor(mime_type, filename)` despacha para o extractor certo (PDF via pypdf com fallback pdfplumber, DOCX via python-docx, TXT/MD, HTML via BeautifulSoup4). Chunking é por seção real (heading, ou tamanho de fonte detectado no PDF), nunca por corte fixo de caracteres — o LLM nunca abre o arquivo bruto diretamente, sempre recebe texto já extraído deterministicamente.
+- **`sanitizer.py::sanitize_document_text()`**: o texto de um documento é dado, nunca instrução — remove só ruído técnico inequívoco (unicode de controle/formatação invisível) e **sinaliza sem remover** trechos que parecem prompt injection (`potential_instruction_injection`). Fases futuras devem bloquear texto sinalizado de virar `system_injection` de uma Skill sem revisão humana.
+- **`api/database.py::KnowledgeSource`**: tabela SQLModel (`knowledge_sources`), sem `organization_id` — decisão deliberada (mesma linha da V.1.4.40: SALEIA é uso interno de uma única empresa, multi-tenancy não se aplica hoje).
+- **Deduplicação por hash**: `POST /biblioteca/fontes` calcula `content_hash` (sha256) do arquivo — reenviar o mesmo arquivo reaproveita o registro existente em vez de reprocessar.
+- **Extração é um passo manual separado** (`POST /biblioteca/fontes/{id}/extrair`), nunca automática no upload — controle de custo/processamento deliberado desde a Fase 1, mesmo sem custo de IA ainda (vale para quando a Fase 2 adicionar compilação com IA).
+- **Roadmap não iniciado**: Fase 2 (compilação com IA em `KnowledgeItem`s — frameworks/objeções/scripts/regras de decisão, com estimativa de custo antes de processar), Fase 3 (integração com RAG/Sales Memory/Playbook/Skill — `agent/skill_resolver.py::salvar_skill()` já existe e é dinâmico, não precisa de tabela nova), Fase 4 (progressive disclosure / context builder com ranking), Fase 5 (governança/versionamento/segurança avançada), Fase 6 (UI final + métricas de uso + feedback). Detalhe completo no CHANGELOG (V.1.4.52).

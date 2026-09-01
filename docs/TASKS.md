@@ -348,16 +348,32 @@ EMAIL_FROM=noreply@saleia.com.br
 - [x] PAT do GitHub no `git remote` da VPS expirado/revogado — corrigido com PAT novo gerado pelo usuario (`git remote set-url origin`).
 - [x] `git pull origin main` executado na VPS (fast-forward para `dde7987` = V.1.4.50+V.1.4.51) — codigo em disco, `systemctl restart` ainda pendente (aguardando `reunioes_ativas: 0`).
 - [x] **Fallback Claude Account (V.1.4.49) validado end-to-end em producao real pela primeira vez**: vendedor conectou conta Claude no Dashboard + logou na extensao (email/senha) durante reuniao ao vivo com os 4 provedores centrais fora do ar; 4 analises concluidas com sucesso (coach/disc/finance/closer) via conta Claude pessoal, custo real ~US$0,03-0,06 cada. Pendencia da V.1.4.49 fechada. Detalhes em `docs/CURRENT_STATE.md` e `CHANGELOG.md`.
-- **Pendente**: `systemctl restart saleia` assim que `reunioes_ativas: 0` (aplica V.1.4.50/1.4.51 + chave nova do Groq).
+
+## Concluido (Deploy V.1.4.50/1.4.51 confirmado — 01/09/2026)
+
+- [x] `systemctl restart saleia` confirmado aplicado e verificado via SSH (acesso por senha root, fornecida pelo usuario — chave `saleia_vps` continua nao autenticando): commit exato `dde7987` na VPS, servico `active` desde `2026-09-01 06:38:15 UTC`, `/health` local = `versao 1.4.51` / `reunioes_ativas 0`, `GROQ_API_KEY` presente no `.env`.
+- **Pendente**: validar end-to-end se `GROQ_API_KEY` novo resolveu a transcricao de audio (journal sem chamadas recentes de `/audio-transcricao` para confirmar — precisa de trafego real); restabelecer a chave SSH `saleia_vps` (fallback por senha funciona, mas nao e sustentavel a longo prazo).
+
+## Concluido (V.1.4.52 — Biblioteca de Inteligencia / Knowledge Compiler Fase 1)
+
+- [x] `services/knowledge_compiler/`: extratores deterministicos de PDF/DOCX/TXT/MD/HTML (sem IA) + sanitizacao contra prompt injection (sinaliza, nunca remove).
+- [x] Tabela `knowledge_sources` (SQLModel) + 4 endpoints (`POST /biblioteca/fontes`, `POST .../extrair`, `GET /biblioteca/fontes[/{id}]`) atras de `KNOWLEDGE_COMPILER_ENABLED` (desligada por padrao).
+- [x] Dashboard: pagina "Biblioteca de Inteligencia" (upload + lista + extrair).
+- [x] 18 testes novos (`tests/test_knowledge_compiler_extraction.py`) + verificacao end-to-end manual via TestClient. Suite `test_smoke`+`test_knowledge_compiler_extraction`+`test_base_download`: 33/33 OK, sem regressao.
+- Decisao confirmada com o usuario: sem multi-tenant (`organization_id`), mantendo a decisao da V.1.4.40.
+- Plano completo (Fases 1-6) salvo em `C:\Users\phpos\.claude\plans\twinkly-floating-emerson.md`.
+- **Pendente**: deploy na VPS (`git pull` + `systemctl restart saleia` — a feature fica invisivel/`404` ate `KNOWLEDGE_COMPILER_ENABLED=true` ser setado no `.env` da VPS). Fases 2-6 (compilacao com IA, integracao RAG/Skills/Playbook, context builder, governanca, UI final) ainda nao iniciadas — roadmap no CHANGELOG (V.1.4.52).
 
 ## Pendente
 
+- [ ] **Deploy V.1.4.52 (Biblioteca de Inteligencia)**: checar `reunioes_ativas` em `/health` antes de `git pull origin main && systemctl restart saleia`. Feature continua desligada (`404`) ate `KNOWLEDGE_COMPILER_ENABLED=true` ser adicionado ao `.env` da VPS + novo restart.
 - [ ] Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI).
 - [ ] Recarregar extensao Chrome: `chrome://extensions` → 🔄 recarregar SALEIA (aplica migracao de URL e V.1.4.3).
 - [ ] Descomissionar VPS antiga `204.168.180.25` apos validacao.
 - [ ] Alterar senha do admin `phpos35@gmail.com` via dashboard.
 - [ ] **Reindex de embeddings pos-deploy**: `python -m scripts.reindex_embeddings --dry-run --table all` (conferir) e depois sem `--dry-run` (embeddings atuais sao da OpenAI, incompativeis com Ollama). Ainda nao executado.
-- [ ] **Deploy V.1.4.40/41/42 pendente**: checar `reunioes_ativas` em `/health` antes de `git pull origin main && systemctl restart saleia`; validar upload/download na Base em producao apos o deploy.
+- [ ] **Corrigir a chave SSH `saleia_vps`** (`Permission denied (publickey,password)`, checado em 01/09/2026 — acesso restabelecido só por senha root fornecida pelo usuario) — checar `authorized_keys` na VPS nova ou gerar/cadastrar chave nova.
+- [ ] **Validar end-to-end a transcricao de audio (Groq)** apos o restart confirmado do V.1.4.50/1.4.51 — chave `GROQ_API_KEY` foi atualizada em 31/08/2026, presente no `.env`, mas nunca testada ponta a ponta (sem trafego real de `/audio-transcricao` desde o restart).
 - [ ] **Migracao de reunioes historicas (Drive) — 23/74 restantes**: `scripts/migrar_reunioes_historico.py` processou 51/74 reunioes exportadas do Google Drive (Gemini Notes) direto contra producao — cada uma virou um relatorio completo + entrada de Sales Memory. As 23 restantes falharam consistentemente com 503 mesmo apos retry com backoff, mesmo com DeepSeek/OpenAI/Anthropic parcialmente recuperados — parece timeout de infraestrutura em reunioes grandes (media 127k chars nas que falham vs 99k nas que deram certo, sem corte limpo) combinado com degradacao dos provedores no momento. Para retomar (idempotente — pula as 51 ja feitas):
   ```bash
   # extrair o zip baixado do Drive de novo se a pasta de trabalho nao existir mais:

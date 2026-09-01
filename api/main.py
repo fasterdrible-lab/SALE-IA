@@ -165,6 +165,10 @@ PASTA_RELATORIOS.mkdir(parents=True, exist_ok=True)
 PASTA_BASE_ARQUIVOS = Path("data/base_arquivos")
 PASTA_BASE_ARQUIVOS.mkdir(parents=True, exist_ok=True)
 
+# Pasta para os arquivos originais enviados à Biblioteca de Inteligência (Knowledge Compiler)
+PASTA_BIBLIOTECA_ARQUIVOS = Path("data/biblioteca_arquivos")
+PASTA_BIBLIOTECA_ARQUIVOS.mkdir(parents=True, exist_ok=True)
+
 async def _loop_metricas() -> None:
     """Background task: grava snapshot de métricas a cada 60s e verifica thresholds."""
     from api.metricas_historico import registrar
@@ -546,7 +550,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.51",
+        "versao":              "1.4.52",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -584,7 +588,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.51",
+        "versao":          "1.4.52",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -1999,7 +2003,164 @@ def remover_base(doc_id: int):
     return {"ok": True}
 
 
-@app.get("/cenario/{meeting_id}", response_class=HTMLResponse)
+# ─────────────────────────────────────────────
+# BIBLIOTECA DE INTELIGÊNCIA — Knowledge Compiler (Fase 1: extração
+# determinística, sem IA). Ver docs/CURRENT_STATE.md e
+# services/knowledge_compiler/ para o desenho completo e o roadmap das
+# fases seguintes (compilação com IA, integração com RAG/Skills/Playbook).
+# ─────────────────────────────────────────────
+_KNOWLEDGE_SOURCE_TYPES = {
+    "BOOK", "PLAYBOOK", "TRAINING", "MANUAL", "CASE_COLLECTION",
+    "FAQ", "SCRIPT", "PRODUCT_DOC", "OTHER",
+}
+_BIBLIOTECA_MAX_BYTES = 20 * 1024 * 1024  # mesmo limite de POST /base
+
+
+def _knowledge_compiler_habilitado() -> bool:
+    return os.getenv("KNOWLEDGE_COMPILER_ENABLED", "false").strip().lower() in ("1", "true", "yes")
+
+
+def _req_biblioteca(authorization: str | None) -> dict:
+    """Exige usuário autenticado E a feature flag ligada — mesmo padrão de
+    _req_claude_pilot: 404 (não 403) quando a flag está desligada, para a
+    funcionalidade parecer que nem existe."""
+    payload = _req_auth(authorization)
+    if not _knowledge_compiler_habilitado():
+        raise HTTPException(status_code=404, detail="Funcionalidade indisponível.")
+    return payload
+
+
+@app.post("/biblioteca/fontes")
+async def biblioteca_adicionar_fonte(
+    arquivo: UploadFile = File(...),
+    title: str = Form(...),
+    source_type: str = Form("OTHER"),
+    author: str = Form(""),
+    authorization: str | None = Header(default=None),
+):
+    """Recebe um documento (PDF/DOCX/TXT/MD/HTML) para a Biblioteca de
+    Inteligência. Não extrai nem chama IA aqui — só valida, deduplica por
+    hash e guarda o arquivo. Extração é um passo separado
+    (POST /biblioteca/fontes/{id}/extrair), disparado explicitamente pelo
+    usuário para não gastar processamento sem controle."""
+    _req_biblioteca(authorization)
+
+    if not title or not title.strip():
+        raise HTTPException(status_code=400, detail="Título obrigatório")
+    tipo = (source_type or "OTHER").strip().upper()
+    if tipo not in _KNOWLEDGE_SOURCE_TYPES:
+        raise HTTPException(status_code=400, detail=f"source_type inválido. Use um de: {sorted(_KNOWLEDGE_SOURCE_TYPES)}")
+
+    nome_arquivo = arquivo.filename or ""
+    ext = nome_arquivo.rsplit(".", 1)[-1].lower() if "." in nome_arquivo else ""
+    if ext not in ("pdf", "docx", "txt", "md", "markdown", "html", "htm"):
+        raise HTTPException(status_code=400, detail="Formato não suportado. Use PDF, DOCX, TXT, MD ou HTML.")
+
+    conteudo = await arquivo.read()
+    if len(conteudo) > _BIBLIOTECA_MAX_BYTES:
+        raise HTTPException(status_code=413, detail="Arquivo muito grande (máx 20 MB).")
+    if not conteudo:
+        raise HTTPException(status_code=400, detail="Arquivo vazio.")
+
+    import hashlib
+    content_hash = hashlib.sha256(conteudo).hexdigest()
+
+    from api.database import obter_knowledge_source_por_hash, criar_knowledge_source
+    existente = obter_knowledge_source_por_hash(content_hash)
+    if existente:
+        return {"ok": True, "id": existente["id"], "ja_existia": True, "status": existente["status"]}
+
+    nome_seguro = re.sub(r"[^A-Za-z0-9._-]+", "_", nome_arquivo)[:150]
+    arquivo_path = str(PASTA_BIBLIOTECA_ARQUIVOS / f"{uuid.uuid4().hex}_{nome_seguro}")
+    with open(arquivo_path, "wb") as f:
+        f.write(conteudo)
+
+    fonte = criar_knowledge_source(
+        title=title.strip(),
+        author=author.strip() or None,
+        source_type=tipo,
+        original_filename=nome_arquivo,
+        mime_type=arquivo.content_type,
+        arquivo_path=arquivo_path,
+        arquivo_tamanho=len(conteudo),
+        content_hash=content_hash,
+    )
+    return {"ok": True, "id": fonte["id"], "ja_existia": False, "status": fonte["status"]}
+
+
+@app.post("/biblioteca/fontes/{source_id}/extrair")
+def biblioteca_extrair_fonte(source_id: int, authorization: str | None = Header(default=None)):
+    """Roda a extração determinística (sem IA) do arquivo já enviado:
+    texto completo + seções. Reprocessa mesmo se já EXTRACTED (o usuário
+    pode disparar de novo depois de um FAILED)."""
+    _req_biblioteca(authorization)
+
+    from api.database import (
+        obter_knowledge_source, obter_knowledge_source_arquivo, marcar_knowledge_source_status,
+        salvar_extracao_knowledge_source,
+    )
+    from services.knowledge_compiler import ExtractorNotFoundError, get_extractor, sanitize_document_text
+    from dataclasses import asdict
+
+    fonte = obter_knowledge_source(source_id)
+    if not fonte:
+        raise HTTPException(status_code=404, detail="Fonte não encontrada.")
+
+    arquivo_info = obter_knowledge_source_arquivo(source_id)
+    if not arquivo_info or not os.path.isfile(arquivo_info[0]):
+        marcar_knowledge_source_status(source_id, "FAILED", "Arquivo original não encontrado no servidor.")
+        raise HTTPException(status_code=404, detail="Arquivo original não encontrado no servidor.")
+    arquivo_path, mime_type = arquivo_info
+
+    marcar_knowledge_source_status(source_id, "EXTRACTING")
+
+    try:
+        extrator = get_extractor(mime_type, fonte["original_filename"])
+        with open(arquivo_path, "rb") as f:
+            conteudo = f.read()
+        extraido = extrator.extract(conteudo)
+        texto_limpo, flags = sanitize_document_text(extraido.text)
+    except ExtractorNotFoundError as e:
+        marcar_knowledge_source_status(source_id, "FAILED", str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.warning("[Biblioteca] Falha ao extrair fonte %s: %s", source_id, e)
+        marcar_knowledge_source_status(source_id, "FAILED", "Falha ao processar o arquivo. Verifique o formato.")
+        raise HTTPException(status_code=500, detail="Falha ao processar o arquivo. Verifique o formato.")
+
+    sections_dict = [asdict(s) for s in extraido.sections]
+    if flags:
+        for s in sections_dict:
+            s["flags"] = flags
+        logger.warning("[Biblioteca] Fonte %s sinalizada: %s", source_id, flags)
+
+    atualizado = salvar_extracao_knowledge_source(
+        source_id=source_id,
+        texto=texto_limpo,
+        sections=sections_dict,
+        char_count=len(texto_limpo),
+        section_count=len(sections_dict),
+    )
+    return {"ok": True, "fonte": atualizado, "flags": flags}
+
+
+@app.get("/biblioteca/fontes")
+def biblioteca_listar_fontes(authorization: str | None = Header(default=None)):
+    _req_biblioteca(authorization)
+    from api.database import listar_knowledge_sources
+    fontes = listar_knowledge_sources()
+    return {"fontes": fontes, "total": len(fontes)}
+
+
+@app.get("/biblioteca/fontes/{source_id}")
+def biblioteca_detalhe_fonte(source_id: int, authorization: str | None = Header(default=None)):
+    _req_biblioteca(authorization)
+    from api.database import obter_knowledge_source
+    fonte = obter_knowledge_source(source_id, incluir_texto=True)
+    if not fonte:
+        raise HTTPException(status_code=404, detail="Fonte não encontrada.")
+    return fonte
+
 def cenario_cliente_page(meeting_id: str):
     """
     Página de apresentação visual do cenário do cliente (slides para compartilhar na tela).

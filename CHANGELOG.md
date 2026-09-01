@@ -3,6 +3,156 @@
 
 ---
 
+## V.1.4.52 — Biblioteca de Inteligência / Knowledge Compiler (Fase 1)
+> Data: 01/09/2026 | Feature (fundação — extração determinística, sem IA)
+
+### VISÃO
+Primeira fase de um pedido maior (spec de 56 tarefas, "book-to-skill
+adaptado para a SALEIA") para transformar documentos comerciais (livros,
+playbooks, treinamentos, manuais) em conhecimento estruturado e reutilizável
+que alimenta o RAG/Sales Memory/Playbook/Skill já existentes. Investigação
+prévia confirmou que nada disso existia — a base de conhecimento atual
+(`agent/base_conhecimento.py`) só gera 1 embedding por documento (dos
+primeiros 8.000 caracteres, sem chunking), e a extração de PDF/DOCX só
+existia no browser (`pdf.js`/`mammoth.js`), nunca no backend.
+
+Esta fase entrega só a fundação: upload de documento, extração
+determinística de texto (sem IA), sanitização contra prompt injection e
+deduplicação por hash. Nenhuma chamada de IA acontece aqui — a compilação
+em conhecimento estruturado (frameworks, objeções, scripts) e a integração
+com RAG/Sales Memory/Playbook/Skill são fases futuras (roadmap completo no
+plano de implementação, a documentar em `docs/` conforme cada fase avança).
+
+Decisão confirmada com o usuário: **sem multi-tenant** (`organization_id`)
+— mantém a decisão já tomada na V.1.4.40 (SALEIA é uso interno de uma
+única empresa). Atrás de feature flag `KNOWLEDGE_COMPILER_ENABLED`
+(desligada por padrão) — endpoints retornam `404` quando desligada, mesmo
+padrão de `CLAUDE_ACCOUNT_PILOT`.
+
+### NOVO — `services/knowledge_compiler/`
+- `extractors/{pdf,docx,text,html}.py`: extração determinística (sem IA)
+  de PDF (pypdf, com fallback pdfplumber para PDFs de baixo rendimento de
+  texto), DOCX (python-docx, preservando a ordem real de parágrafos/
+  tabelas via iteração de baixo nível do XML), TXT/Markdown (headings `#`)
+  e HTML (BeautifulSoup4, headings `h1-h3`).
+- Chunking estrutural, não por corte fixo de caracteres: seções por
+  heading real (DOCX/HTML/MD) ou por tamanho de fonte detectado via
+  pdfplumber para PDF (com fallback para "1 seção = 1 página" quando a
+  variação de fonte não é detectável).
+- `sanitizer.py::sanitize_document_text()`: remove caracteres de
+  controle/formatação invisíveis (categorias Unicode `C*`) e **sinaliza,
+  sem remover**, trechos que parecem prompt injection (`potential_
+  instruction_injection`) — o texto de um documento é dado, nunca
+  instrução; fases futuras usarão essa flag para bloquear conversão
+  automática em instrução de sistema sem revisão humana.
+
+### BACKEND — `api/database.py`: tabela `KnowledgeSource`
+Nova tabela SQLModel (`knowledge_sources`, aditiva) seguindo o padrão de
+`ClaudeConnection`: metadados (título, autor, tipo, arquivo original,
+hash de conteúdo para dedup) + resultado da extração (texto completo,
+seções em JSON, contagens, status `UPLOADED/EXTRACTING/EXTRACTED/FAILED`).
+CRUD completo (`criar_knowledge_source`, `obter_knowledge_source`,
+`listar_knowledge_sources`, `salvar_extracao_knowledge_source`, etc.).
+
+### BACKEND — `api/main.py`: 4 endpoints novos
+- `POST /biblioteca/fontes` (multipart): recebe o arquivo, valida
+  formato/tamanho (máx 20 MB, mesmo limite de `POST /base`), deduplica por
+  `content_hash` (sha256) — reenviar o mesmo arquivo reaproveita o registro
+  existente em vez de duplicar. **Não extrai nem chama IA aqui.**
+- `POST /biblioteca/fontes/{id}/extrair`: roda o extractor determinístico
+  correspondente + sanitização, salva texto/seções, marca `EXTRACTED`
+  (ou `FAILED` com mensagem, se der erro). Disparado explicitamente pelo
+  usuário — controle de custo/processamento deliberado (nada acontece
+  automaticamente no upload).
+- `GET /biblioteca/fontes` / `GET /biblioteca/fontes/{id}`: listagem e
+  detalhe (com texto completo + seções).
+- Todos exigem JWT válido (`_req_biblioteca` = `_req_auth` + feature flag).
+
+### FRONTEND — `frontend/dashboard.html`
+Nova página "Biblioteca de Inteligência" (nav item 🗂️, mesmo padrão
+estrutural da página Playbooks): formulário de upload (título, autor,
+tipo, arquivo — sem extração client-side, o arquivo bruto vai direto pro
+backend), lista de fontes com status/contagens, botão "▶ Extrair" por
+fonte. Mostra aviso amigável (não erro) quando a feature flag está
+desligada (`404` do backend).
+
+### TESTES — `tests/test_knowledge_compiler_extraction.py` (18 novos)
+Sanitizer (remove invisível, sinaliza injection sem apagar, preserva
+texto normal), os 4 extratores (fixtures gerados em memória: DOCX via
+python-docx, PDF via fpdf2 — dependência só de teste — com 2 tamanhos de
+fonte para validar detecção de heading, HTML, Markdown), dispatch de
+`get_extractor`, e CRUD completo de `KnowledgeSource` via SQLite em
+memória (mesmo padrão de `tests/test_ai_usage_events.py`). Verificação
+manual end-to-end adicional via `TestClient` (upload → dedup → extrair →
+listar → detalhe → 401 sem auth → 404 com flag desligada) confirmou a
+integração completa antes do commit. `python -m unittest tests.test_smoke
+tests.test_knowledge_compiler_extraction tests.test_base_download`:
+33/33 OK, sem regressão.
+
+### DEPENDÊNCIAS NOVAS — `requirements.txt`
+`pypdf`, `pdfplumber`, `python-docx`, `beautifulsoup4` (produção);
+`fpdf2` (só usado em teste, para gerar o PDF fixture).
+
+### ROADMAP (fases futuras, não iniciadas)
+Fase 2 (compilação com IA → `KnowledgeItem`s estruturados: frameworks,
+objeções, scripts, regras de decisão, com estimativa de custo antes de
+processar), Fase 3 (integração com RAG/Sales Memory/Playbook/Skill — a
+função `skill_resolver.salvar_skill()` já existe e é dinâmica, não precisa
+de tabela nova), Fase 4 (progressive disclosure / context builder com
+ranking), Fase 5 (governança: versionamento, segurança avançada), Fase 6
+(UI final + métricas de uso + feedback do vendedor).
+
+### VERSÃO
+- Backend: `1.4.51` → `1.4.52` (`/health`, `/monitor/metricas`).
+
+### ARQUIVOS ALTERADOS
+- Novos: `services/knowledge_compiler/**`,
+  `tests/test_knowledge_compiler_extraction.py`
+- `requirements.txt`, `.env.example` (`KNOWLEDGE_COMPILER_ENABLED`)
+- `api/database.py` (classe `KnowledgeSource` + CRUD)
+- `api/main.py` (4 endpoints + versão)
+- `frontend/dashboard.html` (nav item + página + JS)
+
+---
+
+## Deploy V.1.4.50/1.4.51 confirmado na VPS
+> Data: 01/09/2026 | Operacional (confirmação de deploy)
+
+### CONTEXTO
+O `docs/CURRENT_STATE.md` (última atualização 31/08/2026) registrava
+`systemctl restart saleia` como pendente na VPS, aguardando
+`reunioes_ativas: 0`. Ao retomar o trabalho em 01/09/2026, `GET
+https://api.saleia.app.br/health` (checagem pública, sem SSH) respondeu
+`"versao":"1.4.51"` e `"reunioes_ativas":0` — confirmando que o restart já
+havia sido feito (fora desta sessão de documentação, por isso não estava
+registrado).
+
+### VALIDAÇÃO FINA VIA SSH (senha) — confirmada
+`ssh -i ~/.ssh/saleia_vps root@37.27.214.33` retornou `Permission denied
+(publickey,password)` — mesmo sintoma já visto em 19/08 e 22/08/2026, a
+chave continua não autenticando. Usuário forneceu a senha root, e o acesso
+via senha confirmou:
+- `git log -1` na VPS: commit exato `dde7987` (= V.1.4.50/1.4.51).
+- `systemctl is-active saleia` = `active`, `ActiveEnterTimestamp =
+  2026-09-01 06:38:15 UTC` (restart feito na manhã de 01/09/2026).
+- `/health` local (`127.0.0.1:8000`): `versao 1.4.51`, `reunioes_ativas 0`.
+- `GROQ_API_KEY` presente no `.env`, mas o journal (últimas 300 linhas) não
+  tem nenhuma chamada recente de `/audio-transcricao` — sem tráfego real
+  desde o restart, não dá pra confirmar se a chave nova resolveu o `401`.
+  Fica pendente um teste real (upload de áudio numa reunião).
+
+### PENDÊNCIA — chave SSH `saleia_vps`
+Continua não autenticando; acesso segue dependendo de senha root fornecida
+manualmente pelo usuário a cada sessão. Não investigado a fundo (possível
+`authorized_keys` desatualizado na VPS nova, ou chave rotacionada).
+
+### ARQUIVOS ALTERADOS
+Nenhum — esta entrada é operacional (confirmação de deploy via `/health`
+público), sem mudança de código. Docs atualizadas:
+`docs/CURRENT_STATE.md`, `docs/TASKS.md`.
+
+---
+
 ## Validação em produção do fallback Claude Account (V.1.4.49) + fix do PAT do GitHub na VPS
 > Data: 31/08/2026 | Operacional (incidente + deploy + primeira validação real)
 
