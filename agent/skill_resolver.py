@@ -273,6 +273,72 @@ def salvar_skill(skill: dict) -> str:
     return sid
 
 
+# ─────────────────────────────────────────────────────────
+# KNOWLEDGE COMPILER (Fase 3) — Skill a partir de um KnowledgeItem aprovado
+# ─────────────────────────────────────────────────────────
+
+def _montar_system_injection_de_item(item: dict) -> str:
+    """Monta o texto de injeção a partir dos campos já estruturados do
+    KnowledgeItem (Fase 2) — nunca do texto cru do documento original."""
+    tipo = item.get("item_type", "")
+    titulo = item.get("title", "")
+    conteudo = item.get("content", "")
+    metadata = item.get("metadata") or {}
+
+    partes = [f"[{tipo}] {titulo}", conteudo]
+
+    if tipo == "FRAMEWORK":
+        if metadata.get("when_to_use"):
+            partes.append(f"Quando usar: {metadata['when_to_use']}")
+        if metadata.get("steps"):
+            partes.append("Passos: " + "; ".join(metadata["steps"]))
+    elif tipo == "OBJECTION":
+        if metadata.get("recommended_actions"):
+            partes.append("Ações recomendadas: " + "; ".join(metadata["recommended_actions"]))
+        if metadata.get("questions"):
+            partes.append("Perguntas úteis: " + "; ".join(metadata["questions"]))
+    elif tipo == "DECISION_RULE":
+        if metadata.get("conditions"):
+            partes.append("Condições: " + "; ".join(metadata["conditions"]))
+        if metadata.get("action"):
+            partes.append(f"Ação: {metadata['action']}")
+    elif tipo == "SCRIPT":
+        if metadata.get("objetivo"):
+            partes.append(f"Objetivo: {metadata['objetivo']}")
+    elif tipo == "ANTI_PATTERN":
+        if metadata.get("alternative"):
+            partes.append(f"Alternativa: {metadata['alternative']}")
+
+    return "\n".join(partes)
+
+
+def mapear_knowledge_item_para_skill(item: dict) -> dict:
+    """Mapeamento puro (sem I/O) de um KnowledgeItem aprovado para o dict
+    aceito por salvar_skill(). Extraído separado para ser testável sem
+    tocar o MySQL real. Triggers ficam amplos por padrão (qualquer DISC/
+    estágio/score) — resolver_melhor_skill() elege só 1 vencedora por
+    prioridade, então uma skill nova não deve competir com prioridade alta
+    sem o usuário revisar antes (aba Skills do dashboard)."""
+    return {
+        "name": (item.get("title") or "Skill sem nome")[:255],
+        "description": f"Gerada da Biblioteca de Inteligência ({item.get('item_type')}, fonte #{item.get('source_id')}).",
+        "system_injection": _montar_system_injection_de_item(item),
+        "tactics": [],
+        "priority": 60,
+        "source": "knowledge_compiler",
+        "trigger_disc": [],
+        "trigger_min_score": 0,
+        "trigger_max_score": 100,
+        "trigger_stages": [],
+    }
+
+
+def gerar_skill_de_knowledge_item(item: dict) -> str:
+    """Cria uma Skill customizada a partir de um KnowledgeItem aprovado.
+    Retorna o id da skill criada."""
+    return salvar_skill(mapear_knowledge_item_para_skill(item))
+
+
 def atualizar_skill(skill_id: str, campos: dict) -> bool:
     """Atualiza campos editáveis de uma skill DB."""
     _EDITAVEIS = {"name", "description", "system_injection", "tactics", "priority", "is_active",

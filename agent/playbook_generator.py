@@ -231,6 +231,54 @@ def salvar_playbook(playbook: dict) -> str:
     return pid
 
 
+# ─────────────────────────────────────────────────────────
+# KNOWLEDGE COMPILER (Fase 3) — Playbook a partir de uma fonte compilada
+# ─────────────────────────────────────────────────────────
+
+def mapear_knowledge_items_para_playbook(fonte: dict, itens: list) -> dict:
+    """Mapeamento puro (sem I/O): agrupa KnowledgeItems aprovados de uma
+    fonte da Biblioteca de Inteligência no formato aceito por
+    salvar_playbook(). Sem chamada de IA — os itens já são estruturados
+    pela Fase 2, é só reshape/agrupamento por tipo."""
+    por_tipo: dict = {}
+    for item in itens:
+        por_tipo.setdefault(item["item_type"], []).append(item)
+
+    steps = [i["content"] for i in por_tipo.get("DISCOVERY_QUESTION", [])]
+    steps += [i["content"] for i in por_tipo.get("SCRIPT", [])]
+
+    objections = [
+        {"objecao": i["title"], "resposta": i["content"]}
+        for i in por_tipo.get("OBJECTION", [])
+    ]
+
+    winning_arguments = [i["content"] for i in por_tipo.get("FRAMEWORK", [])]
+    winning_arguments += [i["content"] for i in por_tipo.get("CASE", [])]
+
+    closing_sequence = [
+        i["content"] for i in por_tipo.get("SCRIPT", [])
+        if (i.get("metadata") or {}).get("momento") == "fechamento"
+    ]
+    if not closing_sequence:
+        closing_sequence = [i["content"] for i in por_tipo.get("DECISION_RULE", [])]
+
+    return {
+        "name": f"Playbook — {fonte.get('title') or 'Fonte sem título'}",
+        "targetPersona": fonte.get("author") or "",
+        "steps": steps,
+        "objections": objections,
+        "winningArguments": winning_arguments,
+        "closingSequence": closing_sequence,
+        "source_meeting_id": f"knowledge_source:{fonte.get('id')}",
+    }
+
+
+def gerar_playbook_de_fonte(fonte: dict, itens: list) -> str:
+    """Gera e persiste um playbook a partir dos KnowledgeItems aprovados
+    de uma fonte da Biblioteca de Inteligência. Retorna o id criado."""
+    return salvar_playbook(mapear_knowledge_items_para_playbook(fonte, itens))
+
+
 def listar_playbooks(apenas_ativos: bool = False, limit: int = 50, offset: int = 0) -> list:
     """Lista playbooks com filtro opcional por ativos."""
     where = "WHERE is_active = 1" if apenas_ativos else ""

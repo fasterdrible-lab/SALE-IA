@@ -25,12 +25,12 @@ Atualizado em: 2026-08-31 (V.1.4.51)
 
 ## Versao Atual
 
-`V.1.4.53` (local + GitHub) — **Biblioteca de Inteligência / Knowledge
-Compiler Fase 2** (compilação com IA: seções extraídas → `KnowledgeItem`s
-estruturados — frameworks, objeções, scripts, etc. — atrás de revisão
-humana antes de aprovação) — ainda não deployada na VPS (a Fase 1
-V.1.4.52 está com `git pull` feito na VPS, restart pendente). Ver seção
-"Biblioteca de Inteligência" abaixo.
+`V.1.4.54` (local + GitHub) — **Biblioteca de Inteligência / Knowledge
+Compiler Fase 3** (integração: `KnowledgeItem`s aprovados passam a ser
+buscados automaticamente por RAG em qualquer reunião real, e podem virar
+Skill/Playbook manualmente) — ainda não deployada na VPS (a Fase 1
+V.1.4.52 está com `git pull` feito na VPS, restart pendente; Fases 2 e 3
+nem pushadas ainda). Ver seção "Biblioteca de Inteligência" abaixo.
 
 **Fix de regressão nesta versão**: o primeiro edit da Fase 1 havia
 apagado sem querer o decorator `@app.get("/cenario/{meeting_id}")` —
@@ -123,7 +123,7 @@ suficiente.
   trafego desde o restart). Precisa de um teste real (upload de audio em
   uma reuniao) para fechar essa pendencia.
 
-## Biblioteca de Inteligência / Knowledge Compiler (Fases 1-2 — V.1.4.52/1.4.53)
+## Biblioteca de Inteligência / Knowledge Compiler (Fases 1-3 — V.1.4.52-1.4.54)
 
 Feature grande (roadmap de 6 fases) que transforma documentos comerciais
 (livros, playbooks, treinamentos, manuais) em conhecimento estruturado
@@ -159,7 +159,17 @@ reutilizável pelo RAG/Sales Memory/Playbook/Skill durante reuniões.
   pede confirmação, só então gasta IA) e "📋 Ver itens" (lista agrupada
   por tipo com aprovar/rejeitar e badge de possível duplicata).
 
-**Comum às duas fases**:
+**Fase 3 (V.1.4.54)** — integração com RAG/Skill/Playbook:
+- `api/database.py::buscar_conhecimento_compilado_similar()` — 3º bloco
+  de RAG em `orquestrador.py::analisar_fragmento_multi` (junto de base de
+  conhecimento e Sales Memory), só itens `APPROVED`, `top_k=2`.
+- Skill (`agent/skill_resolver.py::gerar_skill_de_knowledge_item`) e
+  Playbook (`agent/playbook_generator.py::gerar_playbook_de_fonte`) são
+  **manuais** (botão por item/fonte no dashboard), sem custo de IA.
+- Deliberadamente sem mapeamento `KnowledgeItem` → `sales_memory`
+  (duplicaria conteúdo no contexto da IA).
+
+**Comum às três fases**:
 - Atrás de `KNOWLEDGE_COMPILER_ENABLED` (`false` por padrão — endpoints
   somem, `404`, mesmo padrão do `CLAUDE_ACCOUNT_PILOT`).
 - Sem multi-tenant (`organization_id`) — decisão deliberada, mantém a
@@ -170,12 +180,14 @@ reutilizável pelo RAG/Sales Memory/Playbook/Skill durante reuniões.
   `systemctl restart saleia` **ainda pendente**: havia `reunioes_ativas:
   1` no momento (vendedor em reunião ao vivo) — mesma disciplina de
   sempre, restart derrubaria a sessão dele. Processo em memória continua
-  rodando `1.4.51`. A Fase 2 ainda **não foi commitada/pushada** — será
-  puxada junto no próximo `git pull` quando o restart acontecer. Mesmo
-  após o restart a feature segue invisível (`404`) até alguém setar
-  `KNOWLEDGE_COMPILER_ENABLED=true` no `.env` da VPS e reiniciar de novo.
-- Fases 3-6 (integração RAG/Skills/Playbook, context builder, governança,
-  UI final) documentadas no CHANGELOG mas não iniciadas.
+  rodando `1.4.51`. Fases 2 (`406d8a6`) e 3 estão commitadas **localmente**
+  mas ainda **não pushadas** para o GitHub — serão puxadas juntas no
+  próximo `git pull` quando o push acontecer e o restart for liberado.
+  Mesmo após o restart a feature segue invisível (`404`) até alguém
+  setar `KNOWLEDGE_COMPILER_ENABLED=true` no `.env` da VPS e reiniciar de
+  novo.
+- Fases 4-6 (context builder/ranking, governança, UI final) documentadas
+  no CHANGELOG mas não iniciadas.
 
 ## Funcionalidades Entregues
 

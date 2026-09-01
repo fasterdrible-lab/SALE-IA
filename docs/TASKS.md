@@ -372,11 +372,24 @@ EMAIL_FROM=noreply@saleia.com.br
 - [x] 4 endpoints novos (`GET estimar-custo`, `POST compilar`, `GET itens`, `PATCH itens/{id}`).
 - [x] Dashboard: botoes "Compilar" (com estimativa+confirmacao) e "Ver itens" (aprovar/rejeitar) no card de cada fonte.
 - [x] 18 testes novos (`tests/test_knowledge_compiler_compilation.py`) + verificacao end-to-end manual via TestClient (incluindo regressao do `/cenario`). Suite `test_smoke`+`test_knowledge_compiler_extraction`+`test_knowledge_compiler_compilation`+`test_base_download`: 51/51 OK, sem regressao.
-- **Pendente**: commit + push + deploy na VPS (restart segue bloqueado por reuniao ativa). Fases 3-6 ainda nao iniciadas — roadmap no CHANGELOG (V.1.4.53).
+- [x] Commitado localmente (`406d8a6`).
+- **Pendente**: push + deploy na VPS (restart segue bloqueado por reuniao ativa). Fases 3-6 ainda nao iniciadas — roadmap no CHANGELOG (V.1.4.53).
+
+## Concluido (V.1.4.54 — Biblioteca de Inteligencia / Knowledge Compiler Fase 3)
+
+- [x] `api/database.py::buscar_conhecimento_compilado_similar()` — busca por texto livre entre KnowledgeItems `APPROVED`, formato pronto pra prompt.
+- [x] 3º bloco de RAG em `orquestrador.py::analisar_fragmento_multi` (junto de base de conhecimento e Sales Memory), mesmo padrao try/except isolado.
+- [x] `agent/skill_resolver.py::gerar_skill_de_knowledge_item` + `agent/playbook_generator.py::gerar_playbook_de_fonte` — mapeamentos puros e testaveis, sem custo de IA, disparados manualmente (nunca automatico).
+- [x] 2 endpoints novos (`POST itens/{id}/gerar-skill`, `POST fontes/{id}/gerar-playbook`).
+- [x] Dashboard: botoes "Gerar Skill" (item aprovado) e "Gerar Playbook" (fonte compilada).
+- [x] Decisao documentada: sem mapeamento KnowledgeItem -> sales_memory (duplicaria contexto).
+- [x] 14 testes novos (`tests/test_knowledge_compiler_integracao.py`) + verificacao end-to-end manual via TestClient. Suite `test_smoke`+3 arquivos knowledge_compiler+`test_base_download`: 65/65 OK, sem regressao. Suite completa (`discover tests`) rodando em background para confirmacao final.
+- [x] Commitado localmente.
+- **Pendente**: push + deploy na VPS. Fases 4-6 ainda nao iniciadas — roadmap no CHANGELOG (V.1.4.54).
 
 ## Pendente
 
-- [ ] **Deploy V.1.4.52/1.4.53 (Biblioteca de Inteligencia) — restart pendente**: Fase 1 com `git pull` (fast-forward `dde7987` -> `41dedd5`) e `pip install -r requirements.txt` ja feitos na VPS em 01/09/2026 (~19h54 UTC) — codigo e deps em disco, `pip check` limpo, `import services.knowledge_compiler` OK no Python real da VPS. Fase 2 (V.1.4.53) ainda precisa ser commitada/pushada/pulled. `systemctl restart saleia` **ainda nao executado**: `reunioes_ativas: 1` no momento (vendedor em reuniao ao vivo). Checar `reunioes_ativas: 0` em `/health` antes de rodar o restart. Feature continua desligada (`404`) mesmo apos o restart, ate `KNOWLEDGE_COMPILER_ENABLED=true` ser adicionado ao `.env` da VPS + novo restart.
+- [ ] **Deploy V.1.4.52-1.4.54 (Biblioteca de Inteligencia) — restart pendente**: Fase 1 com `git pull` (fast-forward `dde7987` -> `41dedd5`) e `pip install -r requirements.txt` ja feitos na VPS em 01/09/2026 (~19h54 UTC) — codigo e deps em disco, `pip check` limpo, `import services.knowledge_compiler` OK no Python real da VPS. Fases 2 e 3 (V.1.4.53/1.4.54) commitadas localmente, ainda precisam ser pushadas/pulled. `systemctl restart saleia` **ainda nao executado**: `reunioes_ativas: 1` no momento (vendedor em reuniao ao vivo). Checar `reunioes_ativas: 0` em `/health` antes de rodar o restart. Feature continua desligada (`404`) mesmo apos o restart, ate `KNOWLEDGE_COMPILER_ENABLED=true` ser adicionado ao `.env` da VPS + novo restart.
 - [ ] Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI).
 - [ ] Recarregar extensao Chrome: `chrome://extensions` → 🔄 recarregar SALEIA (aplica migracao de URL e V.1.4.3).
 - [ ] Descomissionar VPS antiga `204.168.180.25` apos validacao.

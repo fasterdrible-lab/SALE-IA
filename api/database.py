@@ -1282,6 +1282,12 @@ def criar_knowledge_items_em_lote(source_id: int, itens: list) -> list:
     return [c for c in criados if c is not None]
 
 
+def obter_knowledge_item(item_id: int) -> Optional[dict]:
+    with Session(engine) as session:
+        row = session.get(KnowledgeItem, item_id)
+        return _knowledge_item_to_dict(row) if row else None
+
+
 def listar_knowledge_items(
     source_id: Optional[int] = None,
     item_type: Optional[str] = None,
@@ -1365,3 +1371,54 @@ def buscar_knowledge_item_similar(item_type: str, vector: list, threshold: float
         if sim < threshold:
             return None
         return {**_knowledge_item_to_dict(candidatos[idx]), "similarity": round(sim, 4)}
+
+
+def buscar_conhecimento_compilado_similar(query: str, top_k: int = 2, similarity_min: float = 0.30) -> Optional[str]:
+    """Busca por texto livre entre KnowledgeItems aprovados (status=APPROVED)
+    e retorna um bloco de texto pronto para injeção em prompt, ou None se
+    vazio/sem match — mesmo formato de agent/sales_memory.py::
+    buscar_contexto_para_reuniao (Knowledge Compiler Fase 3).
+
+    Sync (nao async) de proposito: mesmo padrao de
+    buscar_contexto_para_reuniao, que tambem e chamada sem await de dentro
+    de agent/multiagente/orquestrador.py (funcao async)."""
+    import numpy as np
+    from services.embeddings import cosine_top_k, get_embedding_provider
+
+    try:
+        provider = get_embedding_provider()
+    except Exception as e:
+        logger.debug("[KnowledgeCompiler] Provedor de embedding indisponível: %s", e)
+        return None
+
+    resultado = provider.embed(query[:4000])
+    if not resultado:
+        return None
+
+    with Session(engine) as session:
+        stmt = select(KnowledgeItem).where(
+            KnowledgeItem.status == "APPROVED",
+            KnowledgeItem.embedding_json.is_not(None),
+        )
+        candidatos = session.exec(stmt).all()
+        if not candidatos:
+            return None
+
+        try:
+            matriz = np.array([json.loads(c.embedding_json) for c in candidatos], dtype=np.float32)
+            vec = np.array(resultado.vector, dtype=np.float32)
+            if matriz.shape[1] != vec.shape[0]:
+                return None
+        except Exception:
+            return None
+
+        top = cosine_top_k(vec, matriz, min(top_k, len(candidatos)))
+        selecionados = [candidatos[idx] for idx, sim in top if sim >= similarity_min]
+        if not selecionados:
+            return None
+
+        blocos = [
+            f"[{item.item_type}] {item.title}: {item.content}"
+            for item in selecionados
+        ]
+        return "CONHECIMENTO COMERCIAL RELEVANTE (Biblioteca de Inteligência):\n" + "\n".join(blocos)

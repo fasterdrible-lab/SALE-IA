@@ -3,6 +3,95 @@
 
 ---
 
+## V.1.4.54 — Biblioteca de Inteligência / Knowledge Compiler (Fase 3)
+> Data: 01/09/2026 | Feature (integração RAG/Skill/Playbook)
+
+### VISÃO
+Terceira fase do Knowledge Compiler — fecha o ciclo "book-to-skill":
+`KnowledgeItem`s aprovados (Fase 2) deixam de ficar "parados" e passam a
+ser (a) recuperáveis automaticamente durante qualquer reunião real via
+RAG, e (b) transformáveis manualmente em Skills/Playbooks reais do
+sistema já existente.
+
+### BACKEND — `api/database.py::buscar_conhecimento_compilado_similar()`
+Busca por texto livre entre `KnowledgeItem`s `status=APPROVED`, gera
+embedding da query, `cosine_top_k` (já existente) sobre a matriz dos
+itens aprovados, retorna bloco de texto pronto pra prompt (mesmo formato
+de `agent/sales_memory.py::buscar_contexto_para_reuniao`). Síncrona de
+propósito — mesmo padrão da função irmã, que também é chamada sem
+`await` de dentro do orquestrador async.
+
+### BACKEND — `agent/multiagente/orquestrador.py`
+Terceiro bloco de RAG em `analisar_fragmento_multi`, logo após os dois já
+existentes (base de conhecimento + Sales Memory) — mesmo padrão exato de
+`try/except` isolado que nunca derruba o ciclo de tempo real.
+
+### BACKEND — Skill a partir de KnowledgeItem (`agent/skill_resolver.py`)
+`mapear_knowledge_item_para_skill()` (mapeamento puro, testável) +
+`gerar_skill_de_knowledge_item()` (chama `salvar_skill()`, já existente).
+`system_injection` é montado a partir dos campos estruturados da Fase 2
+(`when_to_use`/`steps` para FRAMEWORK, `recommended_actions`/`questions`
+para OBJECTION, etc.), nunca do texto cru do documento. Triggers ficam
+amplos por padrão (qualquer DISC/estágio/score) e prioridade moderada
+(60) — `resolver_melhor_skill()` só elege 1 vencedora por prioridade
+(não é busca tipo RAG), então uma skill nova não deve competir sem o
+usuário revisar antes pela aba Skills já existente.
+
+### BACKEND — Playbook a partir de uma fonte compilada (`agent/playbook_generator.py`)
+`mapear_knowledge_items_para_playbook()` (mapeamento puro) +
+`gerar_playbook_de_fonte()` (chama `salvar_playbook()`, já existente).
+**Sem chamada de IA** — os itens já são estruturados, é só agrupamento por
+tipo: `DISCOVERY_QUESTION`+`SCRIPT` → steps, `OBJECTION` → objections,
+`FRAMEWORK`+`CASE` → winning arguments, `SCRIPT` (momento=fechamento,
+fallback `DECISION_RULE`) → closing sequence.
+
+### BACKEND — `api/main.py`: 2 endpoints novos
+`POST /biblioteca/itens/{id}/gerar-skill` (exige item `APPROVED`),
+`POST /biblioteca/fontes/{id}/gerar-playbook` (exige ao menos 1 item
+`APPROVED` na fonte). Ambos no grupo `_req_biblioteca`.
+
+### DECISÃO — Sales Memory (Tarefa 25 da spec original) ficou de fora
+Mapear `KnowledgeItem` → `sales_memory` duplicaria o mesmo conteúdo nas
+duas buscas do orquestrador (apareceria 2x no contexto da IA) sem ganho
+real, já que a busca direta em `knowledge_items` cobre os 7 tipos
+diretamente. Documentado como decisão deliberada, não esquecimento.
+
+### FRONTEND — `frontend/dashboard.html`
+Item aprovado (Fase 2) ganha botão "🧠 Gerar Skill". Card de fonte
+`COMPILED` ganha botão "📘 Gerar Playbook".
+
+### TESTES — `tests/test_knowledge_compiler_integracao.py` (14 novos)
+`buscar_conhecimento_compilado_similar` (só itens `APPROVED`, respeita
+`top_k`/`similarity_min`, formato do bloco), mapeamento de Skill por tipo
+(metadata correta entra na injeção), mapeamento de Playbook (agrupamento
+por tipo, fallback de closing sequence, caso vazio), `salvar_skill`/
+`salvar_playbook` sempre mockados. Verificação manual end-to-end via
+`TestClient` (item DRAFT rejeita gerar-skill com 400, fonte inexistente
+retorna 404). Wiring do `orquestrador.py` não ganhou teste dedicado —
+mesmo padrão dos 2 blocos de RAG já existentes ali, também sem teste
+próprio. `python -m unittest tests.test_smoke
+tests.test_knowledge_compiler_extraction
+tests.test_knowledge_compiler_compilation
+tests.test_knowledge_compiler_integracao tests.test_base_download`:
+65/65 OK, sem regressão.
+
+### ROADMAP (não iniciado)
+Fase 4 (progressive disclosure / context builder com ranking além de
+cosseno puro), Fase 5 (governança: versionamento, segurança avançada),
+Fase 6 (UI final + métricas de uso + feedback do vendedor).
+
+### VERSÃO
+- Backend: `1.4.53` → `1.4.54` (`/health`, `/monitor/metricas`).
+
+### ARQUIVOS ALTERADOS
+- Novos: `tests/test_knowledge_compiler_integracao.py`
+- `api/database.py` (`buscar_conhecimento_compilado_similar` +
+  `obter_knowledge_item`), `agent/multiagente/orquestrador.py` (3º bloco
+  de RAG), `agent/skill_resolver.py`, `agent/playbook_generator.py`,
+  `api/main.py` (2 endpoints + versão), `frontend/dashboard.html`
+
+---
+
 ## V.1.4.53 — Biblioteca de Inteligência / Knowledge Compiler (Fase 2)
 > Data: 01/09/2026 | Feature (compilação com IA) + fix de regressão
 

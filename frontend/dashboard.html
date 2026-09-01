@@ -3201,6 +3201,9 @@
     const btnVerItens = f.status === 'COMPILED'
       ? `<button onclick="toggleItensBiblioteca('${fid}')" style="padding:4px 10px;font-size:.75rem;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:4px;cursor:pointer">📋 Ver itens</button>`
       : '';
+    const btnPlaybook = f.status === 'COMPILED'
+      ? `<button onclick="gerarPlaybookDeFonteBiblioteca('${fid}')" style="padding:4px 10px;font-size:.75rem;background:transparent;border:1px solid #2dd4bf;color:#2dd4bf;border-radius:4px;cursor:pointer">📘 Gerar Playbook</button>`
+      : '';
 
     return `<div class="reuniao-card" style="flex-direction:column;align-items:flex-start;gap:8px;padding:16px 20px">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;width:100%;gap:12px;flex-wrap:wrap">
@@ -3215,7 +3218,7 @@
           </div>
           ${erro}
         </div>
-        <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap">${btnExtrair}${btnCompilar}${btnVerItens}</div>
+        <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap">${btnExtrair}${btnCompilar}${btnVerItens}${btnPlaybook}</div>
       </div>
       <div id="bib-itens-${fid}" style="width:100%${_bibItensAbertos[f.id] ? '' : ';display:none'}">
         ${_bibItensAbertos[f.id] ? itensBibliotecaHTML(f.id) : ''}
@@ -3248,6 +3251,8 @@
     const acoes = i.status === 'DRAFT'
       ? `<button onclick="atualizarStatusItemBiblioteca('${i.id}','APPROVED',${i.source_id})" style="padding:2px 8px;font-size:.7rem;background:transparent;border:1px solid #a3e635;color:#a3e635;border-radius:4px;cursor:pointer">✅ Aprovar</button>
          <button onclick="atualizarStatusItemBiblioteca('${i.id}','REJECTED',${i.source_id})" style="padding:2px 8px;font-size:.7rem;background:transparent;border:1px solid #f87171;color:#f87171;border-radius:4px;cursor:pointer">❌ Rejeitar</button>`
+      : i.status === 'APPROVED'
+      ? `<button onclick="gerarSkillDeItemBiblioteca('${i.id}')" style="padding:2px 8px;font-size:.7rem;background:transparent;border:1px solid #a78bfa;color:#a78bfa;border-radius:4px;cursor:pointer">🧠 Gerar Skill</button>`
       : '';
 
     return `<details style="width:100%;margin-bottom:6px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px">
@@ -3380,6 +3385,32 @@
       return;
     }
     await carregarItensBiblioteca(sourceId);
+  }
+
+  async function gerarSkillDeItemBiblioteca(itemId) {
+    try {
+      const r = await fetchJsonWithFallback(`/biblioteca/itens/${encodeURIComponent(itemId)}/gerar-skill`, { method: 'POST' });
+      if (!r.ok) {
+        const erro = await r.json().catch(() => ({}));
+        throw new Error(erro.detail || ('HTTP ' + r.status));
+      }
+      alert('Skill criada — ajuste triggers/prioridade na aba Playbooks → Skills Ativas se quiser afinar.');
+    } catch (e) {
+      alert('Erro ao gerar skill: ' + e.message);
+    }
+  }
+
+  async function gerarPlaybookDeFonteBiblioteca(sourceId) {
+    try {
+      const r = await fetchJsonWithFallback(`/biblioteca/fontes/${encodeURIComponent(sourceId)}/gerar-playbook`, { method: 'POST' });
+      if (!r.ok) {
+        const erro = await r.json().catch(() => ({}));
+        throw new Error(erro.detail || ('HTTP ' + r.status));
+      }
+      alert('Playbook criado — veja na aba Playbooks.');
+    } catch (e) {
+      alert('Erro ao gerar playbook: ' + e.message);
+    }
   }
 
   /* ─── Skills ────────────────────────────────────── */

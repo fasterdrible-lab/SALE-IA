@@ -157,6 +157,15 @@ async def analisar_fragmento_multi(
     except Exception as _e:
         logger.debug("[Multiagente] Sales Memory falhou: %s", _e)
 
+    # Knowledge Compiler (Fase 3) — KnowledgeItems aprovados (livros/playbooks compilados)
+    try:
+        from api.database import buscar_conhecimento_compilado_similar
+        kc_ctx = buscar_conhecimento_compilado_similar(f"{transcricao_parcial} {historico}", top_k=2)
+        if kc_ctx:
+            client_context = (client_context or "") + f"\n\n{kc_ctx}"
+    except Exception as _e:
+        logger.debug("[Multiagente] Knowledge Compiler RAG falhou: %s", _e)
+
     coach_coro   = analisar_coach(transcricao_parcial, historico, rv, diag, evts, skill_context, client_context, usuario_id, meeting_id)
     disc_coro    = analisar_disc(transcricao_parcial, historico, perfil_disc_atual, diag, usuario_id, meeting_id)
     finance_coro = analisar_finance(transcricao_parcial, historico, mapa, usuario_id, meeting_id)

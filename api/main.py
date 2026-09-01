@@ -550,7 +550,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.53",
+        "versao":              "1.4.54",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -588,7 +588,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.53",
+        "versao":          "1.4.54",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -2240,6 +2240,44 @@ def biblioteca_atualizar_item(
     if not item:
         raise HTTPException(status_code=404, detail="Item não encontrado.")
     return item
+
+
+@app.post("/biblioteca/itens/{item_id}/gerar-skill")
+def biblioteca_gerar_skill(item_id: int, authorization: str | None = Header(default=None)):
+    """Cria uma Skill customizada (aba Skills do dashboard) a partir de um
+    KnowledgeItem aprovado (Fase 3) — sem chamada de IA, é reshape."""
+    _req_biblioteca(authorization)
+    from api.database import obter_knowledge_item
+    from agent.skill_resolver import gerar_skill_de_knowledge_item
+
+    item = obter_knowledge_item(item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Item não encontrado.")
+    if item["status"] != "APPROVED":
+        raise HTTPException(status_code=400, detail="Item precisa estar aprovado antes de virar Skill.")
+
+    skill_id = gerar_skill_de_knowledge_item(item)
+    return {"ok": True, "skill_id": skill_id}
+
+
+@app.post("/biblioteca/fontes/{source_id}/gerar-playbook")
+def biblioteca_gerar_playbook(source_id: int, authorization: str | None = Header(default=None)):
+    """Gera um Playbook (aba Playbooks do dashboard) agrupando os
+    KnowledgeItems aprovados de uma fonte compilada (Fase 3) — sem
+    chamada de IA, é reshape dos itens já estruturados."""
+    _req_biblioteca(authorization)
+    from api.database import listar_knowledge_items, obter_knowledge_source
+    from agent.playbook_generator import gerar_playbook_de_fonte
+
+    fonte = obter_knowledge_source(source_id)
+    if not fonte:
+        raise HTTPException(status_code=404, detail="Fonte não encontrada.")
+    itens = listar_knowledge_items(source_id=source_id, status="APPROVED")
+    if not itens:
+        raise HTTPException(status_code=400, detail="Nenhum item aprovado nesta fonte ainda.")
+
+    playbook_id = gerar_playbook_de_fonte(fonte, itens)
+    return {"ok": True, "playbook_id": playbook_id}
 
 
 @app.get("/cenario/{meeting_id}", response_class=HTMLResponse)
