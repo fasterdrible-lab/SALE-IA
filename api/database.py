@@ -157,6 +157,37 @@ class KnowledgeSource(SQLModel, table=True):
     processed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
 
 
+class KnowledgeItem(SQLModel, table=True):
+    """Item de conhecimento comercial estruturado (framework, objecao,
+    script, etc.) extraido via IA de uma secao de um KnowledgeSource
+    (Knowledge Compiler Fase 2). Todo item nasce DRAFT — so entra em
+    qualquer fase futura de RAG apos aprovacao humana (status=APPROVED).
+
+    SQLModel (nao raw-pymysql como sales_memories/skills) por decisao
+    deliberada: precisa ser testavel com SQLite em memoria para cobrir a
+    logica de deduplicacao por similaridade, o coracao desta fase.
+    """
+
+    __tablename__ = "knowledge_items"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    source_id: int = Field(sa_column=Column(Integer, index=True, nullable=False))
+    item_type: str = Field(sa_column=Column(String(30), index=True, nullable=False))
+    title: str = Field(sa_column=Column(String(255), nullable=False))
+    content: str = Field(sa_column=Column(Text, nullable=False))
+    metadata_json: Optional[str] = Field(default=None, sa_column=Column(Text))
+    tags_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    confidence: float = Field(default=0.75, sa_column=Column(Float, nullable=False))
+    status: str = Field(default="DRAFT", sa_column=Column(String(20), index=True, nullable=False))
+    possivel_duplicado_de: Optional[int] = Field(default=None, sa_column=Column(Integer))
+    embedding_json: Optional[str] = Field(default=None, sa_column=Column(Text))
+    embedding_provider: Optional[str] = Field(default=None, sa_column=Column(String(20)))
+    embedding_model: Optional[str] = Field(default=None, sa_column=Column(String(100)))
+    embedding_dim: Optional[int] = Field(default=None, sa_column=Column(Integer))
+    created_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+    updated_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+
+
 # ─────────────────────────────────────────────
 # ENGINE — MySQL ou SQLite
 # ─────────────────────────────────────────────
@@ -1198,3 +1229,139 @@ def salvar_extracao_knowledge_source(
         session.commit()
         session.refresh(row)
         return _knowledge_source_to_dict(row)
+
+
+# ─────────────────────────────────────────────
+# KNOWLEDGE COMPILER — Knowledge Items (Fase 2)
+# ─────────────────────────────────────────────
+def _knowledge_item_to_dict(row: "KnowledgeItem") -> dict:
+    return {
+        "id": row.id,
+        "source_id": row.source_id,
+        "item_type": row.item_type,
+        "title": row.title,
+        "content": row.content,
+        "metadata": json.loads(row.metadata_json) if row.metadata_json else {},
+        "tags": json.loads(row.tags_json) if row.tags_json else [],
+        "confidence": row.confidence,
+        "status": row.status,
+        "possivel_duplicado_de": row.possivel_duplicado_de,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+    }
+
+
+def criar_knowledge_item(source_id: int, item: dict) -> Optional[dict]:
+    """Insere um KnowledgeItem (dict com item_type/title/content/metadata/
+    tags/confidence/possivel_duplicado_de opcionais). Retorna None (nunca
+    lança) se o item for malformado — um item ruim não derruba o lote."""
+    try:
+        with Session(engine) as session:
+            row = KnowledgeItem(
+                source_id=source_id,
+                item_type=item["item_type"],
+                title=item["title"],
+                content=item["content"],
+                metadata_json=json.dumps(item.get("metadata") or {}, ensure_ascii=False),
+                tags_json=json.dumps(item.get("tags") or [], ensure_ascii=False),
+                confidence=float(item.get("confidence", 0.75)),
+                possivel_duplicado_de=item.get("possivel_duplicado_de"),
+            )
+            session.add(row)
+            session.commit()
+            session.refresh(row)
+            return _knowledge_item_to_dict(row)
+    except Exception as exc:
+        logger.warning("[KnowledgeCompiler] Falha ao salvar item '%s': %s", item.get("title"), exc)
+        return None
+
+
+def criar_knowledge_items_em_lote(source_id: int, itens: list) -> list:
+    """Insere uma lista de candidatos a KnowledgeItem — ver criar_knowledge_item()."""
+    criados = [criar_knowledge_item(source_id, item) for item in itens]
+    return [c for c in criados if c is not None]
+
+
+def listar_knowledge_items(
+    source_id: Optional[int] = None,
+    item_type: Optional[str] = None,
+    status: Optional[str] = None,
+    limit: int = 200,
+) -> List[dict]:
+    with Session(engine) as session:
+        stmt = select(KnowledgeItem)
+        if source_id is not None:
+            stmt = stmt.where(KnowledgeItem.source_id == source_id)
+        if item_type:
+            stmt = stmt.where(KnowledgeItem.item_type == item_type)
+        if status:
+            stmt = stmt.where(KnowledgeItem.status == status)
+        stmt = stmt.order_by(KnowledgeItem.created_at.desc()).limit(limit)
+        rows = session.exec(stmt).all()
+        return [_knowledge_item_to_dict(r) for r in rows]
+
+
+def contar_knowledge_items_por_tipo(source_id: int) -> dict:
+    with Session(engine) as session:
+        stmt = (
+            select(KnowledgeItem.item_type, func.count(KnowledgeItem.id))
+            .where(KnowledgeItem.source_id == source_id)
+            .group_by(KnowledgeItem.item_type)
+        )
+        return {tipo: total for tipo, total in session.exec(stmt).all()}
+
+
+def atualizar_status_knowledge_item(item_id: int, status: str) -> Optional[dict]:
+    with Session(engine) as session:
+        row = session.get(KnowledgeItem, item_id)
+        if not row:
+            return None
+        row.status = status
+        row.updated_at = datetime.now()
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _knowledge_item_to_dict(row)
+
+
+def salvar_embedding_knowledge_item(item_id: int, vector: list, provider: str, model: str, dimension: int) -> bool:
+    with Session(engine) as session:
+        row = session.get(KnowledgeItem, item_id)
+        if not row:
+            return False
+        row.embedding_json = json.dumps(vector)
+        row.embedding_provider = provider
+        row.embedding_model = model
+        row.embedding_dim = dimension
+        row.updated_at = datetime.now()
+        session.add(row)
+        session.commit()
+        return True
+
+
+def buscar_knowledge_item_similar(item_type: str, vector: list, threshold: float = 0.92) -> Optional[dict]:
+    """Retorna o KnowledgeItem existente mais parecido (mesmo item_type,
+    com embedding salvo) se a similaridade de cosseno for >= threshold,
+    ou None. Usado para sinalizar (nunca bloquear) possiveis duplicatas —
+    ver criar_knowledge_items_em_lote/possivel_duplicado_de."""
+    import numpy as np
+    from services.embeddings import cosine_top_k
+
+    with Session(engine) as session:
+        stmt = select(KnowledgeItem).where(
+            KnowledgeItem.item_type == item_type,
+            KnowledgeItem.embedding_json.is_not(None),
+        )
+        candidatos = session.exec(stmt).all()
+        if not candidatos:
+            return None
+
+        matriz = np.array([json.loads(c.embedding_json) for c in candidatos], dtype=np.float32)
+        vec = np.array(vector, dtype=np.float32)
+        if matriz.shape[1] != vec.shape[0]:
+            return None
+
+        (idx, sim), = cosine_top_k(vec, matriz, 1)
+        if sim < threshold:
+            return None
+        return {**_knowledge_item_to_dict(candidatos[idx]), "similarity": round(sim, 4)}

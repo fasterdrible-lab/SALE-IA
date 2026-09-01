@@ -25,10 +25,18 @@ Atualizado em: 2026-08-31 (V.1.4.51)
 
 ## Versao Atual
 
-`V.1.4.52` (local + GitHub) — **Biblioteca de Inteligência / Knowledge
-Compiler Fase 1** (upload + extração determinística de PDF/DOCX/TXT/MD/
-HTML, sem IA, atrás de `KNOWLEDGE_COMPILER_ENABLED=false` por padrão) —
-ainda não deployada na VPS. Ver seção "Biblioteca de Inteligência" abaixo.
+`V.1.4.53` (local + GitHub) — **Biblioteca de Inteligência / Knowledge
+Compiler Fase 2** (compilação com IA: seções extraídas → `KnowledgeItem`s
+estruturados — frameworks, objeções, scripts, etc. — atrás de revisão
+humana antes de aprovação) — ainda não deployada na VPS (a Fase 1
+V.1.4.52 está com `git pull` feito na VPS, restart pendente). Ver seção
+"Biblioteca de Inteligência" abaixo.
+
+**Fix de regressão nesta versão**: o primeiro edit da Fase 1 havia
+apagado sem querer o decorator `@app.get("/cenario/{meeting_id}")` —
+rota parou de existir silenciosamente (nenhum teste cobre isso). Corrigido
+antes do commit da Fase 2; não chegou a afetar produção (restart da Fase 1
+ainda não havia rodado).
 
 Resumo da versão anterior confirmada em produção:
 
@@ -115,35 +123,59 @@ suficiente.
   trafego desde o restart). Precisa de um teste real (upload de audio em
   uma reuniao) para fechar essa pendencia.
 
-## Biblioteca de Inteligência / Knowledge Compiler (Fase 1 — V.1.4.52)
+## Biblioteca de Inteligência / Knowledge Compiler (Fases 1-2 — V.1.4.52/1.4.53)
 
-Primeira fase de uma feature grande (roadmap de 6 fases) que transforma
-documentos comerciais (livros, playbooks, treinamentos, manuais) em
-conhecimento estruturado reutilizável pelo RAG/Sales Memory/Playbook/Skill
-durante reuniões. Esta fase só cobre upload + extração determinística de
-texto — nenhuma chamada de IA ainda.
+Feature grande (roadmap de 6 fases) que transforma documentos comerciais
+(livros, playbooks, treinamentos, manuais) em conhecimento estruturado
+reutilizável pelo RAG/Sales Memory/Playbook/Skill durante reuniões.
 
+**Fase 1 (V.1.4.52)** — upload + extração determinística, sem IA:
 - `services/knowledge_compiler/`: extratores de PDF (pypdf + fallback
   pdfplumber), DOCX (python-docx), TXT/MD e HTML — chunking por seção
   real (heading/tamanho de fonte), não por corte fixo de caracteres.
   `sanitize_document_text()` remove unicode invisível e sinaliza (sem
   remover) trechos que parecem prompt injection.
-- Tabela `knowledge_sources` (SQLModel, aditiva) + 4 endpoints
-  (`POST /biblioteca/fontes`, `POST /biblioteca/fontes/{id}/extrair`,
-  `GET /biblioteca/fontes[/{id}]`), atrás de `KNOWLEDGE_COMPILER_ENABLED`
-  (`false` por padrão — endpoints somem, `404`, mesmo padrão do
-  `CLAUDE_ACCOUNT_PILOT`).
-- Dashboard: página "Biblioteca de Inteligência" (nav 🗂️) — upload +
-  lista de fontes com status/contagens + botão "Extrair".
+- Tabela `knowledge_sources` (SQLModel, aditiva) + endpoints de upload
+  (`POST /biblioteca/fontes`), extração (`POST .../extrair`) e listagem
+  (`GET /biblioteca/fontes[/{id}]`).
+
+**Fase 2 (V.1.4.53)** — compilação com IA em `KnowledgeItem`s:
+- `services/knowledge_compiler/compiler.py`: 1 chamada de IA por seção
+  não sinalizada (seções `potential_instruction_injection` da Fase 1 são
+  puladas, não só marcadas), extrai 7 tipos (`FRAMEWORK`, `OBJECTION`,
+  `DISCOVERY_QUESTION`, `SCRIPT`, `ANTI_PATTERN`, `DECISION_RULE`,
+  `CASE`). Estimativa de custo pré-voo (sem IA) antes de compilar de
+  verdade — reaproveita `api/cost_engine.py`/`api/pricing_catalog.py`.
+- Tabela `knowledge_items` (SQLModel) — todo item nasce `DRAFT`; dedup
+  por similaridade de embedding (threshold 0.92) sinaliza
+  `possivel_duplicado_de` sem nunca bloquear ou fazer merge automático;
+  revisão humana aprova/rejeita/arquiva. 4 endpoints novos
+  (`GET estimar-custo`, `POST compilar`, `GET itens`,
+  `PATCH itens/{id}`).
+- Fix de regressão nesta versão: decorator de `/cenario/{meeting_id}`
+  apagado sem querer no primeiro edit da Fase 1, corrigido antes do
+  commit da Fase 2 (ver `CHANGELOG.md`).
+- Dashboard: card de cada fonte ganha "💰 Compilar" (mostra estimativa,
+  pede confirmação, só então gasta IA) e "📋 Ver itens" (lista agrupada
+  por tipo com aprovar/rejeitar e badge de possível duplicata).
+
+**Comum às duas fases**:
+- Atrás de `KNOWLEDGE_COMPILER_ENABLED` (`false` por padrão — endpoints
+  somem, `404`, mesmo padrão do `CLAUDE_ACCOUNT_PILOT`).
 - Sem multi-tenant (`organization_id`) — decisão deliberada, mantém a
   mesma linha da V.1.4.40.
-- **Não deployado na VPS ainda.** Deploy padrão (`git pull` +
-  `systemctl restart saleia`) ativa o código, mas a feature continua
-  invisível (`404`) até alguém setar `KNOWLEDGE_COMPILER_ENABLED=true` no
-  `.env` da VPS e reiniciar de novo.
-- Fases 2-6 (compilação com IA, integração RAG/Skills/Playbook, context
-  builder, governança, UI final) documentadas no CHANGELOG mas não
-  iniciadas.
+- **Deploy**: Fase 1 (commit `41dedd5`) já com `git pull` +
+  `pip install` feitos na VPS (01/09/2026, ~19h54 UTC) — `pip check`
+  limpo, `import services.knowledge_compiler` OK no Python real da VPS.
+  `systemctl restart saleia` **ainda pendente**: havia `reunioes_ativas:
+  1` no momento (vendedor em reunião ao vivo) — mesma disciplina de
+  sempre, restart derrubaria a sessão dele. Processo em memória continua
+  rodando `1.4.51`. A Fase 2 ainda **não foi commitada/pushada** — será
+  puxada junto no próximo `git pull` quando o restart acontecer. Mesmo
+  após o restart a feature segue invisível (`404`) até alguém setar
+  `KNOWLEDGE_COMPILER_ENABLED=true` no `.env` da VPS e reiniciar de novo.
+- Fases 3-6 (integração RAG/Skills/Playbook, context builder, governança,
+  UI final) documentadas no CHANGELOG mas não iniciadas.
 
 ## Funcionalidades Entregues
 

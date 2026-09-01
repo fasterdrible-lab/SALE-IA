@@ -3133,8 +3133,20 @@
     UPLOADED: { texto: 'Enviado', cor: '#a78bfa' },
     EXTRACTING: { texto: 'Extraindo...', cor: '#facc15' },
     EXTRACTED: { texto: 'Extraído', cor: '#2dd4bf' },
+    COMPILING: { texto: 'Compilando...', cor: '#facc15' },
+    COMPILED: { texto: 'Compilado', cor: '#a3e635' },
     FAILED: { texto: 'Falhou', cor: '#f87171' },
   };
+
+  const _BIB_ITEM_STATUS_LABEL = {
+    DRAFT:    { texto: 'Rascunho',  cor: '#a78bfa' },
+    APPROVED: { texto: 'Aprovado',  cor: '#a3e635' },
+    REJECTED: { texto: 'Rejeitado', cor: '#f87171' },
+    ARCHIVED: { texto: 'Arquivado', cor: 'var(--muted)' },
+  };
+
+  let _bibItensCache = {};   // source_id -> itens[]
+  let _bibItensAbertos = {}; // source_id -> bool
 
   async function carregarBiblioteca() {
     const container = document.getElementById('bib-lista');
@@ -3183,6 +3195,12 @@
     const btnExtrair = (f.status === 'UPLOADED' || f.status === 'FAILED')
       ? `<button onclick="extrairFonteBiblioteca('${fid}')" style="padding:4px 10px;font-size:.75rem;background:transparent;border:1px solid var(--gold);color:var(--gold);border-radius:4px;cursor:pointer">▶ Extrair</button>`
       : '';
+    const btnCompilar = (f.status === 'EXTRACTED' || f.status === 'COMPILED')
+      ? `<button onclick="compilarFonteBiblioteca('${fid}')" style="padding:4px 10px;font-size:.75rem;background:transparent;border:1px solid #a78bfa;color:#a78bfa;border-radius:4px;cursor:pointer">💰 Compilar</button>`
+      : '';
+    const btnVerItens = f.status === 'COMPILED'
+      ? `<button onclick="toggleItensBiblioteca('${fid}')" style="padding:4px 10px;font-size:.75rem;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:4px;cursor:pointer">📋 Ver itens</button>`
+      : '';
 
     return `<div class="reuniao-card" style="flex-direction:column;align-items:flex-start;gap:8px;padding:16px 20px">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;width:100%;gap:12px;flex-wrap:wrap">
@@ -3197,9 +3215,49 @@
           </div>
           ${erro}
         </div>
-        <div style="display:flex;gap:6px;flex-shrink:0">${btnExtrair}</div>
+        <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap">${btnExtrair}${btnCompilar}${btnVerItens}</div>
+      </div>
+      <div id="bib-itens-${fid}" style="width:100%${_bibItensAbertos[f.id] ? '' : ';display:none'}">
+        ${_bibItensAbertos[f.id] ? itensBibliotecaHTML(f.id) : ''}
       </div>
     </div>`;
+  }
+
+  function itensBibliotecaHTML(sourceId) {
+    const itens = _bibItensCache[sourceId];
+    if (itens === undefined) return '<div style="color:var(--muted);font-size:.82rem;padding:8px 0">Carregando itens...</div>';
+    if (!itens.length) return '<div style="color:var(--muted);font-size:.82rem;padding:8px 0">Nenhum item extraído.</div>';
+
+    const porTipo = {};
+    itens.forEach(i => { (porTipo[i.item_type] = porTipo[i.item_type] || []).push(i); });
+
+    return Object.entries(porTipo).map(([tipo, lista]) => `
+      <div style="margin-top:12px">
+        <div style="font-size:.78rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px">${escHtml(tipo)} (${lista.length})</div>
+        ${lista.map(i => itemBibliotecaHTML(i)).join('')}
+      </div>
+    `).join('');
+  }
+
+  function itemBibliotecaHTML(i) {
+    const st = _BIB_ITEM_STATUS_LABEL[i.status] || { texto: escHtml(i.status), cor: 'var(--muted)' };
+    const badgeStatus = `<span style="font-size:.7rem;padding:1px 7px;background:${st.cor}22;color:${st.cor};border-radius:4px;border:1px solid ${st.cor}">${st.texto}</span>`;
+    const badgeDup = i.possivel_duplicado_de
+      ? `<span style="font-size:.7rem;padding:1px 7px;background:#f8717122;color:#f87171;border-radius:4px;border:1px solid #f87171" title="Possível duplicata do item #${i.possivel_duplicado_de}">⚠ possível duplicata</span>`
+      : '';
+    const acoes = i.status === 'DRAFT'
+      ? `<button onclick="atualizarStatusItemBiblioteca('${i.id}','APPROVED',${i.source_id})" style="padding:2px 8px;font-size:.7rem;background:transparent;border:1px solid #a3e635;color:#a3e635;border-radius:4px;cursor:pointer">✅ Aprovar</button>
+         <button onclick="atualizarStatusItemBiblioteca('${i.id}','REJECTED',${i.source_id})" style="padding:2px 8px;font-size:.7rem;background:transparent;border:1px solid #f87171;color:#f87171;border-radius:4px;cursor:pointer">❌ Rejeitar</button>`
+      : '';
+
+    return `<details style="width:100%;margin-bottom:6px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px">
+      <summary style="cursor:pointer;display:flex;align-items:center;gap:8px;flex-wrap:wrap;list-style:none">
+        <span style="font-weight:600;font-size:.85rem">${escHtml(i.title)}</span>
+        ${badgeStatus}${badgeDup}
+        <span style="margin-left:auto;display:flex;gap:6px">${acoes}</span>
+      </summary>
+      <div style="margin-top:8px;font-size:.82rem;color:var(--text);white-space:pre-wrap">${escHtml(i.content)}</div>
+    </details>`;
   }
 
   async function enviarFonteBiblioteca() {
@@ -3251,6 +3309,77 @@
       alert('Erro ao extrair: ' + e.message);
     }
     carregarBiblioteca();
+  }
+
+  async function compilarFonteBiblioteca(id) {
+    try {
+      const rEst = await fetchJsonWithFallback(`/biblioteca/fontes/${encodeURIComponent(id)}/estimar-custo`);
+      if (!rEst.ok) {
+        const erro = await rEst.json().catch(() => ({}));
+        throw new Error(erro.detail || ('HTTP ' + rEst.status));
+      }
+      const est = await rEst.json();
+      const msg = `Compilar ${est.secoes_a_compilar} seção(ões) com IA — custo estimado ~US$ ${est.custo_estimado_usd.toFixed(4)} (${est.provedor_estimado}/${est.modelo_estimado}).\n\n${est.secoes_puladas ? est.secoes_puladas + ' seção(ões) sinalizada(s) serão puladas.\n\n' : ''}Continuar?`;
+      if (!window.confirm(msg)) return;
+    } catch (e) {
+      alert('Erro ao estimar custo: ' + e.message);
+      return;
+    }
+
+    _bibliotecaCache = _bibliotecaCache.map(f => f.id == id ? { ...f, status: 'COMPILING' } : f);
+    renderizarBiblioteca(_bibliotecaCache);
+    try {
+      const r = await fetchJsonWithFallback(`/biblioteca/fontes/${encodeURIComponent(id)}/compilar`, { method: 'POST' });
+      if (!r.ok) {
+        const erro = await r.json().catch(() => ({}));
+        throw new Error(erro.detail || ('HTTP ' + r.status));
+      }
+      const d = await r.json();
+      delete _bibItensCache[id];
+      _bibItensAbertos[id] = true;
+      alert(`Compilação concluída: ${d.itens_criados} item(ns) extraído(s).`);
+    } catch (e) {
+      alert('Erro ao compilar: ' + e.message);
+    }
+    await carregarBiblioteca();
+    if (_bibItensAbertos[id]) await carregarItensBiblioteca(id);
+  }
+
+  async function toggleItensBiblioteca(id) {
+    const aberto = !_bibItensAbertos[id];
+    _bibItensAbertos[id] = aberto;
+    const container = document.getElementById(`bib-itens-${id}`);
+    if (!container) return;
+    container.style.display = aberto ? '' : 'none';
+    if (aberto) await carregarItensBiblioteca(id);
+  }
+
+  async function carregarItensBiblioteca(id) {
+    try {
+      const r = await fetchJsonWithFallback(`/biblioteca/fontes/${encodeURIComponent(id)}/itens`);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+      _bibItensCache[id] = d.itens || [];
+    } catch (e) {
+      _bibItensCache[id] = [];
+    }
+    const container = document.getElementById(`bib-itens-${id}`);
+    if (container) container.innerHTML = itensBibliotecaHTML(id);
+  }
+
+  async function atualizarStatusItemBiblioteca(itemId, novoStatus, sourceId) {
+    try {
+      const r = await fetchJsonWithFallback(`/biblioteca/itens/${encodeURIComponent(itemId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: novoStatus }),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+    } catch (e) {
+      alert('Erro ao atualizar item: ' + e.message);
+      return;
+    }
+    await carregarItensBiblioteca(sourceId);
   }
 
   /* ─── Skills ────────────────────────────────────── */

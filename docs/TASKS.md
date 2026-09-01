@@ -362,11 +362,21 @@ EMAIL_FROM=noreply@saleia.com.br
 - [x] 18 testes novos (`tests/test_knowledge_compiler_extraction.py`) + verificacao end-to-end manual via TestClient. Suite `test_smoke`+`test_knowledge_compiler_extraction`+`test_base_download`: 33/33 OK, sem regressao.
 - Decisao confirmada com o usuario: sem multi-tenant (`organization_id`), mantendo a decisao da V.1.4.40.
 - Plano completo (Fases 1-6) salvo em `C:\Users\phpos\.claude\plans\twinkly-floating-emerson.md`.
-- **Pendente**: deploy na VPS (`git pull` + `systemctl restart saleia` — a feature fica invisivel/`404` ate `KNOWLEDGE_COMPILER_ENABLED=true` ser setado no `.env` da VPS). Fases 2-6 (compilacao com IA, integracao RAG/Skills/Playbook, context builder, governanca, UI final) ainda nao iniciadas — roadmap no CHANGELOG (V.1.4.52).
+- **Pendente**: deploy na VPS (`git pull` + `systemctl restart saleia` — a feature fica invisivel/`404` ate `KNOWLEDGE_COMPILER_ENABLED=true` ser setado no `.env` da VPS). Fases 2-6 ainda nao iniciadas — roadmap no CHANGELOG (V.1.4.52).
+
+## Concluido (V.1.4.53 — Biblioteca de Inteligencia / Knowledge Compiler Fase 2)
+
+- [x] Fix de regressao: decorator `@app.get("/cenario/{meeting_id}")` apagado sem querer no primeiro edit da Fase 1 — corrigido e verificado (nao chegou a afetar producao, restart da Fase 1 ainda pendente).
+- [x] `agent/prompt_templates/knowledge_compiler_extracao.txt` (novo) + `api/ai_features.py::KNOWLEDGE_COMPILER_EXTRACAO`.
+- [x] Tabela `knowledge_items` (SQLModel, deliberadamente testavel — nao raw-pymysql) + `services/knowledge_compiler/compiler.py` (`estimar_custo_compilacao` sem IA, `compilar_fonte` com 1 chamada de IA por secao + dedup por embedding, nunca bloqueia so sinaliza).
+- [x] 4 endpoints novos (`GET estimar-custo`, `POST compilar`, `GET itens`, `PATCH itens/{id}`).
+- [x] Dashboard: botoes "Compilar" (com estimativa+confirmacao) e "Ver itens" (aprovar/rejeitar) no card de cada fonte.
+- [x] 18 testes novos (`tests/test_knowledge_compiler_compilation.py`) + verificacao end-to-end manual via TestClient (incluindo regressao do `/cenario`). Suite `test_smoke`+`test_knowledge_compiler_extraction`+`test_knowledge_compiler_compilation`+`test_base_download`: 51/51 OK, sem regressao.
+- **Pendente**: commit + push + deploy na VPS (restart segue bloqueado por reuniao ativa). Fases 3-6 ainda nao iniciadas — roadmap no CHANGELOG (V.1.4.53).
 
 ## Pendente
 
-- [ ] **Deploy V.1.4.52 (Biblioteca de Inteligencia)**: checar `reunioes_ativas` em `/health` antes de `git pull origin main && systemctl restart saleia`. Feature continua desligada (`404`) ate `KNOWLEDGE_COMPILER_ENABLED=true` ser adicionado ao `.env` da VPS + novo restart.
+- [ ] **Deploy V.1.4.52/1.4.53 (Biblioteca de Inteligencia) — restart pendente**: Fase 1 com `git pull` (fast-forward `dde7987` -> `41dedd5`) e `pip install -r requirements.txt` ja feitos na VPS em 01/09/2026 (~19h54 UTC) — codigo e deps em disco, `pip check` limpo, `import services.knowledge_compiler` OK no Python real da VPS. Fase 2 (V.1.4.53) ainda precisa ser commitada/pushada/pulled. `systemctl restart saleia` **ainda nao executado**: `reunioes_ativas: 1` no momento (vendedor em reuniao ao vivo). Checar `reunioes_ativas: 0` em `/health` antes de rodar o restart. Feature continua desligada (`404`) mesmo apos o restart, ate `KNOWLEDGE_COMPILER_ENABLED=true` ser adicionado ao `.env` da VPS + novo restart.
 - [ ] Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI).
 - [ ] Recarregar extensao Chrome: `chrome://extensions` → 🔄 recarregar SALEIA (aplica migracao de URL e V.1.4.3).
 - [ ] Descomissionar VPS antiga `204.168.180.25` apos validacao.

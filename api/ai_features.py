@@ -25,6 +25,7 @@ PLAYBOOK_GERACAO = "playbook.geracao"
 FOLLOWUP_GERACAO = "followup.geracao"
 SKILL_GERACAO = "skill.geracao"
 KNOWLEDGE_EXTRACAO_MEMORIAS = "knowledge.extracao_memorias"
+KNOWLEDGE_COMPILER_EXTRACAO = "knowledge_compiler.extracao"
 CENARIO_CONDUCAO = "cenario.conducao"
 
 CLAUDE_ACCOUNT_ANALISE_SOB_DEMANDA = "claude_account.analise_sob_demanda"

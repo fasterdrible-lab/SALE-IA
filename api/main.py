@@ -550,7 +550,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.52",
+        "versao":              "1.4.53",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -588,7 +588,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.52",
+        "versao":          "1.4.53",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -2161,6 +2161,88 @@ def biblioteca_detalhe_fonte(source_id: int, authorization: str | None = Header(
         raise HTTPException(status_code=404, detail="Fonte não encontrada.")
     return fonte
 
+
+_BIBLIOTECA_STATUS_COMPILAVEL = {"EXTRACTED", "COMPILED"}
+
+
+@app.get("/biblioteca/fontes/{source_id}/estimar-custo")
+def biblioteca_estimar_custo(source_id: int, authorization: str | None = Header(default=None)):
+    """Estimativa pré-voo do custo de compilação (Fase 2) — não chama IA."""
+    _req_biblioteca(authorization)
+    from api.database import obter_knowledge_source
+    from services.knowledge_compiler.compiler import estimar_custo_compilacao
+
+    fonte = obter_knowledge_source(source_id, incluir_texto=True)
+    if not fonte:
+        raise HTTPException(status_code=404, detail="Fonte não encontrada.")
+    if fonte["status"] not in _BIBLIOTECA_STATUS_COMPILAVEL:
+        raise HTTPException(status_code=400, detail="Fonte precisa estar extraída antes de estimar/compilar.")
+    return estimar_custo_compilacao(fonte)
+
+
+@app.post("/biblioteca/fontes/{source_id}/compilar")
+async def biblioteca_compilar_fonte(source_id: int, authorization: str | None = Header(default=None)):
+    """Compila as seções da fonte em KnowledgeItems via IA (Fase 2) —
+    gasta IA de verdade, disparado só quando o usuário confirma
+    explicitamente (o frontend mostra a estimativa antes)."""
+    _req_biblioteca(authorization)
+    from api.database import marcar_knowledge_source_status, obter_knowledge_source
+    from services.knowledge_compiler.compiler import compilar_fonte
+
+    fonte = obter_knowledge_source(source_id, incluir_texto=True)
+    if not fonte:
+        raise HTTPException(status_code=404, detail="Fonte não encontrada.")
+    if fonte["status"] not in _BIBLIOTECA_STATUS_COMPILAVEL:
+        raise HTTPException(status_code=400, detail="Fonte precisa estar extraída antes de compilar.")
+
+    marcar_knowledge_source_status(source_id, "COMPILING")
+    try:
+        resumo = await compilar_fonte(source_id, fonte)
+    except Exception as e:
+        logger.warning("[Biblioteca] Falha ao compilar fonte %s: %s", source_id, e)
+        marcar_knowledge_source_status(source_id, "FAILED", "Falha ao compilar. Tente novamente.")
+        raise HTTPException(status_code=500, detail="Falha ao compilar a fonte.")
+
+    marcar_knowledge_source_status(source_id, "COMPILED")
+    return {"ok": True, **resumo}
+
+
+@app.get("/biblioteca/fontes/{source_id}/itens")
+def biblioteca_listar_itens(
+    source_id: int,
+    status: str | None = None,
+    item_type: str | None = None,
+    authorization: str | None = Header(default=None),
+):
+    _req_biblioteca(authorization)
+    from api.database import listar_knowledge_items
+    itens = listar_knowledge_items(source_id=source_id, item_type=item_type, status=status)
+    return {"itens": itens, "total": len(itens)}
+
+
+_KNOWLEDGE_ITEM_STATUS = {"DRAFT", "APPROVED", "REJECTED", "ARCHIVED"}
+
+
+class KnowledgeItemStatusRequest(BaseModel):
+    status: str
+
+
+@app.patch("/biblioteca/itens/{item_id}")
+def biblioteca_atualizar_item(
+    item_id: int, req: KnowledgeItemStatusRequest, authorization: str | None = Header(default=None),
+):
+    _req_biblioteca(authorization)
+    status = (req.status or "").strip().upper()
+    if status not in _KNOWLEDGE_ITEM_STATUS:
+        raise HTTPException(status_code=400, detail=f"status inválido. Use um de: {sorted(_KNOWLEDGE_ITEM_STATUS)}")
+    from api.database import atualizar_status_knowledge_item
+    item = atualizar_status_knowledge_item(item_id, status)
+    if not item:
+        raise HTTPException(status_code=404, detail="Item não encontrado.")
+    return item
+
+
+@app.get("/cenario/{meeting_id}", response_class=HTMLResponse)
 def cenario_cliente_page(meeting_id: str):
     """
     Página de apresentação visual do cenário do cliente (slides para compartilhar na tela).
