@@ -387,9 +387,18 @@ EMAIL_FROM=noreply@saleia.com.br
 - [x] Commitado localmente.
 - **Pendente**: push + deploy na VPS. Fases 4-6 ainda nao iniciadas — roadmap no CHANGELOG (V.1.4.54).
 
+## Concluido (Deploy V.1.4.52-1.4.54 confirmado — 01/09/2026 ~00h UTC)
+
+- [x] Push dos 3 commits (`41dedd5`, `406d8a6`, `ab35a6f`) para o GitHub.
+- [x] `git pull` na VPS (fast-forward `41dedd5` -> `ab35a6f`, Fases 1-3 de uma vez) — `reunioes_ativas: 0` checado antes e de novo logo antes do restart (evita corrida).
+- [x] `pip install -r requirements.txt` + `pip check` limpo.
+- [x] `systemctl restart saleia` — `active`, sem erros/excecoes no journal.
+- [x] Pos-deploy: `/health` = `versao 1.4.54`; `/dashboard` = `200`.
+- Achado: restart zerou os contadores de falha dos 4 provedores de IA (`status: ok` no `/health`) — **isso nao confirma que o saldo/chave foi resolvido**, e so o restart limpando o circuit breaker em memoria (comportamento ja documentado em 22/08/2026). Nenhuma chamada real de teste foi feita para confirmar.
+- **Pendente**: `KNOWLEDGE_COMPILER_ENABLED=true` ainda nao foi setado no `.env` da VPS — a feature continua invisivel (`404`) ate alguem pedir pra ativar. Fases 4-6 do Knowledge Compiler ainda nao iniciadas.
+
 ## Pendente
 
-- [ ] **Deploy V.1.4.52-1.4.54 (Biblioteca de Inteligencia) — restart pendente**: Fase 1 com `git pull` (fast-forward `dde7987` -> `41dedd5`) e `pip install -r requirements.txt` ja feitos na VPS em 01/09/2026 (~19h54 UTC) — codigo e deps em disco, `pip check` limpo, `import services.knowledge_compiler` OK no Python real da VPS. Fases 2 e 3 (V.1.4.53/1.4.54) commitadas localmente, ainda precisam ser pushadas/pulled. `systemctl restart saleia` **ainda nao executado**: `reunioes_ativas: 1` no momento (vendedor em reuniao ao vivo). Checar `reunioes_ativas: 0` em `/health` antes de rodar o restart. Feature continua desligada (`404`) mesmo apos o restart, ate `KNOWLEDGE_COMPILER_ENABLED=true` ser adicionado ao `.env` da VPS + novo restart.
 - [ ] Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI).
 - [ ] Recarregar extensao Chrome: `chrome://extensions` → 🔄 recarregar SALEIA (aplica migracao de URL e V.1.4.3).
 - [ ] Descomissionar VPS antiga `204.168.180.25` apos validacao.

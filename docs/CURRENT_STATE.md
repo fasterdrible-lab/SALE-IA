@@ -25,12 +25,18 @@ Atualizado em: 2026-08-31 (V.1.4.51)
 
 ## Versao Atual
 
-`V.1.4.54` (local + GitHub) — **Biblioteca de Inteligência / Knowledge
-Compiler Fase 3** (integração: `KnowledgeItem`s aprovados passam a ser
-buscados automaticamente por RAG em qualquer reunião real, e podem virar
-Skill/Playbook manualmente) — ainda não deployada na VPS (a Fase 1
-V.1.4.52 está com `git pull` feito na VPS, restart pendente; Fases 2 e 3
-nem pushadas ainda). Ver seção "Biblioteca de Inteligência" abaixo.
+`V.1.4.54` (local + GitHub + **VPS confirmada em produção**, 01/09/2026
+~00h UTC) — **Biblioteca de Inteligência / Knowledge Compiler Fases 1-3**
+completas: extração determinística, compilação com IA em `KnowledgeItem`s
+revisáveis, e integração (RAG automático + Skill/Playbook manuais). Deploy
+completo: `git pull` (fast-forward `41dedd5` → `ab35a6f`) + `pip install`
++ `systemctl restart saleia` — `/health` confirma `versao: 1.4.54`,
+`/dashboard` = `200`, sem erros no journal. Bônus do restart: os 4
+provedores de IA centrais (que estavam degradados havia dias) voltaram a
+`status: ok` — o restart limpa os circuit breakers em memória. Feature
+continua **desligada** (`404`) até `KNOWLEDGE_COMPILER_ENABLED=true` ser
+setado no `.env` da VPS + novo restart — ninguém pediu para ativar ainda.
+Ver seção "Biblioteca de Inteligência" abaixo.
 
 **Fix de regressão nesta versão**: o primeiro edit da Fase 1 havia
 apagado sem querer o decorator `@app.get("/cenario/{meeting_id}")` —
@@ -174,18 +180,12 @@ reutilizável pelo RAG/Sales Memory/Playbook/Skill durante reuniões.
   somem, `404`, mesmo padrão do `CLAUDE_ACCOUNT_PILOT`).
 - Sem multi-tenant (`organization_id`) — decisão deliberada, mantém a
   mesma linha da V.1.4.40.
-- **Deploy**: Fase 1 (commit `41dedd5`) já com `git pull` +
-  `pip install` feitos na VPS (01/09/2026, ~19h54 UTC) — `pip check`
-  limpo, `import services.knowledge_compiler` OK no Python real da VPS.
-  `systemctl restart saleia` **ainda pendente**: havia `reunioes_ativas:
-  1` no momento (vendedor em reunião ao vivo) — mesma disciplina de
-  sempre, restart derrubaria a sessão dele. Processo em memória continua
-  rodando `1.4.51`. Fases 2 (`406d8a6`) e 3 estão commitadas **localmente**
-  mas ainda **não pushadas** para o GitHub — serão puxadas juntas no
-  próximo `git pull` quando o push acontecer e o restart for liberado.
-  Mesmo após o restart a feature segue invisível (`404`) até alguém
-  setar `KNOWLEDGE_COMPILER_ENABLED=true` no `.env` da VPS e reiniciar de
-  novo.
+- **Deploy confirmado na VPS (01/09/2026, ~00h UTC)**: `git pull`
+  (fast-forward `41dedd5` → `ab35a6f`, trouxe as Fases 1-3 de uma vez) +
+  `pip install` + `systemctl restart saleia` — `/health` = `versao
+  1.4.54`, `/dashboard` = `200`, sem erros no journal. Feature ainda
+  invisível (`404`) até alguém setar `KNOWLEDGE_COMPILER_ENABLED=true` no
+  `.env` da VPS e reiniciar de novo — ninguém pediu pra ativar ainda.
 - Fases 4-6 (context builder/ranking, governança, UI final) documentadas
   no CHANGELOG mas não iniciadas.
 
@@ -449,7 +449,8 @@ CHANGELOG (V.1.4.44) — resumo:
 - Descomissionar VPS antiga (`204.168.180.25`).
 - Alterar senha do admin via dashboard.
 - **Reindex de embeddings pendente**: rodar `python -m scripts.reindex_embeddings --dry-run --table all` (conferir) e depois sem `--dry-run` (a base atual tem embeddings antigos gerados pela OpenAI, incompativeis com o Ollama).
-- **Provedores de IA centrais — status em 31/08/2026**: ainda sem saldo/chave valida (mesmo incidente aberto desde 22/08/2026, agravado). Groq (transcricao) teve a chave corrigida pelo usuario durante a sessao de 31/08, ainda sem validacao end-to-end.
+- **Provedores de IA centrais — status em 31/08/2026** (ver nota de 01/09 abaixo): ainda sem saldo/chave valida (mesmo incidente aberto desde 22/08/2026, agravado). Groq (transcricao) teve a chave corrigida pelo usuario durante a sessao de 31/08, ainda sem validacao end-to-end.
+  - **Nota (01/09/2026)**: apos o `systemctl restart` do deploy do Knowledge Compiler, `/health` passou a mostrar os 4 provedores como `status: ok`/`falhas_consecutivas: 0` — **isso e so o restart zerando os contadores em memoria, nao confirma que o saldo/chave foi resolvido** (o proprio achado de 22/08 abaixo ja documentava esse comportamento do `/health`). Nao foi feita nenhuma chamada real de teste contra os 4 provedores nesta sessao para confirmar se voltaram a funcionar de fato.
   - `deepseek`: `APIStatusError 402 Insufficient Balance`.
   - `openai`: `RateLimitError 429 insufficient_quota` — "You have no credits remaining".
   - `anthropic`: `BadRequestError 400` — "Your credit balance is too low to access the Anthropic API".
