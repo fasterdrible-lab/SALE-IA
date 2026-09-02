@@ -50,6 +50,24 @@ só nunca foi notado — como `client_max_body_size` foi setado no nível do
 rotas, `/base` incluído, como efeito colateral positivo. Não validado
 manualmente ainda com um arquivo real >1MB em `/base`.
 
+**Segundo fix pós-ativação (01/09/2026, ~00h40 UTC)**: com o nginx
+corrigido, o mesmo PDF subiu certo, mas `POST .../extrair` quebrou com
+`pymysql.err.DataError (1406, "Data too long for column 'texto_extraido'
+at row 1")` — bug real de schema: `KnowledgeSource.texto_extraido`/
+`sections_json` e `KnowledgeItem.content`/`metadata_json`/
+`embedding_json` usavam `Text` (limite de 64KB no MySQL), insuficiente
+para o texto extraído de um livro inteiro. Corrigido no código
+(`api/database.py`, commit `d444c48`) com
+`Text().with_variant(MEDIUMTEXT, "mysql")` — mesmo padrão que
+`base_conhecimento.texto` (`MEDIUMTEXT`, até 16MB) já usava desde sempre.
+Como `create_all()` não migra colunas de tabelas já existentes, aplicado
+`ALTER TABLE ... MODIFY ... MEDIUMTEXT` manual nas 5 colunas em produção
+(confirmado via `DESCRIBE`), `git pull` (`ab35a6f` → `d444c48`), a fonte
+travada em `EXTRACTING` (id=1) resetada para `UPLOADED` (sem precisar
+reenviar o arquivo), e `systemctl restart saleia`
+(`reunioes_ativas: 0` checado antes). **Ainda não validado
+end-to-end** — falta o usuário clicar "Extrair" de novo para confirmar.
+
 **Feature ativada em produção (01/09/2026, ~00h10 UTC)**:
 `KNOWLEDGE_COMPILER_ENABLED=true` adicionado ao `.env` da VPS,
 `systemctl restart saleia` de novo (`reunioes_ativas: 0` checado antes e
