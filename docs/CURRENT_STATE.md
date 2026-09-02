@@ -33,10 +33,14 @@ completo: `git pull` (fast-forward `41dedd5` → `ab35a6f`) + `pip install`
 + `systemctl restart saleia` — `/health` confirma `versao: 1.4.54`,
 `/dashboard` = `200`, sem erros no journal. Bônus do restart: os 4
 provedores de IA centrais (que estavam degradados havia dias) voltaram a
-`status: ok` — o restart limpa os circuit breakers em memória. Feature
-continua **desligada** (`404`) até `KNOWLEDGE_COMPILER_ENABLED=true` ser
-setado no `.env` da VPS + novo restart — ninguém pediu para ativar ainda.
-Ver seção "Biblioteca de Inteligência" abaixo.
+`status: ok` — o restart limpa os circuit breakers em memória. **Feature ativada em produção (01/09/2026, ~00h10 UTC)**:
+`KNOWLEDGE_COMPILER_ENABLED=true` adicionado ao `.env` da VPS,
+`systemctl restart saleia` de novo (`reunioes_ativas: 0` checado antes e
+logo antes do restart) — confirmado lendo o valor com o mesmo mecanismo
+que `api/main.py` usa (`python-dotenv` + `os.getenv`) direto no Python da
+VPS: `KNOWLEDGE_COMPILER_ENABLED = true`. Endpoints `/biblioteca/*`
+deixam de retornar `404` para usuários autenticados. Ver seção
+"Biblioteca de Inteligência" abaixo.
 
 **Fix de regressão nesta versão**: o primeiro edit da Fase 1 havia
 apagado sem querer o decorator `@app.get("/cenario/{meeting_id}")` —
@@ -180,12 +184,14 @@ reutilizável pelo RAG/Sales Memory/Playbook/Skill durante reuniões.
   somem, `404`, mesmo padrão do `CLAUDE_ACCOUNT_PILOT`).
 - Sem multi-tenant (`organization_id`) — decisão deliberada, mantém a
   mesma linha da V.1.4.40.
-- **Deploy confirmado na VPS (01/09/2026, ~00h UTC)**: `git pull`
-  (fast-forward `41dedd5` → `ab35a6f`, trouxe as Fases 1-3 de uma vez) +
-  `pip install` + `systemctl restart saleia` — `/health` = `versao
-  1.4.54`, `/dashboard` = `200`, sem erros no journal. Feature ainda
-  invisível (`404`) até alguém setar `KNOWLEDGE_COMPILER_ENABLED=true` no
-  `.env` da VPS e reiniciar de novo — ninguém pediu pra ativar ainda.
+- **Deploy + ativação confirmados na VPS (01/09/2026, ~00h UTC)**:
+  `git pull` (fast-forward `41dedd5` → `ab35a6f`) + `pip install` +
+  `systemctl restart saleia`, depois `KNOWLEDGE_COMPILER_ENABLED=true`
+  adicionado ao `.env` + segundo restart. `/health` = `versao 1.4.54`,
+  `/dashboard` = `200`, flag confirmada `true` no Python real da VPS, sem
+  erros no journal em nenhum dos dois restarts. Endpoints
+  `/biblioteca/*` estão de fato acessíveis agora (para usuário
+  autenticado) — ainda não testado manualmente no navegador pelo usuário.
 - Fases 4-6 (context builder/ranking, governança, UI final) documentadas
   no CHANGELOG mas não iniciadas.
 

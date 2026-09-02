@@ -395,7 +395,8 @@ EMAIL_FROM=noreply@saleia.com.br
 - [x] `systemctl restart saleia` — `active`, sem erros/excecoes no journal.
 - [x] Pos-deploy: `/health` = `versao 1.4.54`; `/dashboard` = `200`.
 - Achado: restart zerou os contadores de falha dos 4 provedores de IA (`status: ok` no `/health`) — **isso nao confirma que o saldo/chave foi resolvido**, e so o restart limpando o circuit breaker em memoria (comportamento ja documentado em 22/08/2026). Nenhuma chamada real de teste foi feita para confirmar.
-- **Pendente**: `KNOWLEDGE_COMPILER_ENABLED=true` ainda nao foi setado no `.env` da VPS — a feature continua invisivel (`404`) ate alguem pedir pra ativar. Fases 4-6 do Knowledge Compiler ainda nao iniciadas.
+- [x] `KNOWLEDGE_COMPILER_ENABLED=true` adicionado ao `.env` da VPS + `systemctl restart saleia` de novo (`reunioes_ativas: 0` checado antes e logo antes do restart) — confirmado direto no Python da VPS (`os.getenv` via mesmo `python-dotenv` que `api/main.py` usa) que a flag esta `true`. Endpoints `/biblioteca/*` acessiveis para usuario autenticado.
+- **Pendente**: testar manualmente no navegador (upload real de um documento, extrair, compilar, aprovar item). Fases 4-6 do Knowledge Compiler ainda nao iniciadas.
 
 ## Pendente
 
