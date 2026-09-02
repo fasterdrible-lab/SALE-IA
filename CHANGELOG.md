@@ -3,6 +3,81 @@
 
 ---
 
+## Deploy V.1.4.52-1.4.54 confirmado + 2 fixes do primeiro uso real
+> Data: 01-02/09/2026 | Operacional (deploy + 2 correções pós-ativação, sem bump de versão)
+
+### CONTEXTO
+Deploy completo das 3 fases do Knowledge Compiler (commits `41dedd5`,
+`406d8a6`, `ab35a6f`) executado na VPS: `git pull` + `pip install` +
+`systemctl restart saleia` (`reunioes_ativas: 0` checado antes) —
+`/health` confirmou `versao: 1.4.54`. Em seguida, `KNOWLEDGE_COMPILER_
+ENABLED=true` adicionado ao `.env` + novo restart, ativando os endpoints
+`/biblioteca/*` para usuários autenticados.
+
+### FIX 1 — nginx sem `client_max_body_size` (bloqueava upload >1MB)
+Primeiro upload real do usuário (PDF de livro) retornou `HTTP 413`
+genérico — sinal de que o **nginx**, não o FastAPI, estava rejeitando
+antes de chegar no backend. Confirmado:
+`/etc/nginx/sites-available/saleia` não tinha `client_max_body_size`
+configurado (default do nginx = 1 MB, bem abaixo do limite de 20 MB já
+validado no backend desde a Fase 1). Corrigido adicionando
+`client_max_body_size 20m;` no nível do `server{}` (backup do config
+original salvo antes do `sed`), `nginx -t` validado, `systemctl reload
+nginx` (gracioso — não derruba conexões/reuniões ativas, diferente de um
+restart do `saleia.service`). Como o limite ficou no nível do servidor
+(não numa `location` específica), o fix vale para todas as rotas —
+`POST /base` (Base de Conhecimento) provavelmente tinha o mesmo problema
+silencioso, corrigido de graça como efeito colateral (não validado
+manualmente com arquivo real >1MB lá ainda).
+
+### FIX 2 — `TEXT` (64KB) truncava texto extraído de um livro inteiro
+Com o nginx corrigido, o mesmo PDF (~1.7MB) subiu certo, mas
+`POST /biblioteca/fontes/{id}/extrair` quebrou com
+`pymysql.err.DataError (1406, "Data too long for column
+'texto_extraido' at row 1")`. Causa: `KnowledgeSource.texto_extraido`/
+`sections_json` e `KnowledgeItem.content`/`metadata_json`/
+`embedding_json` (`api/database.py`) usavam `Text` — limite de 64KB no
+MySQL, insuficiente para o texto extraído de um livro inteiro.
+`agent/base_conhecimento.py::texto` já usava `MEDIUMTEXT` (até 16MB)
+para exatamente esse cenário desde sempre — a mesma cautela não tinha
+sido aplicada ao schema novo do Knowledge Compiler.
+
+**Correção** (`api/database.py`, commit `d444c48`):
+`_LongText = Text().with_variant(MEDIUMTEXT, "mysql")` — `MEDIUMTEXT` só
+no dialeto MySQL; SQLite (dev/testes) cai no `TEXT` comum, que lá não
+tem limite de tamanho de qualquer forma. Aplicado nas 5 colunas citadas.
+
+**Aplicação em produção**: como `SQLModel.metadata.create_all()` não
+migra colunas de tabelas já existentes, foi necessário `ALTER TABLE
+knowledge_sources/knowledge_items MODIFY <coluna> MEDIUMTEXT` manual
+direto no MySQL da VPS (confirmado via `DESCRIBE` — as 5 colunas viraram
+`mediumtext`), além do `git pull` (`ab35a6f` → `d444c48`) e
+`systemctl restart saleia` (`reunioes_ativas: 0` checado antes). A fonte
+que ficou travada em `EXTRACTING` (id=1, a mesma do teste do usuário) foi
+resetada para `UPLOADED` (sem apagar o arquivo já enviado), para o
+usuário poder clicar "Extrair" de novo sem reenviar o PDF.
+
+### SEM BUMP DE VERSÃO
+Ambos os fixes foram aplicados como hotfix sobre a V.1.4.54 já deployada
+(sem incrementar para 1.4.55) — `/health` continua reportando
+`versao: 1.4.54`, mesmo com o código de `d444c48` já rodando. Decisão
+deliberada para não precisar de mais um ciclo de deploy só por causa do
+número de versão; o código real em produção é o de `d444c48`.
+
+### VALIDAÇÃO
+- `pip check` limpo, sem erros no `journalctl` em nenhum dos restarts.
+- Colunas confirmadas `mediumtext` via `DESCRIBE knowledge_sources` /
+  `DESCRIBE knowledge_items` em produção.
+- **Ainda não confirmado**: usuário reextrair a fonte id=1 (já resetada)
+  para validar o fix de ponta a ponta — orientação dada, resposta não
+  recebida ainda.
+
+### ARQUIVOS ALTERADOS
+- `api/database.py` (5 colunas: `Text` → `Text().with_variant(MEDIUMTEXT, "mysql")`)
+- Infraestrutura (fora do repo): `/etc/nginx/sites-available/saleia` na VPS
+
+---
+
 ## V.1.4.54 — Biblioteca de Inteligência / Knowledge Compiler (Fase 3)
 > Data: 01/09/2026 | Feature (integração RAG/Skill/Playbook)
 

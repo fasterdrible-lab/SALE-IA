@@ -1,6 +1,6 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-08-31 (V.1.4.51)
+Atualizado em: 2026-09-02 (V.1.4.54)
 
 ## Ambiente
 
@@ -25,63 +25,65 @@ Atualizado em: 2026-08-31 (V.1.4.51)
 
 ## Versao Atual
 
-`V.1.4.54` (local + GitHub + **VPS confirmada em produção**, 01/09/2026
-~00h UTC) — **Biblioteca de Inteligência / Knowledge Compiler Fases 1-3**
-completas: extração determinística, compilação com IA em `KnowledgeItem`s
-revisáveis, e integração (RAG automático + Skill/Playbook manuais). Deploy
-completo: `git pull` (fast-forward `41dedd5` → `ab35a6f`) + `pip install`
-+ `systemctl restart saleia` — `/health` confirma `versao: 1.4.54`,
-`/dashboard` = `200`, sem erros no journal. Bônus do restart: os 4
-provedores de IA centrais (que estavam degradados havia dias) voltaram a
-`status: ok` — o restart limpa os circuit breakers em memória. **Fix pós-ativação (01/09/2026, ~00h20 UTC)**: primeiro teste real do
-usuário (upload de um PDF de livro) retornou `HTTP 413` genérico (sem a
-mensagem específica do backend "Arquivo muito grande") — sinal de que o
-**nginx**, não o FastAPI, estava rejeitando antes de chegar no backend.
-Confirmado: `/etc/nginx/sites-available/saleia` não tinha
-`client_max_body_size` configurado (default do nginx = 1 MB, bem abaixo
-do limite de 20 MB já validado no backend desde a Fase 1). Corrigido
-adicionando `client_max_body_size 20m;` ao server block (backup do
-arquivo original salvo antes), `nginx -t` validado, `systemctl reload
-nginx` (gracioso — não derruba conexões/reuniões ativas, diferente de um
-restart do `saleia.service`). **Achado**: esse mesmo limite de 1 MB
-provavelmente sempre afetou `POST /base` (Base de Conhecimento) também,
-só nunca foi notado — como `client_max_body_size` foi setado no nível do
-`server{}` (não numa `location` específica), o fix vale para todas as
-rotas, `/base` incluído, como efeito colateral positivo. Não validado
-manualmente ainda com um arquivo real >1MB em `/base`.
+`V.1.4.54` (local + GitHub + **VPS confirmada em produção**) —
+**Biblioteca de Inteligência / Knowledge Compiler Fases 1-3** completas:
+extração determinística, compilação com IA em `KnowledgeItem`s
+revisáveis, e integração (RAG automático + Skill/Playbook manuais).
+**Ativa em produção.** O upload de um arquivo real (>1MB) já foi validado
+de ponta a ponta; a extração desse mesmo arquivo quebrou uma vez (fix
+aplicado, reteste ainda não confirmado — ver item 5). Linha do tempo do
+deploy (todos os passos em 01-02/09/2026, madrugada UTC):
 
-**Segundo fix pós-ativação (01/09/2026, ~00h40 UTC)**: com o nginx
-corrigido, o mesmo PDF subiu certo, mas `POST .../extrair` quebrou com
-`pymysql.err.DataError (1406, "Data too long for column 'texto_extraido'
-at row 1")` — bug real de schema: `KnowledgeSource.texto_extraido`/
-`sections_json` e `KnowledgeItem.content`/`metadata_json`/
-`embedding_json` usavam `Text` (limite de 64KB no MySQL), insuficiente
-para o texto extraído de um livro inteiro. Corrigido no código
-(`api/database.py`, commit `d444c48`) com
-`Text().with_variant(MEDIUMTEXT, "mysql")` — mesmo padrão que
-`base_conhecimento.texto` (`MEDIUMTEXT`, até 16MB) já usava desde sempre.
-Como `create_all()` não migra colunas de tabelas já existentes, aplicado
-`ALTER TABLE ... MODIFY ... MEDIUMTEXT` manual nas 5 colunas em produção
-(confirmado via `DESCRIBE`), `git pull` (`ab35a6f` → `d444c48`), a fonte
-travada em `EXTRACTING` (id=1) resetada para `UPLOADED` (sem precisar
-reenviar o arquivo), e `systemctl restart saleia`
-(`reunioes_ativas: 0` checado antes). **Ainda não validado
-end-to-end** — falta o usuário clicar "Extrair" de novo para confirmar.
+1. **Deploy do código** (~00h00 UTC): `git pull` (fast-forward
+   `41dedd5` → `ab35a6f`) + `pip install` + `systemctl restart saleia`
+   (`reunioes_ativas: 0` checado antes) — `/health` confirmou
+   `versao: 1.4.54`, `/dashboard` = `200`, sem erros no journal. Bônus:
+   o restart limpou os circuit breakers em memória dos 4 provedores de
+   IA centrais (voltaram a `status: ok` — não confirma que o saldo/chave
+   deles foi resolvido de verdade, só zera o contador, ver "O Que Falta").
+2. **Feature flag ativada** (~00h10 UTC): `KNOWLEDGE_COMPILER_ENABLED=true`
+   adicionado ao `.env` da VPS + `systemctl restart saleia` de novo
+   (`reunioes_ativas: 0` checado de novo) — confirmado lendo o valor com
+   o mesmo `python-dotenv`/`os.getenv` que `api/main.py` usa, direto no
+   Python da VPS. Endpoints `/biblioteca/*` passam a responder para
+   usuários autenticados.
+3. **Fix nginx** (~00h20 UTC): primeiro upload real do usuário (PDF de
+   livro) retornou `HTTP 413` genérico — o **nginx**, não o FastAPI,
+   estava rejeitando antes de chegar no backend.
+   `/etc/nginx/sites-available/saleia` não tinha `client_max_body_size`
+   (default do nginx = 1 MB, bem abaixo do limite de 20 MB já validado
+   no backend desde a Fase 1). Corrigido com `client_max_body_size 20m;`
+   no nível do `server{}` (backup do config original salvo antes),
+   `nginx -t` + `systemctl reload nginx` (gracioso, não derruba
+   conexões/reuniões ativas). Como o limite ficou no nível do server
+   (não numa `location` específica), o fix vale pra todas as rotas —
+   `POST /base` (Base de Conhecimento) provavelmente tinha o mesmo
+   problema silencioso, corrigido de graça como efeito colateral (não
+   validado manualmente ainda com arquivo real >1MB lá).
+4. **Fix de schema MEDIUMTEXT** (~00h40 UTC): com o nginx corrigido, o
+   mesmo PDF subiu certo, mas `POST .../extrair` quebrou com
+   `pymysql.err.DataError (1406, "Data too long for column
+   'texto_extraido'")` — `KnowledgeSource.texto_extraido`/`sections_json`
+   e `KnowledgeItem.content`/`metadata_json`/`embedding_json` usavam
+   `Text` (64KB no MySQL), insuficiente pro texto de um livro inteiro.
+   Corrigido no código (`api/database.py`, commit `d444c48`) com
+   `Text().with_variant(MEDIUMTEXT, "mysql")` — mesmo padrão que
+   `base_conhecimento.texto` já usava. `create_all()` não migra colunas
+   existentes, então aplicado `ALTER TABLE ... MODIFY ... MEDIUMTEXT`
+   manual nas 5 colunas direto no MySQL de produção (confirmado via
+   `DESCRIBE`), `git pull` (`ab35a6f` → `d444c48`), a fonte travada em
+   `EXTRACTING` (id=1) resetada para `UPLOADED`, `systemctl restart
+   saleia` (`reunioes_ativas: 0` checado antes).
+5. **Ainda não confirmado**: usuário foi orientado a clicar "Extrair" de
+   novo na fonte id=1 (já resetada) para validar o fix de ponta a ponta
+   — resposta não recebida ainda nesta sessão. Compilação (Fase 2) e
+   integração (Fase 3) seguem sem nenhum teste manual real do usuário.
 
-**Feature ativada em produção (01/09/2026, ~00h10 UTC)**:
-`KNOWLEDGE_COMPILER_ENABLED=true` adicionado ao `.env` da VPS,
-`systemctl restart saleia` de novo (`reunioes_ativas: 0` checado antes e
-logo antes do restart) — confirmado lendo o valor com o mesmo mecanismo
-que `api/main.py` usa (`python-dotenv` + `os.getenv`) direto no Python da
-VPS: `KNOWLEDGE_COMPILER_ENABLED = true`. Endpoints `/biblioteca/*`
-deixam de retornar `404` para usuários autenticados. Ver seção
-"Biblioteca de Inteligência" abaixo.
-
-**Fix de regressão nesta versão**: o primeiro edit da Fase 1 havia
-apagado sem querer o decorator `@app.get("/cenario/{meeting_id}")` —
-rota parou de existir silenciosamente (nenhum teste cobre isso). Corrigido
-antes do commit da Fase 2; não chegou a afetar produção (restart da Fase 1
-ainda não havia rodado).
+**Fix de regressão** (achado durante a Fase 3, antes de qualquer deploy):
+o primeiro edit da Fase 1 havia apagado sem querer o decorator
+`@app.get("/cenario/{meeting_id}")` — rota parou de existir
+silenciosamente (nenhum teste cobre isso). Corrigido antes do commit da
+Fase 2, nunca chegou a afetar produção.
 
 Resumo da versão anterior confirmada em produção:
 
@@ -484,6 +486,7 @@ CHANGELOG (V.1.4.44) — resumo:
 
 ## O Que Falta
 
+- **Knowledge Compiler (Biblioteca de Inteligência) — pendências pós-ativação**: confirmar que reextrair a fonte id=1 (já resetada) funciona após o fix de `MEDIUMTEXT`; validar `POST /base` também aceita arquivo >1MB (efeito colateral do fix de `client_max_body_size` do nginx); testar manualmente a compilação com IA (Fase 2) e a integração RAG/Skill/Playbook (Fase 3) — só foram testadas automaticamente até agora. Fases 4-6 do roadmap ainda não iniciadas. Detalhe completo na seção "Biblioteca de Inteligência" acima e em `docs/TASKS.md`.
 - **Chave SSH `saleia_vps` continua nao autenticando** (`Permission denied (publickey,password)`) — acesso restabelecido só por senha root em 01/09/2026 (mesmo padrao recorrente de 19/08 e 22/08/2026). A chave publica provavelmente nao esta mais em `~/.ssh/authorized_keys` da VPS nova, ou foi rotacionada — nao investigado a fundo, senha continua sendo o fallback funcional.
 - **Restart do `saleia.service` confirmado feito** (commit `dde7987` exato, ativo desde `2026-09-01 06:38:15 UTC` — ver secao "Deploy V.1.4.50/1.4.51 confirmado" acima). Falta so: (a) validar end-to-end se o `GROQ_API_KEY` novo resolveu a transcricao de audio (sem trafego real desde o restart para confirmar), (b) a extensao Chrome precisa ser reinstalada (`chrome://extensions`) pra vendedores passarem a enviar `X-Extensao-Versao` — sem isso o incidente de 31/08 (ver secao acima) continua indiferenciavel do lado do servidor.
 - **Cost Intelligence — validacao manual pendente (V.1.4.51)**: os nomes exatos de campo de cache do DeepSeek (`prompt_cache_hit_tokens`) e Gemini (`cached_content_token_count`) nao foram confirmados contra uma resposta real de producao — degradam com seguranca para `0` via `getattr`, mas a granularidade de cache pode estar subestimada ate essa validacao. Fazer 1 chamada real por provedor em homologacao/producao logando `response.usage`/`response.usage_metadata` bruto (`api/ai_router.py::_usage_from_*`). Fases 2-6 do roadmap (dashboard de custos, Budget Guard, Cost Router) ainda nao iniciadas — ver `docs/cost-intelligence-audit.md`.
