@@ -396,7 +396,8 @@ EMAIL_FROM=noreply@saleia.com.br
 - [x] Pos-deploy: `/health` = `versao 1.4.54`; `/dashboard` = `200`.
 - Achado: restart zerou os contadores de falha dos 4 provedores de IA (`status: ok` no `/health`) — **isso nao confirma que o saldo/chave foi resolvido**, e so o restart limpando o circuit breaker em memoria (comportamento ja documentado em 22/08/2026). Nenhuma chamada real de teste foi feita para confirmar.
 - [x] `KNOWLEDGE_COMPILER_ENABLED=true` adicionado ao `.env` da VPS + `systemctl restart saleia` de novo (`reunioes_ativas: 0` checado antes e logo antes do restart) — confirmado direto no Python da VPS (`os.getenv` via mesmo `python-dotenv` que `api/main.py` usa) que a flag esta `true`. Endpoints `/biblioteca/*` acessiveis para usuario autenticado.
-- **Pendente**: testar manualmente no navegador (upload real de um documento, extrair, compilar, aprovar item). Fases 4-6 do Knowledge Compiler ainda nao iniciadas.
+- [x] Fix pos-ativacao: usuario testou upload real de PDF, recebeu `HTTP 413` generico (nginx, nao FastAPI) — `client_max_body_size` faltava no nginx (default 1MB, backend ja aceitava ate 20MB desde a Fase 1). Corrigido em `/etc/nginx/sites-available/saleia` (`client_max_body_size 20m;` no nivel do server, vale tambem pra `/base`), `nginx -t` + `systemctl reload nginx` (gracioso, sem derrubar reunioes ativas). Backup do config original salvo antes do sed.
+- **Pendente**: usuario re-testar upload do mesmo PDF (deve funcionar agora); validar `/base` tambem aceita arquivo >1MB como efeito colateral do fix. Fases 4-6 do Knowledge Compiler ainda nao iniciadas.
 
 ## Pendente
 

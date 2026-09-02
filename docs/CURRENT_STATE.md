@@ -33,7 +33,24 @@ completo: `git pull` (fast-forward `41dedd5` → `ab35a6f`) + `pip install`
 + `systemctl restart saleia` — `/health` confirma `versao: 1.4.54`,
 `/dashboard` = `200`, sem erros no journal. Bônus do restart: os 4
 provedores de IA centrais (que estavam degradados havia dias) voltaram a
-`status: ok` — o restart limpa os circuit breakers em memória. **Feature ativada em produção (01/09/2026, ~00h10 UTC)**:
+`status: ok` — o restart limpa os circuit breakers em memória. **Fix pós-ativação (01/09/2026, ~00h20 UTC)**: primeiro teste real do
+usuário (upload de um PDF de livro) retornou `HTTP 413` genérico (sem a
+mensagem específica do backend "Arquivo muito grande") — sinal de que o
+**nginx**, não o FastAPI, estava rejeitando antes de chegar no backend.
+Confirmado: `/etc/nginx/sites-available/saleia` não tinha
+`client_max_body_size` configurado (default do nginx = 1 MB, bem abaixo
+do limite de 20 MB já validado no backend desde a Fase 1). Corrigido
+adicionando `client_max_body_size 20m;` ao server block (backup do
+arquivo original salvo antes), `nginx -t` validado, `systemctl reload
+nginx` (gracioso — não derruba conexões/reuniões ativas, diferente de um
+restart do `saleia.service`). **Achado**: esse mesmo limite de 1 MB
+provavelmente sempre afetou `POST /base` (Base de Conhecimento) também,
+só nunca foi notado — como `client_max_body_size` foi setado no nível do
+`server{}` (não numa `location` específica), o fix vale para todas as
+rotas, `/base` incluído, como efeito colateral positivo. Não validado
+manualmente ainda com um arquivo real >1MB em `/base`.
+
+**Feature ativada em produção (01/09/2026, ~00h10 UTC)**:
 `KNOWLEDGE_COMPILER_ENABLED=true` adicionado ao `.env` da VPS,
 `systemctl restart saleia` de novo (`reunioes_ativas: 0` checado antes e
 logo antes do restart) — confirmado lendo o valor com o mesmo mecanismo
