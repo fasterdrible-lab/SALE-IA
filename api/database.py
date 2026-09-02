@@ -14,9 +14,16 @@ from typing import Optional, List
 
 from dotenv import load_dotenv
 from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, Text, func, text
+from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.engine import URL as SA_URL
 from sqlalchemy.exc import OperationalError
 from sqlmodel import Field, Session, SQLModel, create_engine, select
+
+# TEXT do MySQL trunca em 64KB — texto extraído de um livro inteiro
+# (ou o embedding de um item) estoura isso fácil. MEDIUMTEXT (até 16MB)
+# só no MySQL; outros dialetos (SQLite em dev/teste) caem no TEXT comum,
+# que lá não tem limite de tamanho de qualquer forma.
+_LongText = Text().with_variant(MEDIUMTEXT, "mysql")
 
 # Carrega .env do diretório raiz do projeto (sobe 2 níveis de api/)
 load_dotenv(Path(__file__).parent.parent / ".env")
@@ -147,8 +154,8 @@ class KnowledgeSource(SQLModel, table=True):
     arquivo_tamanho: int = Field(default=0, sa_column=Column(Integer, nullable=False))
     content_hash: str = Field(sa_column=Column(String(64), unique=True, index=True, nullable=False))
     status: str = Field(default="UPLOADED", sa_column=Column(String(20), nullable=False))
-    texto_extraido: Optional[str] = Field(default=None, sa_column=Column(Text))
-    sections_json: Optional[str] = Field(default=None, sa_column=Column(Text))
+    texto_extraido: Optional[str] = Field(default=None, sa_column=Column(_LongText))
+    sections_json: Optional[str] = Field(default=None, sa_column=Column(_LongText))
     char_count: int = Field(default=0, sa_column=Column(Integer, nullable=False))
     section_count: int = Field(default=0, sa_column=Column(Integer, nullable=False))
     error_message: Optional[str] = Field(default=None, sa_column=Column(String(500)))
@@ -174,13 +181,13 @@ class KnowledgeItem(SQLModel, table=True):
     source_id: int = Field(sa_column=Column(Integer, index=True, nullable=False))
     item_type: str = Field(sa_column=Column(String(30), index=True, nullable=False))
     title: str = Field(sa_column=Column(String(255), nullable=False))
-    content: str = Field(sa_column=Column(Text, nullable=False))
-    metadata_json: Optional[str] = Field(default=None, sa_column=Column(Text))
+    content: str = Field(sa_column=Column(_LongText, nullable=False))
+    metadata_json: Optional[str] = Field(default=None, sa_column=Column(_LongText))
     tags_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
     confidence: float = Field(default=0.75, sa_column=Column(Float, nullable=False))
     status: str = Field(default="DRAFT", sa_column=Column(String(20), index=True, nullable=False))
     possivel_duplicado_de: Optional[int] = Field(default=None, sa_column=Column(Integer))
-    embedding_json: Optional[str] = Field(default=None, sa_column=Column(Text))
+    embedding_json: Optional[str] = Field(default=None, sa_column=Column(_LongText))
     embedding_provider: Optional[str] = Field(default=None, sa_column=Column(String(20)))
     embedding_model: Optional[str] = Field(default=None, sa_column=Column(String(100)))
     embedding_dim: Optional[int] = Field(default=None, sa_column=Column(Integer))
