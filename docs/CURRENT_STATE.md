@@ -29,9 +29,8 @@ Atualizado em: 2026-09-02 (V.1.4.54)
 **Biblioteca de Inteligência / Knowledge Compiler Fases 1-3** completas:
 extração determinística, compilação com IA em `KnowledgeItem`s
 revisáveis, e integração (RAG automático + Skill/Playbook manuais).
-**Ativa em produção.** O upload de um arquivo real (>1MB) já foi validado
-de ponta a ponta; a extração desse mesmo arquivo quebrou uma vez (fix
-aplicado, reteste ainda não confirmado — ver item 5). Linha do tempo do
+**Ativa em produção e validada de ponta a ponta com um arquivo real**
+(upload >1MB + extração, após os 2 fixes abaixo). Linha do tempo do
 deploy (todos os passos em 01-02/09/2026, madrugada UTC):
 
 1. **Deploy do código** (~00h00 UTC): `git pull` (fast-forward
@@ -74,10 +73,10 @@ deploy (todos os passos em 01-02/09/2026, madrugada UTC):
    `DESCRIBE`), `git pull` (`ab35a6f` → `d444c48`), a fonte travada em
    `EXTRACTING` (id=1) resetada para `UPLOADED`, `systemctl restart
    saleia` (`reunioes_ativas: 0` checado antes).
-5. **Ainda não confirmado**: usuário foi orientado a clicar "Extrair" de
-   novo na fonte id=1 (já resetada) para validar o fix de ponta a ponta
-   — resposta não recebida ainda nesta sessão. Compilação (Fase 2) e
-   integração (Fase 3) seguem sem nenhum teste manual real do usuário.
+5. **Confirmado pelo usuário**: reextração da fonte id=1 funcionou após
+   o fix de `MEDIUMTEXT` — upload + extração validados de ponta a ponta
+   em produção real. Compilação (Fase 2) e integração RAG/Skill/Playbook
+   (Fase 3) ainda sem teste manual do usuário.
 
 **Fix de regressão** (achado durante a Fase 3, antes de qualquer deploy):
 o primeiro edit da Fase 1 havia apagado sem querer o decorator
@@ -486,7 +485,7 @@ CHANGELOG (V.1.4.44) — resumo:
 
 ## O Que Falta
 
-- **Knowledge Compiler (Biblioteca de Inteligência) — pendências pós-ativação**: confirmar que reextrair a fonte id=1 (já resetada) funciona após o fix de `MEDIUMTEXT`; validar `POST /base` também aceita arquivo >1MB (efeito colateral do fix de `client_max_body_size` do nginx); testar manualmente a compilação com IA (Fase 2) e a integração RAG/Skill/Playbook (Fase 3) — só foram testadas automaticamente até agora. Fases 4-6 do roadmap ainda não iniciadas. Detalhe completo na seção "Biblioteca de Inteligência" acima e em `docs/TASKS.md`.
+- **Knowledge Compiler (Biblioteca de Inteligência) — pendências pós-ativação**: upload+extração já confirmados de ponta a ponta pelo usuário (fonte id=1, após os fixes de nginx/`MEDIUMTEXT`). Falta: validar `POST /base` também aceita arquivo >1MB (efeito colateral do fix de `client_max_body_size` do nginx); testar manualmente a compilação com IA (Fase 2) e a integração RAG/Skill/Playbook (Fase 3) — só foram testadas automaticamente até agora. Fases 4-6 do roadmap ainda não iniciadas. Detalhe completo na seção "Biblioteca de Inteligência" acima e em `docs/TASKS.md`.
 - **Chave SSH `saleia_vps` continua nao autenticando** (`Permission denied (publickey,password)`) — acesso restabelecido só por senha root em 01/09/2026 (mesmo padrao recorrente de 19/08 e 22/08/2026). A chave publica provavelmente nao esta mais em `~/.ssh/authorized_keys` da VPS nova, ou foi rotacionada — nao investigado a fundo, senha continua sendo o fallback funcional.
 - **Restart do `saleia.service` confirmado feito** (commit `dde7987` exato, ativo desde `2026-09-01 06:38:15 UTC` — ver secao "Deploy V.1.4.50/1.4.51 confirmado" acima). Falta so: (a) validar end-to-end se o `GROQ_API_KEY` novo resolveu a transcricao de audio (sem trafego real desde o restart para confirmar), (b) a extensao Chrome precisa ser reinstalada (`chrome://extensions`) pra vendedores passarem a enviar `X-Extensao-Versao` — sem isso o incidente de 31/08 (ver secao acima) continua indiferenciavel do lado do servidor.
 - **Cost Intelligence — validacao manual pendente (V.1.4.51)**: os nomes exatos de campo de cache do DeepSeek (`prompt_cache_hit_tokens`) e Gemini (`cached_content_token_count`) nao foram confirmados contra uma resposta real de producao — degradam com seguranca para `0` via `getattr`, mas a granularidade de cache pode estar subestimada ate essa validacao. Fazer 1 chamada real por provedor em homologacao/producao logando `response.usage`/`response.usage_metadata` bruto (`api/ai_router.py::_usage_from_*`). Fases 2-6 do roadmap (dashboard de custos, Budget Guard, Cost Router) ainda nao iniciadas — ver `docs/cost-intelligence-audit.md`.

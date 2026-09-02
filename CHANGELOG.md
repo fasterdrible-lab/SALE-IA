@@ -68,9 +68,8 @@ número de versão; o código real em produção é o de `d444c48`.
 - `pip check` limpo, sem erros no `journalctl` em nenhum dos restarts.
 - Colunas confirmadas `mediumtext` via `DESCRIBE knowledge_sources` /
   `DESCRIBE knowledge_items` em produção.
-- **Ainda não confirmado**: usuário reextrair a fonte id=1 (já resetada)
-  para validar o fix de ponta a ponta — orientação dada, resposta não
-  recebida ainda.
+- **Confirmado pelo usuário**: reextração da fonte id=1 funcionou —
+  upload + extração validados de ponta a ponta em produção real.
 
 ### ARQUIVOS ALTERADOS
 - `api/database.py` (5 colunas: `Text` → `Text().with_variant(MEDIUMTEXT, "mysql")`)
