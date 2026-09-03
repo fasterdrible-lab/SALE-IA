@@ -750,6 +750,238 @@ def custo_por_reuniao(meeting_id: str) -> dict:
     }
 
 
+def _com_filtro_data(stmt, date_from: Optional[datetime], date_to: Optional[datetime]):
+    """Aplica filtro opcional de periodo em AiUsageEvent.criado_em (Cost
+    Intelligence Fase 2). date_to e exclusivo (< date_to) — o chamador que
+    quiser incluir o dia inteiro de date_to deve passar "dia seguinte 00:00".
+    """
+    if date_from is not None:
+        stmt = stmt.where(AiUsageEvent.criado_em >= date_from)
+    if date_to is not None:
+        stmt = stmt.where(AiUsageEvent.criado_em < date_to)
+    return stmt
+
+
+def custos_resumo(date_from: Optional[datetime] = None, date_to: Optional[datetime] = None) -> dict:
+    """Agregados gerais de custo de IA (Cost Intelligence Fase 2)."""
+    with Session(engine) as session:
+        total_eventos, total_usd = session.exec(
+            _com_filtro_data(
+                select(func.count(AiUsageEvent.id), func.coalesce(func.sum(AiUsageEvent.cost_usd), 0.0)),
+                date_from, date_to,
+            )
+        ).one()
+
+        eventos_sucesso = session.exec(
+            _com_filtro_data(select(func.count(AiUsageEvent.id)).where(AiUsageEvent.success), date_from, date_to)
+        ).one() or 0
+
+        eventos_falha = session.exec(
+            _com_filtro_data(select(func.count(AiUsageEvent.id)).where(~AiUsageEvent.success), date_from, date_to)
+        ).one() or 0
+
+        fallback_eventos, fallback_usd = session.exec(
+            _com_filtro_data(
+                select(func.count(AiUsageEvent.id), func.coalesce(func.sum(AiUsageEvent.cost_usd), 0.0))
+                .where(AiUsageEvent.fallback_used),
+                date_from, date_to,
+            )
+        ).one()
+
+        por_provider_stmt = _com_filtro_data(
+            select(
+                AiUsageEvent.provider,
+                func.count(AiUsageEvent.id),
+                func.coalesce(func.sum(AiUsageEvent.cost_usd), 0.0),
+                func.coalesce(func.sum(AiUsageEvent.input_tokens), 0),
+                func.coalesce(func.sum(AiUsageEvent.output_tokens), 0),
+            ).group_by(AiUsageEvent.provider),
+            date_from, date_to,
+        )
+        por_provider = sorted(
+            (
+                {
+                    "provider": provider,
+                    "eventos": eventos_p,
+                    "total_usd": round(custo_p, 6),
+                    "input_tokens": int(tokens_in),
+                    "output_tokens": int(tokens_out),
+                }
+                for provider, eventos_p, custo_p, tokens_in, tokens_out in session.exec(por_provider_stmt).all()
+            ),
+            key=lambda r: r["total_usd"], reverse=True,
+        )
+
+        por_model_stmt = _com_filtro_data(
+            select(
+                AiUsageEvent.provider,
+                AiUsageEvent.model,
+                func.count(AiUsageEvent.id),
+                func.coalesce(func.sum(AiUsageEvent.cost_usd), 0.0),
+            ).group_by(AiUsageEvent.provider, AiUsageEvent.model),
+            date_from, date_to,
+        )
+        por_model = sorted(
+            (
+                {"provider": provider, "model": model, "eventos": eventos_m, "total_usd": round(custo_m, 6)}
+                for provider, model, eventos_m, custo_m in session.exec(por_model_stmt).all()
+            ),
+            key=lambda r: r["total_usd"], reverse=True,
+        )
+
+        por_feature_stmt = _com_filtro_data(
+            select(
+                AiUsageEvent.feature,
+                func.count(AiUsageEvent.id),
+                func.coalesce(func.sum(AiUsageEvent.cost_usd), 0.0),
+            ).group_by(AiUsageEvent.feature),
+            date_from, date_to,
+        )
+        por_feature = sorted(
+            (
+                {"feature": feature, "eventos": eventos_f, "total_usd": round(custo_f, 6)}
+                for feature, eventos_f, custo_f in session.exec(por_feature_stmt).all()
+            ),
+            key=lambda r: r["total_usd"], reverse=True,
+        )
+
+    return {
+        "total_eventos": total_eventos or 0,
+        "total_usd": round(total_usd or 0.0, 6),
+        "eventos_sucesso": eventos_sucesso,
+        "eventos_falha": eventos_falha,
+        "fallback_eventos": fallback_eventos or 0,
+        "fallback_usd": round(fallback_usd or 0.0, 6),
+        "por_provider": por_provider,
+        "por_model": por_model,
+        "por_feature": por_feature,
+    }
+
+
+def custos_por_usuario(date_from: Optional[datetime] = None, date_to: Optional[datetime] = None, limit: int = 50) -> list:
+    """Agregados de custo de IA por usuario_id (Cost Intelligence Fase 2).
+
+    So os ids + agregados — nome/email sao enriquecidos na camada do endpoint
+    via agent.sessao_manager.obter_nomes_usuarios (mesmo padrao ja usado por
+    /historico/uso, que mescla SQLModel + pymysql em Python no endpoint).
+    usuario_id pode ser None (uso anonimo da extensao, sem login).
+    """
+    with Session(engine) as session:
+        stmt = _com_filtro_data(
+            select(
+                AiUsageEvent.usuario_id,
+                func.count(AiUsageEvent.id),
+                func.coalesce(func.sum(AiUsageEvent.cost_usd), 0.0),
+            ).group_by(AiUsageEvent.usuario_id),
+            date_from, date_to,
+        )
+        linhas = session.exec(stmt).all()
+
+    resultado = sorted(
+        (
+            {"usuario_id": usuario_id, "eventos": eventos, "total_usd": round(custo, 6)}
+            for usuario_id, eventos, custo in linhas
+        ),
+        key=lambda r: r["total_usd"], reverse=True,
+    )
+    return resultado[:limit]
+
+
+def custos_reunioes_mais_caras(date_from: Optional[datetime] = None, date_to: Optional[datetime] = None, limit: int = 20) -> list:
+    """Reunioes com maior custo de IA acumulado (Cost Intelligence Fase 2).
+
+    So meeting_id + agregados + janela de tempo — cliente/empresa sao
+    enriquecidos na camada do endpoint via
+    agent.sessao_manager.obter_clientes_por_reunioes.
+    """
+    with Session(engine) as session:
+        stmt = _com_filtro_data(
+            select(
+                AiUsageEvent.meeting_id,
+                func.count(AiUsageEvent.id),
+                func.coalesce(func.sum(AiUsageEvent.cost_usd), 0.0),
+                func.min(AiUsageEvent.criado_em),
+                func.max(AiUsageEvent.criado_em),
+            )
+            .where(AiUsageEvent.meeting_id.is_not(None))
+            .group_by(AiUsageEvent.meeting_id)
+            .order_by(func.sum(AiUsageEvent.cost_usd).desc())
+            .limit(limit),
+            date_from, date_to,
+        )
+        linhas = session.exec(stmt).all()
+
+    return [
+        {
+            "meeting_id": meeting_id,
+            "eventos": eventos,
+            "total_usd": round(custo, 6),
+            "inicio": inicio.isoformat() if inicio else None,
+            "fim": fim.isoformat() if fim else None,
+        }
+        for meeting_id, eventos, custo, inicio, fim in linhas
+    ]
+
+
+def eventos_de_reuniao(meeting_id: str) -> list:
+    """Lista crua dos eventos de uso de IA de uma reuniao, em ordem cronologica
+    (Cost Intelligence Fase 2) — alimenta a timeline de detalhe no dashboard.
+    """
+    with Session(engine) as session:
+        eventos = session.exec(
+            select(AiUsageEvent)
+            .where(AiUsageEvent.meeting_id == meeting_id)
+            .order_by(AiUsageEvent.criado_em)
+        ).all()
+
+    return [
+        {
+            "criado_em": e.criado_em.isoformat() if e.criado_em else None,
+            "feature": e.feature,
+            "provider": e.provider,
+            "model": e.model,
+            "cost_usd": round(e.cost_usd, 6),
+            "usage_source": e.usage_source,
+            "success": e.success,
+            "fallback_used": e.fallback_used,
+        }
+        for e in eventos
+    ]
+
+
+def exportar_eventos_uso_ia(date_from: Optional[datetime] = None, date_to: Optional[datetime] = None, limit: int = 20000) -> list:
+    """Linhas cruas de ai_usage_events para exportacao CSV/JSON (Cost
+    Intelligence Fase 2). `limit` e um teto de seguranca — a tabela cresce a
+    cada ciclo de tempo real, exportar sem limite seria imprudente.
+    """
+    with Session(engine) as session:
+        stmt = _com_filtro_data(
+            select(AiUsageEvent).order_by(AiUsageEvent.criado_em.desc()).limit(limit),
+            date_from, date_to,
+        )
+        eventos = session.exec(stmt).all()
+
+    return [
+        {
+            "criado_em": e.criado_em.isoformat() if e.criado_em else None,
+            "meeting_id": e.meeting_id,
+            "usuario_id": e.usuario_id,
+            "feature": e.feature,
+            "provider": e.provider,
+            "model": e.model,
+            "input_tokens": e.input_tokens,
+            "output_tokens": e.output_tokens,
+            "cached_input_tokens": e.cached_input_tokens,
+            "usage_source": e.usage_source,
+            "cost_usd": round(e.cost_usd, 6),
+            "latency_ms": e.latency_ms,
+            "success": e.success,
+            "fallback_used": e.fallback_used,
+        }
+        for e in eventos
+    ]
+
+
 def _erro_tabela_ja_existe(exc: OperationalError) -> bool:
     """Detecta corrida benigna de create_all em apps com multiplos workers."""
     original = getattr(exc, "orig", None)

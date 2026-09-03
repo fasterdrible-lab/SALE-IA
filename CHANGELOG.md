@@ -3,6 +3,114 @@
 
 ---
 
+## V.1.4.55 — Cost Intelligence Fase 2: Agregações e Dashboard de Custos
+> Data: 03/09/2026 | Feature (visibilidade de custo de IA)
+
+### VISÃO
+Segunda fase do roadmap de "Cost Intelligence, Cost Router e Controle de
+Gastos com APIs" (60 tarefas, ver `~/.claude/plans/misty-yawning-unicorn.md`
+e `docs/cost-intelligence-audit.md`). A Fase 1 (V.1.4.51) construiu a
+fundação — `ai_usage_events` grava um registro por chamada de IA desde
+então — mas nenhum dado agregado era visível: ninguém conseguia consultar
+quanto estava sendo gasto, por quem, ou em qual reunião, sem rodar Python
+manualmente no console da VPS. Esta fase entrega só leitura/visualização —
+zero tabela nova, zero `.env` novo, zero feature flag (mesma decisão da
+Fase 1: sempre ativo).
+
+### BACKEND — `api/database.py`: 5 funções de agregação (SQLModel)
+`custos_resumo`, `custos_por_usuario`, `custos_reunioes_mais_caras`,
+`eventos_de_reuniao`, `exportar_eventos_uso_ia` — todas aceitam
+`date_from`/`date_to` opcionais via o helper `_com_filtro_data()`. Mesmo
+padrão de `metricas_claude_account()` (`select`/`func.sum`/`func.count`/
+`group_by`, agregação em SQL, não em Python). `custos_reunioes_mais_caras`
+usa `min(criado_em)`/`max(criado_em)` como período da reunião — sem
+depender de nenhuma outra tabela. `exportar_eventos_uso_ia` tem `limit`
+(default 20000) como teto de segurança, já que a tabela cresce a cada
+ciclo de tempo real.
+
+### BACKEND — `agent/sessao_manager.py`: 2 helpers de enriquecimento
+`obter_nomes_usuarios(ids)` e `obter_clientes_por_reunioes(meeting_ids)` —
+mesma técnica de subquery correlacionada já usada em `listar_sessoes()`
+(join `client_meetings` → `client_profiles`), mas com `WHERE ... IN (...)`
+para uma lista, não uma linha só. Só os *ids* saem das funções de
+agregação em `database.py`; nome/e-mail/cliente são resolvidos na camada
+do endpoint (mesmo padrão que `/historico/uso` já usa para mesclar
+SQLModel + pymysql em Python).
+
+### BACKEND — `api/main.py`: 5 endpoints novos, atrás de `_req_admin`
+- `GET /admin/costs/resumo` — totais gerais + agrupado por
+  provedor/modelo/feature, com breakdown de fallback (Conta Claude).
+- `GET /admin/costs/por-usuario` — custo por `usuario_id`, com linha
+  separada para uso anônimo da extensão (`usuario_id` pode ser `NULL`).
+- `GET /admin/costs/reunioes` — "reuniões mais caras", ordenado por custo
+  desc, enriquecido com cliente/empresa quando vinculado.
+- `GET /admin/costs/reunioes/{meeting_id}` — resumo (reaproveita
+  `custo_por_reuniao`, existente desde a Fase 1 mas sem endpoint até
+  agora) + timeline crua de eventos. **Sem validação por regex de código
+  de Meet** — `ai_usage_events.meeting_id` também carrega chaves de
+  correlação de outras features (ex.: `knowledge_source:5`, Biblioteca de
+  Inteligência Fase 2), diferente de `/historico/uso/{meeting_id}`.
+- `GET /admin/costs/export?formato=csv|json` — primeiro export de dados
+  do backend inteiro (confirmado por busca: zero `StreamingResponse`/
+  `csv.writer` existia antes). CSV via `StreamingResponse` +
+  `csv.writer`/`io.StringIO`; `limit` (default 20000, teto 20000) e
+  `date_from`/`date_to` (`YYYY-MM-DD`, `400` em formato inválido) iguais
+  aos demais endpoints.
+
+### FRONTEND — `frontend/dashboard.html`
+Nova aba "💰 Custos" (nav item + `page-custos`), espelhando a estrutura da
+aba Monitor existente (mesmos tokens de tema `--primary`/`--card`/
+`--border`, classes `card`/`cfg-tabela`): cards de resumo (reaproveita
+`_monCard()`, sem componente novo), filtro de data com atalho
+Hoje/7d/30d/Tudo (mesmo padrão de `aplicarPeriodoSessao()`), 3 tabelas de
+breakdown (provedor/modelo, feature, usuário), tabela "Reuniões mais
+caras" com linha clicável abrindo um painel de detalhe (resumo + timeline
+de eventos), e 2 botões de exportação (CSV/JSON) que baixam o arquivo via
+`Blob`+`<a download>` (mesmo mecanismo de `baixarDocumento`, único
+download que já existia no projeto).
+
+### TESTES
+- `tests/test_cost_aggregation.py` (12 novos) — SQLite em memória (mesmo
+  harness de `test_ai_usage_events.py`): totais, agrupamento, filtro de
+  data (janela dentro/fora), ordenação + `limit` de "reuniões mais
+  caras", linha `usuario_id=NULL` tratada como anônima, `limit` do
+  export.
+- `tests/test_admin_costs_endpoints.py` (12 novos) — `TestClient`: 401
+  sem token, 403 não-admin, formato de resposta de cada endpoint,
+  enriquecimento degrada (`None`) sem quebrar quando MySQL está
+  indisponível, `meeting_id` fora do padrão de Meet aceito, CSV com
+  `content-type`/cabeçalho corretos, `400` em data/formato inválidos.
+  **Achado durante a escrita destes testes**: SQLite `:memory:` cria um
+  banco isolado por thread por padrão — como o `TestClient` roda o
+  endpoint numa worker thread diferente da do teste, `patch.object(
+  database, "engine", ...)` sozinho dava "no such table". Corrigido com
+  `StaticPool` + `check_same_thread=False` no engine de teste (padrão
+  necessário sempre que um teste de endpoint precisar trocar o `engine`
+  SQLModel por SQLite em memória via `TestClient`).
+- `python -m unittest discover tests`: 242 testes, 8 falhas — as mesmas
+  pré-existentes e não relacionadas de sempre
+  (`test_next_best_question.py`/`test_realtime_memory.py`, mockam
+  `agent.agente_tempo_real`, legado). Sem regressão.
+
+### VERSÃO
+- Backend: `1.4.54` → `1.4.55` (`/health`, `/monitor/metricas`).
+
+### ROADMAP (não iniciado)
+Fase 3 (Budget Guard, alertas, projeção mensal, forecast, conversão
+USD→BRL), Fase 4 (Cost Router inteligente — roteamento por modelo,
+economy/critical mode, shadow mode), Fase 5 (otimização — anomalia, cache
+de resposta, versionamento de prompt), Fase 6 (observabilidade final).
+Detalhe completo em `~/.claude/plans/misty-yawning-unicorn.md`.
+
+### ARQUIVOS ALTERADOS
+- Novos: `tests/test_cost_aggregation.py`, `tests/test_admin_costs_endpoints.py`
+- `api/database.py` (5 funções de agregação + `_com_filtro_data`),
+  `agent/sessao_manager.py` (2 helpers de enriquecimento), `api/main.py`
+  (5 endpoints + imports `csv`/`io`/`StreamingResponse`/`timedelta` +
+  versão), `frontend/dashboard.html` (aba Custos completa)
+
+---
+
 ## Deploy V.1.4.52-1.4.54 confirmado + 2 fixes do primeiro uso real
 > Data: 01-02/09/2026 | Operacional (deploy + 2 correções pós-ativação, sem bump de versão)
 

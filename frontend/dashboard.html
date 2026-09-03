@@ -1015,6 +1015,9 @@
       <button class="nav-item" data-page="monitor" onclick="mostrarPagina('monitor', this)">
         <span class="nav-icon">📡</span><span class="nav-label">Monitor</span>
       </button>
+      <button class="nav-item" data-page="custos" onclick="mostrarPagina('custos', this)">
+        <span class="nav-icon">💰</span><span class="nav-label">Custos</span>
+      </button>
       <a class="nav-item" href="/manual" target="_blank" rel="noopener">
         <span class="nav-icon">📖</span><span class="nav-label">Manual</span>
       </a>
@@ -1557,6 +1560,84 @@
         </div>
       </div><!-- /page-monitor -->
 
+      <!-- CUSTOS -->
+      <div class="page" id="page-custos">
+        <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:20px">
+          <h1 class="page-title" style="margin:0">💰 Custos de IA</h1>
+          <button class="btn btn-outline" style="padding:6px 14px;font-size:.85rem" onclick="carregarCustos()">↺ Atualizar</button>
+        </div>
+
+        <div class="toolbar">
+          <select id="custos-periodo" onchange="aplicarPeriodoCustos()">
+            <option value="">Tudo</option>
+            <option value="hoje">Hoje</option>
+            <option value="7d">7 dias</option>
+            <option value="30d" selected>30 dias</option>
+          </select>
+          <input type="date" id="custos-data-de"  onchange="filtrarCustos()" title="De (data)" />
+          <input type="date" id="custos-data-ate" onchange="filtrarCustos()" title="Até (data)" />
+          <button class="btn btn-secondary" onclick="limparFiltrosCustos()" title="Limpar filtros">✕ Limpar</button>
+          <button class="btn" onclick="exportarCustos('csv')">⬇️ CSV</button>
+          <button class="btn" onclick="exportarCustos('json')">⬇️ JSON</button>
+        </div>
+
+        <div id="custos-loading" style="color:var(--muted);text-align:center;padding:40px 0">Carregando custos...</div>
+        <div id="custos-conteudo" style="display:none">
+          <div id="custos-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:20px"></div>
+
+          <div class="card" style="margin-bottom:16px;padding:16px 20px">
+            <div class="cfg-section-header"><h3 style="margin:0;font-size:.95rem">Por Provedor / Modelo</h3></div>
+            <div class="cfg-tabela-wrapper">
+              <table class="cfg-tabela">
+                <thead><tr><th>Provedor</th><th>Modelo</th><th style="text-align:right">Chamadas</th><th style="text-align:right">Custo (USD)</th></tr></thead>
+                <tbody id="custos-model-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom:16px;padding:16px 20px">
+            <div class="cfg-section-header"><h3 style="margin:0;font-size:.95rem">Por Feature</h3></div>
+            <div class="cfg-tabela-wrapper">
+              <table class="cfg-tabela">
+                <thead><tr><th>Feature</th><th style="text-align:right">Chamadas</th><th style="text-align:right">Custo (USD)</th></tr></thead>
+                <tbody id="custos-feature-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom:16px;padding:16px 20px">
+            <div class="cfg-section-header"><h3 style="margin:0;font-size:.95rem">Por Usuário</h3></div>
+            <div class="cfg-tabela-wrapper">
+              <table class="cfg-tabela">
+                <thead><tr><th>Usuário</th><th style="text-align:right">Chamadas</th><th style="text-align:right">Custo (USD)</th></tr></thead>
+                <tbody id="custos-usuario-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card" style="padding:16px 20px">
+            <div class="cfg-section-header"><h3 style="margin:0;font-size:.95rem">Reuniões Mais Caras <span style="font-weight:400;color:var(--muted);font-size:.78rem">(clique para ver detalhe)</span></h3></div>
+            <div class="cfg-tabela-wrapper">
+              <table class="cfg-tabela">
+                <thead><tr><th>Reunião</th><th>Cliente</th><th style="text-align:right">Chamadas</th><th style="text-align:right">Custo (USD)</th><th>Período</th></tr></thead>
+                <tbody id="custos-reunioes-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detalhe de reunião -->
+        <div id="custos-detalhe-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this) fecharDetalheReuniaoCusto()">
+          <div class="card" style="max-width:640px;width:92%;max-height:80vh;overflow:auto;padding:20px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <h3 id="custos-detalhe-titulo" style="margin:0;font-size:1rem">Detalhe da Reunião</h3>
+              <button class="btn btn-secondary" style="padding:4px 10px" onclick="fecharDetalheReuniaoCusto()">✕</button>
+            </div>
+            <div id="custos-detalhe-conteudo"></div>
+          </div>
+        </div>
+      </div><!-- /page-custos -->
+
       <!-- CONFIGURAÇÕES -->
       <div class="page" id="page-configuracoes">
         <h2>Configurações</h2>
@@ -1755,6 +1836,7 @@
     if (nome === 'biblioteca')    carregarBiblioteca();
     if (nome === 'clientes')     carregarClientes();
     if (nome === 'monitor')       _iniciarMonitor();
+    if (nome === 'custos')        carregarCustos();
     if (nome === 'configuracoes') {
       // reset lazy-load flags so sections reload fresh data on next open
       Object.keys(_accLoaded).forEach(k => delete _accLoaded[k]);
@@ -5442,6 +5524,208 @@
     if (el('mon-spark-ativas')) el('mon-spark-ativas').innerHTML = _sparklineSVG(ativas, '#60a5fa', '');
     if (el('mon-spark-ia'))     el('mon-spark-ia').innerHTML     = _sparklineSVG(ia,     '#a78bfa', '');
     if (el('mon-spark-hoje'))   el('mon-spark-hoje').innerHTML   = _sparklineSVG(hoje,   '#4ade80', '');
+  }
+
+  /* ─── CUSTOS DE IA — Cost Intelligence Fase 2 ───────── */
+  function _custosAuthHeaders() {
+    return { headers: { Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') } };
+  }
+
+  function aplicarPeriodoCustos() {
+    const val = document.getElementById('custos-periodo').value;
+    const de  = document.getElementById('custos-data-de');
+    const ate = document.getElementById('custos-data-ate');
+    const fmt = (d) => d.toISOString().slice(0, 10);
+    const hoje = new Date();
+    if (val === 'hoje') {
+      de.value = fmt(hoje); ate.value = fmt(hoje);
+    } else if (val === '7d') {
+      const d7 = new Date(hoje); d7.setDate(d7.getDate() - 7);
+      de.value = fmt(d7); ate.value = fmt(hoje);
+    } else if (val === '30d') {
+      const d30 = new Date(hoje); d30.setDate(d30.getDate() - 30);
+      de.value = fmt(d30); ate.value = fmt(hoje);
+    } else {
+      de.value = ''; ate.value = '';
+    }
+    filtrarCustos();
+  }
+
+  function limparFiltrosCustos() {
+    document.getElementById('custos-periodo').value = '30d';
+    aplicarPeriodoCustos();
+  }
+
+  function filtrarCustos() {
+    carregarCustos();
+  }
+
+  function _custosQuery() {
+    const de  = document.getElementById('custos-data-de').value;
+    const ate = document.getElementById('custos-data-ate').value;
+    const params = new URLSearchParams();
+    if (de)  params.set('date_from', de);
+    if (ate) params.set('date_to', ate);
+    return params.toString();
+  }
+
+  function _custosErro(msg) {
+    document.getElementById('custos-loading').textContent = '⚠️ ' + msg;
+    document.getElementById('custos-loading').style.display = '';
+    document.getElementById('custos-conteudo').style.display = 'none';
+  }
+
+  function _fmtUsd(v) {
+    return 'US$ ' + (v || 0).toFixed(4);
+  }
+
+  async function carregarCustos() {
+    const qs = _custosQuery();
+    const sufixo = qs ? '?' + qs : '';
+    try {
+      const resp = await fetchJsonWithFallback('/admin/costs/resumo' + sufixo, _custosAuthHeaders());
+      if (!resp.ok) { _custosErro('Sem permissão ou erro ' + resp.status); return; }
+      const resumo = await resp.json();
+
+      const [rUsuario, rReunioes] = await Promise.all([
+        fetchJsonWithFallback('/admin/costs/por-usuario' + sufixo, _custosAuthHeaders()),
+        fetchJsonWithFallback('/admin/costs/reunioes' + sufixo, _custosAuthHeaders()),
+      ]);
+      const porUsuario = rUsuario.ok ? await rUsuario.json() : { usuarios: [], anonimo: null };
+      const reunioes    = rReunioes.ok ? await rReunioes.json() : { reunioes: [] };
+
+      _renderCustos(resumo, porUsuario, reunioes);
+    } catch (e) {
+      _custosErro('Erro de conexão: ' + e.message);
+    }
+  }
+
+  function _renderCustos(resumo, porUsuario, reunioes) {
+    document.getElementById('custos-loading').style.display = 'none';
+    document.getElementById('custos-conteudo').style.display = '';
+
+    const total = resumo.total_eventos || 0;
+    const falhaPct     = total ? Math.round((resumo.eventos_falha    / total) * 100) : 0;
+    const fallbackPct  = total ? Math.round((resumo.fallback_eventos / total) * 100) : 0;
+
+    document.getElementById('custos-cards').innerHTML = [
+      _monCard('💰', 'Total Gasto', _fmtUsd(resumo.total_usd)),
+      _monCard('📨', 'Total de Chamadas', total),
+      _monCard('❌', 'Chamadas com Falha', (resumo.eventos_falha || 0) + ' (' + falhaPct + '%)', (resumo.eventos_falha || 0) > 0 ? '#f87171' : 'var(--muted)'),
+      _monCard('🔷', 'Via Conta Claude (fallback)', (resumo.fallback_eventos || 0) + ' (' + fallbackPct + '%)', (resumo.fallback_eventos || 0) > 0 ? '#fbbf24' : 'var(--muted)'),
+    ].join('');
+
+    document.getElementById('custos-model-body').innerHTML = (resumo.por_model || []).map(m => `
+      <tr>
+        <td>${escHtml(m.provider)}</td>
+        <td>${escHtml(m.model || '—')}</td>
+        <td style="text-align:right">${m.eventos}</td>
+        <td style="text-align:right">${_fmtUsd(m.total_usd)}</td>
+      </tr>`).join('') || '<tr><td colspan="4" style="color:var(--muted)">Sem dados no período.</td></tr>';
+
+    document.getElementById('custos-feature-body').innerHTML = (resumo.por_feature || []).map(f => `
+      <tr>
+        <td>${escHtml(f.feature)}</td>
+        <td style="text-align:right">${f.eventos}</td>
+        <td style="text-align:right">${_fmtUsd(f.total_usd)}</td>
+      </tr>`).join('') || '<tr><td colspan="3" style="color:var(--muted)">Sem dados no período.</td></tr>';
+
+    const linhasUsuario = (porUsuario.usuarios || []).map(u => `
+      <tr>
+        <td>${escHtml(u.nome || u.email || u.usuario_id)}</td>
+        <td style="text-align:right">${u.eventos}</td>
+        <td style="text-align:right">${_fmtUsd(u.total_usd)}</td>
+      </tr>`);
+    if (porUsuario.anonimo) {
+      linhasUsuario.push(`
+        <tr>
+          <td style="color:var(--muted)">Anônimo (extensão sem login)</td>
+          <td style="text-align:right">${porUsuario.anonimo.eventos}</td>
+          <td style="text-align:right">${_fmtUsd(porUsuario.anonimo.total_usd)}</td>
+        </tr>`);
+    }
+    document.getElementById('custos-usuario-body').innerHTML = linhasUsuario.join('') || '<tr><td colspan="3" style="color:var(--muted)">Sem dados no período.</td></tr>';
+
+    document.getElementById('custos-reunioes-body').innerHTML = (reunioes.reunioes || []).map(r => {
+      const cliente = r.cliente_nome ? escHtml(r.cliente_nome) + (r.cliente_empresa ? ' · ' + escHtml(r.cliente_empresa) : '') : '—';
+      const periodo = r.inicio ? escHtml(_fmtLocal(r.inicio)) + (r.fim && r.fim !== r.inicio ? ' – ' + escHtml(_fmtLocal(r.fim)) : '') : '—';
+      return `
+      <tr style="cursor:pointer" onclick="abrirDetalheReuniaoCusto('${escHtml(r.meeting_id)}')">
+        <td>${escHtml(r.meeting_id)}</td>
+        <td>${cliente}</td>
+        <td style="text-align:right">${r.eventos}</td>
+        <td style="text-align:right">${_fmtUsd(r.total_usd)}</td>
+        <td>${periodo}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="5" style="color:var(--muted)">Sem reuniões no período.</td></tr>';
+  }
+
+  async function abrirDetalheReuniaoCusto(meetingId) {
+    const overlay  = document.getElementById('custos-detalhe-overlay');
+    const titulo   = document.getElementById('custos-detalhe-titulo');
+    const conteudo = document.getElementById('custos-detalhe-conteudo');
+    titulo.textContent = 'Reunião ' + meetingId;
+    conteudo.innerHTML = '<div style="color:var(--muted)">Carregando...</div>';
+    overlay.style.display = 'flex';
+    try {
+      const resp = await fetchJsonWithFallback('/admin/costs/reunioes/' + encodeURIComponent(meetingId), _custosAuthHeaders());
+      if (!resp.ok) { conteudo.innerHTML = '<div style="color:#f87171">Erro ao carregar detalhe.</div>'; return; }
+      const d = await resp.json();
+      _renderDetalheReuniaoCusto(d);
+    } catch (e) {
+      conteudo.innerHTML = '<div style="color:#f87171">Erro de conexão: ' + escHtml(e.message) + '</div>';
+    }
+  }
+
+  function fecharDetalheReuniaoCusto() {
+    document.getElementById('custos-detalhe-overlay').style.display = 'none';
+  }
+
+  function _renderDetalheReuniaoCusto(d) {
+    const resumo  = d.resumo  || {};
+    const eventos = d.eventos || [];
+
+    const linhasEventos = eventos.map(e => `
+      <tr>
+        <td>${escHtml(_fmtLocal(e.criado_em))}</td>
+        <td>${escHtml(e.feature)}</td>
+        <td>${escHtml(e.provider)}${e.fallback_used ? ' 🔷' : ''}</td>
+        <td style="text-align:right">${_fmtUsd(e.cost_usd)}</td>
+        <td>${e.success ? '✅' : '❌'}</td>
+      </tr>`).join('') || '<tr><td colspan="5" style="color:var(--muted)">Sem eventos.</td></tr>';
+
+    document.getElementById('custos-detalhe-conteudo').innerHTML = `
+      <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:14px">
+        <div><div style="font-size:.75rem;color:var(--muted)">Total</div><div style="font-weight:700;color:var(--primary)">${_fmtUsd(resumo.total_usd)}</div></div>
+        <div><div style="font-size:.75rem;color:var(--muted)">Chamadas</div><div style="font-weight:700">${resumo.total_eventos || 0}</div></div>
+      </div>
+      <div class="cfg-tabela-wrapper">
+        <table class="cfg-tabela">
+          <thead><tr><th>Quando</th><th>Feature</th><th>Provedor</th><th style="text-align:right">Custo</th><th>Sucesso</th></tr></thead>
+          <tbody>${linhasEventos}</tbody>
+        </table>
+      </div>`;
+  }
+
+  async function exportarCustos(formato) {
+    const qs = _custosQuery();
+    const params = new URLSearchParams(qs);
+    params.set('formato', formato);
+    try {
+      const resp = await fetchJsonWithFallback('/admin/costs/export?' + params.toString(), _custosAuthHeaders());
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'saleia_custos_ia.' + formato;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Erro ao exportar custos: ' + (e.message || e));
+    }
   }
 </script>
 </body>

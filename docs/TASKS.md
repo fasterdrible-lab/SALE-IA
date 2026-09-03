@@ -402,6 +402,17 @@ EMAIL_FROM=noreply@saleia.com.br
 - [x] **Confirmado pelo usuario**: reextracao da fonte id=1 funcionou apos o fix de `MEDIUMTEXT` — upload + extracao validados de ponta a ponta em producao real.
 - **Pendente**: testar manualmente a compilacao com IA (Fase 2) e a integracao RAG/Skill/Playbook (Fase 3) — so tem cobertura automatizada ate agora; validar `POST /base` tambem aceita arquivo >1MB. Fases 4-6 do Knowledge Compiler ainda nao iniciadas.
 
+## Concluido (V.1.4.55 — Cost Intelligence Fase 2: Agregacoes e Dashboard de Custos)
+
+- [x] `api/database.py`: 5 funcoes de agregacao SQLModel (`custos_resumo`, `custos_por_usuario`, `custos_reunioes_mais_caras`, `eventos_de_reuniao`, `exportar_eventos_uso_ia`) + helper `_com_filtro_data` para date_from/date_to opcionais.
+- [x] `agent/sessao_manager.py`: 2 helpers de enriquecimento (`obter_nomes_usuarios`, `obter_clientes_por_reunioes`), mesma tecnica de subquery de `listar_sessoes`.
+- [x] `api/main.py`: 5 endpoints novos atras de `_req_admin` (`GET /admin/costs/resumo|por-usuario|reunioes|reunioes/{meeting_id}|export`). Export CSV/JSON e o primeiro do backend inteiro (zero precedente antes).
+- [x] Dashboard: aba "💰 Custos" nova, espelhando a estrutura da aba Monitor — cards de resumo, 3 tabelas de breakdown, "reunioes mais caras" clicavel com painel de detalhe/timeline, exportar CSV/JSON.
+- [x] 24 testes novos (`tests/test_cost_aggregation.py` + `tests/test_admin_costs_endpoints.py`). Achado durante a escrita: SQLite `:memory:` isola por thread — `TestClient` roda o endpoint numa thread diferente do teste, corrigido com `StaticPool`+`check_same_thread=False` no engine de teste.
+- [x] Suite completa (`discover tests`): 242 testes, 8 falhas pre-existentes e nao relacionadas (mesmas de sempre), sem regressao.
+- [x] Commitado localmente e enviado ao GitHub (`push`).
+- **Pendente**: deploy na VPS (`git pull` + `systemctl restart saleia` — checar `reunioes_ativas: 0` antes; aditivo, nenhuma tabela/`.env`/flag nova). Fases 3-6 do roadmap ainda nao iniciadas — ver CHANGELOG (V.1.4.55).
+
 ## Pendente
 
 - [ ] Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI).

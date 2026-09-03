@@ -483,4 +483,63 @@ def buscar_sessao(sessao_id: int) -> dict:
         return d
     except Exception as e:
         logger.error("[Sessões] Erro ao buscar sessão %s: %s", sessao_id, e)
+
+
+def obter_nomes_usuarios(ids: list) -> dict:
+    """Busca nome/email de usuários por id, para enriquecer agregados de custo de IA.
+
+    Recebe uma lista de ids (pode conter None, que é ignorado) e devolve
+    {id: {"nome": ..., "email": ...}}. Lista vazia não bate no banco.
+    """
+    ids_validos = [i for i in (ids or []) if i]
+    if not ids_validos:
+        return {}
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            placeholders = ",".join(["%s"] * len(ids_validos))
+            cur.execute(
+                f"SELECT id, nome, email FROM usuarios WHERE id IN ({placeholders})",
+                tuple(ids_validos),
+            )
+            rows = cur.fetchall()
+        conn.close()
+        return {str(uid): {"nome": nome, "email": email} for uid, nome, email in rows}
+    except Exception as e:
+        logger.error("[Sessões] Erro ao obter nomes de usuarios: %s", e)
+        return {}
+
+
+def obter_clientes_por_reunioes(meeting_ids: list) -> dict:
+    """Busca cliente/empresa vinculados a uma lista de meeting_ids (client_meetings +
+    client_profiles), mesma técnica de subquery de `listar_sessoes`, para enriquecer
+    a tabela de "reuniões mais caras" do Cost Intelligence.
+
+    Devolve {meeting_id: {"cliente_nome": ..., "cliente_empresa": ...}}.
+    """
+    ids_validos = [m for m in (meeting_ids or []) if m]
+    if not ids_validos:
+        return {}
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            placeholders = ",".join(["%s"] * len(ids_validos))
+            cur.execute(
+                f"""SELECT cm.meeting_id, cp.nome, cp.empresa
+                    FROM client_meetings cm
+                    JOIN client_profiles cp ON cp.id = cm.client_id
+                    WHERE cm.meeting_id IN ({placeholders})
+                    ORDER BY cm.data DESC""",
+                tuple(ids_validos),
+            )
+            rows = cur.fetchall()
+        conn.close()
+        resultado = {}
+        for meeting_id, nome, empresa in rows:
+            # ORDER BY cm.data DESC + só grava se ainda não existe -> mantém o mais recente
+            resultado.setdefault(meeting_id, {"cliente_nome": nome, "cliente_empresa": empresa})
+        return resultado
+    except Exception as e:
+        logger.error("[Sessões] Erro ao obter clientes por reunioes: %s", e)
+        return {}
         return {}

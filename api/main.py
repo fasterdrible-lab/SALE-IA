@@ -14,13 +14,15 @@ Endpoints:
 
 import os
 import re
+import csv
+import io
 import json
 import uuid
 import asyncio
 import html as html_module
 import logging
 from contextvars import ContextVar
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, List
 
@@ -29,7 +31,7 @@ load_dotenv()
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect, Header, Form, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
 from pydantic import BaseModel
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -550,7 +552,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.54",
+        "versao":              "1.4.55",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -588,7 +590,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.54",
+        "versao":          "1.4.55",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -3303,6 +3305,153 @@ def claude_account_feedback(analysis_id: int, req: ClaudeFeedbackRequest, author
 def claude_account_metricas_admin(authorization: str | None = _Header(default=None)):
     _req_admin(authorization)
     return metricas_claude_account()
+
+
+# ── Cost Intelligence — Custos de IA (Fase 2) ──
+
+from api.database import (
+    custo_por_reuniao,
+    custos_por_usuario,
+    custos_resumo,
+    custos_reunioes_mais_caras,
+    eventos_de_reuniao,
+    exportar_eventos_uso_ia,
+)
+from agent.sessao_manager import obter_clientes_por_reunioes, obter_nomes_usuarios
+
+
+def _parse_data_custos(valor: str | None, nome: str, fim_do_dia: bool = False) -> datetime | None:
+    """Converte 'YYYY-MM-DD' em datetime para os filtros de /admin/costs/*.
+
+    fim_do_dia=True soma 1 dia — date_to é filtro exclusivo (< date_to) em
+    `_com_filtro_data`, então isso faz o dia inteiro de date_to ser incluído.
+    """
+    if not valor:
+        return None
+    try:
+        dt = datetime.strptime(valor, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"{nome} inválido, use YYYY-MM-DD")
+    return dt + timedelta(days=1) if fim_do_dia else dt
+
+
+@app.get("/admin/costs/resumo")
+def admin_costs_resumo(
+    date_from: str | None = None,
+    date_to: str | None = None,
+    authorization: str | None = _Header(default=None),
+):
+    _req_admin(authorization)
+    de = _parse_data_custos(date_from, "date_from")
+    ate = _parse_data_custos(date_to, "date_to", fim_do_dia=True)
+    return {"periodo": {"de": date_from, "ate": date_to}, **custos_resumo(de, ate)}
+
+
+@app.get("/admin/costs/por-usuario")
+def admin_costs_por_usuario(
+    date_from: str | None = None,
+    date_to: str | None = None,
+    limit: int = 50,
+    authorization: str | None = _Header(default=None),
+):
+    _req_admin(authorization)
+    de = _parse_data_custos(date_from, "date_from")
+    ate = _parse_data_custos(date_to, "date_to", fim_do_dia=True)
+    linhas = custos_por_usuario(de, ate, limit=limit)
+
+    nomes = obter_nomes_usuarios([l["usuario_id"] for l in linhas if l["usuario_id"]])
+    usuarios = []
+    anonimo = None
+    for l in linhas:
+        if l["usuario_id"] is None:
+            anonimo = {"eventos": l["eventos"], "total_usd": l["total_usd"]}
+            continue
+        info = nomes.get(str(l["usuario_id"]), {})
+        usuarios.append({
+            "usuario_id": l["usuario_id"],
+            "nome": info.get("nome"),
+            "email": info.get("email"),
+            "eventos": l["eventos"],
+            "total_usd": l["total_usd"],
+        })
+    return {"periodo": {"de": date_from, "ate": date_to}, "usuarios": usuarios, "anonimo": anonimo}
+
+
+@app.get("/admin/costs/reunioes")
+def admin_costs_reunioes(
+    date_from: str | None = None,
+    date_to: str | None = None,
+    limit: int = 20,
+    authorization: str | None = _Header(default=None),
+):
+    _req_admin(authorization)
+    de = _parse_data_custos(date_from, "date_from")
+    ate = _parse_data_custos(date_to, "date_to", fim_do_dia=True)
+    linhas = custos_reunioes_mais_caras(de, ate, limit=limit)
+
+    clientes = obter_clientes_por_reunioes([l["meeting_id"] for l in linhas])
+    for l in linhas:
+        info = clientes.get(l["meeting_id"], {})
+        l["cliente_nome"] = info.get("cliente_nome")
+        l["cliente_empresa"] = info.get("cliente_empresa")
+    return {"periodo": {"de": date_from, "ate": date_to}, "reunioes": linhas}
+
+
+@app.get("/admin/costs/reunioes/{meeting_id}")
+def admin_costs_reuniao_detalhe(meeting_id: str, authorization: str | None = _Header(default=None)):
+    """Detalhe de custo de uma reunião — meeting_id não é validado por regex de
+    código de Meet porque `ai_usage_events.meeting_id` também recebe chaves de
+    correlação de outras features (ex.: `knowledge_source:<id>`, Fase 2 da
+    Biblioteca de Inteligência)."""
+    _req_admin(authorization)
+    return {
+        "resumo": custo_por_reuniao(meeting_id),
+        "eventos": eventos_de_reuniao(meeting_id),
+    }
+
+
+@app.get("/admin/costs/export")
+def admin_costs_export(
+    date_from: str | None = None,
+    date_to: str | None = None,
+    formato: str = "csv",
+    limit: int = 20000,
+    authorization: str | None = _Header(default=None),
+):
+    _req_admin(authorization)
+    de = _parse_data_custos(date_from, "date_from")
+    ate = _parse_data_custos(date_to, "date_to", fim_do_dia=True)
+    if formato not in ("csv", "json"):
+        raise HTTPException(status_code=400, detail="formato inválido, use csv ou json")
+
+    limit = max(1, min(limit, 20000))
+    linhas = exportar_eventos_uso_ia(de, ate, limit=limit)
+
+    if formato == "json":
+        return {"periodo": {"de": date_from, "ate": date_to}, "total": len(linhas), "eventos": linhas}
+
+    colunas = [
+        "criado_em", "meeting_id", "usuario_id", "feature", "provider", "model",
+        "input_tokens", "output_tokens", "cached_input_tokens", "usage_source",
+        "cost_usd", "latency_ms", "success", "fallback_used",
+    ]
+
+    def _gerar_csv():
+        buffer = io.StringIO()
+        writer = csv.DictWriter(buffer, fieldnames=colunas)
+        writer.writeheader()
+        yield buffer.getvalue()
+        for linha in linhas:
+            buffer.seek(0)
+            buffer.truncate(0)
+            writer.writerow({k: linha.get(k) for k in colunas})
+            yield buffer.getvalue()
+
+    return StreamingResponse(
+        _gerar_csv(),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="saleia_custos_ia.csv"'},
+    )
 
 
 # ── APIs / Provedores ─────────────────────────
