@@ -182,6 +182,26 @@ class AuditoriaFinanceira(SQLModel, table=True):
     valor_novo: Optional[str] = Field(default=None, sa_column=Column(String(200)))
 
 
+class RouterDecisao(SQLModel, table=True):
+    """Comparacao shadow-mode: o que o Cost Router recomendaria vs o que
+    realmente foi usado numa chamada de IA (Cost Intelligence Fase 4).
+    Nunca influencia a chamada real — so registro para analise posterior."""
+
+    __tablename__ = "router_decisoes"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    criado_em: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False, index=True))
+    feature: str = Field(sa_column=Column(String(80), index=True, nullable=False))
+    complexidade: str = Field(sa_column=Column(String(20), nullable=False))
+    modo: str = Field(sa_column=Column(String(20), nullable=False))
+    provider: str = Field(sa_column=Column(String(40), index=True, nullable=False))
+    model_real: str = Field(sa_column=Column(String(120), nullable=False))
+    custo_real_usd: float = Field(sa_column=Column(Float, nullable=False))
+    model_recomendado: str = Field(sa_column=Column(String(120), nullable=False))
+    custo_recomendado_usd: float = Field(sa_column=Column(Float, nullable=False))
+    concordou: bool = Field(sa_column=Column(Boolean, nullable=False))
+
+
 class KnowledgeSource(SQLModel, table=True):
     """Fonte de conhecimento comercial (livro, playbook, manual, etc.) para
     o Knowledge Compiler / "Biblioteca de Inteligencia". Fase 1: so guarda
@@ -1180,6 +1200,85 @@ def projecao_mensal_custo() -> dict:
         "projecao_fim_mes_usd": projecao_fim_mes,
         "gasto_mes_anterior_usd": gasto_mes_anterior,
         "crescimento_pct": crescimento_pct,
+    }
+
+
+def registrar_decisao_router(
+    *,
+    feature: str,
+    complexidade: str,
+    modo: str,
+    provider: str,
+    model_real: str,
+    custo_real_usd: float,
+    model_recomendado: str,
+    custo_recomendado_usd: float,
+    concordou: bool,
+) -> None:
+    """Grava 1 comparacao shadow-mode do Cost Router (Fase 4). Melhor
+    esforco — nunca propaga excecao, mesmo padrao de
+    registrar_evento_uso_ia."""
+    try:
+        with Session(engine) as session:
+            session.add(RouterDecisao(
+                feature=feature, complexidade=complexidade, modo=modo,
+                provider=provider, model_real=model_real, custo_real_usd=custo_real_usd,
+                model_recomendado=model_recomendado, custo_recomendado_usd=custo_recomendado_usd,
+                concordou=concordou,
+            ))
+            session.commit()
+    except Exception as exc:
+        logger.warning("[CostRouter] Falha ao registrar decisao shadow: %s", exc)
+
+
+def resumo_router_shadow(date_from: Optional[datetime] = None, date_to: Optional[datetime] = None) -> dict:
+    """Agregados do shadow mode do Cost Router (Fase 4): quanto o router
+    concordaria com o que ja e feito hoje, e quanto teria economizado se
+    a recomendacao tivesse sido seguida."""
+
+    def _filtro(stmt):
+        if date_from is not None:
+            stmt = stmt.where(RouterDecisao.criado_em >= date_from)
+        if date_to is not None:
+            stmt = stmt.where(RouterDecisao.criado_em < date_to)
+        return stmt
+
+    with Session(engine) as session:
+        total, custo_real, custo_recomendado = session.exec(
+            _filtro(select(
+                func.count(RouterDecisao.id),
+                func.coalesce(func.sum(RouterDecisao.custo_real_usd), 0.0),
+                func.coalesce(func.sum(RouterDecisao.custo_recomendado_usd), 0.0),
+            ))
+        ).one()
+
+        concordancias = session.exec(
+            _filtro(select(func.count(RouterDecisao.id)).where(RouterDecisao.concordou))
+        ).one() or 0
+
+        por_modo_stmt = _filtro(
+            select(RouterDecisao.modo, func.count(RouterDecisao.id))
+            .group_by(RouterDecisao.modo)
+        )
+        por_modo = {modo: n for modo, n in session.exec(por_modo_stmt).all()}
+
+        por_complexidade_stmt = _filtro(
+            select(RouterDecisao.complexidade, func.count(RouterDecisao.id))
+            .group_by(RouterDecisao.complexidade)
+        )
+        por_complexidade = {c: n for c, n in session.exec(por_complexidade_stmt).all()}
+
+    total = total or 0
+    economia_usd = round((custo_real or 0.0) - (custo_recomendado or 0.0), 6)
+    return {
+        "total_decisoes": total,
+        "pct_concordancia": round(concordancias / total * 100, 1) if total else None,
+        "custo_real_usd": round(custo_real or 0.0, 6),
+        "custo_recomendado_usd": round(custo_recomendado or 0.0, 6),
+        "economia_potencial_usd": economia_usd,
+        "economia_potencial_pct": round(economia_usd / custo_real * 100, 1) if custo_real else None,
+        "por_modo": por_modo,
+        "por_complexidade": por_complexidade,
     }
 
 

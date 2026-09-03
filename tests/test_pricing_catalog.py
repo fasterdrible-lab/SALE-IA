@@ -60,6 +60,20 @@ class PricingCatalogTest(unittest.TestCase):
         self.assertIsNone(preco.cached_input_per_million)
         self.assertAlmostEqual(pricing_catalog.cached_rate_efetivo(preco), 5.0 * 0.1)
 
+    # ── Variantes "economy" (Cost Router, Fase 4) ──
+
+    def test_gpt_4o_mini_tem_preco_proprio(self):
+        preco = pricing_catalog.obter_preco("openai", "gpt-4o-mini")
+        self.assertEqual(preco.input_per_million, 0.15)
+        self.assertEqual(preco.output_per_million, 0.60)
+        self.assertNotEqual(preco.source, "fallback_provider_generico")
+
+    def test_claude_haiku_tem_preco_proprio(self):
+        preco = pricing_catalog.obter_preco("anthropic", "claude-3-5-haiku-20241022")
+        self.assertEqual(preco.input_per_million, 0.80)
+        self.assertEqual(preco.output_per_million, 4.00)
+        self.assertNotEqual(preco.source, "fallback_provider_generico")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

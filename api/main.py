@@ -564,7 +564,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.56",
+        "versao":              "1.4.57",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -602,7 +602,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.56",
+        "versao":          "1.4.57",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -3564,6 +3564,33 @@ def admin_costs_definir_preco_plano(plano: str, req: PrecoPlanoRequest, authoriz
 def admin_costs_auditoria(limit: int = 50, authorization: str | None = _Header(default=None)):
     _req_admin(authorization)
     return {"eventos": listar_auditoria_financeira(limit=max(1, min(limit, 500)))}
+
+
+# ── Cost Router — Shadow Mode (Fase 4) ──
+# Somente leitura: esta fase nunca troca o modelo real usado numa chamada
+# de IA (ver api/cost_router.py). Nao existe endpoint de ativacao aqui —
+# ligar o roteamento de verdade e uma decisao futura e separada.
+
+from api.database import resumo_router_shadow
+from api.cost_router import config_router as _cost_router_config
+
+
+@app.get("/admin/costs/router/shadow")
+def admin_costs_router_shadow(
+    date_from: str | None = None,
+    date_to: str | None = None,
+    authorization: str | None = _Header(default=None),
+):
+    _req_admin(authorization)
+    de = _parse_data_custos(date_from, "date_from")
+    ate = _parse_data_custos(date_to, "date_to", fim_do_dia=True)
+    return {"periodo": {"de": date_from, "ate": date_to}, **resumo_router_shadow(de, ate)}
+
+
+@app.get("/admin/costs/router/config")
+def admin_costs_router_config(authorization: str | None = _Header(default=None)):
+    _req_admin(authorization)
+    return _cost_router_config()
 
 
 # ── APIs / Provedores ─────────────────────────

@@ -54,6 +54,19 @@ _CATALOG: dict[tuple[str, str], ModelPrice] = {
         "gemini", "gemini-2.0-flash", 0.10, 0.40, 0.025,
         "gemini_pricing_2026-01", "2026-01-01",
     ),
+    # Variantes "economy" — usadas pelo Cost Router (Fase 4, shadow mode)
+    # para estimar economia real ao recomendar um modelo mais barato do
+    # mesmo provedor. Sem preco proprio aqui, cairiam no fallback generico
+    # do provedor (mais caro que o preco real desses modelos) e invalidariam
+    # a comparacao.
+    ("openai", "gpt-4o-mini"): ModelPrice(
+        "openai", "gpt-4o-mini", 0.15, 0.60, 0.075,
+        "openai_pricing_2026-05", "2026-05-01",
+    ),
+    ("anthropic", "claude-3-5-haiku-20241022"): ModelPrice(
+        "anthropic", "claude-3-5-haiku-20241022", 0.80, 4.00, 0.08,
+        "anthropic_pricing_2025-05", "2025-05-14",
+    ),
 }
 
 # Fallback por-provider — preserva as taxas que já existiam hardcoded em

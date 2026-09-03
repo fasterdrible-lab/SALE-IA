@@ -1640,7 +1640,7 @@
             </div>
           </div>
 
-          <div class="card" style="padding:16px 20px">
+          <div class="card" style="margin-bottom:16px;padding:16px 20px">
             <div class="cfg-section-header"><h3 style="margin:0;font-size:.95rem">Auditoria Financeira <span style="font-weight:400;color:var(--muted);font-size:.78rem">(mudanças em orçamento e preços de plano)</span></h3></div>
             <div class="cfg-tabela-wrapper">
               <table class="cfg-tabela">
@@ -1648,6 +1648,11 @@
                 <tbody id="custos-auditoria-body"></tbody>
               </table>
             </div>
+          </div>
+
+          <div class="card" style="padding:16px 20px">
+            <div class="cfg-section-header"><h3 style="margin:0;font-size:.95rem">🧭 Cost Router <span style="font-weight:400;color:var(--muted);font-size:.78rem">(shadow mode — modo observação, nenhuma chamada real foi afetada)</span></h3></div>
+            <div id="custos-router-conteudo" style="margin-top:8px"></div>
           </div>
         </div>
 
@@ -5657,14 +5662,15 @@
   }
 
   async function _carregarOrcamentoEMargemCustos(sufixo) {
-    // Orçamento/margem/auditoria são complementares — se falharem, não
-    // devem impedir a visualização dos custos já carregados acima.
+    // Orçamento/margem/auditoria/router são complementares — se falharem,
+    // não devem impedir a visualização dos custos já carregados acima.
     try {
-      const [rOrc, rProj, rMargem, rAud] = await Promise.all([
+      const [rOrc, rProj, rMargem, rAud, rRouter] = await Promise.all([
         fetchJsonWithFallback('/admin/costs/orcamento', _custosAuthHeaders()),
         fetchJsonWithFallback('/admin/costs/projecao', _custosAuthHeaders()),
         fetchJsonWithFallback('/admin/costs/margem' + sufixo, _custosAuthHeaders()),
         fetchJsonWithFallback('/admin/costs/auditoria?limit=20', _custosAuthHeaders()),
+        fetchJsonWithFallback('/admin/costs/router/shadow' + sufixo, _custosAuthHeaders()),
       ]);
       _renderOrcamentoCard(
         rOrc.ok ? await rOrc.json() : null,
@@ -5672,6 +5678,7 @@
       );
       _renderMargemTable(rMargem.ok ? await rMargem.json() : { planos: [] });
       _renderAuditoriaTable(rAud.ok ? await rAud.json() : { eventos: [] });
+      _renderRouterShadowCard(rRouter.ok ? await rRouter.json() : null);
     } catch (_) {
       // silencioso — cards secundários, sem bloquear o resto da página
     }
@@ -5876,6 +5883,33 @@
         <td>${escHtml(e.valor_anterior == null ? '—' : e.valor_anterior)}</td>
         <td>${escHtml(e.valor_novo == null ? '—' : e.valor_novo)}</td>
       </tr>`).join('') || '<tr><td colspan="5" style="color:var(--muted)">Nenhuma mudança registrada.</td></tr>';
+  }
+
+  function _renderRouterShadowCard(d) {
+    const el = document.getElementById('custos-router-conteudo');
+    if (!el) return;
+    if (!d || !d.total_decisoes) {
+      el.innerHTML = '<div style="color:var(--muted);font-size:.88rem">Ainda sem decisões registradas no período — o router acompanha silenciosamente cada chamada de IA real desde o deploy da Fase 4.</div>';
+      return;
+    }
+    const modoCor = { normal: 'var(--muted)', economy: '#fbbf24', critical: '#f87171' };
+    const porModoHTML = Object.entries(d.por_modo || {}).map(([modo, n]) =>
+      `<span style="color:${modoCor[modo] || 'var(--muted)'}">${escHtml(modo)}: ${n}</span>`
+    ).join(' · ');
+    const porComplexidadeHTML = Object.entries(d.por_complexidade || {}).map(([c, n]) =>
+      `${escHtml(c)}: ${n}`
+    ).join(' · ');
+
+    el.innerHTML = `
+      <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:10px">
+        <div><div style="font-size:.75rem;color:var(--muted)">Decisões registradas</div><div style="font-weight:700">${d.total_decisoes}</div></div>
+        <div><div style="font-size:.75rem;color:var(--muted)">Concordância com o real</div><div style="font-weight:700">${d.pct_concordancia != null ? d.pct_concordancia + '%' : '—'}</div></div>
+        <div><div style="font-size:.75rem;color:var(--muted)">Custo real (período)</div><div style="font-weight:700">${_fmtUsd(d.custo_real_usd)}</div></div>
+        <div><div style="font-size:.75rem;color:var(--muted)">Custo se seguisse o router</div><div style="font-weight:700">${_fmtUsd(d.custo_recomendado_usd)}</div></div>
+        <div><div style="font-size:.75rem;color:var(--muted)">Economia potencial</div><div style="font-weight:700;color:${d.economia_potencial_usd > 0 ? '#4ade80' : 'var(--muted)'}">${_fmtUsd(d.economia_potencial_usd)}${d.economia_potencial_pct != null ? ' (' + d.economia_potencial_pct + '%)' : ''}</div></div>
+      </div>
+      <div style="font-size:.8rem;color:var(--muted)">Por modo: ${porModoHTML || '—'}</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:2px">Por complexidade: ${porComplexidadeHTML || '—'}</div>`;
   }
 
   async function carregarOrcamentoConfig() {

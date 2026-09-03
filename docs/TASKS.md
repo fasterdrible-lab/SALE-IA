@@ -427,6 +427,19 @@ EMAIL_FROM=noreply@saleia.com.br
 - [x] Commitado localmente e enviado ao GitHub.
 - **Pendente**: deploy na VPS (`git pull` + `systemctl restart saleia` — checar `reunioes_ativas: 0` antes; aditivo, 3 tabelas novas criadas automaticamente no startup). Fases 4-6 do roadmap ainda nao iniciadas — ver CHANGELOG (V.1.4.56).
 
+## Concluido (V.1.4.57 — Cost Intelligence Fase 4: Cost Router em Shadow Mode)
+
+- [x] Usuario confirmou: Fase 4 entra so em shadow mode (calcula recomendacao e registra, nunca troca o modelo real usado).
+- [x] `api/pricing_catalog.py`: 2 entradas novas (`gpt-4o-mini`, `claude-3-5-haiku-20241022`) para o router estimar economia de verdade.
+- [x] `api/cost_router.py` (novo): `classificar_complexidade` (simples/padrao/complexa), `modo_atual` (normal/economy/critical a partir do orcamento da Fase 3, cacheado 5min), `recomendar_modelo` (so troca modelo, nunca provedor), `avaliar_shadow` (melhor esforco, nunca lanca).
+- [x] `api/database.py`: tabela `RouterDecisao` + `registrar_decisao_router`/`resumo_router_shadow`.
+- [x] `api/ai_router.py::chamar_ia`: 1 hook depois do resultado real ja decidido, `try/except: pass` — zero mudanca de comportamento real.
+- [x] `api/main.py`: `GET /admin/costs/router/shadow|config` (config e so leitura, sem endpoint de ativacao).
+- [x] Dashboard: card "Cost Router (shadow mode)" na aba Custos.
+- [x] 29 testes novos (`test_cost_router` novo arquivo + extensoes de `test_pricing_catalog`/`test_ai_router` + `test_admin_costs_router_endpoints` novo). Suite completa: 301 testes, 8 falhas pre-existentes e nao relacionadas, sem regressao.
+- [x] Commitado localmente e enviado ao GitHub.
+- **Pendente**: deploy na VPS (`git pull` + `systemctl restart saleia` — checar `reunioes_ativas: 0` antes; aditivo, 1 tabela nova). Fases 5-6 do roadmap ainda nao iniciadas — ver CHANGELOG (V.1.4.57). Ativar o roteamento de fato (sair do shadow mode) e decisao futura separada, so depois de revisar os dados coletados.
+
 ## Pendente
 
 - [ ] Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI).

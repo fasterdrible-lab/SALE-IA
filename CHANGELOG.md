@@ -3,6 +3,102 @@
 
 ---
 
+## V.1.4.57 — Cost Intelligence Fase 4: Cost Router (Shadow Mode)
+> Data: 03/09/2026 | Feature (observação — nenhuma chamada real de IA é afetada)
+
+### VISÃO
+Quarta fase do roadmap de Cost Intelligence: "Cost Router inteligente —
+classificação de tarefa por complexidade, rotas de modelo, scoring,
+economy/critical mode, circuit breaker financeiro, shadow mode → rollout
+gradual, painel de configuração de provedores." **O usuário confirmou
+explicitamente que esta fase entra em produção só em modo shadow** — o
+router calcula o que recomendaria e registra a comparação contra o que
+realmente aconteceu, mas **nunca** troca o modelo de verdade usado numa
+chamada de IA real. Ativar o roteamento de fato é uma decisão futura e
+separada, depois de revisar os dados coletados aqui.
+
+"Economy/critical mode" e "circuit breaker financeiro" (dois itens do
+roadmap) foram tratados como a mesma ideia na prática: o modo do router
+reage ao `%` do orçamento mensal já gasto (Fase 3, `obter_orcamento_ia`/
+`gasto_mes_usd`), não é um mecanismo à parte.
+
+### BACKEND — `api/pricing_catalog.py`: 2 entradas novas
+`("openai", "gpt-4o-mini")` (US$0.15/US$0.60/milhão) e `("anthropic",
+"claude-3-5-haiku-20241022")` (US$0.80/US$4.00/milhão) — preços públicos
+reais. Sem preço próprio, esses modelos cairiam no fallback genérico do
+provedor (mais caro que o preço real) e invalidariam qualquer comparação
+de economia do router.
+
+### BACKEND — `api/cost_router.py` (novo)
+- `classificar_complexidade(feature)`: `"simples"` (DISC), `"complexa"`
+  (síntese de relatório/extração de documento longo), `"padrao"` para
+  todo o resto — heurística de produto documentada como ponto de partida
+  ajustável, não verdade absoluta.
+- `modo_atual()`: `"normal"`/`"economy"`/`"critical"` a partir do
+  orçamento da Fase 3, mesmos limiares do Budget Guard (80%/100%),
+  cacheado 5min em memória (não bate no MySQL a cada chamada de IA — um
+  caminho bem mais quente que o loop de métricas). Sem orçamento
+  configurado → sempre `"normal"`.
+- `recomendar_modelo(provider, model_real, feature, modo)`: só decide o
+  *modelo* dentro do provedor que **já venceu de verdade** — este MVP
+  não mexe em ordem/escolha de provedor, circuit breaker ou fallback.
+- `avaliar_shadow(...)`: melhor esforço absoluto (nunca lança), no-op se
+  `COST_ROUTER_SHADOW_ENABLED=false`. Reaproveita os tokens reais já
+  medidos da chamada para estimar quanto custaria o modelo recomendado.
+
+### BACKEND — `api/database.py`: tabela + 2 funções
+`RouterDecisao` (SQLModel, aditiva) — 1 linha por comparação shadow.
+`registrar_decisao_router(...)` (melhor esforço) e `resumo_router_
+shadow(date_from, date_to)` (total de decisões, % de concordância, custo
+real vs. recomendado, economia potencial, breakdown por modo/
+complexidade) — mesmo padrão `_com_filtro_data`/`Session`/`select`/
+`func` da Fase 2.
+
+### BACKEND — `api/ai_router.py::chamar_ia`: 1 hook, zero mudança de comportamento
+No branch de sucesso, depois do custo real já calculado: import tardio
+de `avaliar_shadow`, dentro de `try/except Exception: pass`. Se o router
+quebrar por qualquer motivo, a chamada real de IA já retornou
+normalmente antes disso.
+
+### BACKEND — `api/main.py`: 2 endpoints novos, `_req_admin`
+`GET /admin/costs/router/shadow` (agregados) e `GET /admin/costs/router/
+config` (tabela de classificação + modelos economy + modo atual —
+**somente leitura**, sem endpoint de ativação nesta fase).
+
+### FRONTEND — `frontend/dashboard.html`
+1 card novo na página Custos: "🧭 Cost Router (shadow mode)" — decisões
+registradas, % de concordância, custo real vs. recomendado, economia
+potencial, breakdown por modo/complexidade. Rótulo explícito: *"modo
+observação, nenhuma chamada real foi afetada"*.
+
+### TESTES — 29 novos, zero regressão
+`tests/test_pricing_catalog.py` (+2), `tests/test_cost_router.py` (19,
+novo arquivo), `tests/test_ai_router.py` (+2, prova de isolamento do
+hook), `tests/test_admin_costs_router_endpoints.py` (6, novo,
+`StaticPool`+`check_same_thread=False`). `python -m unittest discover
+tests`: 301 testes, 8 falhas — as mesmas pré-existentes e não
+relacionadas de sempre.
+
+### VERSÃO
+- Backend: `1.4.56` → `1.4.57` (`/health`, `/monitor/metricas`).
+
+### ROADMAP (não iniciado)
+Fase 5 (otimização — anomalia, cache de resposta, versionamento de
+prompt), Fase 6 (observabilidade final). Ativação de fato do Cost Router
+(sair do shadow mode) fica para decisão futura separada, fora do
+roadmap numerado — depende de revisar os dados coletados por esta fase
+primeiro.
+
+### ARQUIVOS ALTERADOS
+- Novos: `api/cost_router.py`, `tests/test_cost_router.py`,
+  `tests/test_admin_costs_router_endpoints.py`
+- `api/pricing_catalog.py` (2 entradas), `api/database.py` (tabela +
+  2 funções), `api/ai_router.py` (hook), `api/main.py` (2 endpoints +
+  versão), `frontend/dashboard.html` (card Cost Router),
+  `tests/test_pricing_catalog.py`, `tests/test_ai_router.py`
+
+---
+
 ## V.1.4.56 — Cost Intelligence Fase 3: Budget Guard, Alertas, Projeção, FX, Margem, Auditoria
 > Data: 03/09/2026 | Feature (visibilidade financeira de negócio)
 

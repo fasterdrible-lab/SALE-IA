@@ -599,6 +599,19 @@ def chamar_ia(
                 meeting_id=meeting_id,
                 usuario_id=usuario_id,
             )
+
+            try:
+                from api.cost_router import avaliar_shadow
+                avaliar_shadow(
+                    feature=feature,
+                    provider=provider.name,
+                    model_real=model,
+                    usage=provider_usage,
+                    usage_source=custo.usage_source,
+                )
+            except Exception:
+                pass  # Cost Router e shadow-mode (Fase 4) — nunca pode afetar a chamada real
+
             return result
 
         except Exception as error:
