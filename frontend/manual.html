@@ -238,7 +238,7 @@
 <header>
   <div class="logo">SALE<span>IA</span></div>
   <p class="tagline">Assistente de Vendas com Inteligência Artificial — Manual do Usuário</p>
-  <div class="versao">Versão 1.4.40 · Agosto 2026</div>
+  <div class="versao">Versão 1.4.54 · Setembro 2026</div>
 </header>
 
 <nav class="indice">
@@ -257,6 +257,8 @@
     <a class="nav-link" href="#sales-brain">Sales Brain</a>
     <a class="nav-link" href="#dashboard">Dashboard</a>
     <a class="nav-link" href="#configuracoes">Configurações</a>
+    <a class="nav-link" href="#conta-claude">Conta Claude</a>
+    <a class="nav-link" href="#biblioteca">Biblioteca</a>
     <a class="nav-link" href="#dicas">Dicas</a>
     <a class="nav-link" href="#faq">Dúvidas</a>
   </div>
@@ -333,6 +335,14 @@
       <div class="feature">
         <div class="feature-icon">⬇️</div>
         <div><h3>Download na Base de Conhecimento</h3><p>Baixe o arquivo original de qualquer documento enviado à Base, além do texto já indexado pela IA</p></div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🔷</div>
+        <div><h3>Conta Claude (Piloto)</h3><p>Conecte sua própria assinatura Claude Pro/Max como reforço — entra automaticamente se os provedores centrais de IA falharem</p></div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🗂️</div>
+        <div><h3>Biblioteca de Inteligência</h3><p>Envie livros, playbooks e manuais comerciais — a IA extrai frameworks, objeções e scripts reaproveitáveis em qualquer reunião</p></div>
       </div>
     </div>
 
@@ -484,6 +494,23 @@
         <div class="callout-icon">💡</div>
         <div class="callout-body">
           Desligar a API <strong>não encerra a reunião</strong> — é diferente de clicar em "Parar captura". A sessão continua existindo; a extensão só fica temporariamente muda. O estado escolhido persiste mesmo se você fechar o popup ou o Chrome reiniciar a extensão.
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">👤 Login na extensão (opcional) <span class="badge badge-green">V.1.4.49</span></div>
+      <p style="color:var(--muted);font-size:.92rem;margin-bottom:12px">
+        O popup da extensão (clique no ícone SALEIA na barra do Chrome) tem um bloco <strong>Conta</strong>, logo abaixo do toggle da API. Fazer login é opcional — quem não loga continua 100% anônimo, exatamente como antes.
+      </p>
+      <table>
+        <tr><th>Sem login</th><td>Extensão funciona normalmente com os 4 provedores centrais de IA (DeepSeek → OpenAI → Anthropic → Gemini)</td></tr>
+        <tr><td><strong>Com login</strong></td><td>Mesma experiência, mas se os 4 provedores centrais falharem ao mesmo tempo, o coach em tempo real tenta automaticamente sua <strong>Conta Claude (Piloto)</strong> antes de desistir — ver seção <a href="#conta-claude">Conta Claude</a></td></tr>
+      </table>
+      <div class="callout callout-tip" style="margin-top:12px">
+        <div class="callout-icon">💡</div>
+        <div class="callout-body">
+          Use o mesmo e-mail/senha da sua conta SALEIA (o mesmo login do Dashboard). Para o fallback funcionar de verdade, além de logar na extensão você precisa conectar sua Conta Claude no Dashboard uma vez — os dois passos são independentes.
         </div>
       </div>
     </div>
@@ -1382,6 +1409,10 @@
         <div class="card-title">⚙️ Configurações</div>
         <p style="color:var(--muted);font-size:.92rem">Gerenciamento de usuários, chaves de API dos provedores de IA, configuração de transcrição de áudio e base de conhecimento (RAG).</p>
       </div>
+      <div class="card" style="border-top:3px solid var(--purple)">
+        <div class="card-title">🗂️ Biblioteca de Inteligência</div>
+        <p style="color:var(--muted);font-size:.92rem">Envie documentos comerciais (livros, playbooks, manuais), extraia e compile o conteúdo em conhecimento estruturado reaproveitável nas reuniões — ver seção <a href="#biblioteca">Biblioteca de Inteligência</a>.</p>
+      </div>
     </div>
   </section>
 
@@ -1434,6 +1465,11 @@
     </div>
 
     <div class="card">
+      <div class="card-title">🔷 Claude (piloto)</div>
+      <p style="color:var(--muted);font-size:.92rem;margin-bottom:10px">Card onde cada usuário conecta a própria assinatura Claude — não é uma configuração de administrador, cada vendedor gerencia a sua. Ver seção <a href="#conta-claude">Conta Claude</a> para o passo a passo completo.</p>
+    </div>
+
+    <div class="card">
       <div class="card-title">🧠 Base de Conhecimento (RAG)</div>
       <p style="color:var(--muted);font-size:.92rem;margin-bottom:10px">Documentos que a IA usa como contexto extra — scripts de vendas, objeções comuns, cases de sucesso.</p>
       <table>
@@ -1446,9 +1482,162 @@
     </div>
   </section>
 
-  <!-- ── 15. DICAS ── -->
+  <!-- ── 15. CONTA CLAUDE (PILOTO) ── -->
+  <section id="conta-claude">
+    <h2><span class="section-num">15</span> Conta Claude <span style="font-size:.75rem;font-weight:400;color:var(--muted);margin-left:4px">(piloto)</span></h2>
+    <p class="section-desc">Conecte sua própria assinatura Claude (Pro ou Max) como reforço pessoal — entra automaticamente quando os 4 provedores centrais de IA (DeepSeek/OpenAI/Anthropic/Gemini) ficam indisponíveis ao mesmo tempo.</p>
+
+    <div class="callout callout-purple">
+      <div class="callout-icon">🔷</div>
+      <div class="callout-body">
+        <strong>Por que existe</strong>
+        Os 4 provedores centrais são compartilhados por toda a equipe — se todos ficarem sem saldo ou instáveis ao mesmo tempo, o coach em tempo real e as análises manuais param. Quem conecta a própria Conta Claude tem uma rede de segurança pessoal, sem depender do saldo central.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔌 Como conectar</div>
+      <div class="steps" style="margin-top:8px">
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <h3>Gere o token no terminal</h3>
+            <p>Com o Claude Code instalado, rode <code>claude setup-token</code> na sua própria máquina e siga o fluxo de login da sua assinatura Claude. Copie o token gerado ao final.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <h3>Cole no Dashboard</h3>
+            <p>Dashboard → Configurações → card <strong>Claude (piloto)</strong> → cole o token → <strong>Conectar</strong>.</p>
+            <div class="callout callout-warn" style="margin-top:8px">
+              <div class="callout-icon">⚠️</div>
+              <div class="callout-body">Cole o token inteiro em uma linha só. Copiar de um terminal com quebra de linha visual às vezes insere um espaço no meio do texto sem você perceber — se a conexão der erro de autenticação logo na primeira análise, gere um token novo e cole de novo.</div>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <h3>(Opcional) Logue também na extensão</h3>
+            <p>Para o fallback funcionar durante reuniões em tempo real (não só nas análises manuais do Dashboard), faça login também no bloco <strong>Conta</strong> do popup da extensão — ver seção <a href="#extensao">Extensão Chrome</a>. Conectar no Dashboard e logar na extensão são dois passos independentes; os dois juntos ativam o fallback no tempo real.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🎯 Onde a Conta Claude é usada</div>
+      <table style="margin-top:8px">
+        <tr><th>Onde</th><th>Como funciona</th></tr>
+        <tr><td><strong>Dashboard → Analisar Transcrição</strong></td><td>Botão <strong>Analisar com Claude</strong> — roda a análise sob demanda usando sua própria assinatura, sem tocar nos 4 provedores centrais</td></tr>
+        <tr><td><strong>Tempo real (extensão)</strong></td><td>Só entra como <strong>fallback automático</strong> quando os 4 centrais já falharam no ciclo atual — nunca substitui a cadeia normal, para não consumir sua janela de uso de 5h da assinatura a cada 60 segundos</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📶 Status da conexão</div>
+      <table style="margin-top:8px">
+        <tr><th>Status</th><th>Significado</th></tr>
+        <tr><td><span class="badge badge-green">Ativo</span></td><td>Conectado e funcionando — inclui o caso em que sua janela de uso de 5h da assinatura esgotou (ela libera de novo sozinha, sem precisar reconectar)</td></tr>
+        <tr><td><span class="badge badge-red">Expirado</span></td><td>Token inválido, corrompido ou revogado — reconecte gerando um token novo com <code>claude setup-token</code></td></tr>
+      </table>
+      <div class="callout callout-info" style="margin-top:12px">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">Não existe expiração automática por tempo. A conexão só cai para "Expirado" quando o próprio Claude rejeita o token (erro de autenticação) — se o motivo for só a janela de 5h da assinatura ter esgotado, o status continua "Ativo" e volta a funcionar sozinho.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 16. BIBLIOTECA DE INTELIGÊNCIA ── -->
+  <section id="biblioteca">
+    <h2><span class="section-num">16</span> Biblioteca de Inteligência</h2>
+    <p class="section-desc">Transforme livros, playbooks, treinamentos e manuais comerciais em conhecimento estruturado que a IA passa a usar automaticamente durante as reuniões.</p>
+
+    <div class="callout callout-gold">
+      <div class="callout-icon">🗂️</div>
+      <div class="callout-body">
+        <strong>O que é</strong>
+        Em vez de a IA depender só do que aprendeu nas suas próprias reuniões (Sales Brain), você pode alimentá-la com material externo — um livro de vendas, o playbook oficial da empresa, um manual de objeções. O sistema extrai o conteúdo relevante e passa a sugeri-lo durante conversas reais.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔄 O fluxo, em 4 passos</div>
+      <div class="steps" style="margin-top:8px">
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <h3>1. Enviar o documento</h3>
+            <p>Dashboard → aba <strong>Biblioteca de Inteligência</strong> → preencha título, autor e tipo → selecione o arquivo (PDF, DOCX, TXT ou Markdown, até 20 MB) → <strong>Enviar</strong>. Nada é processado ainda nesta etapa.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <h3>2. Extrair o texto</h3>
+            <p>Clique <strong>▶ Extrair</strong> no card da fonte. O sistema lê o arquivo e organiza o conteúdo em seções (por capítulo/título) — sem custo de IA, é só leitura determinística do arquivo.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <h3>3. Compilar com IA</h3>
+            <p>Clique <strong>💰 Compilar</strong>. O sistema mostra uma <strong>estimativa de custo</strong> antes de gastar qualquer coisa — confirme para a IA ler cada seção e extrair itens de conhecimento (frameworks, objeções, perguntas de descoberta, scripts, casos, entre outros).</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <h3>4. Revisar e aprovar</h3>
+            <p>Clique <strong>📋 Ver itens</strong>. Todo item novo nasce como rascunho — revise e clique <strong>✅ Aprovar</strong> ou <strong>❌ Rejeitar</strong> em cada um. Só itens aprovados passam a ser usados de verdade nas reuniões.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🏷️ Tipos de item extraído</div>
+      <table style="margin-top:8px">
+        <tr><th>Tipo</th><th>O que é</th></tr>
+        <tr><td>Framework</td><td>Modelo ou metodologia estruturada (ex: um processo de qualificação em etapas)</td></tr>
+        <tr><td>Objeção</td><td>Resistência comum do cliente + como contorná-la</td></tr>
+        <tr><td>Pergunta de Descoberta</td><td>Pergunta pronta para aprofundar dor, contexto ou urgência</td></tr>
+        <tr><td>Script</td><td>Trecho de fala pronto para usar em um momento específico</td></tr>
+        <tr><td>Anti-padrão</td><td>Erro comum a evitar</td></tr>
+        <tr><td>Regra de Decisão</td><td>Critério para escolher entre dois caminhos na conversa</td></tr>
+        <tr><td>Case</td><td>Exemplo real de aplicação bem-sucedida</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title">✨ Depois de aprovado</div>
+      <table style="margin-top:8px">
+        <tr><th>Uso</th><th>Como funciona</th></tr>
+        <tr><td><strong>Automático</strong></td><td>Itens aprovados entram na busca de contexto (RAG) de qualquer reunião — a IA os recupera sozinha quando são relevantes para o momento da conversa, junto com a Base de Conhecimento e as Memórias de Vendas</td></tr>
+        <tr><td><strong>🧠 Gerar Skill</strong></td><td>Manual, por item — transforma um item aprovado numa Skill especializada nova (ver <a href="#sales-brain">Sales Brain</a>), revisável na aba Skills antes de competir com as demais</td></tr>
+        <tr><td><strong>📘 Gerar Playbook</strong></td><td>Manual, por fonte compilada — agrupa os itens da fonte inteira num Playbook pronto, sem nenhum custo extra de IA</td></tr>
+      </table>
+      <div class="callout callout-tip" style="margin-top:12px">
+        <div class="callout-icon">💡</div>
+        <div class="callout-body">
+          Gerar Skill/Playbook nunca é automático — você decide item a item, fonte a fonte, o que vira uma Skill ativa no tempo real.
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <strong>Se a aba Biblioteca de Inteligência não aparecer</strong>
+        A feature pode estar desativada no seu ambiente — fale com o administrador. Sem ela ligada, o Dashboard mostra um aviso amigável em vez de erro.
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 17. DICAS ── -->
   <section id="dicas">
-    <h2><span class="section-num">15</span> Dicas para Melhores Resultados</h2>
+    <h2><span class="section-num">17</span> Dicas para Melhores Resultados</h2>
     <p class="section-desc">Como aproveitar o máximo do SALEIA em cada reunião.</p>
 
     <div class="steps">
@@ -1525,9 +1714,9 @@
     </div>
   </section>
 
-  <!-- ── 16. FAQ ── -->
+  <!-- ── 18. FAQ ── -->
   <section id="faq">
-    <h2><span class="section-num">16</span> Dúvidas Frequentes</h2>
+    <h2><span class="section-num">18</span> Dúvidas Frequentes</h2>
     <p class="section-desc">Problemas comuns e como resolver.</p>
 
     <details>
@@ -1658,7 +1847,37 @@
     <details>
       <summary>Aparece "Serviço de IA indisponível" durante a reunião</summary>
       <div class="faq-body">
-        <p>Todos os provedores de IA (DeepSeek, OpenAI, Anthropic, Gemini) estão com instabilidade simultânea — situação muito rara. O SALEIA tentará novamente automaticamente no próximo ciclo. Se persistir, verifique sua conexão com a internet e o status em <code>https://api.saleia.app.br/health</code>.</p>
+        <p>Todos os provedores de IA (DeepSeek, OpenAI, Anthropic, Gemini) estão com instabilidade simultânea — situação muito rara. O SALEIA tentará novamente automaticamente no próximo ciclo. Se persistir, verifique sua conexão com a internet e o status em <code>https://api.saleia.app.br/health</code>. Se você tiver conectado sua <a href="#conta-claude">Conta Claude</a> e feito login na extensão, o fallback pessoal entra automaticamente nessa situação.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Conectei a Conta Claude mas a análise falhou com erro de autenticação</summary>
+      <div class="faq-body">
+        <p>O token colado provavelmente foi corrompido na cópia (um espaço inserido no meio do texto por uma quebra de linha visual no terminal). Para resolver:</p>
+        <ol>
+          <li>Gere um token novo com <code>claude setup-token</code></li>
+          <li>Dashboard → Configurações → card <strong>Claude (piloto)</strong> → desconecte a conexão antiga</li>
+          <li>Cole o token novo, com cuidado para não incluir espaços extras, e conecte de novo</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary>A aba Biblioteca de Inteligência não aparece no Dashboard</summary>
+      <div class="faq-body">
+        <p>Essa feature pode estar desativada no seu ambiente. Fale com o administrador do sistema para confirmar se ela deve ser habilitada para sua conta.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Compilei uma fonte na Biblioteca mas os itens não aparecem nas sugestões da reunião</summary>
+      <div class="faq-body">
+        <p>Confira dois pontos:</p>
+        <ol>
+          <li>Os itens precisam estar com status <strong>Aprovado</strong> — itens em rascunho (recém-compilados) ainda não entram nas sugestões. Vá em <strong>📋 Ver itens</strong> e aprove os relevantes.</li>
+          <li>A IA só traz um item quando ele é relevante para o que está sendo discutido no momento — não é garantido que apareça em toda reunião, mesmo aprovado.</li>
+        </ol>
       </div>
     </details>
   </section>
@@ -1679,7 +1898,7 @@
 </div>
 
 <footer>
-  SALEIA v1.4.28 · api.saleia.app.br · Junho 2026
+  SALEIA v1.4.54 · api.saleia.app.br · Setembro 2026
 </footer>
 
 <script>
