@@ -93,3 +93,31 @@ def verificar_thresholds(metricas_ia: dict, banco: dict) -> None:
             f"🔄 Fallback rate alto: *{taxa}%* das chamadas usaram provedor backup",
             nivel="⚠️",
         )
+
+
+def verificar_orcamento(gasto_mes_usd: float, limite_usd: float | None) -> None:
+    """Budget Guard (Cost Intelligence Fase 3): alerta quando o gasto de IA
+    do mes corrente cruza 80% (aviso) ou 100%+ (critico) do orcamento
+    configurado. Nao faz nada se limite_usd for None/<=0 (orcamento
+    desativado — o admin nunca configurou um limite).
+
+    Mesmo mecanismo de cooldown de verificar_thresholds — 1h entre
+    alertas do mesmo tipo, para nao repetir a cada checagem do loop.
+    """
+    if not limite_usd or limite_usd <= 0:
+        return
+
+    pct = gasto_mes_usd / limite_usd * 100
+
+    if pct >= 100 and _pode_alertar("orcamento_100"):
+        alertar(
+            f"💰 Orçamento de IA estourado: *US$ {gasto_mes_usd:.2f}* de "
+            f"US$ {limite_usd:.2f} ({pct:.0f}%) já gastos este mês",
+            nivel="🔴",
+        )
+    elif pct >= 80 and _pode_alertar("orcamento_80"):
+        alertar(
+            f"💰 Orçamento de IA em *{pct:.0f}%*: US$ {gasto_mes_usd:.2f} "
+            f"de US$ {limite_usd:.2f} gastos este mês",
+            nivel="⚠️",
+        )

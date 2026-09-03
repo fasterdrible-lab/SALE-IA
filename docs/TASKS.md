@@ -413,6 +413,20 @@ EMAIL_FROM=noreply@saleia.com.br
 - [x] Commitado localmente e enviado ao GitHub (`push`).
 - **Pendente**: deploy na VPS (`git pull` + `systemctl restart saleia` — checar `reunioes_ativas: 0` antes; aditivo, nenhuma tabela/`.env`/flag nova). Fases 3-6 do roadmap ainda nao iniciadas — ver CHANGELOG (V.1.4.55).
 
+## Concluido (V.1.4.56 — Cost Intelligence Fase 3: Budget Guard, Alertas, Projecao, FX, Margem, Auditoria)
+
+- [x] Investigacao previa: `admin_route_rules`/`alertas_automaticos`/`audit_logs` confirmadas vestigiais (zero codigo referencia); `agent/alertas.py` ja roda no loop de 60s, canal certo pro Budget Guard; sem cotacao USD->BRL nem preco por plano em lugar nenhum.
+- [x] Decisoes confirmadas com o usuario: taxa de cambio fixa/configuravel (sem API externa); preco por plano sem valor inventado (comeca null); orcamento comeca desativado.
+- [x] `api/fx_rates.py` (novo): `taxa_usd_brl`/`usd_para_brl`, default 5.40, override via `FX_USD_BRL_RATE`.
+- [x] `api/database.py`: 3 tabelas novas (`OrcamentoIA`, `PlanoPreco`, `AuditoriaFinanceira`) + 7 funcoes (orcamento, precos de plano, auditoria, `gasto_mes_usd`, `projecao_mensal_custo`).
+- [x] `agent/sessao_manager.py`: `obter_nomes_usuarios` ganha `plano`; novo `obter_usuarios_ativos_por_plano`.
+- [x] `agent/alertas.py`: `verificar_orcamento` (aviso 80%, critico 100%+, mesmo cooldown de 1h).
+- [x] `api/main.py`: Budget Guard no `_loop_metricas()` (a cada ~5min) + 6 endpoints `/admin/costs/orcamento|projecao|margem|planos/{p}/preco|auditoria`.
+- [x] Dashboard: 3 cards novos na aba Custos (Orcamento Mensal, Margem por Plano, Auditoria Financeira) + accordion "Orcamento de IA" em Configuracoes.
+- [x] 30 testes novos (`test_fx_rates`, `test_alertas` novo arquivo, `test_budget_and_margin`, `test_admin_costs_orcamento_endpoints`). Suite completa: 272 testes, 8 falhas pre-existentes e nao relacionadas, sem regressao.
+- [x] Commitado localmente e enviado ao GitHub.
+- **Pendente**: deploy na VPS (`git pull` + `systemctl restart saleia` — checar `reunioes_ativas: 0` antes; aditivo, 3 tabelas novas criadas automaticamente no startup). Fases 4-6 do roadmap ainda nao iniciadas — ver CHANGELOG (V.1.4.56).
+
 ## Pendente
 
 - [ ] Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI).

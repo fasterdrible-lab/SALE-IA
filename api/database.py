@@ -4,6 +4,7 @@ Camada de persistência com SQLModel.
 Usa MySQL se as variáveis DB_* estiverem no .env, caso contrário SQLite local.
 """
 
+import calendar
 import json
 import logging
 import os
@@ -130,6 +131,55 @@ class AiUsageEvent(SQLModel, table=True):
     fallback_used: bool = Field(default=False, sa_column=Column(Boolean, nullable=False))
     request_id: Optional[str] = Field(default=None, sa_column=Column(String(40), index=True))
     error_message: Optional[str] = Field(default=None, sa_column=Column(String(240)))
+
+
+class OrcamentoIA(SQLModel, table=True):
+    """Limite de gasto mensal de IA configurado pelo admin (Cost
+    Intelligence Fase 3, Budget Guard). Linha unica (id=1, upsert) —
+    limite_mensal_usd None/<=0 significa orcamento desativado (sem
+    alerta), nunca um valor inventado."""
+
+    __tablename__ = "orcamento_ia"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    limite_mensal_usd: Optional[float] = Field(default=None, sa_column=Column(Float))
+    atualizado_em: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+    atualizado_por_id: Optional[str] = Field(default=None, sa_column=Column(String(36)))
+    atualizado_por_email: Optional[str] = Field(default=None, sa_column=Column(String(200)))
+
+
+class PlanoPreco(SQLModel, table=True):
+    """Preco mensal (BRL) de cada plano de usuario (free/pro/enterprise),
+    para calculo de margem por plano (Cost Intelligence Fase 3). So existe
+    linha para planos com preco de fato configurado pelo admin — planos
+    sem linha aqui ficam sem margem calculada (nunca um preco inventado)."""
+
+    __tablename__ = "planos_preco"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    plano: str = Field(sa_column=Column(String(50), unique=True, nullable=False))
+    preco_mensal_brl: float = Field(sa_column=Column(Float, nullable=False))
+    atualizado_em: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+    atualizado_por_id: Optional[str] = Field(default=None, sa_column=Column(String(36)))
+    atualizado_por_email: Optional[str] = Field(default=None, sa_column=Column(String(200)))
+
+
+class AuditoriaFinanceira(SQLModel, table=True):
+    """Registro de toda mudanca em configuracao financeira (orcamento,
+    preco de plano) — Cost Intelligence Fase 3. Nao audita eventos de
+    custo de IA (isso ja e o proprio ai_usage_events), so mudancas de
+    configuracao feitas por um admin."""
+
+    __tablename__ = "auditoria_financeira"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    criado_em: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False, index=True))
+    usuario_id: Optional[str] = Field(default=None, sa_column=Column(String(36)))
+    usuario_email: Optional[str] = Field(default=None, sa_column=Column(String(200)))
+    tipo: str = Field(sa_column=Column(String(40), index=True, nullable=False))
+    campo: str = Field(sa_column=Column(String(80), nullable=False))
+    valor_anterior: Optional[str] = Field(default=None, sa_column=Column(String(200)))
+    valor_novo: Optional[str] = Field(default=None, sa_column=Column(String(200)))
 
 
 class KnowledgeSource(SQLModel, table=True):
@@ -980,6 +1030,157 @@ def exportar_eventos_uso_ia(date_from: Optional[datetime] = None, date_to: Optio
         }
         for e in eventos
     ]
+
+
+def obter_orcamento_ia() -> Optional[dict]:
+    """Orcamento mensal de IA configurado (Cost Intelligence Fase 3).
+    None se o admin nunca configurou nenhum limite."""
+    with Session(engine) as session:
+        row = session.exec(select(OrcamentoIA).where(OrcamentoIA.id == 1)).first()
+    if not row:
+        return None
+    return {
+        "limite_mensal_usd": row.limite_mensal_usd,
+        "atualizado_em": row.atualizado_em.isoformat() if row.atualizado_em else None,
+        "atualizado_por_email": row.atualizado_por_email,
+    }
+
+
+def definir_orcamento_ia(limite_mensal_usd: float, usuario_id: str, usuario_email: str) -> dict:
+    """Define (upsert, linha unica id=1) o limite mensal de gasto de IA e
+    grava a mudanca em AuditoriaFinanceira (Cost Intelligence Fase 3)."""
+    with Session(engine) as session:
+        row = session.exec(select(OrcamentoIA).where(OrcamentoIA.id == 1)).first()
+        valor_anterior = row.limite_mensal_usd if row else None
+
+        if row:
+            row.limite_mensal_usd = limite_mensal_usd
+            row.atualizado_em = datetime.now()
+            row.atualizado_por_id = usuario_id
+            row.atualizado_por_email = usuario_email
+        else:
+            row = OrcamentoIA(
+                id=1, limite_mensal_usd=limite_mensal_usd,
+                atualizado_por_id=usuario_id, atualizado_por_email=usuario_email,
+            )
+        session.add(row)
+
+        session.add(AuditoriaFinanceira(
+            usuario_id=usuario_id, usuario_email=usuario_email,
+            tipo="orcamento", campo="limite_mensal_usd",
+            valor_anterior=str(valor_anterior) if valor_anterior is not None else None,
+            valor_novo=str(limite_mensal_usd),
+        ))
+        session.commit()
+
+    return obter_orcamento_ia()
+
+
+def obter_precos_planos() -> dict:
+    """{plano: preco_mensal_brl} — so planos com preco configurado pelo
+    admin aparecem aqui (Cost Intelligence Fase 3)."""
+    with Session(engine) as session:
+        rows = session.exec(select(PlanoPreco)).all()
+    return {r.plano: r.preco_mensal_brl for r in rows}
+
+
+def definir_preco_plano(plano: str, preco_mensal_brl: float, usuario_id: str, usuario_email: str) -> dict:
+    """Define (upsert por `plano`) o preco mensal (BRL) de um plano e grava
+    a mudanca em AuditoriaFinanceira (Cost Intelligence Fase 3)."""
+    with Session(engine) as session:
+        row = session.exec(select(PlanoPreco).where(PlanoPreco.plano == plano)).first()
+        valor_anterior = row.preco_mensal_brl if row else None
+
+        if row:
+            row.preco_mensal_brl = preco_mensal_brl
+            row.atualizado_em = datetime.now()
+            row.atualizado_por_id = usuario_id
+            row.atualizado_por_email = usuario_email
+        else:
+            row = PlanoPreco(
+                plano=plano, preco_mensal_brl=preco_mensal_brl,
+                atualizado_por_id=usuario_id, atualizado_por_email=usuario_email,
+            )
+        session.add(row)
+
+        session.add(AuditoriaFinanceira(
+            usuario_id=usuario_id, usuario_email=usuario_email,
+            tipo="preco_plano", campo=f"preco_mensal_brl:{plano}",
+            valor_anterior=str(valor_anterior) if valor_anterior is not None else None,
+            valor_novo=str(preco_mensal_brl),
+        ))
+        session.commit()
+
+    return {"plano": plano, "preco_mensal_brl": preco_mensal_brl}
+
+
+def listar_auditoria_financeira(limit: int = 50) -> list:
+    """Ultimas mudancas de configuracao financeira (orcamento/preco de
+    plano) — Cost Intelligence Fase 3."""
+    with Session(engine) as session:
+        rows = session.exec(
+            select(AuditoriaFinanceira).order_by(AuditoriaFinanceira.criado_em.desc()).limit(limit)
+        ).all()
+    return [
+        {
+            "criado_em": r.criado_em.isoformat() if r.criado_em else None,
+            "usuario_id": r.usuario_id,
+            "usuario_email": r.usuario_email,
+            "tipo": r.tipo,
+            "campo": r.campo,
+            "valor_anterior": r.valor_anterior,
+            "valor_novo": r.valor_novo,
+        }
+        for r in rows
+    ]
+
+
+def gasto_mes_usd(ano: int, mes: int) -> float:
+    """Soma de cost_usd de ai_usage_events no mes informado (Cost
+    Intelligence Fase 3) — usa o mesmo _com_filtro_data da Fase 2."""
+    inicio = datetime(ano, mes, 1)
+    if mes == 12:
+        fim = datetime(ano + 1, 1, 1)
+    else:
+        fim = datetime(ano, mes + 1, 1)
+
+    with Session(engine) as session:
+        total = session.exec(
+            _com_filtro_data(select(func.coalesce(func.sum(AiUsageEvent.cost_usd), 0.0)), inicio, fim)
+        ).one()
+    return round(total or 0.0, 6)
+
+
+def projecao_mensal_custo() -> dict:
+    """Projecao de gasto do mes corrente + comparacao com o mes anterior
+    (Cost Intelligence Fase 3) — regra de tres simples sobre os dias ja
+    decorridos, sem nenhum modelo estatistico sofisticado."""
+    agora = datetime.now()
+    dias_no_mes = calendar.monthrange(agora.year, agora.month)[1]
+    dias_decorridos = agora.day
+
+    gasto_atual = gasto_mes_usd(agora.year, agora.month)
+    projecao_fim_mes = round((gasto_atual / dias_decorridos) * dias_no_mes, 6) if dias_decorridos else 0.0
+
+    if agora.month == 1:
+        ano_anterior, mes_anterior = agora.year - 1, 12
+    else:
+        ano_anterior, mes_anterior = agora.year, agora.month - 1
+    gasto_mes_anterior = gasto_mes_usd(ano_anterior, mes_anterior)
+
+    crescimento_pct = None
+    if gasto_mes_anterior > 0:
+        crescimento_pct = round((projecao_fim_mes - gasto_mes_anterior) / gasto_mes_anterior * 100, 2)
+
+    return {
+        "mes": f"{agora.year:04d}-{agora.month:02d}",
+        "dias_decorridos": dias_decorridos,
+        "dias_no_mes": dias_no_mes,
+        "gasto_atual_usd": gasto_atual,
+        "projecao_fim_mes_usd": projecao_fim_mes,
+        "gasto_mes_anterior_usd": gasto_mes_anterior,
+        "crescimento_pct": crescimento_pct,
+    }
 
 
 def _erro_tabela_ja_existe(exc: OperationalError) -> bool:

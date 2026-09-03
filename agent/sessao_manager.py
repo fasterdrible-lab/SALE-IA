@@ -486,10 +486,13 @@ def buscar_sessao(sessao_id: int) -> dict:
 
 
 def obter_nomes_usuarios(ids: list) -> dict:
-    """Busca nome/email de usuários por id, para enriquecer agregados de custo de IA.
+    """Busca nome/email/plano de usuários por id, para enriquecer agregados
+    de custo de IA (Cost Intelligence Fase 2/3 — `plano` alimenta a margem
+    por plano da Fase 3).
 
     Recebe uma lista de ids (pode conter None, que é ignorado) e devolve
-    {id: {"nome": ..., "email": ...}}. Lista vazia não bate no banco.
+    {id: {"nome": ..., "email": ..., "plano": ...}}. Lista vazia não bate
+    no banco.
     """
     ids_validos = [i for i in (ids or []) if i]
     if not ids_validos:
@@ -499,14 +502,34 @@ def obter_nomes_usuarios(ids: list) -> dict:
         with conn.cursor() as cur:
             placeholders = ",".join(["%s"] * len(ids_validos))
             cur.execute(
-                f"SELECT id, nome, email FROM usuarios WHERE id IN ({placeholders})",
+                f"SELECT id, nome, email, plano FROM usuarios WHERE id IN ({placeholders})",
                 tuple(ids_validos),
             )
             rows = cur.fetchall()
         conn.close()
-        return {str(uid): {"nome": nome, "email": email} for uid, nome, email in rows}
+        return {str(uid): {"nome": nome, "email": email, "plano": plano} for uid, nome, email, plano in rows}
     except Exception as e:
         logger.error("[Sessões] Erro ao obter nomes de usuarios: %s", e)
+        return {}
+
+
+def obter_usuarios_ativos_por_plano() -> dict:
+    """Conta usuários com status='ativo' agrupados por plano (Cost
+    Intelligence Fase 3 — base de "usuários ativos" da margem por plano).
+
+    Devolve {plano: total}. Nunca lanca excecao — degrada para {} se o
+    banco estiver indisponivel (mesmo padrao dos demais helpers deste
+    modulo).
+    """
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute("SELECT plano, COUNT(*) FROM usuarios WHERE status = 'ativo' GROUP BY plano")
+            rows = cur.fetchall()
+        conn.close()
+        return {plano: total for plano, total in rows}
+    except Exception as e:
+        logger.error("[Sessões] Erro ao contar usuarios ativos por plano: %s", e)
         return {}
 
 

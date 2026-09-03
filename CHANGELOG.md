@@ -3,6 +3,110 @@
 
 ---
 
+## V.1.4.56 — Cost Intelligence Fase 3: Budget Guard, Alertas, Projeção, FX, Margem, Auditoria
+> Data: 03/09/2026 | Feature (visibilidade financeira de negócio)
+
+### VISÃO
+Terceira fase do roadmap de "Cost Intelligence, Cost Router e Controle de
+Gastos com APIs" (60 tarefas, ver `~/.claude/plans/misty-yawning-unicorn.md`).
+As Fases 1-2 deram dados corretos e visibilidade operacional de custo de
+IA; esta fase acrescenta a camada *financeira de negócio*: limite de gasto
+configurável com alerta automático (Budget Guard), projeção do mês,
+conversão USD→BRL, margem por plano de usuário e auditoria de qualquer
+mudança nessas configurações.
+
+Investigação prévia (antes de desenhar qualquer código) confirmou 3
+pontos importantes: (1) as tabelas `admin_route_rules`/`alertas_
+automaticos`/`audit_logs`, citadas na documentação da migração V.1.4.17,
+são vestigiais — zero código as referencia hoje, nada para reaproveitar
+ali; (2) `agent/alertas.py` já manda alertas Telegram e já roda dentro do
+loop de métricas de 60s (`_loop_metricas()`) — canal certo para o Budget
+Guard, só faltava o threshold de orçamento; (3) não existia nenhuma
+cotação USD→BRL nem preço por plano em lugar nenhum do código.
+
+**Decisões confirmadas com o usuário antes de implementar**: taxa de
+câmbio fixa e configurável (sem API externa de câmbio — evita dependência/
+ponto de falha que o projeto não tinha em lugar nenhum); preço por plano
+sem valor inventado (cada plano começa `null`, o admin define); orçamento
+começa desativado (`null`) até o admin configurar.
+
+### BACKEND — `api/fx_rates.py` (novo)
+`taxa_usd_brl()`/`usd_para_brl(valor)` — cotação estática (default 5.40),
+sobrescrevível via `.env` (`FX_USD_BRL_RATE`), mesma filosofia de
+`pricing_catalog.py`. Nunca chama API externa.
+
+### BACKEND — `api/database.py`: 3 tabelas + 7 funções novas
+Tabelas SQLModel aditivas: `OrcamentoIA` (limite mensal, linha única),
+`PlanoPreco` (preço mensal BRL por plano, só existe para planos com preço
+de fato configurado) e `AuditoriaFinanceira` (toda escrita nas duas
+anteriores grava 1 linha aqui, na mesma transação). Funções:
+`obter_orcamento_ia`/`definir_orcamento_ia`, `obter_precos_planos`/
+`definir_preco_plano`, `listar_auditoria_financeira`, `gasto_mes_usd(ano,
+mes)` e `projecao_mensal_custo()` (regra de três simples sobre os dias já
+decorridos do mês + comparação com o mês anterior). Todas reaproveitam o
+`_com_filtro_data`/padrão `Session(engine)`+`select`/`func` já
+estabelecido na Fase 2.
+
+### BACKEND — `agent/sessao_manager.py`
+`obter_nomes_usuarios` (Fase 2) passa a incluir `plano` no retorno — zero
+duplicação de lógica de join para a margem por plano. Novo
+`obter_usuarios_ativos_por_plano()` (`{plano: total}`, `status='ativo'`),
+mesmo padrão de degradação silenciosa (`{}`) dos demais helpers do
+módulo.
+
+### BACKEND — `agent/alertas.py`: `verificar_orcamento` (novo)
+Alerta em 80% (aviso ⚠️) e 100%+ (crítico 🔴) do orçamento mensal
+configurado — mesmo mecanismo de cooldown de 1h de `verificar_thresholds`
+(chaves `orcamento_80`/`orcamento_100`). No-op se `limite_usd` for
+`None`/`<=0` (orçamento desativado).
+
+### BACKEND — `api/main.py`: Budget Guard no loop + 6 endpoints
+`_loop_metricas()` passa a checar o orçamento a cada 5ª iteração (~5min —
+não precisa da granularidade de 60s dos outros checks) e chama
+`verificar_orcamento`. 6 endpoints novos, todos atrás de `_req_admin`:
+`GET/PATCH /admin/costs/orcamento`, `GET /admin/costs/projecao`, `GET
+/admin/costs/margem` (por plano: usuários ativos, custo IA, receita,
+margem — `null` em vez de `0` para planos sem preço configurado, nunca
+sugere prejuízo/lucro falso), `PATCH /admin/costs/planos/{plano}/preco`,
+`GET /admin/costs/auditoria`.
+
+### FRONTEND — `frontend/dashboard.html`
+Página Custos (Fase 2) ganha 3 cards: "Orçamento Mensal" (barra de
+progresso + projeção + comparação com mês anterior, aviso quando não
+configurado), "Margem por Plano" e "Auditoria Financeira". Configurações
+ganha um `acc-item` novo — "💰 Orçamento de IA" — entre "Configuração de
+APIs" e "Transcrição de Áudio" (mesmo cluster de config financeira/admin):
+formulário de limite mensal (USD) + preço mensal (BRL) por plano
+conhecido (`free`/`pro`/`enterprise`).
+
+### TESTES — 30 novos, zero regressão
+`tests/test_fx_rates.py` (5), `tests/test_alertas.py` (6, novo arquivo —
+não existia teste pra `agent/alertas.py` antes), `tests/test_budget_and_
+margin.py` (11, SQLite em memória), `tests/test_admin_costs_orcamento_
+endpoints.py` (8, `TestClient` + `StaticPool`, mesmo achado de thread da
+Fase 2). `python -m unittest discover tests`: 272 testes, 8 falhas — as
+mesmas pré-existentes e não relacionadas de sempre
+(`test_next_best_question.py`/`test_realtime_memory.py`).
+
+### VERSÃO
+- Backend: `1.4.55` → `1.4.56` (`/health`, `/monitor/metricas`).
+
+### ROADMAP (não iniciado)
+Fase 4 (Cost Router inteligente — roteamento por modelo, economy/critical
+mode, shadow mode), Fase 5 (otimização — anomalia, cache de resposta,
+versionamento de prompt), Fase 6 (observabilidade final). Detalhe
+completo em `~/.claude/plans/misty-yawning-unicorn.md`.
+
+### ARQUIVOS ALTERADOS
+- Novos: `api/fx_rates.py`, `tests/test_fx_rates.py`, `tests/test_alertas.py`,
+  `tests/test_budget_and_margin.py`, `tests/test_admin_costs_orcamento_endpoints.py`
+- `api/database.py` (3 tabelas + 7 funções), `agent/sessao_manager.py`
+  (2 helpers), `agent/alertas.py` (`verificar_orcamento`), `api/main.py`
+  (Budget Guard no loop + 6 endpoints + versão), `frontend/dashboard.html`
+  (3 cards em Custos + accordion "Orçamento de IA")
+
+---
+
 ## V.1.4.55 — Cost Intelligence Fase 2: Agregações e Dashboard de Custos
 > Data: 03/09/2026 | Feature (visibilidade de custo de IA)
 

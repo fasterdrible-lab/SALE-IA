@@ -1586,6 +1586,11 @@
           <div id="custos-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:20px"></div>
 
           <div class="card" style="margin-bottom:16px;padding:16px 20px">
+            <div class="cfg-section-header"><h3 style="margin:0;font-size:.95rem">💰 Orçamento Mensal</h3></div>
+            <div id="custos-orcamento-conteudo" style="margin-top:8px"></div>
+          </div>
+
+          <div class="card" style="margin-bottom:16px;padding:16px 20px">
             <div class="cfg-section-header"><h3 style="margin:0;font-size:.95rem">Por Provedor / Modelo</h3></div>
             <div class="cfg-tabela-wrapper">
               <table class="cfg-tabela">
@@ -1615,12 +1620,32 @@
             </div>
           </div>
 
-          <div class="card" style="padding:16px 20px">
+          <div class="card" style="margin-bottom:16px;padding:16px 20px">
             <div class="cfg-section-header"><h3 style="margin:0;font-size:.95rem">Reuniões Mais Caras <span style="font-weight:400;color:var(--muted);font-size:.78rem">(clique para ver detalhe)</span></h3></div>
             <div class="cfg-tabela-wrapper">
               <table class="cfg-tabela">
                 <thead><tr><th>Reunião</th><th>Cliente</th><th style="text-align:right">Chamadas</th><th style="text-align:right">Custo (USD)</th><th>Período</th></tr></thead>
                 <tbody id="custos-reunioes-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom:16px;padding:16px 20px">
+            <div class="cfg-section-header"><h3 style="margin:0;font-size:.95rem">Margem por Plano <span style="font-weight:400;color:var(--muted);font-size:.78rem">(taxa de câmbio configurável em Configurações → Orçamento de IA)</span></h3></div>
+            <div class="cfg-tabela-wrapper">
+              <table class="cfg-tabela">
+                <thead><tr><th>Plano</th><th style="text-align:right">Usuários Ativos</th><th style="text-align:right">Custo IA</th><th style="text-align:right">Receita</th><th style="text-align:right">Margem</th></tr></thead>
+                <tbody id="custos-margem-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card" style="padding:16px 20px">
+            <div class="cfg-section-header"><h3 style="margin:0;font-size:.95rem">Auditoria Financeira <span style="font-weight:400;color:var(--muted);font-size:.78rem">(mudanças em orçamento e preços de plano)</span></h3></div>
+            <div class="cfg-tabela-wrapper">
+              <table class="cfg-tabela">
+                <thead><tr><th>Quando</th><th>Quem</th><th>Campo</th><th>De</th><th>Para</th></tr></thead>
+                <tbody id="custos-auditoria-body"></tbody>
               </table>
             </div>
           </div>
@@ -1688,6 +1713,35 @@
               <div id="cfg-apis-loading" class="cfg-loading">Carregando provedores...</div>
               <div id="cfg-apis-erro" class="cfg-erro hidden"></div>
               <div id="cfg-apis-lista" class="cfg-provedor-lista hidden"></div>
+            </div>
+          </div>
+
+          <!-- Orçamento de IA (Cost Intelligence Fase 3 — Budget Guard) -->
+          <div class="acc-item" id="acc-orcamento">
+            <button class="acc-header" onclick="toggleAcc('orcamento')">
+              <div class="acc-icon" style="background:rgba(212,175,55,.18)">💰</div>
+              <div class="acc-label">
+                <h4>Orçamento de IA</h4>
+                <p>Limite mensal de gasto, alertas e preço por plano (margem)</p>
+              </div>
+              <span class="cfg-admin-badge" style="margin-right:8px">Admin</span>
+              <span class="acc-chevron">▾</span>
+            </button>
+            <div class="acc-body" id="acc-body-orcamento">
+              <hr class="acc-divider">
+              <div id="cfg-orcamento-loading" class="cfg-loading">Carregando orçamento...</div>
+              <div id="cfg-orcamento-conteudo" class="hidden">
+                <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px">
+                  <div>
+                    <label style="display:block;font-size:.78rem;color:var(--muted);margin-bottom:4px">Limite mensal (US$)</label>
+                    <input type="number" id="cfg-orcamento-limite" step="0.01" min="0" style="width:140px" placeholder="Desativado" />
+                  </div>
+                  <button class="btn" onclick="salvarOrcamentoLimite()">Salvar limite</button>
+                  <span id="cfg-orcamento-feedback" class="cfg-provedor-feedback"></span>
+                </div>
+                <div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">Preço mensal por plano (BRL) — usado para calcular a margem na aba Custos. Deixe em branco para não calcular margem desse plano.</div>
+                <div id="cfg-precos-planos" style="display:flex;gap:16px;flex-wrap:wrap"></div>
+              </div>
             </div>
           </div>
 
@@ -2190,6 +2244,7 @@
       _accLoaded[id] = true;
       if (id === 'usuarios')    carregarUsuarios();
       if (id === 'apis')        carregarProvedoresApi();
+      if (id === 'orcamento')   carregarOrcamentoConfig();
       if (id === 'transcricao') carregarTranscricaoConfig();
       if (id === 'base')        carregarResumoBase();
       if (id === 'claude')      carregarClaudeAccountConfig();
@@ -5595,8 +5650,30 @@
       const reunioes    = rReunioes.ok ? await rReunioes.json() : { reunioes: [] };
 
       _renderCustos(resumo, porUsuario, reunioes);
+      _carregarOrcamentoEMargemCustos(sufixo);
     } catch (e) {
       _custosErro('Erro de conexão: ' + e.message);
+    }
+  }
+
+  async function _carregarOrcamentoEMargemCustos(sufixo) {
+    // Orçamento/margem/auditoria são complementares — se falharem, não
+    // devem impedir a visualização dos custos já carregados acima.
+    try {
+      const [rOrc, rProj, rMargem, rAud] = await Promise.all([
+        fetchJsonWithFallback('/admin/costs/orcamento', _custosAuthHeaders()),
+        fetchJsonWithFallback('/admin/costs/projecao', _custosAuthHeaders()),
+        fetchJsonWithFallback('/admin/costs/margem' + sufixo, _custosAuthHeaders()),
+        fetchJsonWithFallback('/admin/costs/auditoria?limit=20', _custosAuthHeaders()),
+      ]);
+      _renderOrcamentoCard(
+        rOrc.ok ? await rOrc.json() : null,
+        rProj.ok ? await rProj.json() : null,
+      );
+      _renderMargemTable(rMargem.ok ? await rMargem.json() : { planos: [] });
+      _renderAuditoriaTable(rAud.ok ? await rAud.json() : { eventos: [] });
+    } catch (_) {
+      // silencioso — cards secundários, sem bloquear o resto da página
     }
   }
 
@@ -5725,6 +5802,146 @@
       URL.revokeObjectURL(url);
     } catch (e) {
       alert('Erro ao exportar custos: ' + (e.message || e));
+    }
+  }
+
+  /* ─── Budget Guard / Margem / Auditoria — Cost Intelligence Fase 3 ── */
+  const _PLANOS_CONHECIDOS = ['free', 'pro', 'enterprise'];
+
+  function _renderOrcamentoCard(orcResp, projResp) {
+    const el = document.getElementById('custos-orcamento-conteudo');
+    if (!el) return;
+    const orcamento = orcResp && orcResp.orcamento;
+    const limite = orcamento && orcamento.limite_mensal_usd;
+    const gasto  = (orcResp && orcResp.gasto_mes_atual_usd) || 0;
+    const pct    = orcResp && orcResp.pct_usado;
+
+    let barraHTML;
+    if (limite) {
+      const pctClamp = Math.min(pct || 0, 100);
+      const cor = pct >= 100 ? '#f87171' : pct >= 80 ? '#fbbf24' : 'var(--primary)';
+      barraHTML = `
+        <div style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;font-size:.85rem;margin-bottom:4px">
+            <span>${_fmtUsd(gasto)} de ${_fmtUsd(limite)}</span>
+            <span style="color:${cor};font-weight:700">${pct}%</span>
+          </div>
+          <div style="background:var(--field);border-radius:6px;height:10px;overflow:hidden">
+            <div style="width:${pctClamp}%;height:100%;background:${cor}"></div>
+          </div>
+        </div>`;
+    } else {
+      barraHTML = `<div style="color:var(--muted);font-size:.88rem;margin-bottom:10px">Orçamento não configurado — defina um limite em Configurações → Orçamento de IA para ativar os alertas.</div>`;
+    }
+
+    let projHTML = '';
+    if (projResp) {
+      const crescimento = projResp.crescimento_pct;
+      const crescimentoHTML = crescimento == null ? '—' :
+        (crescimento >= 0 ? `<span style="color:#f87171">+${crescimento}%</span>` : `<span style="color:#4ade80">${crescimento}%</span>`);
+      projHTML = `
+        <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:.85rem;color:var(--muted)">
+          <div>Projeção fim do mês: <strong style="color:var(--text)">${_fmtUsd(projResp.projecao_fim_mes_usd)}</strong></div>
+          <div>Mês anterior: <strong style="color:var(--text)">${_fmtUsd(projResp.gasto_mes_anterior_usd)}</strong></div>
+          <div>Crescimento: ${crescimentoHTML}</div>
+        </div>`;
+    }
+
+    el.innerHTML = barraHTML + projHTML;
+  }
+
+  function _renderMargemTable(d) {
+    const tbody = document.getElementById('custos-margem-body');
+    if (!tbody) return;
+    const planos = d.planos || [];
+    tbody.innerHTML = planos.map(p => `
+      <tr>
+        <td>${escHtml(p.plano)}</td>
+        <td style="text-align:right">${p.usuarios_ativos}</td>
+        <td style="text-align:right">${_fmtUsd(p.custo_ia_usd)}</td>
+        <td style="text-align:right">${p.receita_brl != null ? 'R$ ' + p.receita_brl.toFixed(2) : '—'}</td>
+        <td style="text-align:right">${p.margem_brl != null ? '<strong style="color:' + (p.margem_brl >= 0 ? '#4ade80' : '#f87171') + '">R$ ' + p.margem_brl.toFixed(2) + '</strong>' : '—'}</td>
+      </tr>`).join('') || '<tr><td colspan="5" style="color:var(--muted)">Sem dados no período.</td></tr>';
+  }
+
+  function _renderAuditoriaTable(d) {
+    const tbody = document.getElementById('custos-auditoria-body');
+    if (!tbody) return;
+    const eventos = d.eventos || [];
+    tbody.innerHTML = eventos.map(e => `
+      <tr>
+        <td>${escHtml(_fmtLocal(e.criado_em))}</td>
+        <td>${escHtml(e.usuario_email || e.usuario_id || '—')}</td>
+        <td>${escHtml(e.campo)}</td>
+        <td>${escHtml(e.valor_anterior == null ? '—' : e.valor_anterior)}</td>
+        <td>${escHtml(e.valor_novo == null ? '—' : e.valor_novo)}</td>
+      </tr>`).join('') || '<tr><td colspan="5" style="color:var(--muted)">Nenhuma mudança registrada.</td></tr>';
+  }
+
+  async function carregarOrcamentoConfig() {
+    const loading  = document.getElementById('cfg-orcamento-loading');
+    const conteudo = document.getElementById('cfg-orcamento-conteudo');
+    try {
+      const [rOrc, rMargem] = await Promise.all([
+        fetchJsonWithFallback('/admin/costs/orcamento', _custosAuthHeaders()),
+        fetchJsonWithFallback('/admin/costs/margem', _custosAuthHeaders()),
+      ]);
+      const orc    = rOrc.ok ? await rOrc.json() : null;
+      const margem = rMargem.ok ? await rMargem.json() : { planos: [] };
+      const precosAtuais = {};
+      (margem.planos || []).forEach(p => { if (p.preco_mensal_brl != null) precosAtuais[p.plano] = p.preco_mensal_brl; });
+
+      const limite = orc && orc.orcamento && orc.orcamento.limite_mensal_usd;
+      document.getElementById('cfg-orcamento-limite').value = limite != null ? limite : '';
+
+      document.getElementById('cfg-precos-planos').innerHTML = _PLANOS_CONHECIDOS.map(p => `
+        <div>
+          <label style="display:block;font-size:.78rem;color:var(--muted);margin-bottom:4px">${escHtml(p)} (R$/mês)</label>
+          <div style="display:flex;gap:6px">
+            <input type="number" id="cfg-preco-plano-${p}" step="0.01" min="0" style="width:110px" value="${precosAtuais[p] != null ? precosAtuais[p] : ''}" placeholder="Sem preço" />
+            <button class="btn btn-secondary" style="padding:6px 10px;font-size:.8rem" onclick="salvarPrecoPlano('${p}')">Salvar</button>
+          </div>
+        </div>`).join('');
+
+      loading.style.display = 'none';
+      conteudo.classList.remove('hidden');
+    } catch (e) {
+      loading.textContent = '⚠️ Erro ao carregar: ' + e.message;
+    }
+  }
+
+  async function salvarOrcamentoLimite() {
+    const input = document.getElementById('cfg-orcamento-limite');
+    const fb = document.getElementById('cfg-orcamento-feedback');
+    const valor = parseFloat(input.value);
+    if (isNaN(valor) || valor < 0) { fb.textContent = 'Valor inválido.'; fb.style.color = '#f87171'; return; }
+    try {
+      const resp = await fetchJsonWithFallback('/admin/costs/orcamento', {
+        method: 'PATCH',
+        headers: { ..._custosAuthHeaders().headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limite_mensal_usd: valor }),
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      fb.textContent = 'Salvo ✓'; fb.style.color = '#4ade80';
+      setTimeout(() => { fb.textContent = ''; }, 3000);
+    } catch (e) {
+      fb.textContent = 'Erro ao salvar.'; fb.style.color = '#f87171';
+    }
+  }
+
+  async function salvarPrecoPlano(plano) {
+    const input = document.getElementById('cfg-preco-plano-' + plano);
+    const valor = parseFloat(input.value);
+    if (isNaN(valor) || valor < 0) { alert('Valor inválido.'); return; }
+    try {
+      const resp = await fetchJsonWithFallback('/admin/costs/planos/' + encodeURIComponent(plano) + '/preco', {
+        method: 'PATCH',
+        headers: { ..._custosAuthHeaders().headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ preco_mensal_brl: valor }),
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    } catch (e) {
+      alert('Erro ao salvar preço do plano: ' + (e.message || e));
     }
   }
 </script>

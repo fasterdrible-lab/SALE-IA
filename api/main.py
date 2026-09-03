@@ -172,10 +172,13 @@ PASTA_BIBLIOTECA_ARQUIVOS = Path("data/biblioteca_arquivos")
 PASTA_BIBLIOTECA_ARQUIVOS.mkdir(parents=True, exist_ok=True)
 
 async def _loop_metricas() -> None:
-    """Background task: grava snapshot de métricas a cada 60s e verifica thresholds."""
+    """Background task: grava snapshot de métricas a cada 60s, verifica
+    thresholds e (a cada 5ª volta, ~5min) o orçamento mensal de IA
+    (Budget Guard, Cost Intelligence Fase 3)."""
     from api.metricas_historico import registrar
-    from agent.alertas import verificar_thresholds
+    from agent.alertas import verificar_thresholds, verificar_orcamento
     await asyncio.sleep(15)  # aguarda startup completo
+    _tick = 0
     while True:
         try:
             banco   = await asyncio.to_thread(db_health)
@@ -188,6 +191,15 @@ async def _loop_metricas() -> None:
                 ia_snap.get("chamadas_falha", 0),
             )
             await asyncio.to_thread(verificar_thresholds, ia_snap, banco)
+
+            _tick += 1
+            if _tick % 5 == 0:  # a cada ~5min — orcamento nao precisa de granularidade de 60s
+                from api.database import gasto_mes_usd, obter_orcamento_ia
+                agora = datetime.now()
+                gasto = await asyncio.to_thread(gasto_mes_usd, agora.year, agora.month)
+                orcamento = await asyncio.to_thread(obter_orcamento_ia)
+                limite = (orcamento or {}).get("limite_mensal_usd")
+                await asyncio.to_thread(verificar_orcamento, gasto, limite)
         except Exception as _e:
             logger.warning("Erro no loop de métricas: %s", _e)
         await asyncio.sleep(60)
@@ -552,7 +564,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.55",
+        "versao":              "1.4.56",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -590,7 +602,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.55",
+        "versao":          "1.4.56",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -3452,6 +3464,106 @@ def admin_costs_export(
         media_type="text/csv",
         headers={"Content-Disposition": 'attachment; filename="saleia_custos_ia.csv"'},
     )
+
+
+# ── Cost Intelligence — Budget Guard, Margem, Auditoria (Fase 3) ──
+
+from api.database import (
+    definir_orcamento_ia,
+    definir_preco_plano,
+    gasto_mes_usd,
+    listar_auditoria_financeira,
+    obter_orcamento_ia,
+    obter_precos_planos,
+    projecao_mensal_custo,
+)
+from api.fx_rates import usd_para_brl
+from agent.sessao_manager import obter_usuarios_ativos_por_plano
+
+
+class OrcamentoIARequest(BaseModel):
+    limite_mensal_usd: float
+
+
+class PrecoPlanoRequest(BaseModel):
+    preco_mensal_brl: float
+
+
+@app.get("/admin/costs/orcamento")
+def admin_costs_orcamento(authorization: str | None = _Header(default=None)):
+    _req_admin(authorization)
+    agora = datetime.now()
+    gasto = gasto_mes_usd(agora.year, agora.month)
+    orcamento = obter_orcamento_ia()
+    limite = (orcamento or {}).get("limite_mensal_usd")
+    pct_usado = round(gasto / limite * 100, 1) if limite else None
+    return {"orcamento": orcamento, "gasto_mes_atual_usd": gasto, "pct_usado": pct_usado}
+
+
+@app.patch("/admin/costs/orcamento")
+def admin_costs_definir_orcamento(req: OrcamentoIARequest, authorization: str | None = _Header(default=None)):
+    payload = _req_admin(authorization)
+    return definir_orcamento_ia(req.limite_mensal_usd, payload["sub"], payload.get("email"))
+
+
+@app.get("/admin/costs/projecao")
+def admin_costs_projecao(authorization: str | None = _Header(default=None)):
+    _req_admin(authorization)
+    return projecao_mensal_custo()
+
+
+@app.get("/admin/costs/margem")
+def admin_costs_margem(
+    date_from: str | None = None,
+    date_to: str | None = None,
+    authorization: str | None = _Header(default=None),
+):
+    _req_admin(authorization)
+    de = _parse_data_custos(date_from, "date_from")
+    ate = _parse_data_custos(date_to, "date_to", fim_do_dia=True)
+
+    custo_por_usuario = custos_por_usuario(de, ate, limit=10000)
+    infos = obter_nomes_usuarios([l["usuario_id"] for l in custo_por_usuario if l["usuario_id"]])
+    precos = obter_precos_planos()
+    usuarios_ativos = obter_usuarios_ativos_por_plano()
+
+    custo_usd_por_plano: dict[str, float] = {}
+    for linha in custo_por_usuario:
+        plano = infos.get(str(linha["usuario_id"]), {}).get("plano") or "sem_plano"
+        custo_usd_por_plano[plano] = custo_usd_por_plano.get(plano, 0.0) + linha["total_usd"]
+
+    planos = sorted(set(custo_usd_por_plano) | set(usuarios_ativos) | set(precos))
+    margens = []
+    for plano in planos:
+        custo_usd = round(custo_usd_por_plano.get(plano, 0.0), 6)
+        ativos = usuarios_ativos.get(plano, 0)
+        preco = precos.get(plano)
+        receita_brl = round(preco * ativos, 2) if preco is not None else None
+        custo_brl = usd_para_brl(custo_usd)
+        margem_brl = round(receita_brl - custo_brl, 2) if receita_brl is not None else None
+        margens.append({
+            "plano": plano,
+            "usuarios_ativos": ativos,
+            "custo_ia_usd": custo_usd,
+            "custo_ia_brl": custo_brl,
+            "preco_mensal_brl": preco,
+            "receita_brl": receita_brl,
+            "margem_brl": margem_brl,
+        })
+
+    return {"periodo": {"de": date_from, "ate": date_to}, "taxa_usd_brl": usd_para_brl(1.0), "planos": margens}
+
+
+@app.patch("/admin/costs/planos/{plano}/preco")
+def admin_costs_definir_preco_plano(plano: str, req: PrecoPlanoRequest, authorization: str | None = _Header(default=None)):
+    payload = _req_admin(authorization)
+    return definir_preco_plano(plano, req.preco_mensal_brl, payload["sub"], payload.get("email"))
+
+
+@app.get("/admin/costs/auditoria")
+def admin_costs_auditoria(limit: int = 50, authorization: str | None = _Header(default=None)):
+    _req_admin(authorization)
+    return {"eventos": listar_auditoria_financeira(limit=max(1, min(limit, 500)))}
 
 
 # ── APIs / Provedores ─────────────────────────
