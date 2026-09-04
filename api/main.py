@@ -574,7 +574,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.58",
+        "versao":              "1.4.59",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -612,7 +612,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.58",
+        "versao":          "1.4.59",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -3644,6 +3644,31 @@ def admin_costs_analise(
     de = _parse_data_custos(date_from, "date_from")
     ate = _parse_data_custos(date_to, "date_to", fim_do_dia=True)
     return {"periodo": {"de": date_from, "ate": date_to}, **analise_custo_latencia_qualidade(de, ate)}
+
+
+@app.get("/admin/costs/metricas")
+def admin_costs_metricas(
+    date_from: str | None = None,
+    date_to: str | None = None,
+    authorization: str | None = _Header(default=None),
+):
+    """Contrato único e estável (Cost Intelligence Fase 6) que consolida
+    resumo/router/otimização/anomalias — pensado pra ser o "um endpoint
+    só" que qualquer ferramenta externa (painel Grafana via JSON, script)
+    pode consumir em vez de bater em 4 endpoints separados. Não é dado
+    novo, só uma leitura combinada dos mesmos dados já expostos acima,
+    com nomenclatura de label consistente (provider/model/feature/tipo/
+    modo)."""
+    _req_admin(authorization)
+    de = _parse_data_custos(date_from, "date_from")
+    ate = _parse_data_custos(date_to, "date_to", fim_do_dia=True)
+    return {
+        "periodo": {"de": date_from, "ate": date_to},
+        "resumo": custos_resumo(de, ate),
+        "router_shadow": resumo_router_shadow(de, ate),
+        "otimizacao_shadow": resumo_otimizacao_shadow(de, ate),
+        "anomalias": detectar_anomalias_custo(),
+    }
 
 
 # ── APIs / Provedores ─────────────────────────

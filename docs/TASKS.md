@@ -453,6 +453,17 @@ EMAIL_FROM=noreply@saleia.com.br
 - [x] Commitado localmente e enviado ao GitHub.
 - **Pendente**: deploy na VPS (`git pull` + `systemctl restart saleia` — checar `reunioes_ativas: 0` antes; aditivo, 1 tabela nova). Fase 6 do roadmap ainda nao iniciada — ver CHANGELOG (V.1.4.58). Ativar qualquer otimizacao de fato (sair do shadow mode) e decisao futura separada.
 
+## Concluido (V.1.4.59 — Cost Intelligence Fase 6: Observabilidade Final — ROADMAP DE 6 FASES FECHADO)
+
+- [x] Achados previos: CLAUDE.md congelado na Fase 1 (nunca atualizado); testes de fallback existentes mockavam a escrita, nada provava a integracao real com a agregacao.
+- [x] `GET /admin/costs/metricas` (novo): contrato consolidado resumo+router+otimizacao+anomalias, sem introduzir OpenTelemetry Metrics (fora de escopo/desproporcional).
+- [x] Logs financeiros estruturados: `logging.getLogger("saleia.financeiro")` em `api/database.py`/`agent/alertas.py`, herda o JSON formatter existente de graca.
+- [x] `tests/test_integracao_fallback_budget.py` (novo, 5 testes): grava de verdade e le pela agregacao real (fallback Claude Account, todos provedores falhando, orcamento cruzando 100%, anomalia real) + 2 testes do endpoint novo.
+- [x] Suite completa: 343 testes, 8 falhas pre-existentes e nao relacionadas, sem regressao.
+- [x] `CLAUDE.md`: secao Cost Intelligence reescrita cobrindo as 6 fases (tabela de arquivos por fase, env vars de shadow mode, runbook operacional).
+- [x] Commitado localmente e enviado ao GitHub.
+- **Pendente**: deploy na VPS (`git pull` + `systemctl restart saleia` — checar `reunioes_ativas: 0` antes; aditivo, zero tabela nova). **Roadmap de Cost Intelligence (60 tarefas, 6 fases) concluido** — decisao em aberto e separada: ativar de fato o Cost Router (Fase 4) e/ou Otimizacao (Fase 5), hoje so shadow mode.
+
 ## Pendente
 
 - [ ] Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI).

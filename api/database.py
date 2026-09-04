@@ -29,6 +29,11 @@ _LongText = Text().with_variant(MEDIUMTEXT, "mysql")
 # Carrega .env do diretório raiz do projeto (sobe 2 níveis de api/)
 load_dotenv(Path(__file__).parent.parent / ".env")
 logger = logging.getLogger("saleia.db")
+# Logger dedicado a mudancas de configuracao financeira (Cost Intelligence
+# Fase 6) — filho de "saleia", herda o _JsonFormatter de api/main.py de
+# graca. Permite `journalctl -u saleia | grep saleia.financeiro` sem
+# precisar de acesso ao MySQL.
+logger_financeiro = logging.getLogger("saleia.financeiro")
 
 
 # ─────────────────────────────────────────────
@@ -1114,6 +1119,10 @@ def definir_orcamento_ia(limite_mensal_usd: float, usuario_id: str, usuario_emai
         ))
         session.commit()
 
+    logger_financeiro.info(
+        "Orcamento de IA alterado: limite_mensal_usd %s -> %s (por %s)",
+        valor_anterior, limite_mensal_usd, usuario_email,
+    )
     return obter_orcamento_ia()
 
 
@@ -1152,6 +1161,10 @@ def definir_preco_plano(plano: str, preco_mensal_brl: float, usuario_id: str, us
         ))
         session.commit()
 
+    logger_financeiro.info(
+        "Preco do plano '%s' alterado: preco_mensal_brl %s -> %s (por %s)",
+        plano, valor_anterior, preco_mensal_brl, usuario_email,
+    )
     return {"plano": plano, "preco_mensal_brl": preco_mensal_brl}
 
 

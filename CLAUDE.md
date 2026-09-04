@@ -79,17 +79,104 @@ A extensão Chrome pode opcionalmente logar (`/auth/login`, mesmo endpoint do Da
 
 Toda chamada da extensão ao backend (`fetchBackend`, `/audio-transcricao`, heartbeat de `/health`) envia `X-Extensao-Versao: <manifest.version>`. `api/main.py::_CorrelationMiddleware` lê esse header em qualquer rota (não só `/tempo-real`) e expõe via `_ext_ver_var` (`ContextVar`, mesmo padrão do `cid` de correlação) — todo log JSON estruturado (`_JsonFormatter`) ganha o campo `ext_ver`. Durante um incidente, `journalctl -u saleia | grep ext_ver` mostra imediatamente se a extensão do vendedor está desatualizada, sem precisar perguntar a ele.
 
-## Cost Intelligence (Fase 1, V.1.4.51)
+## Cost Intelligence (Fases 1-6, V.1.4.51-1.4.59 — roadmap completo)
 
-Fundação de custo real de IA — primeira fase de um roadmap maior (ver `docs/cost-intelligence-audit.md`). Ainda **não** tem dashboard, budget guard ou cost router; só captura e persiste dados corretos.
+Sistema de custo de IA de ponta a ponta: captura → visibilidade →
+controle financeiro → roteamento observacional → otimização
+observacional → polimento final. Roadmap original de 60 tarefas (nunca
+salvo em arquivo — só o resumo por fase em `~/.claude/plans/misty-
+yawning-unicorn.md`, que já foi todo implementado). Auditoria inicial
+read-only em `docs/cost-intelligence-audit.md` (Fase 1, hoje só valor
+histórico — o estado real está neste documento).
 
-- **`api/pricing_catalog.py::obter_preco(provider, model)`** — preço por *modelo* (não mais por provedor genérico), com fallback e override por env (`PRICE_<PROVIDER>_<MODELO>_<CAMPO>_PER_MILLION`).
-- **`api/cost_engine.py::calcular_custo(...)`** — cálculo puro; `estimar_usage(...)` é o fallback char/4 usado só quando o provedor não devolve tokens reais.
-- **`api/ai_router.py::chamar_ia`/`chamar_ia_async`** ganharam `feature`/`meeting_id`/`usuario_id` keyword-only (default preserva os chamadores antigos) e agora leem o `usage` real de cada SDK (antes descartado) — `_usage_source_ia` no resultado diz `"provider"` ou `"estimated"`.
-- **`api/database.py::AiUsageEvent`** (tabela `ai_usage_events`) — um registro por chamada de IA. Gravação é sempre melhor esforço (`registrar_evento_uso_ia`): nunca derruba o fluxo de vendas.
-- **`api/ai_features.py`** — constantes de `feature` (ex.: `REALTIME_COACH`, `PLAYBOOK_GERACAO`) usadas em toda chamada de IA para saber depois onde o dinheiro foi gasto.
-- **Bug fechado**: `agent/multiagente/orquestrador.py::_mesclar()` não preserva os campos `_*_ia` dos 4 agentes — por isso `analisar_fragmento_multi` agora soma o custo dos agentes em `resultado["_custo_ciclo_ia_usd"]` **antes** do merge. Sem isso, `MeetingMemory.provider_cost_estimate` (e `GET /historico/uso`) ficavam sempre em `R$0` para tempo real — o maior volume de chamadas do sistema.
-- **Limitação conhecida**: nomes de campo de cache do DeepSeek/Gemini não foram validados contra uma resposta real (degradam com segurança para `0`); Claude Account fallback não expõe contagem de tokens, só custo agregado.
+**Onde cada fase mora:**
+
+| Fase | O que faz | Arquivos principais |
+|---|---|---|
+| 1 — Fundação | Captura custo real por chamada | `api/pricing_catalog.py`, `api/cost_engine.py`, `api/database.py::AiUsageEvent`, `api/ai_features.py` |
+| 2 — Agregações | Dashboard de custos | `api/database.py::custos_resumo`/`custos_por_usuario`/`custos_reunioes_mais_caras`, endpoints `GET /admin/costs/*` |
+| 3 — Budget Guard | Orçamento, FX, margem, auditoria | `api/fx_rates.py`, `api/database.py::OrcamentoIA`/`PlanoPreco`/`AuditoriaFinanceira`, `agent/alertas.py::verificar_orcamento` |
+| 4 — Cost Router | Recomendação de modelo (**shadow**) | `api/cost_router.py`, `api/database.py::RouterDecisao` |
+| 5 — Otimização | Cache/contexto/loop (**shadow**) | `api/otimizacao_shadow.py`, `api/database.py::OtimizacaoDecisao`, `detectar_anomalias_custo` |
+| 6 — Observabilidade | Polimento final | `GET /admin/costs/metricas`, logger `saleia.financeiro` |
+
+Tudo isso vive atrás de `/admin/costs/*` (`_req_admin`) e na aba
+**Custos** do Dashboard, com um accordion **"Orçamento de IA"** em
+Configurações pra editar limite/preços de plano.
+
+### Fundação (Fase 1)
+- **`api/pricing_catalog.py::obter_preco(provider, model)`** — preço por
+  *modelo*, com fallback e override por env (`PRICE_<PROVIDER>_
+  <MODELO>_<CAMPO>_PER_MILLION`).
+- **`api/cost_engine.py::calcular_custo(...)`** — cálculo puro;
+  `estimar_usage(...)` é o fallback char/4 usado só quando o provedor
+  não devolve tokens reais.
+- **`api/ai_router.py::chamar_ia`/`chamar_ia_async`** — `feature`/
+  `meeting_id`/`usuario_id` keyword-only, leem o `usage` real de cada
+  SDK. **Este é o único choke-point** por onde passa ~100% do custo de
+  IA do sistema — é onde as Fases 4 e 5 penduram seus hooks de shadow
+  mode (ver abaixo).
+- **`api/database.py::AiUsageEvent`** (`ai_usage_events`) — um registro
+  por chamada. Gravação é sempre melhor esforço.
+- **Limitação conhecida**: nomes de campo de cache do DeepSeek/Gemini
+  não validados contra resposta real (degradam pra `0`); Claude Account
+  fallback não expõe contagem de tokens, só custo agregado.
+
+### Budget Guard, FX e margem (Fase 3)
+- Orçamento mensal (`OrcamentoIA`) e preço por plano (`PlanoPreco`)
+  começam **sempre `null`/desativado** — nunca um valor inventado; o
+  admin configura pelo Dashboard.
+- `api/fx_rates.py::usd_para_brl` — taxa fixa (`FX_USD_BRL_RATE`, default
+  5.40), **sem** API de câmbio externa (decisão deliberada — o projeto
+  não tem nenhuma outra dependência de rede opcional desse tipo).
+- Toda mudança de orçamento/preço grava em `AuditoriaFinanceira` E loga
+  em `saleia.financeiro` (ver Fase 6).
+
+### Cost Router e Otimização — **shadow mode, nunca ativos de verdade** (Fases 4-5)
+**Decisão confirmada com o usuário**: nenhum destes muda o modelo/
+comportamento real de uma chamada de IA. Cada um calcula o que faria e
+grava a comparação; ativar de fato é decisão futura separada, ainda não
+tomada.
+- `api/cost_router.py::avaliar_shadow` — recomenda modelo por
+  complexidade da tarefa (`classificar_complexidade`) × modo `normal`/
+  `economy`/`critical` (derivado do % de orçamento gasto). `COST_
+  ROUTER_SHADOW_ENABLED` (default `true`) só liga/desliga o *registro*
+  da comparação, nunca o roteamento real.
+- `api/otimizacao_shadow.py::avaliar_otimizacoes_shadow` — 3 sub-
+  otimizações: cache de resposta (`OrderedDict` em memória, TTL 10min),
+  corte de contexto (`OTIMIZACAO_CONTEXTO_MAX_CHARS`, default 20000 —
+  só *loga*, nunca corta), bloqueio de loop caro por reunião
+  (`OTIMIZACAO_LOOP_MAX_CUSTO_USD`, **sem default — desligado até
+  configurar**).
+- Ambos os hooks estão em `chamar_ia`, dentro de `try/except Exception:
+  pass` — uma falha em qualquer um dos dois é invisível pra chamada de
+  IA real.
+- `detectar_anomalias_custo` (Fase 5) compara custo médio por `feature`
+  entre janelas de 7 dias; `agent/alertas.py::verificar_anomalia` avisa
+  no Telegram (cooldown 1h por feature).
+
+### Observabilidade final (Fase 6)
+- `GET /admin/costs/metricas` — contrato único consolidando resumo/
+  router/otimização/anomalias, pensado pra apontar uma ferramenta
+  externa (painel Grafana via JSON, script) sem bater em 4 endpoints.
+- `logging.getLogger("saleia.financeiro")` (em `api/database.py` e
+  `agent/alertas.py`) — filho de `"saleia"`, herda o `_JsonFormatter` de
+  graça. `journalctl -u saleia | grep saleia.financeiro` mostra toda
+  mudança de orçamento/preço de plano e todo alerta de orçamento/
+  anomalia, sem precisar de acesso ao MySQL.
+
+### Runbook rápido
+- **Configurar orçamento/preço de plano**: Dashboard → Configurações →
+  "💰 Orçamento de IA".
+- **Alerta de orçamento/anomalia no Telegram**: checar `GET /admin/
+  costs/orcamento` (`pct_usado`) ou `GET /admin/costs/anomalias`; o
+  `journalctl | grep saleia.financeiro` tem o mesmo dado sem precisar de
+  login.
+- **Ver o que o Cost Router/Otimização *teriam* feito** antes de decidir
+  ativar algo de verdade: `GET /admin/costs/router/shadow` e `GET
+  /admin/costs/otimizacao/shadow` (ou o card correspondente na aba
+  Custos) — `economia_potencial_usd` é a estimativa, nunca dinheiro
+  realmente economizado ainda.
 
 ## Biblioteca de Inteligência / Knowledge Compiler (Fase 1, V.1.4.52)
 

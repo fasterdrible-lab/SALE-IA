@@ -139,6 +139,21 @@ class AdminCostsOtimizacaoEndpointsSuite(unittest.TestCase):
         self.assertEqual(len(d["custo_latencia"]), 1)
         self.assertEqual(d["custo_latencia"][0]["provider"], "deepseek")
 
+    # ── /admin/costs/metricas (Fase 6 — contrato consolidado) ──
+
+    def test_metricas_sem_token_401(self):
+        r = self.client.get("/admin/costs/metricas")
+        self.assertEqual(r.status_code, 401)
+
+    def test_metricas_200_consolida_os_4_blocos(self):
+        r = self.client.get("/admin/costs/metricas", headers=self.admin_headers)
+        self.assertEqual(r.status_code, 200)
+        d = r.json()
+        for chave in ("periodo", "resumo", "router_shadow", "otimizacao_shadow", "anomalias"):
+            self.assertIn(chave, d)
+        self.assertEqual(d["resumo"]["total_eventos"], 1)
+        self.assertEqual(d["otimizacao_shadow"]["total_decisoes"], 2)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

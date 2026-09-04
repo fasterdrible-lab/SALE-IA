@@ -11,6 +11,9 @@ import os
 import time
 
 logger = logging.getLogger("saleia.alertas")
+# Logger dedicado a eventos financeiros (Cost Intelligence Fase 6) — filho
+# de "saleia", herda o _JsonFormatter de api/main.py de graca.
+logger_financeiro = logging.getLogger("saleia.financeiro")
 
 # Cooldown por tipo de alerta — evita spam (1h entre alertas do mesmo tipo)
 _last_alerta: dict[str, float] = {}
@@ -115,11 +118,19 @@ def verificar_orcamento(gasto_mes_usd: float, limite_usd: float | None) -> None:
             f"US$ {limite_usd:.2f} ({pct:.0f}%) já gastos este mês",
             nivel="🔴",
         )
+        logger_financeiro.info(
+            "Orcamento estourado: gasto=%.2f limite=%.2f pct=%.0f",
+            gasto_mes_usd, limite_usd, pct,
+        )
     elif pct >= 80 and _pode_alertar("orcamento_80"):
         alertar(
             f"💰 Orçamento de IA em *{pct:.0f}%*: US$ {gasto_mes_usd:.2f} "
             f"de US$ {limite_usd:.2f} gastos este mês",
             nivel="⚠️",
+        )
+        logger_financeiro.info(
+            "Orcamento em aviso: gasto=%.2f limite=%.2f pct=%.0f",
+            gasto_mes_usd, limite_usd, pct,
         )
 
 
@@ -133,4 +144,8 @@ def verificar_anomalia(feature: str, media_atual: float, media_anterior: float, 
         f"📈 Custo anômalo em *{feature}*: US$ {media_atual:.4f}/chamada "
         f"(era US$ {media_anterior:.4f} — {multiplicador:.1f}x)",
         nivel="🟠",
+    )
+    logger_financeiro.info(
+        "Anomalia de custo: feature=%s media_atual=%.4f media_anterior=%.4f multiplicador=%.1f",
+        feature, media_atual, media_anterior, multiplicador,
     )

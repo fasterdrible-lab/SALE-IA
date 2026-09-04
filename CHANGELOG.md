@@ -3,6 +3,83 @@
 
 ---
 
+## V.1.4.59 — Cost Intelligence Fase 6: Observabilidade Final (fecha o roadmap de 6 fases)
+> Data: 04/09/2026 | Feature (observabilidade) + documentação
+
+### VISÃO
+Última fase do roadmap de 60 tarefas de Cost Intelligence: "Observabilidade
+— métricas com labels controladas, logs financeiros estruturados, testes
+de fallback/budget, documentação técnica e operacional final." Diferente
+das Fases 4-5, nada aqui muda comportamento — é polimento sobre o que as
+Fases 1-5 já construíram.
+
+Dois achados concretos guiaram o escopo: `CLAUDE.md` estava congelado na
+Fase 1 (V.1.4.51) — nenhuma sessão futura saberia que as Fases 2-5
+existem; e todos os testes de fallback existentes mockavam `registrar_
+evento_uso_ia`, então nada provava que os dados escritos por um caminho
+real (ex.: fallback Claude Account) apareciam corretos do outro lado da
+agregação real (`custos_resumo`).
+
+### BACKEND — `GET /admin/costs/metricas` (novo, `_req_admin`)
+Contrato único e estável que consolida `custos_resumo`/`resumo_router_
+shadow`/`resumo_otimizacao_shadow`/`detectar_anomalias_custo` numa
+resposta só, com nomenclatura de label consistente — pensado pra
+qualquer ferramenta externa (painel Grafana via JSON, script) apontar
+num endpoint só. Não é dado novo, é leitura combinada do que as Fases
+2-5 já expõem. Deliberadamente sem OpenTelemetry Metrics (o projeto só
+tem OTel de *tracing* hoje — um pipeline de métricas de verdade seria
+dependência de infra nova e desproporcional ao pedido).
+
+### BACKEND — logs financeiros estruturados
+`logging.getLogger("saleia.financeiro")` em `api/database.py` e `agent/
+alertas.py` — filho de `"saleia"`, herda o `_JsonFormatter` já
+configurado de graça, zero infra nova. 4 pontos novos de log (sempre
+*depois* da ação já existente, nunca podem virar motivo de falha):
+`definir_orcamento_ia`, `definir_preco_plano`, `verificar_orcamento`
+(80%/100%), `verificar_anomalia`. Resultado prático: `journalctl -u
+saleia | grep saleia.financeiro` fecha uma investigação financeira sem
+precisar de acesso ao MySQL — o mesmo tipo de investigação que já foi
+feita manualmente via SSH durante o desenvolvimento deste roadmap.
+
+### TESTES — `tests/test_integracao_fallback_budget.py` (novo, 5 testes)
+Diferente dos testes de cada fase (que mockam a escrita), estes gravam
+de verdade num SQLite de teste e leem de volta pela agregação real:
+fallback Claude Account aparece certo em `fallback_eventos`/`fallback_
+usd`/`por_provider`; todos os 4 provedores falhando aparece certo em
+`eventos_falha`; gasto real cruzando 100% do orçamento dispara o alerta
+crítico ponta a ponta (`gasto_mes_usd` → `obter_orcamento_ia` →
+`verificar_orcamento`); duas janelas reais de eventos com custo médio
+disparado disparam o alerta de anomalia ponta a ponta. Mais 2 testes
+para `GET /admin/costs/metricas` em `tests/test_admin_costs_otimizacao_
+endpoints.py`. `python -m unittest discover tests`: 343 testes, 8
+falhas — as mesmas pré-existentes e não relacionadas de sempre.
+
+### DOCUMENTAÇÃO — `CLAUDE.md`
+Seção "Cost Intelligence" reescrita do zero: estava parada em "Fase 1,
+V.1.4.51" (nunca atualizada nas 5 fases seguintes). Agora cobre as 6
+fases — tabela de qual arquivo faz o quê por fase, todas as env vars de
+shadow mode com seus defaults seguros, e um runbook curto (configurar
+orçamento/preço de plano, ler um alerta, onde olhar dados de shadow mode
+antes de decidir ativar algo de verdade).
+
+### VERSÃO
+- Backend: `1.4.58` → `1.4.59` (`/health`, `/monitor/metricas`).
+
+### ROADMAP — fechado
+As 6 fases do roadmap de Cost Intelligence (60 tarefas) estão
+implementadas e em produção. **Em aberto, como decisão futura separada,
+não como pendência desta fase**: ativar de fato o Cost Router (Fase 4)
+e/ou as otimizações (Fase 5) — hoje ambos só observam e registram,
+nunca mudam uma chamada de IA real.
+
+### ARQUIVOS ALTERADOS
+- Novos: `tests/test_integracao_fallback_budget.py`
+- `api/database.py` (logger + 2 pontos de log), `agent/alertas.py`
+  (logger + 3 pontos de log), `api/main.py` (endpoint + versão),
+  `tests/test_admin_costs_otimizacao_endpoints.py`, `CLAUDE.md`
+
+---
+
 ## V.1.4.58 — Cost Intelligence Fase 5: Otimização (Shadow Mode)
 > Data: 04/09/2026 | Feature (observação — nenhuma chamada real de IA é afetada)
 
