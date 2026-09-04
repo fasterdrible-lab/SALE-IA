@@ -490,7 +490,7 @@ EMAIL_FROM=noreply@saleia.com.br
 - [x] Testes reescritos: `test_cost_router.py`, `test_ai_router.py::CostRouterAtivoTest` (substitui `CostRouterShadowHookTest`), `test_admin_costs_router_endpoints.py`, `test_admin_costs_otimizacao_endpoints.py` (chave `router`). Suite completa sem regressao (mesmas 8 falhas pre-existentes e nao relacionadas).
 - [x] `CLAUDE.md`: Fase 4 vira secao propria "ATIVA em producao", junto da Fase 5.
 - [x] Commitado localmente e enviado ao GitHub.
-- **Pendente**: deploy na VPS (`git pull` + `systemctl restart saleia` — checar `reunioes_ativas: 0` antes; muda comportamento real (hoje inerte na pratica), rollback rapido via `COST_ROUTER_ATIVO=false` no `.env` se necessario, sem reverter deploy).
+- [x] Deploy na VPS confirmado (`reunioes_ativas: 0` antes e depois do pull, `systemctl restart saleia`, `/health` -> `versao: 1.4.61`, logs limpos). `GET /admin/costs/router` em producao confirma `ativo: true`, 20 decisoes herdadas do shadow mode (100% concordancia / 0% economia, esperado — trafego real so passa por DeepSeek hoje).
 
 ## Pendente
 
@@ -501,15 +501,7 @@ EMAIL_FROM=noreply@saleia.com.br
 - [ ] **Reindex de embeddings pos-deploy**: `python -m scripts.reindex_embeddings --dry-run --table all` (conferir) e depois sem `--dry-run` (embeddings atuais sao da OpenAI, incompativeis com Ollama). Ainda nao executado.
 - [ ] **Corrigir a chave SSH `saleia_vps`** (`Permission denied (publickey,password)`, checado em 01/09/2026 — acesso restabelecido só por senha root fornecida pelo usuario) — checar `authorized_keys` na VPS nova ou gerar/cadastrar chave nova.
 - [ ] **Validar end-to-end a transcricao de audio (Groq)** apos o restart confirmado do V.1.4.50/1.4.51 — chave `GROQ_API_KEY` foi atualizada em 31/08/2026, presente no `.env`, mas nunca testada ponta a ponta (sem trafego real de `/audio-transcricao` desde o restart).
-- [ ] **Migracao de reunioes historicas (Drive) — 23/74 restantes**: `scripts/migrar_reunioes_historico.py` processou 51/74 reunioes exportadas do Google Drive (Gemini Notes) direto contra producao — cada uma virou um relatorio completo + entrada de Sales Memory. As 23 restantes falharam consistentemente com 503 mesmo apos retry com backoff, mesmo com DeepSeek/OpenAI/Anthropic parcialmente recuperados — parece timeout de infraestrutura em reunioes grandes (media 127k chars nas que falham vs 99k nas que deram certo, sem corte limpo) combinado com degradacao dos provedores no momento. Para retomar (idempotente — pula as 51 ja feitas):
-  ```bash
-  # extrair o zip baixado do Drive de novo se a pasta de trabalho nao existir mais:
-  # unzip "C:\Users\phpos\Downloads\drive-download-20260820T182045Z-1-001.zip" -d <pasta>
-  python -m scripts.migrar_reunioes_historico --pasta <pasta_com_os_docx> \
-    --base-url https://api.saleia.app.br \
-    --estado-file data/migracao_reunioes_estado.json
-  ```
-  Zip original ainda em `C:\Users\phpos\Downloads\drive-download-20260820T182045Z-1-001.zip` (74 `.docx` + 5 `.txt` de chat — os `.txt` de chat foram propositalmente excluidos desta migracao).
+- [x] **Migracao de reunioes historicas (Drive) — 74/74 concluida (04/09/2026)**: as 23 reunioes que falhavam com 503 em 20/08/2026 foram reprocessadas com sucesso (0 falhas) — a degradacao dos provedores de IA que causava o 503 na epoca ja nao estava mais presente. `scripts/migrar_reunioes_historico.py` processou o total das 74 reunioes exportadas do Google Drive (Gemini Notes) contra producao, cada uma virando um relatorio completo + entrada de Sales Memory. Os 5 `.txt` de chat do lote (so trocas de e-mail no chat do Meet, sem sinal de conversa) continuam propositalmente excluidos. Zip original em `C:\Users\phpos\Downloads\drive-download-20260820T182045Z-1-001.zip`; estado final em `data/migracao_reunioes_estado.json`.
 
 ## Concluido (Ollama na VPS — 17/08/2026)
 

@@ -1920,6 +1920,15 @@ guardada no Google Drive, sem estar alimentando o Sales Memory do SALEIA.
   pendentes numa próxima rodada sem reprocessar as 51 já feitas.
 - Pendência documentada em `docs/TASKS.md`.
 
+### CONCLUSÃO — 74/74 migradas (04/09/2026)
+As 23 reuniões pendentes foram reprocessadas com sucesso, 0 falhas — a
+degradação dos provedores de IA que causava o 503 em 20/08 já não estava
+mais presente (confirmado indiretamente pelo `/health` de produção
+mostrando `openai`/`anthropic` sem falhas consecutivas, no mesmo dia da
+ativação da Fase 4 do Cost Router). Os 5 `.txt` de chat do lote original
+(só trocas de e-mail no chat do Meet, sem sinal de conversa) foram
+deixados de fora de propósito, como já era o caso desde o início.
+
 ### ARQUIVOS ALTERADOS
 - `scripts/migrar_reunioes_historico.py` (novo)
 
