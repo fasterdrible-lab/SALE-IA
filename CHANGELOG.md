@@ -3,6 +3,118 @@
 
 ---
 
+## V.1.4.58 — Cost Intelligence Fase 5: Otimização (Shadow Mode)
+> Data: 04/09/2026 | Feature (observação — nenhuma chamada real de IA é afetada)
+
+### VISÃO
+Quinta fase do roadmap de Cost Intelligence: "Otimização — detecção de
+anomalia, bloqueio de loops caros, controle de tamanho de contexto,
+cache de resposta determinística, medição de economia gerada,
+versionamento de prompt, custo×latência, custo×qualidade." O usuário
+confirmou que, assim como a Fase 4, as partes que mudariam comportamento
+real (cache de resposta, bloqueio de loop caro, corte de contexto)
+entram só em shadow mode — calcula e registra o que faria, nunca age de
+verdade.
+
+Investigação prévia mapeou o estado real de cada peça antes de desenhar
+qualquer código: `_pode_chamar_ia` (`api/processador_tempo_real.py`) já
+bloqueia ciclos muito próximos (35s) ou com pouco texto novo — o gap
+real é a ausência de um limite de custo *acumulado por reunião* (só
+existe o orçamento *mensal global* da Fase 3); o corte de contexto
+(6000 chars) só existe pra `transcricao_parcial`/`historico` do tempo
+real — os blobs JSON que só crescem e toda a via de relatórios
+(`/webhook/tactiq`, `/recapitulacao-completa`, etc.) não têm nenhum
+limite; cache de resposta é 100% novo (nenhum cache de resposta de IA
+existia); versionamento de prompt é um problema de 3 formas (`.txt`
+lido a cada chamada, `.txt` cacheado em memória, string Python inline) —
+escopo desta fase ficou em anexar uma tag de hash do prompt a cada
+decisão, não reescrever como os prompts são carregados.
+
+### DECISÃO DE DESIGN — consolidação
+Em vez de 3-4 tabelas/módulos separados (um por sub-feature), 1 módulo
+novo (`api/otimizacao_shadow.py`) e 1 tabela nova (`OtimizacaoDecisao`,
+campo `tipo` distingue as 3 otimizações) — mesmo espírito consolidado do
+`cost_router.py`/`RouterDecisao` da Fase 4. "Detecção de anomalia" e
+"custo×latência/qualidade" são funções de leitura sobre dados que já
+existem (`ai_usage_events`), sem tabela própria.
+
+### BACKEND — `api/otimizacao_shadow.py` (novo)
+Hookado uma única vez em `api/ai_router.py::chamar_ia` (mesmo ponto do
+hook da Fase 4, `try/except Exception: pass`):
+- **Cache de resposta (shadow)**: `OrderedDict` em memória (hash
+  feature+prompt+conteúdo, TTL 10min, máx. 500 entradas/LRU). Chamada
+  repetida dentro do TTL → registra `cache_hit`, economia = custo da
+  chamada atual inteira.
+- **Contexto (shadow)**: acima de `OTIMIZACAO_CONTEXTO_MAX_CHARS` (env,
+  default 20000) → registra `contexto_truncado`, com economia calculada
+  de forma precisa via `api.cost_engine.calcular_custo` sobre uma
+  proporção reduzida de tokens de entrada (mesmo mecanismo que a Fase 4
+  já usa pra comparar modelo economy vs. real — não é heurística solta).
+- **Loop caro por reunião (shadow)**: só ativo se `OTIMIZACAO_LOOP_MAX_
+  CUSTO_USD` (env) estiver configurado — desligado por padrão, sem
+  limite inventado. Reaproveita `custo_por_reuniao` (Fase 1), cacheado
+  60s por `meeting_id` pra não bater 4x no MySQL a cada ciclo do tempo
+  real (caminho mais quente do sistema).
+- Toda decisão carrega `prompt_hash` (12 hex do sha256 do system
+  prompt) — o "versionamento de prompt" desta fase.
+
+### BACKEND — `api/database.py`
+Tabela `OtimizacaoDecisao` (SQLModel, aditiva) + `registrar_decisao_
+otimizacao`/`resumo_otimizacao_shadow` (mesmo padrão `_com_filtro_data`
+de sempre). `detectar_anomalias_custo(dias_janela=7, limiar_
+multiplicador=3.0)`: compara custo médio por chamada de cada feature na
+janela atual vs. janela anterior de mesmo tamanho, só considera features
+com volume mínimo (≥5 chamadas nas duas janelas) pra não alarmar com
+ruído estatístico. `analise_custo_latencia_qualidade`: custo×latência
+por `(provider, model)` (dados que já existem em `AiUsageEvent`);
+"qualidade" limitada ao único sinal real disponível — distribuição de
+feedback do piloto Conta Claude — rotulado explicitamente como cobertura
+limitada, não uma métrica universal (que não existe hoje).
+
+### BACKEND — `agent/alertas.py`
+`verificar_anomalia(feature, media_atual, media_anterior, multiplicador)`
+— mesmo cooldown de 1h por chave (`anomalia_<feature>`) dos alertas já
+existentes.
+
+### BACKEND — `api/main.py`
+`_loop_metricas()` ganha checagem de anomalias a cada ~60 ciclos (~1h).
+3 endpoints novos, `_req_admin`: `GET /admin/costs/otimizacao/shadow`,
+`GET /admin/costs/anomalias`, `GET /admin/costs/analise`.
+
+### FRONTEND — `frontend/dashboard.html`
+1 card novo na página Custos: "⚡ Otimização (shadow mode)" — economia
+potencial total e por tipo, anomalias detectadas no período, tabela
+custo×latência por provedor/modelo. Mesmo rótulo de transparência da
+Fase 4.
+
+### TESTES — 37 novos, zero regressão
+`tests/test_otimizacao_shadow.py` (15, novo), `tests/test_anomalias_e_
+analise.py` (9, novo), `tests/test_admin_costs_otimizacao_endpoints.py`
+(7, novo, `StaticPool`+`check_same_thread=False`), `tests/test_ai_
+router.py` (+2, isolamento do novo hook), `tests/test_alertas.py` (+2,
+`verificar_anomalia`). `python -m unittest discover tests`: 336 testes,
+8 falhas — as mesmas pré-existentes e não relacionadas de sempre.
+
+### VERSÃO
+- Backend: `1.4.57` → `1.4.58` (`/health`, `/monitor/metricas`).
+
+### ROADMAP (não iniciado)
+Fase 6 (observabilidade final — métricas com labels, logs financeiros
+estruturados, testes de fallback/budget, documentação técnica e
+operacional). Ativação de fato de qualquer otimização desta fase (sair
+do shadow mode) fica para decisão futura separada.
+
+### ARQUIVOS ALTERADOS
+- Novos: `api/otimizacao_shadow.py`, `tests/test_otimizacao_shadow.py`,
+  `tests/test_anomalias_e_analise.py`,
+  `tests/test_admin_costs_otimizacao_endpoints.py`
+- `api/database.py` (tabela + 4 funções), `agent/alertas.py`
+  (`verificar_anomalia`), `api/ai_router.py` (hook), `api/main.py`
+  (3 endpoints + versão), `frontend/dashboard.html` (card Otimização),
+  `tests/test_ai_router.py`, `tests/test_alertas.py`
+
+---
+
 ## V.1.4.57 — Cost Intelligence Fase 4: Cost Router (Shadow Mode)
 > Data: 03/09/2026 | Feature (observação — nenhuma chamada real de IA é afetada)
 

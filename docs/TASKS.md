@@ -440,6 +440,19 @@ EMAIL_FROM=noreply@saleia.com.br
 - [x] Commitado localmente e enviado ao GitHub.
 - **Pendente**: deploy na VPS (`git pull` + `systemctl restart saleia` — checar `reunioes_ativas: 0` antes; aditivo, 1 tabela nova). Fases 5-6 do roadmap ainda nao iniciadas — ver CHANGELOG (V.1.4.57). Ativar o roteamento de fato (sair do shadow mode) e decisao futura separada, so depois de revisar os dados coletados.
 
+## Concluido (V.1.4.58 — Cost Intelligence Fase 5: Otimizacao em Shadow Mode)
+
+- [x] Usuario confirmou: partes que mudam comportamento (cache, bloqueio de loop, corte de contexto) tambem entram so em shadow mode.
+- [x] Investigacao previa: rate-limit do tempo real ja cobre ciclos rapidos (gap real e custo acumulado por reuniao); corte de contexto so existe pra transcricao/historico do tempo real; cache de resposta e 100% novo; versionamento de prompt e problema de 3 formas (escopo reduzido a hash tag).
+- [x] `api/otimizacao_shadow.py` (novo): cache de resposta shadow (TTL 10min, LRU 500), corte de contexto shadow (economia calculada via cost_engine), loop caro por reuniao shadow (desligado por padrao, cache 60s).
+- [x] `api/database.py`: tabela `OtimizacaoDecisao` + `registrar_decisao_otimizacao`/`resumo_otimizacao_shadow` + `detectar_anomalias_custo` + `analise_custo_latencia_qualidade`.
+- [x] `agent/alertas.py`: `verificar_anomalia` (cooldown 1h por feature).
+- [x] `api/main.py`: checagem de anomalias no loop (~1h) + `GET /admin/costs/otimizacao/shadow|anomalias|analise`.
+- [x] Dashboard: card "Otimizacao (shadow mode)" na aba Custos.
+- [x] 37 testes novos. Suite completa: 336 testes, 8 falhas pre-existentes e nao relacionadas, sem regressao.
+- [x] Commitado localmente e enviado ao GitHub.
+- **Pendente**: deploy na VPS (`git pull` + `systemctl restart saleia` — checar `reunioes_ativas: 0` antes; aditivo, 1 tabela nova). Fase 6 do roadmap ainda nao iniciada — ver CHANGELOG (V.1.4.58). Ativar qualquer otimizacao de fato (sair do shadow mode) e decisao futura separada.
+
 ## Pendente
 
 - [ ] Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI).

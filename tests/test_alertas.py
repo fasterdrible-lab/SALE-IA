@@ -57,5 +57,25 @@ class VerificarOrcamentoTest(unittest.TestCase):
         self.assertEqual(m.call_count, 2)
 
 
+class VerificarAnomaliaTest(unittest.TestCase):
+    def setUp(self):
+        alertas._last_alerta.clear()
+
+    def test_dispara_alerta(self):
+        with patch.object(alertas, "alertar") as m:
+            alertas.verificar_anomalia("realtime.coach", media_atual=0.30, media_anterior=0.01, multiplicador=30.0)
+        m.assert_called_once()
+        args, kwargs = m.call_args
+        self.assertIn("realtime.coach", args[0])
+        self.assertEqual(kwargs.get("nivel"), "🟠")
+
+    def test_cooldown_e_por_feature(self):
+        with patch.object(alertas, "alertar") as m:
+            alertas.verificar_anomalia("realtime.coach", 0.30, 0.01, 30.0)
+            alertas.verificar_anomalia("realtime.coach", 0.31, 0.01, 31.0)  # mesma feature — cooldown
+            alertas.verificar_anomalia("realtime.disc", 0.30, 0.01, 30.0)  # feature diferente — dispara
+        self.assertEqual(m.call_count, 2)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

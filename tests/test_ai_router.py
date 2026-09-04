@@ -459,5 +459,54 @@ class CostRouterShadowHookTest(unittest.TestCase):
         self.assertEqual(set(result.keys()) & {"_router_recomendado", "_router_modo"}, set())
 
 
+class OtimizacaoShadowHookTest(unittest.TestCase):
+    """Otimizacao (Fase 5, shadow mode): o hook em chamar_ia nunca pode
+    afetar o resultado real de uma chamada de IA."""
+
+    def setUp(self):
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmpdir.cleanup)
+        ai_router.STATE_FILE = Path(self._tmpdir.name) / "ai_provider_order.json"
+        ai_router.resetar_estado_ia_para_testes()
+
+    def _provider(self, name, env_key, caller):
+        return ai_router.Provider(
+            name=name, env_keys=(env_key,), model_env=f"{name.upper()}_MODEL",
+            default_model=f"{name}-model", caller=caller,
+        )
+
+    def test_falha_no_hook_de_otimizacao_nao_quebra_chamar_ia(self):
+        def openai_caller(*args):
+            return {"ok": True}, None
+
+        providers = {"openai": self._provider("openai", "OPENAI_API_KEY", openai_caller)}
+        env = {"OPENAI_API_KEY": "test", "AI_PROVIDER_ORDER": "openai"}
+
+        with patch("api.otimizacao_shadow.avaliar_otimizacoes_shadow", side_effect=RuntimeError("otimizacao quebrada")):
+            with patch.dict(os.environ, env, clear=False):
+                with patch.object(ai_router, "PROVIDERS", providers):
+                    result = ai_router.chamar_ia("system", "user")
+
+        self.assertTrue(result["ok"])
+
+    def test_hook_de_otimizacao_e_chamado_com_os_argumentos_certos(self):
+        def openai_caller(*args):
+            return {"ok": True}, None
+
+        providers = {"openai": self._provider("openai", "OPENAI_API_KEY", openai_caller)}
+        env = {"OPENAI_API_KEY": "test", "AI_PROVIDER_ORDER": "openai"}
+
+        with patch("api.otimizacao_shadow.avaliar_otimizacoes_shadow") as mock_ot:
+            with patch.dict(os.environ, env, clear=False):
+                with patch.object(ai_router, "PROVIDERS", providers):
+                    ai_router.chamar_ia("system", "user", feature="teste.feature", meeting_id="m1")
+
+        mock_ot.assert_called_once()
+        kwargs = mock_ot.call_args.kwargs
+        self.assertEqual(kwargs["feature"], "teste.feature")
+        self.assertEqual(kwargs["meeting_id"], "m1")
+        self.assertEqual(kwargs["provider"], "openai")
+
+
 if __name__ == "__main__":
     unittest.main()

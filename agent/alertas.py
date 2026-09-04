@@ -121,3 +121,16 @@ def verificar_orcamento(gasto_mes_usd: float, limite_usd: float | None) -> None:
             f"de US$ {limite_usd:.2f} gastos este mês",
             nivel="⚠️",
         )
+
+
+def verificar_anomalia(feature: str, media_atual: float, media_anterior: float, multiplicador: float) -> None:
+    """Alerta quando o custo medio por chamada de uma feature dispara em
+    relacao a janela anterior (Cost Intelligence Fase 5). Cooldown de 1h
+    por feature (mesmo mecanismo de _pode_alertar dos demais alertas)."""
+    if not _pode_alertar(f"anomalia_{feature}"):
+        return
+    alertar(
+        f"📈 Custo anômalo em *{feature}*: US$ {media_atual:.4f}/chamada "
+        f"(era US$ {media_anterior:.4f} — {multiplicador:.1f}x)",
+        nivel="🟠",
+    )

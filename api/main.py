@@ -173,10 +173,11 @@ PASTA_BIBLIOTECA_ARQUIVOS.mkdir(parents=True, exist_ok=True)
 
 async def _loop_metricas() -> None:
     """Background task: grava snapshot de métricas a cada 60s, verifica
-    thresholds e (a cada 5ª volta, ~5min) o orçamento mensal de IA
-    (Budget Guard, Cost Intelligence Fase 3)."""
+    thresholds, (a cada 5ª volta, ~5min) o orçamento mensal de IA
+    (Budget Guard, Cost Intelligence Fase 3), e (a cada 60ª volta, ~1h)
+    anomalias de custo por feature (Cost Intelligence Fase 5)."""
     from api.metricas_historico import registrar
-    from agent.alertas import verificar_thresholds, verificar_orcamento
+    from agent.alertas import verificar_thresholds, verificar_orcamento, verificar_anomalia
     await asyncio.sleep(15)  # aguarda startup completo
     _tick = 0
     while True:
@@ -200,6 +201,15 @@ async def _loop_metricas() -> None:
                 orcamento = await asyncio.to_thread(obter_orcamento_ia)
                 limite = (orcamento or {}).get("limite_mensal_usd")
                 await asyncio.to_thread(verificar_orcamento, gasto, limite)
+
+            if _tick % 60 == 0:  # a cada ~1h — anomalia nao precisa de mais frequencia que isso
+                from api.database import detectar_anomalias_custo
+                anomalias = await asyncio.to_thread(detectar_anomalias_custo)
+                for a in anomalias:
+                    await asyncio.to_thread(
+                        verificar_anomalia, a["feature"], a["media_atual_usd"],
+                        a["media_anterior_usd"], a["multiplicador"],
+                    )
         except Exception as _e:
             logger.warning("Erro no loop de métricas: %s", _e)
         await asyncio.sleep(60)
@@ -564,7 +574,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.57",
+        "versao":              "1.4.58",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -602,7 +612,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.57",
+        "versao":          "1.4.58",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -3591,6 +3601,49 @@ def admin_costs_router_shadow(
 def admin_costs_router_config(authorization: str | None = _Header(default=None)):
     _req_admin(authorization)
     return _cost_router_config()
+
+
+# ── Otimização — Shadow Mode (Fase 5) ──
+# Somente leitura/observação: cache de resposta, corte de contexto e
+# bloqueio de loop caro nunca agem de verdade nesta fase (ver
+# api/otimizacao_shadow.py). Detecção de anomalia e análise custo x
+# latência/qualidade são puramente analíticas.
+
+from api.database import (
+    analise_custo_latencia_qualidade,
+    detectar_anomalias_custo,
+    resumo_otimizacao_shadow,
+)
+
+
+@app.get("/admin/costs/otimizacao/shadow")
+def admin_costs_otimizacao_shadow(
+    date_from: str | None = None,
+    date_to: str | None = None,
+    authorization: str | None = _Header(default=None),
+):
+    _req_admin(authorization)
+    de = _parse_data_custos(date_from, "date_from")
+    ate = _parse_data_custos(date_to, "date_to", fim_do_dia=True)
+    return {"periodo": {"de": date_from, "ate": date_to}, **resumo_otimizacao_shadow(de, ate)}
+
+
+@app.get("/admin/costs/anomalias")
+def admin_costs_anomalias(authorization: str | None = _Header(default=None)):
+    _req_admin(authorization)
+    return {"anomalias": detectar_anomalias_custo()}
+
+
+@app.get("/admin/costs/analise")
+def admin_costs_analise(
+    date_from: str | None = None,
+    date_to: str | None = None,
+    authorization: str | None = _Header(default=None),
+):
+    _req_admin(authorization)
+    de = _parse_data_custos(date_from, "date_from")
+    ate = _parse_data_custos(date_to, "date_to", fim_do_dia=True)
+    return {"periodo": {"de": date_from, "ate": date_to}, **analise_custo_latencia_qualidade(de, ate)}
 
 
 # ── APIs / Provedores ─────────────────────────

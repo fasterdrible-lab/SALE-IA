@@ -202,6 +202,27 @@ class RouterDecisao(SQLModel, table=True):
     concordou: bool = Field(sa_column=Column(Boolean, nullable=False))
 
 
+class OtimizacaoDecisao(SQLModel, table=True):
+    """Comparacao shadow-mode de otimizacao de custo (Cost Intelligence
+    Fase 5): o que uma otimizacao (cache de resposta, corte de contexto,
+    bloqueio de loop caro por reuniao) teria feito numa chamada de IA
+    real ja concluida. Nunca influencia a chamada real — so registro
+    para analise posterior. `tipo` distingue as 3 otimizacoes:
+    cache_hit | contexto_truncado | loop_bloqueado."""
+
+    __tablename__ = "otimizacao_decisoes"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    criado_em: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False, index=True))
+    tipo: str = Field(sa_column=Column(String(30), index=True, nullable=False))
+    feature: str = Field(sa_column=Column(String(80), index=True, nullable=False))
+    meeting_id: Optional[str] = Field(default=None, sa_column=Column(String(200), index=True))
+    prompt_hash: str = Field(sa_column=Column(String(12), nullable=False))
+    custo_real_usd: float = Field(sa_column=Column(Float, nullable=False))
+    economia_estimada_usd: float = Field(sa_column=Column(Float, nullable=False))
+    detalhe: Optional[str] = Field(default=None, sa_column=Column(String(240)))
+
+
 class KnowledgeSource(SQLModel, table=True):
     """Fonte de conhecimento comercial (livro, playbook, manual, etc.) para
     o Knowledge Compiler / "Biblioteca de Inteligencia". Fase 1: so guarda
@@ -1279,6 +1300,173 @@ def resumo_router_shadow(date_from: Optional[datetime] = None, date_to: Optional
         "economia_potencial_pct": round(economia_usd / custo_real * 100, 1) if custo_real else None,
         "por_modo": por_modo,
         "por_complexidade": por_complexidade,
+    }
+
+
+def registrar_decisao_otimizacao(
+    *,
+    tipo: str,
+    feature: str,
+    meeting_id: Optional[str],
+    prompt_hash: str,
+    custo_real_usd: float,
+    economia_estimada_usd: float,
+    detalhe: Optional[str],
+) -> None:
+    """Grava 1 decisao shadow de otimizacao (Fase 5). Melhor esforco —
+    nunca propaga excecao, mesmo padrao de registrar_evento_uso_ia."""
+    try:
+        with Session(engine) as session:
+            session.add(OtimizacaoDecisao(
+                tipo=tipo, feature=feature, meeting_id=meeting_id, prompt_hash=prompt_hash,
+                custo_real_usd=custo_real_usd, economia_estimada_usd=economia_estimada_usd,
+                detalhe=(detalhe or "")[:240] or None,
+            ))
+            session.commit()
+    except Exception as exc:
+        logger.warning("[Otimizacao] Falha ao registrar decisao shadow: %s", exc)
+
+
+def resumo_otimizacao_shadow(date_from: Optional[datetime] = None, date_to: Optional[datetime] = None) -> dict:
+    """Agregados do shadow mode de otimizacao (Fase 5): quanto cada
+    otimizacao (cache/contexto/loop) teria economizado, se tivesse
+    agido de verdade."""
+
+    def _filtro(stmt):
+        if date_from is not None:
+            stmt = stmt.where(OtimizacaoDecisao.criado_em >= date_from)
+        if date_to is not None:
+            stmt = stmt.where(OtimizacaoDecisao.criado_em < date_to)
+        return stmt
+
+    with Session(engine) as session:
+        por_tipo_stmt = _filtro(
+            select(
+                OtimizacaoDecisao.tipo,
+                func.count(OtimizacaoDecisao.id),
+                func.coalesce(func.sum(OtimizacaoDecisao.economia_estimada_usd), 0.0),
+            ).group_by(OtimizacaoDecisao.tipo)
+        )
+        linhas = session.exec(por_tipo_stmt).all()
+
+    por_tipo = {
+        tipo: {"eventos": eventos, "economia_estimada_usd": round(economia, 6)}
+        for tipo, eventos, economia in linhas
+    }
+    total_eventos = sum(v["eventos"] for v in por_tipo.values())
+    total_economia = round(sum(v["economia_estimada_usd"] for v in por_tipo.values()), 6)
+
+    return {
+        "total_decisoes": total_eventos,
+        "economia_potencial_total_usd": total_economia,
+        "por_tipo": por_tipo,
+    }
+
+
+def detectar_anomalias_custo(dias_janela: int = 7, limiar_multiplicador: float = 3.0) -> list:
+    """Compara o custo medio por chamada de cada feature na janela atual
+    contra a janela anterior de mesmo tamanho (Cost Intelligence Fase 5).
+    So considera features com volume minimo (>=5 chamadas) nas duas
+    janelas, para nao alarmar com ruido estatistico de pouca amostra."""
+    agora = datetime.now()
+    inicio_atual = agora - timedelta(days=dias_janela)
+    inicio_anterior = inicio_atual - timedelta(days=dias_janela)
+
+    with Session(engine) as session:
+        stmt_atual = (
+            select(
+                AiUsageEvent.feature,
+                func.count(AiUsageEvent.id),
+                func.coalesce(func.sum(AiUsageEvent.cost_usd), 0.0),
+            )
+            .where(AiUsageEvent.criado_em >= inicio_atual)
+            .group_by(AiUsageEvent.feature)
+        )
+        stmt_anterior = (
+            select(
+                AiUsageEvent.feature,
+                func.count(AiUsageEvent.id),
+                func.coalesce(func.sum(AiUsageEvent.cost_usd), 0.0),
+            )
+            .where(AiUsageEvent.criado_em >= inicio_anterior, AiUsageEvent.criado_em < inicio_atual)
+            .group_by(AiUsageEvent.feature)
+        )
+        dados_atual = {f: (n, c) for f, n, c in session.exec(stmt_atual).all()}
+        dados_anterior = {f: (n, c) for f, n, c in session.exec(stmt_anterior).all()}
+
+    anomalias = []
+    for feature, (n_atual, custo_atual) in dados_atual.items():
+        n_anterior, custo_anterior = dados_anterior.get(feature, (0, 0.0))
+        if n_atual < 5 or n_anterior < 5:
+            continue  # amostra insuficiente pra confiar na comparacao
+
+        media_atual = custo_atual / n_atual
+        media_anterior = custo_anterior / n_anterior
+        if media_anterior <= 0:
+            continue
+
+        if media_atual >= media_anterior * limiar_multiplicador:
+            anomalias.append({
+                "feature": feature,
+                "media_atual_usd": round(media_atual, 6),
+                "media_anterior_usd": round(media_anterior, 6),
+                "multiplicador": round(media_atual / media_anterior, 2),
+                "eventos_janela_atual": n_atual,
+            })
+
+    anomalias.sort(key=lambda a: a["multiplicador"], reverse=True)
+    return anomalias
+
+
+def analise_custo_latencia_qualidade(date_from: Optional[datetime] = None, date_to: Optional[datetime] = None) -> dict:
+    """Custo x latencia por (provider, model) — dados que ja existem em
+    ai_usage_events. Qualidade: so o unico sinal real disponivel hoje
+    (feedback do piloto Conta Claude) — cobertura deliberadamente
+    limitada, nao existe metrica de qualidade universal no sistema."""
+
+    def _filtro(stmt):
+        if date_from is not None:
+            stmt = stmt.where(AiUsageEvent.criado_em >= date_from)
+        if date_to is not None:
+            stmt = stmt.where(AiUsageEvent.criado_em < date_to)
+        return stmt
+
+    with Session(engine) as session:
+        stmt = _filtro(
+            select(
+                AiUsageEvent.provider,
+                AiUsageEvent.model,
+                func.count(AiUsageEvent.id),
+                func.coalesce(func.avg(AiUsageEvent.cost_usd), 0.0),
+                func.coalesce(func.avg(AiUsageEvent.latency_ms), 0.0),
+            )
+            .where(AiUsageEvent.success)
+            .group_by(AiUsageEvent.provider, AiUsageEvent.model)
+        )
+        linhas = session.exec(stmt).all()
+
+    custo_latencia = sorted(
+        (
+            {
+                "provider": provider,
+                "model": model,
+                "eventos": eventos,
+                "custo_medio_usd": round(custo_medio, 6),
+                "latencia_media_ms": round(latencia_media, 1),
+            }
+            for provider, model, eventos, custo_medio, latencia_media in linhas
+        ),
+        key=lambda r: r["custo_medio_usd"], reverse=True,
+    )
+
+    try:
+        qualidade_claude_account = metricas_claude_account().get("avaliacoes", {})
+    except Exception:
+        qualidade_claude_account = {}
+
+    return {
+        "custo_latencia": custo_latencia,
+        "qualidade_claude_account": qualidade_claude_account,
     }
 
 

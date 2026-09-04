@@ -1650,9 +1650,14 @@
             </div>
           </div>
 
-          <div class="card" style="padding:16px 20px">
+          <div class="card" style="margin-bottom:16px;padding:16px 20px">
             <div class="cfg-section-header"><h3 style="margin:0;font-size:.95rem">🧭 Cost Router <span style="font-weight:400;color:var(--muted);font-size:.78rem">(shadow mode — modo observação, nenhuma chamada real foi afetada)</span></h3></div>
             <div id="custos-router-conteudo" style="margin-top:8px"></div>
+          </div>
+
+          <div class="card" style="padding:16px 20px">
+            <div class="cfg-section-header"><h3 style="margin:0;font-size:.95rem">⚡ Otimização <span style="font-weight:400;color:var(--muted);font-size:.78rem">(shadow mode — modo observação, nenhuma chamada real foi afetada)</span></h3></div>
+            <div id="custos-otimizacao-conteudo" style="margin-top:8px"></div>
           </div>
         </div>
 
@@ -5662,15 +5667,19 @@
   }
 
   async function _carregarOrcamentoEMargemCustos(sufixo) {
-    // Orçamento/margem/auditoria/router são complementares — se falharem,
-    // não devem impedir a visualização dos custos já carregados acima.
+    // Orçamento/margem/auditoria/router/otimização são complementares —
+    // se falharem, não devem impedir a visualização dos custos já
+    // carregados acima.
     try {
-      const [rOrc, rProj, rMargem, rAud, rRouter] = await Promise.all([
+      const [rOrc, rProj, rMargem, rAud, rRouter, rOtim, rAnom, rAnalise] = await Promise.all([
         fetchJsonWithFallback('/admin/costs/orcamento', _custosAuthHeaders()),
         fetchJsonWithFallback('/admin/costs/projecao', _custosAuthHeaders()),
         fetchJsonWithFallback('/admin/costs/margem' + sufixo, _custosAuthHeaders()),
         fetchJsonWithFallback('/admin/costs/auditoria?limit=20', _custosAuthHeaders()),
         fetchJsonWithFallback('/admin/costs/router/shadow' + sufixo, _custosAuthHeaders()),
+        fetchJsonWithFallback('/admin/costs/otimizacao/shadow' + sufixo, _custosAuthHeaders()),
+        fetchJsonWithFallback('/admin/costs/anomalias', _custosAuthHeaders()),
+        fetchJsonWithFallback('/admin/costs/analise' + sufixo, _custosAuthHeaders()),
       ]);
       _renderOrcamentoCard(
         rOrc.ok ? await rOrc.json() : null,
@@ -5679,6 +5688,11 @@
       _renderMargemTable(rMargem.ok ? await rMargem.json() : { planos: [] });
       _renderAuditoriaTable(rAud.ok ? await rAud.json() : { eventos: [] });
       _renderRouterShadowCard(rRouter.ok ? await rRouter.json() : null);
+      _renderOtimizacaoShadowCard(
+        rOtim.ok ? await rOtim.json() : null,
+        rAnom.ok ? await rAnom.json() : { anomalias: [] },
+        rAnalise.ok ? await rAnalise.json() : { custo_latencia: [] },
+      );
     } catch (_) {
       // silencioso — cards secundários, sem bloquear o resto da página
     }
@@ -5910,6 +5924,56 @@
       </div>
       <div style="font-size:.8rem;color:var(--muted)">Por modo: ${porModoHTML || '—'}</div>
       <div style="font-size:.8rem;color:var(--muted);margin-top:2px">Por complexidade: ${porComplexidadeHTML || '—'}</div>`;
+  }
+
+  function _renderOtimizacaoShadowCard(otim, anom, analise) {
+    const el = document.getElementById('custos-otimizacao-conteudo');
+    if (!el) return;
+
+    const tipoLabel = { cache_hit: 'Cache de resposta', contexto_truncado: 'Corte de contexto', loop_bloqueado: 'Loop caro por reunião' };
+    let resumoHTML;
+    if (!otim || !otim.total_decisoes) {
+      resumoHTML = '<div style="color:var(--muted);font-size:.88rem">Ainda sem decisões registradas no período.</div>';
+    } else {
+      const linhasTipo = Object.entries(otim.por_tipo || {}).map(([tipo, v]) =>
+        `<div>${escHtml(tipoLabel[tipo] || tipo)}: <strong>${v.eventos}</strong> · economia <strong style="color:#4ade80">${_fmtUsd(v.economia_estimada_usd)}</strong></div>`
+      ).join('');
+      resumoHTML = `
+        <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:10px">
+          <div><div style="font-size:.75rem;color:var(--muted)">Decisões registradas</div><div style="font-weight:700">${otim.total_decisoes}</div></div>
+          <div><div style="font-size:.75rem;color:var(--muted)">Economia potencial total</div><div style="font-weight:700;color:#4ade80">${_fmtUsd(otim.economia_potencial_total_usd)}</div></div>
+        </div>
+        <div style="font-size:.85rem;display:flex;flex-direction:column;gap:2px">${linhasTipo}</div>`;
+    }
+
+    const anomalias = (anom && anom.anomalias) || [];
+    const anomaliasHTML = anomalias.length
+      ? anomalias.map(a => `<div style="color:#f87171;font-size:.85rem">⚠️ ${escHtml(a.feature)}: ${_fmtUsd(a.media_atual_usd)}/chamada (era ${_fmtUsd(a.media_anterior_usd)} — ${a.multiplicador}x)</div>`).join('')
+      : '<div style="color:var(--muted);font-size:.85rem">Nenhuma anomalia detectada (checado a cada ~1h).</div>';
+
+    const custoLatencia = (analise && analise.custo_latencia) || [];
+    const tabelaHTML = custoLatencia.length
+      ? `<div class="cfg-tabela-wrapper" style="margin-top:8px">
+           <table class="cfg-tabela">
+             <thead><tr><th>Provedor</th><th>Modelo</th><th style="text-align:right">Chamadas</th><th style="text-align:right">Custo médio</th><th style="text-align:right">Latência média</th></tr></thead>
+             <tbody>${custoLatencia.map(c => `
+               <tr>
+                 <td>${escHtml(c.provider)}</td>
+                 <td>${escHtml(c.model || '—')}</td>
+                 <td style="text-align:right">${c.eventos}</td>
+                 <td style="text-align:right">${_fmtUsd(c.custo_medio_usd)}</td>
+                 <td style="text-align:right">${c.latencia_media_ms.toFixed(0)} ms</td>
+               </tr>`).join('')}</tbody>
+           </table>
+         </div>`
+      : '<div style="color:var(--muted);font-size:.85rem;margin-top:8px">Sem dados de custo×latência no período.</div>';
+
+    el.innerHTML = `
+      ${resumoHTML}
+      <div style="margin-top:14px;font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Anomalias de custo</div>
+      <div style="margin-top:4px;display:flex;flex-direction:column;gap:2px">${anomaliasHTML}</div>
+      <div style="margin-top:14px;font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Custo × Latência por provedor/modelo</div>
+      ${tabelaHTML}`;
   }
 
   async function carregarOrcamentoConfig() {

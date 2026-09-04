@@ -612,6 +612,22 @@ def chamar_ia(
             except Exception:
                 pass  # Cost Router e shadow-mode (Fase 4) — nunca pode afetar a chamada real
 
+            try:
+                from api.otimizacao_shadow import avaliar_otimizacoes_shadow
+                avaliar_otimizacoes_shadow(
+                    feature=feature,
+                    provider=provider.name,
+                    model=model,
+                    system_prompt=system_prompt,
+                    user_content=user_content,
+                    usage=provider_usage,
+                    usage_source=custo.usage_source,
+                    custo_real_usd=custo.cost_usd,
+                    meeting_id=meeting_id,
+                )
+            except Exception:
+                pass  # Otimizacao e shadow-mode (Fase 5) — nunca pode afetar a chamada real
+
             return result
 
         except Exception as error:
