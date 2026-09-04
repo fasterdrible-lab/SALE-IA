@@ -79,15 +79,15 @@ A extensão Chrome pode opcionalmente logar (`/auth/login`, mesmo endpoint do Da
 
 Toda chamada da extensão ao backend (`fetchBackend`, `/audio-transcricao`, heartbeat de `/health`) envia `X-Extensao-Versao: <manifest.version>`. `api/main.py::_CorrelationMiddleware` lê esse header em qualquer rota (não só `/tempo-real`) e expõe via `_ext_ver_var` (`ContextVar`, mesmo padrão do `cid` de correlação) — todo log JSON estruturado (`_JsonFormatter`) ganha o campo `ext_ver`. Durante um incidente, `journalctl -u saleia | grep ext_ver` mostra imediatamente se a extensão do vendedor está desatualizada, sem precisar perguntar a ele.
 
-## Cost Intelligence (Fases 1-6, V.1.4.51-1.4.59 — roadmap completo)
+## Cost Intelligence (Fases 1-6, V.1.4.51-1.4.60 — roadmap completo)
 
 Sistema de custo de IA de ponta a ponta: captura → visibilidade →
-controle financeiro → roteamento observacional → otimização
-observacional → polimento final. Roadmap original de 60 tarefas (nunca
-salvo em arquivo — só o resumo por fase em `~/.claude/plans/misty-
-yawning-unicorn.md`, que já foi todo implementado). Auditoria inicial
-read-only em `docs/cost-intelligence-audit.md` (Fase 1, hoje só valor
-histórico — o estado real está neste documento).
+controle financeiro → roteamento observacional → otimização (ativa) →
+polimento final. Roadmap original de 60 tarefas (nunca salvo em arquivo
+— só o resumo por fase em `~/.claude/plans/misty-yawning-unicorn.md`,
+que já foi todo implementado). Auditoria inicial read-only em
+`docs/cost-intelligence-audit.md` (Fase 1, hoje só valor histórico — o
+estado real está neste documento).
 
 **Onde cada fase mora:**
 
@@ -97,7 +97,7 @@ histórico — o estado real está neste documento).
 | 2 — Agregações | Dashboard de custos | `api/database.py::custos_resumo`/`custos_por_usuario`/`custos_reunioes_mais_caras`, endpoints `GET /admin/costs/*` |
 | 3 — Budget Guard | Orçamento, FX, margem, auditoria | `api/fx_rates.py`, `api/database.py::OrcamentoIA`/`PlanoPreco`/`AuditoriaFinanceira`, `agent/alertas.py::verificar_orcamento` |
 | 4 — Cost Router | Recomendação de modelo (**shadow**) | `api/cost_router.py`, `api/database.py::RouterDecisao` |
-| 5 — Otimização | Cache/contexto/loop (**shadow**) | `api/otimizacao_shadow.py`, `api/database.py::OtimizacaoDecisao`, `detectar_anomalias_custo` |
+| 5 — Otimização | Cache/contexto/loop (**ATIVA desde V.1.4.60**) | `api/otimizacao.py`, `api/database.py::OtimizacaoDecisao`, `detectar_anomalias_custo` |
 | 6 — Observabilidade | Polimento final | `GET /admin/costs/metricas`, logger `saleia.financeiro` |
 
 Tudo isso vive atrás de `/admin/costs/*` (`_req_admin`) e na aba
@@ -132,28 +132,57 @@ Configurações pra editar limite/preços de plano.
 - Toda mudança de orçamento/preço grava em `AuditoriaFinanceira` E loga
   em `saleia.financeiro` (ver Fase 6).
 
-### Cost Router e Otimização — **shadow mode, nunca ativos de verdade** (Fases 4-5)
-**Decisão confirmada com o usuário**: nenhum destes muda o modelo/
-comportamento real de uma chamada de IA. Cada um calcula o que faria e
-grava a comparação; ativar de fato é decisão futura separada, ainda não
-tomada.
+### Cost Router — **shadow mode, nunca ativo de verdade** (Fase 4)
+**Decisão confirmada com o usuário**: não muda o modelo/comportamento
+real de uma chamada de IA. Calcula o que faria e grava a comparação;
+ativar de fato é decisão futura separada, ainda não tomada.
 - `api/cost_router.py::avaliar_shadow` — recomenda modelo por
   complexidade da tarefa (`classificar_complexidade`) × modo `normal`/
   `economy`/`critical` (derivado do % de orçamento gasto). `COST_
   ROUTER_SHADOW_ENABLED` (default `true`) só liga/desliga o *registro*
   da comparação, nunca o roteamento real.
-- `api/otimizacao_shadow.py::avaliar_otimizacoes_shadow` — 3 sub-
-  otimizações: cache de resposta (`OrderedDict` em memória, TTL 10min),
-  corte de contexto (`OTIMIZACAO_CONTEXTO_MAX_CHARS`, default 20000 —
-  só *loga*, nunca corta), bloqueio de loop caro por reunião
-  (`OTIMIZACAO_LOOP_MAX_CUSTO_USD`, **sem default — desligado até
-  configurar**).
-- Ambos os hooks estão em `chamar_ia`, dentro de `try/except Exception:
-  pass` — uma falha em qualquer um dos dois é invisível pra chamada de
-  IA real.
+- Hook em `chamar_ia`, dentro de `try/except Exception: pass` — uma
+  falha aqui é invisível pra chamada de IA real.
+
+### Otimização — **ATIVA em produção desde V.1.4.60** (Fase 5)
+**Decisão confirmada explicitamente pelo usuário em 04/09/2026**, depois
+de rodar em shadow mode desde V.1.4.58 (mesmo sem nenhuma decisão
+registrada no shadow ainda — o usuário pediu a ativação mesmo assim).
+Diferente de todo o resto do Cost Intelligence, **este módulo muda o
+resultado real de chamadas de IA**:
+- `api/otimizacao.py::buscar_no_cache`/`guardar_no_cache` — cache de
+  resposta (`OrderedDict` em memória, chave sha256 de `feature+prompt+
+  conteúdo`, TTL 10min, LRU 500 entradas). Hit → `chamar_ia` devolve o
+  resultado cacheado (`_cache_hit_ia: true`) **sem chamar nenhum
+  provedor**.
+- `api/otimizacao.py::aplicar_corte_contexto` — corta só `user_content`
+  (nunca `system_prompt` — cortar instruções quebraria formato de
+  saída), tail-slice até `OTIMIZACAO_CONTEXTO_MAX_CHARS` (default
+  20000).
+- `api/otimizacao.py::verificar_loop_caro` — levanta `HTTPException(429)`
+  (**nunca 503** — `agent/multiagente/claude_fallback.py` só aciona o
+  fallback pra Conta Claude pessoal em 503 especificamente; 429 bloqueia
+  de verdade sem drenar a assinatura pessoal do vendedor) quando
+  `OTIMIZACAO_LOOP_MAX_CUSTO_USD` (**sem default — desligado até
+  configurar**) e o custo acumulado da reunião já passou do limite.
+- **Kill-switch por mecanismo**: `OTIMIZACAO_{CACHE,CONTEXTO,LOOP}_ATIVO`
+  (env, default `true` cada) — qualquer um vira `false` no `.env` da VPS
+  + `systemctl restart saleia` pra desligar sem reverter deploy.
+  `GET /admin/costs/otimizacao` expõe o estado atual dos 3.
+- Todos os hooks em `chamar_ia` isolam falhas *inesperadas* em
+  `try/except Exception: pass` (nunca podem quebrar uma chamada real) —
+  **exceto** o `HTTPException(429)` de `verificar_loop_caro`, que é o
+  próprio mecanismo funcionando e precisa propagar.
+- **Achado durante a ativação**: `chamar_ia.resetar_estado_ia_para_
+  testes()` precisou passar a limpar o cache de `api/otimizacao.py`
+  também — sem isso, testes que reusam `system_prompt`/`user_content`
+  genéricos (comum em `tests/test_ai_router.py`) vazavam resultado
+  cacheado de um teste pro outro, já que o cache agora é real e ativo
+  por padrão.
 - `detectar_anomalias_custo` (Fase 5) compara custo médio por `feature`
   entre janelas de 7 dias; `agent/alertas.py::verificar_anomalia` avisa
-  no Telegram (cooldown 1h por feature).
+  no Telegram (cooldown 1h por feature) — isso continua puramente
+  analítico, não muda comportamento.
 
 ### Observabilidade final (Fase 6)
 - `GET /admin/costs/metricas` — contrato único consolidando resumo/
@@ -172,11 +201,17 @@ tomada.
   costs/orcamento` (`pct_usado`) ou `GET /admin/costs/anomalias`; o
   `journalctl | grep saleia.financeiro` tem o mesmo dado sem precisar de
   login.
-- **Ver o que o Cost Router/Otimização *teriam* feito** antes de decidir
-  ativar algo de verdade: `GET /admin/costs/router/shadow` e `GET
-  /admin/costs/otimizacao/shadow` (ou o card correspondente na aba
-  Custos) — `economia_potencial_usd` é a estimativa, nunca dinheiro
-  realmente economizado ainda.
+- **Ver o que o Cost Router *teria* feito** (ainda shadow, Fase 4) antes
+  de decidir ativar de verdade: `GET /admin/costs/router/shadow` (ou o
+  card correspondente na aba Custos) — `economia_potencial_usd` ali é
+  estimativa, nunca dinheiro realmente economizado.
+- **Ver o que a Otimização *já fez* de verdade** (Fase 5, ativa): `GET
+  /admin/costs/otimizacao` — `ativo` mostra os 3 kill-switches,
+  `economia_potencial_total_usd` é economia real (cache/loop) ou
+  estimada com precisão (corte de contexto, via `cost_engine`).
+- **Desligar uma otimização da Fase 5 em emergência**: `OTIMIZACAO_
+  CACHE_ATIVO=false` (ou `_CONTEXTO_`/`_LOOP_`) no `.env` da VPS +
+  `systemctl restart saleia` — não precisa reverter o deploy.
 
 ## Biblioteca de Inteligência / Knowledge Compiler (Fase 1, V.1.4.52)
 

@@ -3,6 +3,121 @@
 
 ---
 
+## V.1.4.60 — Cost Intelligence Fase 5: Otimização sai do Shadow Mode (ATIVA em produção)
+> Data: 04/09/2026 | Feature (muda comportamento real de chamadas de IA)
+
+### VISÃO
+A Fase 5 (V.1.4.58) construiu 3 otimizações em shadow mode — cache de
+resposta, corte de contexto, bloqueio de loop caro por reunião — que só
+calculavam e registravam o que fariam. **O usuário confirmou
+explicitamente, duas vezes** (pedindo "fase 5 finalizar" e depois
+escolhendo "Cache + corte de contexto + loop caro (as 3)" quando
+perguntado): quer as 3 ativadas de verdade agora, mesmo os dados de
+shadow mode coletados até então mostrando **0 decisões registradas**
+(sem evidência de economia real observada ainda).
+
+Isso é uma mudança de comportamento real num sistema de produção em uso
+— diferente de todo o resto do roadmap de Cost Intelligence até aqui. O
+Cost Router (Fase 4) **continua em shadow mode**, intocado — este
+trabalho só ativou a Fase 5.
+
+### DECISÃO DE DESIGN — 429, não 503, no bloqueio de loop caro
+`agent/multiagente/claude_fallback.py` intercepta especificamente
+`HTTPException` com `status_code == 503` pra acionar o fallback pra
+Conta Claude pessoal do vendedor. Se o bloqueio de loop caro também
+usasse 503, um loop caro bloqueado no orçamento central imediatamente
+gastaria dinheiro da assinatura pessoal do vendedor — o oposto da
+intenção. Por isso `verificar_loop_caro` usa **429** (confirmado contra
+o código real antes de implementar, não só por memória).
+
+### RENOMEAÇÃO DELIBERADA
+`api/otimizacao_shadow.py` → **`api/otimizacao.py`**; endpoint `GET
+/admin/costs/otimizacao/shadow` → **`GET /admin/costs/otimizacao`**. Um
+arquivo/endpoint chamado "shadow" que na prática bloqueia/corta/serve
+cache pra chamadas reais de produção é uma armadilha pra qualquer sessão
+futura. A tabela `OtimizacaoDecisao`/`registrar_decisao_otimizacao` no
+banco não mudaram — já registravam o formato certo, só que hipotético;
+agora registram fatos.
+
+### BACKEND — `api/otimizacao.py` (reescrito)
+- `cache_ativo()`/`contexto_ativo()`/`loop_ativo()` — cada um lê
+  `OTIMIZACAO_{CACHE,CONTEXTO,LOOP}_ATIVO` (env, default `true`) — o
+  kill-switch de emergência, desligável via `.env` + restart sem
+  reverter deploy.
+- `buscar_no_cache`/`guardar_no_cache` — agora guardam o **resultado
+  completo** (não só o custo), pra poder servir de verdade.
+- `aplicar_corte_contexto` — só corta `user_content` (nunca `system_
+  prompt`, que carrega instruções — cortar isso arriscaria quebrar
+  formato de saída/regras), tail-slice até `OTIMIZACAO_CONTEXTO_
+  MAX_CHARS` (default 20000, descontando o tamanho do `system_prompt`).
+- `verificar_loop_caro` — levanta `HTTPException(429)` quando `loop_
+  ativo()` + `OTIMIZACAO_LOOP_MAX_CUSTO_USD` configurado (sem default —
+  desligado até o admin configurar, nenhum valor inventado) + custo
+  acumulado da reunião (cache 60s, reaproveita `custo_por_reuniao` da
+  Fase 1) já no limite.
+
+### BACKEND — `api/ai_router.py::chamar_ia`
+Reordenado: `verificar_loop_caro` primeiro (propaga `HTTPException` de
+verdade — é o próprio bloqueio funcionando); depois `buscar_no_cache`
+(hit → retorna sem tocar em nenhum provedor, registra evento com
+`cost_usd=0.0`); depois `aplicar_corte_contexto` (antes do loop de
+provedores, vale pra qualquer um tentado). Todo o resto do loop de
+fallback/circuit breaker **inalterado**. No sucesso: `guardar_no_cache`
++ `registrar_corte_contexto` (quando aplicável) no lugar do antigo hook
+shadow. O hook do Cost Router (Fase 4) continua intocado.
+
+### ACHADO DURANTE OS TESTES — cache real vazava entre testes
+`api/ai_router.py::resetar_estado_ia_para_testes()` só limpava o circuit
+breaker — sem limpar o cache novo de `api/otimizacao.py`, testes que
+reusam `system_prompt="system"`/`user_content="user"` (comum em
+`tests/test_ai_router.py`, escrito antes da Fase 5 existir) vazavam
+resultado cacheado de um teste pro outro, fazendo `_provedor_ia`/
+`_usage_source_ia` de testes não relacionados virarem aleatórios.
+Corrigido estendendo `resetar_estado_ia_para_testes()` pra também limpar
+`api.otimizacao._cache_respostas`/`_custo_reuniao_cache`.
+
+### BACKEND — `api/main.py`
+`GET /admin/costs/otimizacao` (renomeado) ganha bloco `ativo: {cache,
+contexto, loop}` + `loop_limite_usd`. `GET /admin/costs/metricas` (Fase
+6) atualizado pra chave `otimizacao` (era `otimizacao_shadow`).
+
+### FRONTEND — `frontend/dashboard.html`
+Card "⚡ Otimização": rótulo passa de "shadow mode — modo observação"
+pra "ativa em produção — desligável por .env sem novo deploy", com 3
+badges (Cache/Contexto/Loop caro — ✅/⛔) lidos do bloco `ativo`.
+
+### TESTES — reescrita significativa
+`tests/test_otimizacao_shadow.py` → **`tests/test_otimizacao.py`** (20
+testes, comportamento real: cache hit não chama `provider.caller`, corte
+mantém só o fim do `user_content`, 429 antes de qualquer provedor, cada
+`*_ativo()` em `false` vira no-op). `tests/test_ai_router.py` reescrito
+(9 testes cobrindo cache/contexto/loop, incl. o fix de isolamento
+acima). `tests/test_multiagente_claude_fallback.py` ganha 1 teste
+confirmando que 429 não aciona o fallback Conta Claude — trava a decisão
+de design mais importante deste trabalho. `tests/test_admin_costs_
+otimizacao_endpoints.py` atualizado pro endpoint renomeado + bloco
+`ativo`. `python -m unittest discover tests`: 356 testes, 8 falhas — as
+mesmas pré-existentes e não relacionadas de sempre.
+
+### DOCUMENTAÇÃO — `CLAUDE.md`
+Fase 5 sai da entrada conjunta "Cost Router e Otimização — shadow mode"
+e vira sua própria seção "ATIVA em produção desde V.1.4.60", com os 3
+kill-switches documentados e o achado do cache vazando em teste.
+
+### VERSÃO
+- Backend: `1.4.59` → `1.4.60` (`/health`, `/monitor/metricas`).
+
+### ARQUIVOS ALTERADOS
+- Novos: `api/otimizacao.py`, `tests/test_otimizacao.py`
+- Removidos: `api/otimizacao_shadow.py`, `tests/test_otimizacao_shadow.py`
+- `api/ai_router.py` (reordenação de `chamar_ia` + fix de `resetar_
+  estado_ia_para_testes`), `api/main.py` (endpoint renomeado + versão),
+  `frontend/dashboard.html` (card), `tests/test_ai_router.py`,
+  `tests/test_multiagente_claude_fallback.py`, `tests/test_admin_costs_
+  otimizacao_endpoints.py`, `CLAUDE.md`
+
+---
+
 ## V.1.4.59 — Cost Intelligence Fase 6: Observabilidade Final (fecha o roadmap de 6 fases)
 > Data: 04/09/2026 | Feature (observabilidade) + documentação
 

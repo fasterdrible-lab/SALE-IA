@@ -56,6 +56,27 @@ class ChamarIaComFallbackClaudeTest(unittest.TestCase):
         mock_flag.assert_not_called()
         self.assertEqual(ctx.exception.status_code, 400)
 
+    def test_429_de_loop_caro_bloqueado_relanca_sem_tentar_fallback(self):
+        """Decisao de design da Fase 5 (Cost Intelligence, api/otimizacao.py::
+        verificar_loop_caro): o bloqueio de loop caro por reuniao usa 429,
+        nao 503, exatamente para NAO acionar o fallback pra Conta Claude
+        pessoal do vendedor — um loop caro bloqueado no orcamento central
+        nao pode virar gasto na assinatura pessoal, isso derrotaria o
+        proposito do bloqueio."""
+        with patch(
+            "agent.multiagente.claude_fallback.chamar_ia_async",
+            new=AsyncMock(side_effect=HTTPException(
+                status_code=429,
+                detail={"erro": "Limite de custo de IA desta reuniao foi atingido."},
+            )),
+        ):
+            with patch("agent.claude_account.claude_pilot_habilitado") as mock_flag:
+                with self.assertRaises(HTTPException) as ctx:
+                    self._run(usuario_id="user-a")
+
+        mock_flag.assert_not_called()
+        self.assertEqual(ctx.exception.status_code, 429)
+
     def test_503_com_usuario_id_mas_flag_desligada_relanca(self):
         with patch(
             "agent.multiagente.claude_fallback.chamar_ia_async",

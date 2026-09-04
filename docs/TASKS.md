@@ -464,6 +464,21 @@ EMAIL_FROM=noreply@saleia.com.br
 - [x] Commitado localmente e enviado ao GitHub.
 - **Pendente**: deploy na VPS (`git pull` + `systemctl restart saleia` — checar `reunioes_ativas: 0` antes; aditivo, zero tabela nova). **Roadmap de Cost Intelligence (60 tarefas, 6 fases) concluido** — decisao em aberto e separada: ativar de fato o Cost Router (Fase 4) e/ou Otimizacao (Fase 5), hoje so shadow mode.
 
+## Concluido (V.1.4.60 — Cost Intelligence Fase 5 sai do Shadow Mode — ATIVA em producao)
+
+- [x] Usuario confirmou explicitamente (duas vezes): ativar de verdade as 3 otimizacoes da Fase 5 (cache, corte de contexto, loop caro), mesmo com 0 decisoes shadow registradas ate entao.
+- [x] Decisao de design confirmada contra o codigo real: bloqueio de loop caro usa HTTP 429 (nao 503) pra nao acionar o fallback Conta Claude pessoal.
+- [x] `api/otimizacao_shadow.py` renomeado pra `api/otimizacao.py` (deliberado — nome antigo virava armadilha, ja que o modulo age de verdade agora); endpoint `/admin/costs/otimizacao/shadow` -> `/admin/costs/otimizacao`.
+- [x] `api/otimizacao.py`: cache guarda resultado completo (nao so custo), corte so em user_content (nunca system_prompt), loop caro com kill-switch `OTIMIZACAO_LOOP_ATIVO`.
+- [x] `api/ai_router.py::chamar_ia` reordenado: loop caro -> cache -> corte de contexto -> loop de provedores normal.
+- [x] Achado durante os testes: cache real vazava entre testes que reusavam prompts genericos — corrigido estendendo `resetar_estado_ia_para_testes()`.
+- [x] `GET /admin/costs/otimizacao` ganha bloco `ativo` (cache/contexto/loop) + `loop_limite_usd`.
+- [x] Dashboard: card com 3 badges de status (✅/⛔).
+- [x] Testes reescritos: `test_otimizacao.py` (20), `test_ai_router.py` (9 novos/reescritos), `test_multiagente_claude_fallback.py` (+1, trava a decisao do 429), `test_admin_costs_otimizacao_endpoints.py` atualizado. Suite completa: 356 testes, 8 falhas pre-existentes e nao relacionadas, sem regressao.
+- [x] `CLAUDE.md`: Fase 5 vira secao propria "ATIVA em producao", Fase 4 continua "shadow mode" separada.
+- [x] Commitado localmente e enviado ao GitHub.
+- **Pendente**: deploy na VPS (`git pull` + `systemctl restart saleia` — checar `reunioes_ativas: 0` antes; muda comportamento real, rollback rapido via `OTIMIZACAO_*_ATIVO=false` no `.env` se necessario, sem reverter deploy).
+
 ## Pendente
 
 - [ ] Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI).

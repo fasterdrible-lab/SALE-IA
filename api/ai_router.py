@@ -507,16 +507,61 @@ def chamar_ia(
     Calls the configured AI providers in order until one returns valid JSON.
 
     Raises HTTP 503 only after every configured and available provider fails.
+    Raises HTTP 429 (Cost Intelligence Fase 5, api/otimizacao.py) if
+    OTIMIZACAO_LOOP_MAX_CUSTO_USD estiver configurado e a reuniao ja
+    passou do limite — deliberadamente NAO e 503, pra nao acionar o
+    fallback pra Conta Claude pessoal em agent/multiagente/claude_fallback.py.
 
-    `feature`/`meeting_id`/`usuario_id` sao usados so para atribuicao de
-    custo (Cost Intelligence Fase 1, ver api/database.py::ai_usage_events) —
-    nao afetam a logica de roteamento/fallback.
+    `feature`/`meeting_id`/`usuario_id` sao usados pra atribuicao de custo
+    (Cost Intelligence Fase 1) e pelas otimizacoes ativas da Fase 5 (cache
+    de resposta, corte de contexto, bloqueio de loop caro por reuniao) —
+    nao afetam a ordem/escolha de provedor nem o circuit breaker.
     """
     attempts: list[dict] = []
     system_prompt = f"{system_prompt or ''}{FORBIDDEN_TRIGGER_RULE}"
 
     with _counters_lock:
         _counters["chamadas_total"] += 1
+
+    try:
+        from api.otimizacao import verificar_loop_caro
+        verificar_loop_caro(meeting_id, feature, system_prompt)  # levanta HTTPException(429) se bloqueado — propaga de verdade
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning("Erro ao verificar loop caro (ignorado, chamada segue normal): %s", exc)
+
+    try:
+        from api.otimizacao import buscar_no_cache
+        cache_hit = buscar_no_cache(feature, system_prompt, user_content)
+    except Exception:
+        cache_hit = None
+    if cache_hit is not None:
+        resultado_cache = dict(cache_hit)
+        custo_evitado = resultado_cache.get("_custo_estimado_ia", 0.0) or 0.0
+        resultado_cache["_cache_hit_ia"] = True
+        _registrar_evento_uso_ia_melhor_esforco(
+            feature=feature,
+            provider=resultado_cache.get("_provedor_ia", "cache"),
+            model=resultado_cache.get("_modelo_ia"),
+            input_tokens=0, output_tokens=0, usage_source="cache",
+            cost_usd=0.0, success=True,
+            meeting_id=meeting_id, usuario_id=usuario_id,
+        )
+        try:
+            from api.otimizacao import registrar_cache_hit
+            registrar_cache_hit(feature=feature, meeting_id=meeting_id, system_prompt=system_prompt, custo_evitado_usd=custo_evitado)
+        except Exception:
+            pass
+        return resultado_cache
+
+    try:
+        from api.otimizacao import aplicar_corte_contexto
+        tamanho_original = len(user_content or "")
+        system_prompt, user_content, contexto_cortado = aplicar_corte_contexto(system_prompt, user_content)
+        chars_cortados = tamanho_original - len(user_content) if contexto_cortado else 0
+    except Exception:
+        contexto_cortado, chars_cortados = False, 0
 
     for provider in _provider_order():
         breaker = _breakers[provider.name]
@@ -583,6 +628,8 @@ def chamar_ia(
             result.setdefault("_tokens_saida_ia", custo.output_tokens)
             result.setdefault("_tokens_cache_entrada_ia", custo.cached_input_tokens)
             result.setdefault("_usage_source_ia", custo.usage_source)
+            if contexto_cortado:
+                result["_contexto_truncado_ia"] = True
 
             _registrar_evento_uso_ia_melhor_esforco(
                 feature=feature,
@@ -613,20 +660,20 @@ def chamar_ia(
                 pass  # Cost Router e shadow-mode (Fase 4) — nunca pode afetar a chamada real
 
             try:
-                from api.otimizacao_shadow import avaliar_otimizacoes_shadow
-                avaliar_otimizacoes_shadow(
-                    feature=feature,
-                    provider=provider.name,
-                    model=model,
-                    system_prompt=system_prompt,
-                    user_content=user_content,
-                    usage=provider_usage,
-                    usage_source=custo.usage_source,
-                    custo_real_usd=custo.cost_usd,
-                    meeting_id=meeting_id,
-                )
+                from api.otimizacao import guardar_no_cache
+                guardar_no_cache(feature, system_prompt, user_content, result)
             except Exception:
-                pass  # Otimizacao e shadow-mode (Fase 5) — nunca pode afetar a chamada real
+                pass  # Otimizacao (Fase 5) — falha ao cachear nunca pode afetar a chamada real
+
+            if contexto_cortado:
+                try:
+                    from api.otimizacao import registrar_corte_contexto
+                    registrar_corte_contexto(
+                        feature=feature, meeting_id=meeting_id, provider=provider.name, model=model,
+                        system_prompt=system_prompt, custo_usd=custo.cost_usd, chars_cortados=chars_cortados,
+                    )
+                except Exception:
+                    pass
 
             return result
 
@@ -751,6 +798,17 @@ def status_provedores() -> dict:
 
 
 def resetar_estado_ia_para_testes() -> None:
-    """Clears in-memory circuit breaker state for unit tests."""
+    """Clears in-memory circuit breaker state for unit tests.
+
+    Tambem limpa o cache de resposta e o cache de custo-por-reuniao de
+    api/otimizacao.py (Fase 5, ativa desde V.1.4.60) — sem isso, testes
+    que reusam os mesmos system_prompt/user_content (comum neste
+    arquivo) vazam resultado cacheado de um teste pro outro."""
     for breaker in _breakers.values():
         breaker.register_success()
+    try:
+        from api.otimizacao import _cache_respostas, _custo_reuniao_cache
+        _cache_respostas.clear()
+        _custo_reuniao_cache.clear()
+    except Exception:
+        pass

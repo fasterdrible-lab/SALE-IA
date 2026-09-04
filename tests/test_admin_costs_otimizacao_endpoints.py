@@ -1,6 +1,6 @@
 """
-Testes — GET /admin/costs/otimizacao/shadow|anomalias|analise (Cost
-Intelligence Fase 5, Otimização em shadow mode).
+Testes — GET /admin/costs/otimizacao|anomalias|analise (Cost
+Intelligence Fase 5 — ATIVA em produção desde V.1.4.60).
 
 Mesmo padrao das fases anteriores: engine SQLModel trocado por SQLite em
 memoria (StaticPool + check_same_thread=False) e
@@ -93,12 +93,12 @@ class AdminCostsOtimizacaoEndpointsSuite(unittest.TestCase):
 
     # ── Autenticacao ──
 
-    def test_shadow_sem_token_401(self):
-        r = self.client.get("/admin/costs/otimizacao/shadow")
+    def test_otimizacao_sem_token_401(self):
+        r = self.client.get("/admin/costs/otimizacao")
         self.assertEqual(r.status_code, 401)
 
-    def test_shadow_nao_admin_403(self):
-        r = self.client.get("/admin/costs/otimizacao/shadow", headers=self.vendedor_headers)
+    def test_otimizacao_nao_admin_403(self):
+        r = self.client.get("/admin/costs/otimizacao", headers=self.vendedor_headers)
         self.assertEqual(r.status_code, 403)
 
     def test_anomalias_sem_token_401(self):
@@ -109,10 +109,10 @@ class AdminCostsOtimizacaoEndpointsSuite(unittest.TestCase):
         r = self.client.get("/admin/costs/analise")
         self.assertEqual(r.status_code, 401)
 
-    # ── /admin/costs/otimizacao/shadow ──
+    # ── /admin/costs/otimizacao ──
 
-    def test_shadow_200_formato_e_agregados(self):
-        r = self.client.get("/admin/costs/otimizacao/shadow", headers=self.admin_headers)
+    def test_otimizacao_200_formato_e_agregados(self):
+        r = self.client.get("/admin/costs/otimizacao", headers=self.admin_headers)
         self.assertEqual(r.status_code, 200)
         d = r.json()
         self.assertEqual(d["total_decisoes"], 2)
@@ -120,6 +120,17 @@ class AdminCostsOtimizacaoEndpointsSuite(unittest.TestCase):
         self.assertIn("cache_hit", d["por_tipo"])
         self.assertIn("contexto_truncado", d["por_tipo"])
         self.assertEqual(d["por_tipo"]["cache_hit"]["eventos"], 1)
+
+    def test_otimizacao_expoe_flags_ativo_por_padrao_true(self):
+        r = self.client.get("/admin/costs/otimizacao", headers=self.admin_headers)
+        d = r.json()
+        self.assertEqual(d["ativo"], {"cache": True, "contexto": True, "loop": True})
+        self.assertIsNone(d["loop_limite_usd"])  # ninguem configurou limite ainda
+
+    def test_otimizacao_respeita_kill_switch_via_env(self):
+        with patch.dict("os.environ", {"OTIMIZACAO_CACHE_ATIVO": "false"}):
+            r = self.client.get("/admin/costs/otimizacao", headers=self.admin_headers)
+        self.assertFalse(r.json()["ativo"]["cache"])
 
     # ── /admin/costs/anomalias ──
 
@@ -149,10 +160,11 @@ class AdminCostsOtimizacaoEndpointsSuite(unittest.TestCase):
         r = self.client.get("/admin/costs/metricas", headers=self.admin_headers)
         self.assertEqual(r.status_code, 200)
         d = r.json()
-        for chave in ("periodo", "resumo", "router_shadow", "otimizacao_shadow", "anomalias"):
+        for chave in ("periodo", "resumo", "router_shadow", "otimizacao", "anomalias"):
             self.assertIn(chave, d)
         self.assertEqual(d["resumo"]["total_eventos"], 1)
-        self.assertEqual(d["otimizacao_shadow"]["total_decisoes"], 2)
+        self.assertEqual(d["otimizacao"]["total_decisoes"], 2)
+        self.assertIn("ativo", d["otimizacao"])
 
 
 if __name__ == "__main__":

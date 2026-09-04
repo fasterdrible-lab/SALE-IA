@@ -574,7 +574,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.59",
+        "versao":              "1.4.60",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -612,7 +612,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.59",
+        "versao":          "1.4.60",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -3603,21 +3603,26 @@ def admin_costs_router_config(authorization: str | None = _Header(default=None))
     return _cost_router_config()
 
 
-# ── Otimização — Shadow Mode (Fase 5) ──
-# Somente leitura/observação: cache de resposta, corte de contexto e
-# bloqueio de loop caro nunca agem de verdade nesta fase (ver
-# api/otimizacao_shadow.py). Detecção de anomalia e análise custo x
-# latência/qualidade são puramente analíticas.
+# ── Otimização (Fase 5) ──
+# ATIVA EM PRODUÇÃO desde V.1.4.60 (confirmado com o usuário em
+# 04/09/2026) — cache de resposta, corte de contexto e bloqueio de loop
+# caro mudam de verdade o resultado de chamadas de IA (ver
+# api/otimizacao.py e o hook em api/ai_router.py::chamar_ia). Cada
+# mecanismo tem seu kill-switch (OTIMIZACAO_{CACHE,CONTEXTO,LOOP}_ATIVO,
+# default true) — desligável via .env + restart, sem reverter deploy.
+# Detecção de anomalia e análise custo x latência/qualidade continuam
+# puramente analíticas.
 
 from api.database import (
     analise_custo_latencia_qualidade,
     detectar_anomalias_custo,
     resumo_otimizacao_shadow,
 )
+from api.otimizacao import cache_ativo, contexto_ativo, loop_ativo, loop_max_custo_usd
 
 
-@app.get("/admin/costs/otimizacao/shadow")
-def admin_costs_otimizacao_shadow(
+@app.get("/admin/costs/otimizacao")
+def admin_costs_otimizacao(
     date_from: str | None = None,
     date_to: str | None = None,
     authorization: str | None = _Header(default=None),
@@ -3625,7 +3630,12 @@ def admin_costs_otimizacao_shadow(
     _req_admin(authorization)
     de = _parse_data_custos(date_from, "date_from")
     ate = _parse_data_custos(date_to, "date_to", fim_do_dia=True)
-    return {"periodo": {"de": date_from, "ate": date_to}, **resumo_otimizacao_shadow(de, ate)}
+    return {
+        "periodo": {"de": date_from, "ate": date_to},
+        "ativo": {"cache": cache_ativo(), "contexto": contexto_ativo(), "loop": loop_ativo()},
+        "loop_limite_usd": loop_max_custo_usd(),
+        **resumo_otimizacao_shadow(de, ate),
+    }
 
 
 @app.get("/admin/costs/anomalias")
@@ -3666,7 +3676,10 @@ def admin_costs_metricas(
         "periodo": {"de": date_from, "ate": date_to},
         "resumo": custos_resumo(de, ate),
         "router_shadow": resumo_router_shadow(de, ate),
-        "otimizacao_shadow": resumo_otimizacao_shadow(de, ate),
+        "otimizacao": {
+            "ativo": {"cache": cache_ativo(), "contexto": contexto_ativo(), "loop": loop_ativo()},
+            **resumo_otimizacao_shadow(de, ate),
+        },
         "anomalias": detectar_anomalias_custo(),
     }
 

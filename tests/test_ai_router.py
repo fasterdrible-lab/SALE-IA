@@ -2,7 +2,7 @@ import os
 import tempfile
 from pathlib import Path
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 from fastapi import HTTPException
 
@@ -459,9 +459,12 @@ class CostRouterShadowHookTest(unittest.TestCase):
         self.assertEqual(set(result.keys()) & {"_router_recomendado", "_router_modo"}, set())
 
 
-class OtimizacaoShadowHookTest(unittest.TestCase):
-    """Otimizacao (Fase 5, shadow mode): o hook em chamar_ia nunca pode
-    afetar o resultado real de uma chamada de IA."""
+class OtimizacaoAtivaTest(unittest.TestCase):
+    """Otimizacao (Fase 5) — ATIVA em producao desde V.1.4.60: cache de
+    resposta, corte de contexto e bloqueio de loop caro mudam de verdade
+    o resultado de chamar_ia. Mesmo assim, qualquer falha inesperada
+    dentro de api/otimizacao.py (exceto o bloqueio proposital de loop
+    caro) nunca pode quebrar uma chamada de IA legitima."""
 
     def setUp(self):
         self._tmpdir = tempfile.TemporaryDirectory()
@@ -475,37 +478,114 @@ class OtimizacaoShadowHookTest(unittest.TestCase):
             default_model=f"{name}-model", caller=caller,
         )
 
-    def test_falha_no_hook_de_otimizacao_nao_quebra_chamar_ia(self):
-        def openai_caller(*args):
-            return {"ok": True}, None
-
-        providers = {"openai": self._provider("openai", "OPENAI_API_KEY", openai_caller)}
+    def _com_provider_mock(self):
+        caller = MagicMock(return_value=({"ok": True}, None))
+        providers = {"openai": self._provider("openai", "OPENAI_API_KEY", caller)}
         env = {"OPENAI_API_KEY": "test", "AI_PROVIDER_ORDER": "openai"}
+        return caller, providers, env
 
-        with patch("api.otimizacao_shadow.avaliar_otimizacoes_shadow", side_effect=RuntimeError("otimizacao quebrada")):
+    # ── Cache de resposta ──
+
+    def test_cache_hit_evita_chamada_ao_provedor(self):
+        caller, providers, env = self._com_provider_mock()
+        cache_hit = {"ok": True, "_provedor_ia": "openai", "_modelo_ia": "gpt-4o", "_custo_estimado_ia": 0.05}
+
+        with patch("api.otimizacao.buscar_no_cache", return_value=cache_hit):
+            with patch("api.otimizacao.registrar_cache_hit"):
+                with patch.dict(os.environ, env, clear=False):
+                    with patch.object(ai_router, "PROVIDERS", providers):
+                        result = ai_router.chamar_ia("system", "user")
+
+        caller.assert_not_called()
+        self.assertTrue(result["_cache_hit_ia"])
+        self.assertEqual(result["_provedor_ia"], "openai")
+
+    def test_cache_miss_prossegue_normalmente_e_guarda_resultado(self):
+        caller, providers, env = self._com_provider_mock()
+
+        with patch("api.otimizacao.buscar_no_cache", return_value=None):
+            with patch("api.otimizacao.guardar_no_cache") as mock_guardar:
+                with patch.dict(os.environ, env, clear=False):
+                    with patch.object(ai_router, "PROVIDERS", providers):
+                        result = ai_router.chamar_ia("system", "user")
+
+        caller.assert_called_once()
+        self.assertTrue(result["ok"])
+        mock_guardar.assert_called_once()
+
+    def test_falha_ao_buscar_no_cache_nao_quebra_chamar_ia(self):
+        caller, providers, env = self._com_provider_mock()
+
+        with patch("api.otimizacao.buscar_no_cache", side_effect=RuntimeError("cache quebrado")):
             with patch.dict(os.environ, env, clear=False):
                 with patch.object(ai_router, "PROVIDERS", providers):
                     result = ai_router.chamar_ia("system", "user")
 
+        caller.assert_called_once()
         self.assertTrue(result["ok"])
 
-    def test_hook_de_otimizacao_e_chamado_com_os_argumentos_certos(self):
-        def openai_caller(*args):
-            return {"ok": True}, None
+    # ── Corte de contexto ──
 
-        providers = {"openai": self._provider("openai", "OPENAI_API_KEY", openai_caller)}
-        env = {"OPENAI_API_KEY": "test", "AI_PROVIDER_ORDER": "openai"}
+    def test_corte_de_contexto_e_aplicado_antes_de_chamar_o_provedor(self):
+        caller, providers, env = self._com_provider_mock()
 
-        with patch("api.otimizacao_shadow.avaliar_otimizacoes_shadow") as mock_ot:
+        with patch("api.otimizacao.buscar_no_cache", return_value=None):
+            with patch("api.otimizacao.aplicar_corte_contexto", return_value=("system", "cortado", True)):
+                with patch("api.otimizacao.guardar_no_cache"):
+                    with patch("api.otimizacao.registrar_corte_contexto") as mock_reg:
+                        with patch.dict(os.environ, env, clear=False):
+                            with patch.object(ai_router, "PROVIDERS", providers):
+                                result = ai_router.chamar_ia("system", "user content bem maior")
+
+        chamado_com = caller.call_args[0]
+        self.assertEqual(chamado_com[1], "cortado")  # user_content passado ao provedor ja veio cortado
+        self.assertTrue(result["_contexto_truncado_ia"])
+        mock_reg.assert_called_once()
+
+    def test_falha_ao_cortar_contexto_nao_quebra_chamar_ia(self):
+        caller, providers, env = self._com_provider_mock()
+
+        with patch("api.otimizacao.buscar_no_cache", return_value=None):
+            with patch("api.otimizacao.aplicar_corte_contexto", side_effect=RuntimeError("corte quebrado")):
+                with patch.dict(os.environ, env, clear=False):
+                    with patch.object(ai_router, "PROVIDERS", providers):
+                        result = ai_router.chamar_ia("system", "user")
+
+        caller.assert_called_once()
+        self.assertTrue(result["ok"])
+        self.assertNotIn("_contexto_truncado_ia", result)
+
+    # ── Bloqueio de loop caro ──
+
+    def test_loop_caro_bloqueia_antes_de_qualquer_provedor(self):
+        caller, providers, env = self._com_provider_mock()
+
+        with patch(
+            "api.otimizacao.verificar_loop_caro",
+            side_effect=HTTPException(status_code=429, detail={"erro": "limite atingido"}),
+        ):
             with patch.dict(os.environ, env, clear=False):
                 with patch.object(ai_router, "PROVIDERS", providers):
-                    ai_router.chamar_ia("system", "user", feature="teste.feature", meeting_id="m1")
+                    with self.assertRaises(HTTPException) as ctx:
+                        ai_router.chamar_ia("system", "user", meeting_id="m1")
 
-        mock_ot.assert_called_once()
-        kwargs = mock_ot.call_args.kwargs
-        self.assertEqual(kwargs["feature"], "teste.feature")
-        self.assertEqual(kwargs["meeting_id"], "m1")
-        self.assertEqual(kwargs["provider"], "openai")
+        self.assertEqual(ctx.exception.status_code, 429)
+        caller.assert_not_called()
+
+    def test_falha_inesperada_ao_verificar_loop_nao_bloqueia_chamada(self):
+        """So HTTPException deve propagar — qualquer outra excecao dentro
+        de verificar_loop_caro (bug, banco fora do ar) nunca pode impedir
+        uma chamada de IA legitima."""
+        caller, providers, env = self._com_provider_mock()
+
+        with patch("api.otimizacao.verificar_loop_caro", side_effect=RuntimeError("bug interno")):
+            with patch("api.otimizacao.buscar_no_cache", return_value=None):
+                with patch.dict(os.environ, env, clear=False):
+                    with patch.object(ai_router, "PROVIDERS", providers):
+                        result = ai_router.chamar_ia("system", "user", meeting_id="m1")
+
+        caller.assert_called_once()
+        self.assertTrue(result["ok"])
 
 
 if __name__ == "__main__":
