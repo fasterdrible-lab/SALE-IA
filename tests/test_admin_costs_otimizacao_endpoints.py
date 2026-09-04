@@ -160,7 +160,7 @@ class AdminCostsOtimizacaoEndpointsSuite(unittest.TestCase):
         r = self.client.get("/admin/costs/metricas", headers=self.admin_headers)
         self.assertEqual(r.status_code, 200)
         d = r.json()
-        for chave in ("periodo", "resumo", "router_shadow", "otimizacao", "anomalias"):
+        for chave in ("periodo", "resumo", "router", "otimizacao", "anomalias"):
             self.assertIn(chave, d)
         self.assertEqual(d["resumo"]["total_eventos"], 1)
         self.assertEqual(d["otimizacao"]["total_decisoes"], 2)

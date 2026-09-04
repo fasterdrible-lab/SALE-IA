@@ -3,6 +3,77 @@
 
 ---
 
+## V.1.4.61 — Cost Intelligence Fase 4: Cost Router sai do Shadow Mode (ATIVA em produção)
+> Data: 04/09/2026 | Feature (muda comportamento real de chamadas de IA)
+
+### VISÃO
+A Fase 4 (V.1.4.57) construiu o Cost Router em shadow mode: calculava
+qual modelo recomendaria (por complexidade da tarefa × modo normal/
+economy/critical derivado do orçamento) e registrava a comparação, sem
+nunca trocar o modelo real. **O usuário confirmou explicitamente** ("Sim,
+ativar de verdade agora") depois de eu checar os 20 registros de shadow
+já coletados: 100% de concordância e 0% de economia — não porque o
+router "acerta sempre", mas porque **todo o tráfego real hoje passa só
+pelo DeepSeek** (OpenAI/Anthropic centrais sem saldo/chave válida, mesmo
+incidente documentado desde 31/08/2026) e DeepSeek não tem variante
+*economy* configurada (`MODELOS_ECONOMY` só tem `openai`/`anthropic`).
+**Ativar agora é seguro e na prática inerte** — só passa a ter efeito
+real quando o saldo central de OpenAI/Anthropic for restaurado.
+
+### ACHADO DE DESIGN — `RouterDecisao` não muda de schema
+Uma vez ativo, `model_real` passa a ser literalmente o mesmo valor que
+`model_recomendado` (o router aplica a própria recomendação antes de
+chamar o provedor), então `concordou` vira quase sempre `true` e
+`economia_estimada_usd` por linha vira ~0. Isso é **esperado e
+correto**, não um bug — a linha continua útil como auditoria ("a
+recomendação foi aplicada de verdade"). A pergunta de negócio real —
+"quanto o router está economizando" — já é respondida sem código novo
+pela quebra `por_model` que `custos_resumo` (Fase 2) já expõe. Decisão
+deliberada de não adicionar agregação nova só pra repetir esse dado.
+
+### BACKEND — `api/cost_router.py`
+- `router_ativo()` (renomeia `_shadow_habilitado`) — lê `COST_ROUTER_
+  ATIVO` (env, default `true`) — kill-switch: `false` no `.env` da VPS +
+  `systemctl restart saleia` volta ao modelo padrão, sem reverter deploy.
+- `modelo_a_usar(provider, model_padrao, feature)` (novo) — aplica
+  `recomendar_modelo(...)` quando ativo, senão devolve `model_padrao`
+  inalterado.
+- `registrar_decisao` (renomeia `avaliar_shadow`) — mesma lógica de
+  cálculo/gravação, chamada depois de já ter usado `model_recomendado`
+  de verdade. Continua melhor esforço absoluto.
+- `config_router()` — chave `shadow_habilitado` → `ativo`.
+
+### BACKEND — `api/ai_router.py::chamar_ia`
+No loop de provedores: `model_padrao = _model(provider)` seguido de
+`model = modelo_a_usar(provider.name, model_padrao, feature)` (dentro de
+`try/except Exception:` — falha aqui nunca impede a chamada, cai pro
+`model_padrao`). Resto do loop (circuit breaker, chave, fallback entre
+provedores) inalterado — só o modelo dentro do provedor já escolhido
+pode mudar. `resetar_estado_ia_para_testes()` ganhou reset de
+`cost_router._modo_cache` (mesma classe de bug de vazamento entre testes
+já corrigida na ativação da Fase 5 pro cache de `api/otimizacao.py`).
+
+### BACKEND — `api/main.py`
+`GET /admin/costs/router/shadow` → **`GET /admin/costs/router`**, ganha
+`"ativo": router_ativo()`. `GET /admin/costs/router/config` mantém o
+path, chave `shadow_habilitado` → `ativo`. `GET /admin/costs/metricas`:
+chave `router_shadow` → `router`.
+
+### FRONTEND — `frontend/dashboard.html`
+Card "🧭 Cost Router": rótulo de "shadow mode" pra "ativo em produção —
+hoje sem efeito prático (tráfego real só passa por DeepSeek)", com badge
+✅/⛔ de status.
+
+### TESTES
+`tests/test_cost_router.py`, `tests/test_ai_router.py::
+CostRouterAtivoTest` (substitui `CostRouterShadowHookTest`),
+`tests/test_admin_costs_router_endpoints.py`,
+`tests/test_admin_costs_otimizacao_endpoints.py` (chave `router` no
+`/admin/costs/metricas`) — suíte completa sem regressão (mesmas 8
+falhas pré-existentes não relacionadas).
+
+---
+
 ## V.1.4.60 — Cost Intelligence Fase 5: Otimização sai do Shadow Mode (ATIVA em produção)
 > Data: 04/09/2026 | Feature (muda comportamento real de chamadas de IA)
 

@@ -6,6 +6,7 @@ from unittest.mock import patch, MagicMock
 
 from fastapi import HTTPException
 
+from api import ai_features as feat
 from api import ai_router
 
 
@@ -408,9 +409,11 @@ class RegistrarEventoUsoIaTest(unittest.TestCase):
         self.assertTrue(result["ok"])
 
 
-class CostRouterShadowHookTest(unittest.TestCase):
-    """Cost Router (Fase 4, shadow mode): o hook em chamar_ia nunca pode
-    afetar o resultado real de uma chamada de IA."""
+class CostRouterAtivoTest(unittest.TestCase):
+    """Cost Router (Fase 4) — ATIVA em producao desde V.1.4.61: substitui
+    de verdade o modelo dentro do provedor ja escolhido, quando
+    COST_ROUTER_ATIVO. Falhas em modelo_a_usar/registrar_decisao nunca
+    podem afetar o resultado real de uma chamada de IA."""
 
     def setUp(self):
         self._tmpdir = tempfile.TemporaryDirectory()
@@ -421,17 +424,54 @@ class CostRouterShadowHookTest(unittest.TestCase):
     def _provider(self, name, env_key, caller):
         return ai_router.Provider(
             name=name, env_keys=(env_key,), model_env=f"{name.upper()}_MODEL",
-            default_model=f"{name}-model", caller=caller,
+            default_model="gpt-4o", caller=caller,
         )
 
-    def test_falha_no_shadow_hook_nao_quebra_chamar_ia(self):
-        def openai_caller(*args):
-            return {"ok": True}, None
-
-        providers = {"openai": self._provider("openai", "OPENAI_API_KEY", openai_caller)}
+    def _com_provider_mock(self):
+        caller = MagicMock(return_value=({"ok": True}, None))
+        providers = {"openai": self._provider("openai", "OPENAI_API_KEY", caller)}
         env = {"OPENAI_API_KEY": "test", "AI_PROVIDER_ORDER": "openai"}
+        return caller, providers, env
 
-        with patch("api.cost_router.avaliar_shadow", side_effect=RuntimeError("router quebrado")):
+    def test_ativo_substitui_pelo_modelo_recomendado(self):
+        caller, providers, env = self._com_provider_mock()
+
+        with patch.dict(os.environ, {**env, "COST_ROUTER_ATIVO": "true"}, clear=False):
+            with patch("api.database.obter_orcamento_ia", return_value=None):
+                with patch.object(ai_router, "PROVIDERS", providers):
+                    result = ai_router.chamar_ia("system", "user", feature=feat.REALTIME_DISC)
+
+        modelo_chamado = caller.call_args[0][3]
+        self.assertEqual(modelo_chamado, "gpt-4o-mini")  # normal+simples -> economy
+        self.assertEqual(result["_modelo_ia"], "gpt-4o-mini")
+
+    def test_desativado_via_env_mantem_modelo_padrao(self):
+        caller, providers, env = self._com_provider_mock()
+
+        with patch.dict(os.environ, {**env, "COST_ROUTER_ATIVO": "false"}, clear=False):
+            with patch.object(ai_router, "PROVIDERS", providers):
+                result = ai_router.chamar_ia("system", "user", feature=feat.REALTIME_DISC)
+
+        modelo_chamado = caller.call_args[0][3]
+        self.assertEqual(modelo_chamado, "gpt-4o")
+        self.assertEqual(result["_modelo_ia"], "gpt-4o")
+
+    def test_falha_em_modelo_a_usar_nao_quebra_chamar_ia(self):
+        caller, providers, env = self._com_provider_mock()
+
+        with patch("api.cost_router.modelo_a_usar", side_effect=RuntimeError("router quebrado")):
+            with patch.dict(os.environ, env, clear=False):
+                with patch.object(ai_router, "PROVIDERS", providers):
+                    result = ai_router.chamar_ia("system", "user")
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["_provedor_ia"], "openai")
+        self.assertEqual(result["_modelo_ia"], "gpt-4o")  # cai pro model_padrao
+
+    def test_falha_em_registrar_decisao_nao_quebra_chamar_ia(self):
+        caller, providers, env = self._com_provider_mock()
+
+        with patch("api.cost_router.registrar_decisao", side_effect=RuntimeError("registro quebrado")):
             with patch.dict(os.environ, env, clear=False):
                 with patch.object(ai_router, "PROVIDERS", providers):
                     result = ai_router.chamar_ia("system", "user")
@@ -439,24 +479,20 @@ class CostRouterShadowHookTest(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertEqual(result["_provedor_ia"], "openai")
 
-    def test_shadow_hook_e_chamado_mas_nao_altera_o_result(self):
-        def openai_caller(*args):
-            return {"ok": True}, None
+    def test_registrar_decisao_e_chamado_com_o_modelo_ja_substituido(self):
+        caller, providers, env = self._com_provider_mock()
 
-        providers = {"openai": self._provider("openai", "OPENAI_API_KEY", openai_caller)}
-        env = {"OPENAI_API_KEY": "test", "AI_PROVIDER_ORDER": "openai"}
+        with patch("api.cost_router.registrar_decisao") as mock_reg:
+            with patch.dict(os.environ, {**env, "COST_ROUTER_ATIVO": "true"}, clear=False):
+                with patch("api.database.obter_orcamento_ia", return_value=None):
+                    with patch.object(ai_router, "PROVIDERS", providers):
+                        ai_router.chamar_ia("system", "user", feature=feat.REALTIME_DISC)
 
-        with patch("api.cost_router.avaliar_shadow") as mock_shadow:
-            with patch.dict(os.environ, env, clear=False):
-                with patch.object(ai_router, "PROVIDERS", providers):
-                    result = ai_router.chamar_ia("system", "user", feature="teste.feature")
-
-        mock_shadow.assert_called_once()
-        kwargs = mock_shadow.call_args.kwargs
-        self.assertEqual(kwargs["feature"], "teste.feature")
+        mock_reg.assert_called_once()
+        kwargs = mock_reg.call_args.kwargs
+        self.assertEqual(kwargs["feature"], feat.REALTIME_DISC)
         self.assertEqual(kwargs["provider"], "openai")
-        # o resultado real da IA nao ganha nenhum campo novo por causa do router shadow
-        self.assertEqual(set(result.keys()) & {"_router_recomendado", "_router_modo"}, set())
+        self.assertEqual(kwargs["model_real"], "gpt-4o-mini")
 
 
 class OtimizacaoAtivaTest(unittest.TestCase):

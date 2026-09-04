@@ -96,7 +96,7 @@ estado real está neste documento).
 | 1 — Fundação | Captura custo real por chamada | `api/pricing_catalog.py`, `api/cost_engine.py`, `api/database.py::AiUsageEvent`, `api/ai_features.py` |
 | 2 — Agregações | Dashboard de custos | `api/database.py::custos_resumo`/`custos_por_usuario`/`custos_reunioes_mais_caras`, endpoints `GET /admin/costs/*` |
 | 3 — Budget Guard | Orçamento, FX, margem, auditoria | `api/fx_rates.py`, `api/database.py::OrcamentoIA`/`PlanoPreco`/`AuditoriaFinanceira`, `agent/alertas.py::verificar_orcamento` |
-| 4 — Cost Router | Recomendação de modelo (**shadow**) | `api/cost_router.py`, `api/database.py::RouterDecisao` |
+| 4 — Cost Router | Recomendação de modelo (**ATIVA desde V.1.4.61**) | `api/cost_router.py`, `api/database.py::RouterDecisao` |
 | 5 — Otimização | Cache/contexto/loop (**ATIVA desde V.1.4.60**) | `api/otimizacao.py`, `api/database.py::OtimizacaoDecisao`, `detectar_anomalias_custo` |
 | 6 — Observabilidade | Polimento final | `GET /admin/costs/metricas`, logger `saleia.financeiro` |
 
@@ -132,17 +132,36 @@ Configurações pra editar limite/preços de plano.
 - Toda mudança de orçamento/preço grava em `AuditoriaFinanceira` E loga
   em `saleia.financeiro` (ver Fase 6).
 
-### Cost Router — **shadow mode, nunca ativo de verdade** (Fase 4)
-**Decisão confirmada com o usuário**: não muda o modelo/comportamento
-real de uma chamada de IA. Calcula o que faria e grava a comparação;
-ativar de fato é decisão futura separada, ainda não tomada.
-- `api/cost_router.py::avaliar_shadow` — recomenda modelo por
-  complexidade da tarefa (`classificar_complexidade`) × modo `normal`/
-  `economy`/`critical` (derivado do % de orçamento gasto). `COST_
-  ROUTER_SHADOW_ENABLED` (default `true`) só liga/desliga o *registro*
-  da comparação, nunca o roteamento real.
+### Cost Router — **ATIVA em produção desde V.1.4.61** (Fase 4)
+**Decisão confirmada explicitamente pelo usuário em 04/09/2026**, depois
+de rodar em shadow mode desde a Fase 4 original (V.1.4.57) com 20
+decisões registradas mostrando 100% de concordância — não porque o
+router "acerta sempre", mas porque **todo o tráfego real hoje passa só
+pelo DeepSeek**, que não tem variante *economy* configurada
+(`MODELOS_ECONOMY` só tem `openai`/`anthropic`). **Ativar é hoje
+efetivamente inerte** na prática — só passa a ter efeito real quando o
+saldo central de OpenAI/Anthropic voltar (ver incidente de saldo/chave
+inválida documentado no CHANGELOG desde 31/08/2026).
+- `api/cost_router.py::modelo_a_usar` — substitui de verdade o modelo
+  usado dentro do provedor que já venceu a chamada real (nunca mexe em
+  ordem/escolha de provedor, circuit breaker ou fallback), recomendando
+  por complexidade da tarefa (`classificar_complexidade`) × modo
+  `normal`/`economy`/`critical` (derivado do % de orçamento gasto).
+- **Kill-switch**: `COST_ROUTER_ATIVO` (env, default `true`) — `false`
+  no `.env` da VPS + `systemctl restart saleia` volta ao modelo padrão
+  configurado, sem reverter deploy.
 - Hook em `chamar_ia`, dentro de `try/except Exception: pass` — uma
-  falha aqui é invisível pra chamada de IA real.
+  falha aqui é invisível pra chamada de IA real, caindo pro modelo
+  padrão de sempre.
+- `api/cost_router.py::registrar_decisao` grava a comparação real ×
+  recomendado em `RouterDecisao` pra auditoria — como o router agora
+  aplica a própria recomendação, `model_real` já nasce igual a
+  `model_recomendado` na maioria das linhas (`concordou≈true`,
+  `economia_estimada_usd≈0` por linha — esperado, não é bug). A
+  pergunta real de negócio ("quanto o router está economizando") já é
+  respondida sem código novo pela quebra `por_model` que `custos_resumo`
+  (Fase 2) expõe, assim que tráfego real começar a usar
+  `gpt-4o-mini`/`claude-3-5-haiku`.
 
 ### Otimização — **ATIVA em produção desde V.1.4.60** (Fase 5)
 **Decisão confirmada explicitamente pelo usuário em 04/09/2026**, depois
@@ -201,14 +220,17 @@ resultado real de chamadas de IA**:
   costs/orcamento` (`pct_usado`) ou `GET /admin/costs/anomalias`; o
   `journalctl | grep saleia.financeiro` tem o mesmo dado sem precisar de
   login.
-- **Ver o que o Cost Router *teria* feito** (ainda shadow, Fase 4) antes
-  de decidir ativar de verdade: `GET /admin/costs/router/shadow` (ou o
-  card correspondente na aba Custos) — `economia_potencial_usd` ali é
-  estimativa, nunca dinheiro realmente economizado.
+- **Ver o que o Cost Router está fazendo de verdade** (Fase 4, ativa):
+  `GET /admin/costs/router` (ou o card correspondente na aba Custos) —
+  `ativo` mostra o kill-switch, `economia_potencial_usd` continua
+  estimativa (não dinheiro realmente economizado, ver nota acima sobre
+  `concordou`/`economia` ficarem quase tautológicos uma vez ativo).
 - **Ver o que a Otimização *já fez* de verdade** (Fase 5, ativa): `GET
   /admin/costs/otimizacao` — `ativo` mostra os 3 kill-switches,
   `economia_potencial_total_usd` é economia real (cache/loop) ou
   estimada com precisão (corte de contexto, via `cost_engine`).
+- **Desligar o Cost Router (Fase 4) em emergência**: `COST_ROUTER_
+  ATIVO=false` no `.env` da VPS + `systemctl restart saleia`.
 - **Desligar uma otimização da Fase 5 em emergência**: `OTIMIZACAO_
   CACHE_ATIVO=false` (ou `_CONTEXTO_`/`_LOOP_`) no `.env` da VPS +
   `systemctl restart saleia` — não precisa reverter o deploy.

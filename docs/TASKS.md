@@ -479,6 +479,19 @@ EMAIL_FROM=noreply@saleia.com.br
 - [x] Commitado localmente e enviado ao GitHub.
 - **Pendente**: deploy na VPS (`git pull` + `systemctl restart saleia` — checar `reunioes_ativas: 0` antes; muda comportamento real, rollback rapido via `OTIMIZACAO_*_ATIVO=false` no `.env` se necessario, sem reverter deploy).
 
+## Concluido (V.1.4.61 — Cost Intelligence Fase 4: Cost Router sai do Shadow Mode — ATIVA em producao)
+
+- [x] Usuario confirmou explicitamente ("Sim, ativar de verdade agora") apos eu avisar que os 20 registros de shadow mostram 100% concordancia/0% economia por causa de todo o trafego real hoje passar so pelo DeepSeek (sem variante economy configurada) — ativacao e hoje efetivamente inerte na pratica ate o saldo central de OpenAI/Anthropic voltar.
+- [x] Decisao de design: `RouterDecisao`/schema nao muda — `concordou`/`economia_estimada_usd` por linha ficam quase tautologicos uma vez ativo (esperado, nao bug); a pergunta real de economia ja e respondida sem codigo novo pela quebra `por_model` de `custos_resumo` (Fase 2).
+- [x] `api/cost_router.py`: `router_ativo()` (renomeia `_shadow_habilitado`, env `COST_ROUTER_ATIVO`), `modelo_a_usar()` (novo, substitui o modelo de verdade quando ativo), `registrar_decisao` (renomeia `avaliar_shadow`), `config_router()` com chave `ativo`.
+- [x] `api/ai_router.py::chamar_ia`: loop de provedores usa `modelo_a_usar(provider.name, model_padrao, feature)` no lugar do modelo padrao direto; `resetar_estado_ia_para_testes()` ganha reset de `cost_router._modo_cache` (mesma classe de bug de vazamento entre testes ja corrigida na Fase 5).
+- [x] `GET /admin/costs/router/shadow` -> `GET /admin/costs/router` (ganha `ativo`); `GET /admin/costs/router/config` mantem path, chave `ativo`; `GET /admin/costs/metricas` chave `router_shadow` -> `router`.
+- [x] Dashboard: card Cost Router com badge de status ✅/⛔.
+- [x] Testes reescritos: `test_cost_router.py`, `test_ai_router.py::CostRouterAtivoTest` (substitui `CostRouterShadowHookTest`), `test_admin_costs_router_endpoints.py`, `test_admin_costs_otimizacao_endpoints.py` (chave `router`). Suite completa sem regressao (mesmas 8 falhas pre-existentes e nao relacionadas).
+- [x] `CLAUDE.md`: Fase 4 vira secao propria "ATIVA em producao", junto da Fase 5.
+- [x] Commitado localmente e enviado ao GitHub.
+- **Pendente**: deploy na VPS (`git pull` + `systemctl restart saleia` — checar `reunioes_ativas: 0` antes; muda comportamento real (hoje inerte na pratica), rollback rapido via `COST_ROUTER_ATIVO=false` no `.env` se necessario, sem reverter deploy).
+
 ## Pendente
 
 - [ ] Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI).

@@ -1,5 +1,6 @@
 """
-Testes de api/cost_router.py (Cost Intelligence Fase 4, shadow mode).
+Testes de api/cost_router.py (Cost Intelligence Fase 4, ATIVA em
+producao desde V.1.4.61).
 
 Run:
     python -m unittest tests.test_cost_router -v
@@ -87,17 +88,50 @@ class RecomendarModeloTest(unittest.TestCase):
         self.assertEqual(cost_router.recomendar_modelo("anthropic", "claude-sonnet-4-20250514", feat.REALTIME_COACH, modo="normal"), "claude-sonnet-4-20250514")
 
 
-class AvaliarShadowTest(unittest.TestCase):
+class RouterAtivoTest(unittest.TestCase):
+    def test_default_e_true(self):
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("COST_ROUTER_ATIVO", None)
+            self.assertTrue(cost_router.router_ativo())
+
+    def test_desligavel_via_env(self):
+        with patch.dict(os.environ, {"COST_ROUTER_ATIVO": "false"}):
+            self.assertFalse(cost_router.router_ativo())
+
+
+class ModeloAUsarTest(unittest.TestCase):
+    def setUp(self):
+        cost_router._modo_cache["modo"] = None
+        cost_router._modo_cache["ts"] = 0.0
+
+    def test_ativo_aplica_recomendacao(self):
+        with patch("api.database.obter_orcamento_ia", return_value=None), \
+             patch.dict(os.environ, {"COST_ROUTER_ATIVO": "true"}):
+            self.assertEqual(
+                cost_router.modelo_a_usar("openai", "gpt-4o", feat.REALTIME_DISC),
+                "gpt-4o-mini",  # normal+simples -> economy
+            )
+
+    def test_desativado_devolve_model_padrao_inalterado(self):
+        with patch("api.database.obter_orcamento_ia", return_value=None), \
+             patch.dict(os.environ, {"COST_ROUTER_ATIVO": "false"}):
+            self.assertEqual(
+                cost_router.modelo_a_usar("openai", "gpt-4o", feat.REALTIME_DISC),
+                "gpt-4o",
+            )
+
+
+class RegistrarDecisaoTest(unittest.TestCase):
     def setUp(self):
         cost_router._modo_cache["modo"] = None
         cost_router._modo_cache["ts"] = 0.0
         self._usage = ProviderUsage(input_tokens=1000, output_tokens=500)
 
     def test_desabilitado_via_env_nao_grava(self):
-        with patch.dict(os.environ, {"COST_ROUTER_SHADOW_ENABLED": "false"}), \
+        with patch.dict(os.environ, {"COST_ROUTER_ATIVO": "false"}), \
              patch("api.database.registrar_decisao_router") as mock_reg:
-            cost_router.avaliar_shadow(
-                feature=feat.REALTIME_DISC, provider="openai", model_real="gpt-4o",
+            cost_router.registrar_decisao(
+                feature=feat.REALTIME_DISC, provider="openai", model_real="gpt-4o-mini",
                 usage=self._usage, usage_source="provider",
             )
         mock_reg.assert_not_called()
@@ -105,7 +139,7 @@ class AvaliarShadowTest(unittest.TestCase):
     def test_habilitado_grava_comparacao(self):
         with patch("api.database.obter_orcamento_ia", return_value=None), \
              patch("api.database.registrar_decisao_router") as mock_reg:
-            cost_router.avaliar_shadow(
+            cost_router.registrar_decisao(
                 feature=feat.REALTIME_DISC, provider="openai", model_real="gpt-4o",
                 usage=self._usage, usage_source="provider",
             )
@@ -118,15 +152,17 @@ class AvaliarShadowTest(unittest.TestCase):
         self.assertFalse(kwargs["concordou"])
         self.assertLess(kwargs["custo_recomendado_usd"], kwargs["custo_real_usd"])
 
-    def test_quando_recomendacao_bate_com_real_concordou_true(self):
+    def test_quando_model_real_ja_e_o_recomendado_concordou_true(self):
+        """Com o router ativo, chamar_ia ja passa o modelo recomendado
+        como model_real — o caso comum apos a ativacao real."""
         with patch("api.database.obter_orcamento_ia", return_value=None), \
              patch("api.database.registrar_decisao_router") as mock_reg:
-            cost_router.avaliar_shadow(
-                feature=feat.REALTIME_COACH, provider="openai", model_real="gpt-4o",
+            cost_router.registrar_decisao(
+                feature=feat.REALTIME_DISC, provider="openai", model_real="gpt-4o-mini",
                 usage=self._usage, usage_source="provider",
             )
         kwargs = mock_reg.call_args.kwargs
-        self.assertEqual(kwargs["model_recomendado"], "gpt-4o")
+        self.assertEqual(kwargs["model_recomendado"], "gpt-4o-mini")
         self.assertTrue(kwargs["concordou"])
         self.assertEqual(kwargs["custo_recomendado_usd"], kwargs["custo_real_usd"])
 
@@ -134,19 +170,19 @@ class AvaliarShadowTest(unittest.TestCase):
         with patch("api.database.obter_orcamento_ia", side_effect=RuntimeError("boom")), \
              patch("api.database.registrar_decisao_router", side_effect=RuntimeError("boom2")):
             try:
-                cost_router.avaliar_shadow(
+                cost_router.registrar_decisao(
                     feature=feat.REALTIME_DISC, provider="openai", model_real="gpt-4o",
                     usage=self._usage, usage_source="provider",
                 )
             except Exception as exc:  # pragma: no cover - falha do teste se propagar
-                self.fail(f"avaliar_shadow propagou excecao: {exc}")
+                self.fail(f"registrar_decisao propagou excecao: {exc}")
 
 
 class ConfigRouterTest(unittest.TestCase):
     def test_config_router_formato(self):
         with patch("api.database.obter_orcamento_ia", return_value=None):
             d = cost_router.config_router()
-        self.assertIn("shadow_habilitado", d)
+        self.assertIn("ativo", d)
         self.assertIn("modo_atual", d)
         self.assertIn("modelos_economy", d)
         self.assertIn("classificacao", d)

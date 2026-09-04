@@ -565,7 +565,12 @@ def chamar_ia(
 
     for provider in _provider_order():
         breaker = _breakers[provider.name]
-        model = _model(provider)
+        model_padrao = _model(provider)
+        try:
+            from api.cost_router import modelo_a_usar
+            model = modelo_a_usar(provider.name, model_padrao, feature)
+        except Exception:
+            model = model_padrao
 
         if not breaker.available:
             attempts.append({"provider": provider.name, "status": "cooldown"})
@@ -648,8 +653,8 @@ def chamar_ia(
             )
 
             try:
-                from api.cost_router import avaliar_shadow
-                avaliar_shadow(
+                from api.cost_router import registrar_decisao
+                registrar_decisao(
                     feature=feature,
                     provider=provider.name,
                     model_real=model,
@@ -657,7 +662,7 @@ def chamar_ia(
                     usage_source=custo.usage_source,
                 )
             except Exception:
-                pass  # Cost Router e shadow-mode (Fase 4) — nunca pode afetar a chamada real
+                pass  # Cost Router (Fase 4) — nunca pode afetar a chamada real
 
             try:
                 from api.otimizacao import guardar_no_cache
@@ -801,14 +806,22 @@ def resetar_estado_ia_para_testes() -> None:
     """Clears in-memory circuit breaker state for unit tests.
 
     Tambem limpa o cache de resposta e o cache de custo-por-reuniao de
-    api/otimizacao.py (Fase 5, ativa desde V.1.4.60) — sem isso, testes
-    que reusam os mesmos system_prompt/user_content (comum neste
-    arquivo) vazam resultado cacheado de um teste pro outro."""
+    api/otimizacao.py (Fase 5, ativa desde V.1.4.60) e o cache de modo
+    (normal/economy/critical) de api/cost_router.py (Fase 4, ativa desde
+    V.1.4.61) — sem isso, testes que reusam os mesmos system_prompt/
+    user_content ou rodam em menos de 5min entre si (comum neste arquivo)
+    vazam estado cacheado de um teste pro outro."""
     for breaker in _breakers.values():
         breaker.register_success()
     try:
         from api.otimizacao import _cache_respostas, _custo_reuniao_cache
         _cache_respostas.clear()
         _custo_reuniao_cache.clear()
+    except Exception:
+        pass
+    try:
+        from api.cost_router import _modo_cache
+        _modo_cache["modo"] = None
+        _modo_cache["ts"] = 0.0
     except Exception:
         pass

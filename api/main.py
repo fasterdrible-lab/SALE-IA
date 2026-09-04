@@ -574,7 +574,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.60",
+        "versao":              "1.4.61",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -612,7 +612,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.60",
+        "versao":          "1.4.61",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -3576,17 +3576,18 @@ def admin_costs_auditoria(limit: int = 50, authorization: str | None = _Header(d
     return {"eventos": listar_auditoria_financeira(limit=max(1, min(limit, 500)))}
 
 
-# ── Cost Router — Shadow Mode (Fase 4) ──
-# Somente leitura: esta fase nunca troca o modelo real usado numa chamada
-# de IA (ver api/cost_router.py). Nao existe endpoint de ativacao aqui —
-# ligar o roteamento de verdade e uma decisao futura e separada.
+# ── Cost Router (Fase 4) ──
+# ATIVA EM PRODUÇÃO desde V.1.4.61 — troca de verdade o modelo usado
+# dentro do provedor que ja venceu a chamada real, quando COST_ROUTER_
+# ATIVO (ver api/cost_router.py::modelo_a_usar). Kill-switch:
+# COST_ROUTER_ATIVO=false no .env + systemctl restart saleia.
 
 from api.database import resumo_router_shadow
-from api.cost_router import config_router as _cost_router_config
+from api.cost_router import config_router as _cost_router_config, router_ativo as _cost_router_ativo
 
 
-@app.get("/admin/costs/router/shadow")
-def admin_costs_router_shadow(
+@app.get("/admin/costs/router")
+def admin_costs_router(
     date_from: str | None = None,
     date_to: str | None = None,
     authorization: str | None = _Header(default=None),
@@ -3594,7 +3595,11 @@ def admin_costs_router_shadow(
     _req_admin(authorization)
     de = _parse_data_custos(date_from, "date_from")
     ate = _parse_data_custos(date_to, "date_to", fim_do_dia=True)
-    return {"periodo": {"de": date_from, "ate": date_to}, **resumo_router_shadow(de, ate)}
+    return {
+        "periodo": {"de": date_from, "ate": date_to},
+        "ativo": _cost_router_ativo(),
+        **resumo_router_shadow(de, ate),
+    }
 
 
 @app.get("/admin/costs/router/config")
@@ -3675,7 +3680,7 @@ def admin_costs_metricas(
     return {
         "periodo": {"de": date_from, "ate": date_to},
         "resumo": custos_resumo(de, ate),
-        "router_shadow": resumo_router_shadow(de, ate),
+        "router": {"ativo": _cost_router_ativo(), **resumo_router_shadow(de, ate)},
         "otimizacao": {
             "ativo": {"cache": cache_ativo(), "contexto": contexto_ativo(), "loop": loop_ativo()},
             **resumo_otimizacao_shadow(de, ate),

@@ -1,6 +1,6 @@
 """
-Testes — GET /admin/costs/router/shadow|config (Cost Intelligence Fase 4,
-Cost Router em shadow mode).
+Testes — GET /admin/costs/router|router/config (Cost Intelligence Fase 4,
+Cost Router ATIVO em producao desde V.1.4.61).
 
 Mesmo padrao de tests/test_admin_costs_endpoints.py: engine SQLModel
 trocado por SQLite em memoria (StaticPool + check_same_thread=False) e
@@ -95,24 +95,25 @@ class AdminCostsRouterEndpointsSuite(unittest.TestCase):
 
     # ── Autenticacao ──
 
-    def test_shadow_sem_token_401(self):
-        r = self.client.get("/admin/costs/router/shadow")
+    def test_router_sem_token_401(self):
+        r = self.client.get("/admin/costs/router")
         self.assertEqual(r.status_code, 401)
 
-    def test_shadow_nao_admin_403(self):
-        r = self.client.get("/admin/costs/router/shadow", headers=self.vendedor_headers)
+    def test_router_nao_admin_403(self):
+        r = self.client.get("/admin/costs/router", headers=self.vendedor_headers)
         self.assertEqual(r.status_code, 403)
 
     def test_config_sem_token_401(self):
         r = self.client.get("/admin/costs/router/config")
         self.assertEqual(r.status_code, 401)
 
-    # ── /admin/costs/router/shadow ──
+    # ── /admin/costs/router ──
 
-    def test_shadow_200_formato_e_agregados(self):
-        r = self.client.get("/admin/costs/router/shadow", headers=self.admin_headers)
+    def test_router_200_formato_e_agregados(self):
+        r = self.client.get("/admin/costs/router", headers=self.admin_headers)
         self.assertEqual(r.status_code, 200)
         d = r.json()
+        self.assertTrue(d["ativo"])  # default COST_ROUTER_ATIVO=true
         self.assertEqual(d["total_decisoes"], 2)
         self.assertEqual(d["pct_concordancia"], 50.0)
         self.assertAlmostEqual(d["custo_real_usd"], 0.03, places=6)
@@ -122,12 +123,17 @@ class AdminCostsRouterEndpointsSuite(unittest.TestCase):
         self.assertEqual(d["por_complexidade"]["simples"], 1)
         self.assertEqual(d["por_complexidade"]["padrao"], 1)
 
-    def test_shadow_sem_decisoes_nao_quebra(self):
+    def test_router_respeita_kill_switch_via_env(self):
+        with patch.dict("os.environ", {"COST_ROUTER_ATIVO": "false"}):
+            r = self.client.get("/admin/costs/router", headers=self.admin_headers)
+        self.assertFalse(r.json()["ativo"])
+
+    def test_router_sem_decisoes_nao_quebra(self):
         # engine novo, sem os 2 registros do setUp
         engine2 = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool)
         SQLModel.metadata.create_all(engine2)
         with patch.object(self._database, "engine", engine2):
-            r = self.client.get("/admin/costs/router/shadow", headers=self.admin_headers)
+            r = self.client.get("/admin/costs/router", headers=self.admin_headers)
         self.assertEqual(r.status_code, 200)
         d = r.json()
         self.assertEqual(d["total_decisoes"], 0)
@@ -141,7 +147,7 @@ class AdminCostsRouterEndpointsSuite(unittest.TestCase):
             r = self.client.get("/admin/costs/router/config", headers=self.admin_headers)
         self.assertEqual(r.status_code, 200)
         d = r.json()
-        self.assertIn("shadow_habilitado", d)
+        self.assertIn("ativo", d)
         self.assertIn("modo_atual", d)
         self.assertEqual(d["modo_atual"], "normal")
         self.assertIn("modelos_economy", d)

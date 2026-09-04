@@ -1,16 +1,18 @@
 """
 SALEIA — api/cost_router.py
-Cost Router — Cost Intelligence Fase 4, SHADOW MODE.
+Cost Router — Cost Intelligence Fase 4, ATIVO em producao desde V.1.4.61.
 
-IMPORTANTE: este modulo nunca altera qual provedor/modelo e usado numa
-chamada de IA real. Ele calcula o que RECOMENDARIA e grava a comparacao
-contra o que realmente aconteceu, para dar dados antes de qualquer
-decisao futura de ativar o roteamento de verdade. `avaliar_shadow()` e
-sempre melhor esforco — nunca deve poder derrubar uma chamada de IA real.
+Quando `router_ativo()` (env COST_ROUTER_ATIVO, default true), o router
+substitui de verdade o modelo usado dentro do provedor que ja venceu a
+chamada real (ver api/ai_router.py::chamar_ia::modelo_a_usar) — nunca
+mexe em ordem/escolha de provedor, circuit breaker ou fallback, so no
+modelo dentro do provedor. Kill-switch: COST_ROUTER_ATIVO=false no .env
++ systemctl restart saleia volta ao modelo padrao configurado, sem
+reverter deploy.
 
-Escopo desta fase: o router so decide o MODELO dentro do provedor que ja
-venceu de verdade (ver api/ai_router.py::chamar_ia) — nao mexe em ordem
-ou escolha de provedor, nem em circuit breaker, nem em fallback.
+`registrar_decisao()` grava a comparacao real x recomendado pra
+auditoria — e sempre melhor esforco, nunca deve poder derrubar uma
+chamada de IA real.
 """
 
 from __future__ import annotations
@@ -60,8 +62,8 @@ def classificar_complexidade(feature: str) -> str:
     return "padrao"
 
 
-def _shadow_habilitado() -> bool:
-    return os.getenv("COST_ROUTER_SHADOW_ENABLED", "true").strip().lower() not in ("false", "0", "")
+def router_ativo() -> bool:
+    return os.getenv("COST_ROUTER_ATIVO", "true").strip().lower() not in ("false", "0", "")
 
 
 def modo_atual() -> str:
@@ -115,7 +117,17 @@ def recomendar_modelo(provider: str, modelo_real: str, feature: str, modo: str |
     return economy if usar_economy else modelo_real
 
 
-def avaliar_shadow(
+def modelo_a_usar(provider: str, model_padrao: str, feature: str) -> str:
+    """Modelo que api/ai_router.py::chamar_ia deve usar de verdade dentro
+    do provedor que ja venceu — aplica a recomendacao do router quando
+    `router_ativo()`, senao devolve `model_padrao` inalterado (kill-switch
+    desligado = comportamento identico a antes da Fase 4 existir)."""
+    if not router_ativo():
+        return model_padrao
+    return recomendar_modelo(provider, model_padrao, feature)
+
+
+def registrar_decisao(
     *,
     feature: str,
     provider: str,
@@ -123,12 +135,12 @@ def avaliar_shadow(
     usage: ProviderUsage,
     usage_source: str,
 ) -> None:
-    """Registra, em modo shadow, o que o router teria recomendado para essa
-    chamada de IA real ja concluida — melhor esforco, nunca lanca. Chamado
-    de dentro de api/ai_router.py::chamar_ia DEPOIS do resultado real ja
-    ter sido decidido; uma falha aqui jamais deve ser visivel pra chamada
-    real."""
-    if not _shadow_habilitado():
+    """Registra, para auditoria, a decisao do router para essa chamada de
+    IA real ja concluida (o `model_real` ja e o modelo recomendado quando
+    o router esta ativo) — melhor esforco, nunca lanca. Chamado de dentro
+    de api/ai_router.py::chamar_ia DEPOIS do resultado real ja ter sido
+    decidido; uma falha aqui jamais deve ser visivel pra chamada real."""
+    if not router_ativo():
         return
     try:
         modo = modo_atual()
@@ -158,10 +170,9 @@ def avaliar_shadow(
 
 
 def config_router() -> dict:
-    """Config legivel do router para o painel admin (somente leitura —
-    nao existe endpoint de ativacao nesta fase)."""
+    """Config legivel do router para o painel admin."""
     return {
-        "shadow_habilitado": _shadow_habilitado(),
+        "ativo": router_ativo(),
         "modo_atual": modo_atual(),
         "modelos_economy": dict(MODELOS_ECONOMY),
         "classificacao": {
