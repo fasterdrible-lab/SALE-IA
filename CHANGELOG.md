@@ -94,6 +94,19 @@ servidor e que a primeira ativação pode demorar, baixando o modelo).
 ### VERSÃO
 - Backend: `1.4.62` → `1.4.63` (`/health`, `/monitor/metricas`).
 
+### DEPLOY NA VPS — confirmado no mesmo dia (05/09/2026, ~19h47 UTC)
+`reunioes_ativas: 0` checado antes e depois do `git pull` (fast-forward
+`e6eefa4` → `48538a4` — trouxe também a V.1.4.62/Langfuse, nunca
+deployada antes). `pip install -r requirements.txt` + `pip check` limpo.
+`systemctl restart saleia` — `active`, journal sem exceções. `/health`
+confirmou `versao: 1.4.63`. **Validação real do Whisper Local na própria
+VPS** (processo Python separado, não mexeu no `saleia.service` rodando):
+modelo `small` baixado do Hugging Face e transcrição de um WAV de teste
+rodou em **4,4s no total** — mais rápido que os ~15,8s medidos
+localmente (rede da VPS melhor). Resolve a dúvida sobre o
+`proxy_read_timeout` do nginx: 4,4s está bem longe de qualquer timeout
+default (tipicamente 60s) — risco baixo, não mais uma pendência.
+
 ### O QUE FALTA (Fase 3 do prompt mestre, resto do roadmap)
 - Captura de áudio do **sistema/aba** (voz do cliente via Meet) — hoje só
   o microfone do vendedor é capturado (`chrome-extension/offscreen.js`).
@@ -104,15 +117,12 @@ servidor e que a primeira ativação pode demorar, baixando o modelo).
 - Parakeet local (TAREFA 3.6) — explicitamente opcional/depois no
   próprio prompt mestre.
 - Benchmark de WER/latência/CPU/RAM comparando legenda Google vs. Whisper
-  local vs. nuvem (TAREFA 3.12) — não medido nesta rodada.
-- **Risco operacional não testado**: a primeira ativação de
-  `whisper_local` baixa o modelo do Hugging Face (~15s pro modelo
-  `small`, testado localmente) — se o nginx da VPS tiver
-  `proxy_read_timeout` mais curto que isso, o primeiro clique em "Testar
-  conexão"/"Usar este provedor" no dashboard pode expirar antes do
-  download terminar. Não verificado contra o nginx real da VPS.
-- Deploy na VPS ainda não feito (`git pull` + `pip install` +
-  `systemctl restart saleia` — aditivo, nenhuma tabela/migração nova).
+  local vs. nuvem (TAREFA 3.12) — não medido nesta rodada (a validação
+  acima mede só tempo de carregamento+transcrição de um áudio de teste,
+  não WER contra fala real).
+- Ativar de fato `TRANSCRICAO_PROVEDOR=whisper_local` em produção pelo
+  Dashboard (hoje continua `whisper`/`groq`, o que já estava configurado
+  antes) — decisão de produto separada, não técnica.
 
 ### ARQUIVOS ALTERADOS
 - Novos: `agent/whisper_local.py`, `tests/test_whisper_local.py`,

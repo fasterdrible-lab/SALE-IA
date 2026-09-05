@@ -1,10 +1,12 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-04 (V.1.4.62 — o corpo deste documento nao
+Atualizado em: 2026-09-05 (V.1.4.63 — o corpo deste documento nao
 acompanhou o CHANGELOG.md desde a V.1.4.54; a fonte de verdade sempre
 mais atualizada e o CHANGELOG e o `/health` de producao. Cost
-Intelligence Fases 1-6 e Observabilidade Fase 1 ja estao concluidas —
-ver CHANGELOG.md V.1.4.55-V.1.4.62 e CLAUDE.md).
+Intelligence Fases 1-6, Observabilidade Fase 1 e Whisper Local ja estao
+concluidas e **confirmadas em producao via `/health` (`versao: 1.4.63`,
+05/09/2026 ~19h47 UTC)** — ver CHANGELOG.md V.1.4.55-V.1.4.63 e
+CLAUDE.md).
 
 ## Ambiente
 
@@ -108,7 +110,7 @@ Resumo das ultimas versoes:
 
 Extensao Chrome: `V.1.4.5` local/GitHub — deploy pendente, precisa reinstalar no navegador do vendedor. VPS antiga (`204.168.180.25`) deprecada.
 
-## Whisper Local — parte da Fase 3 do PROMPT MESTRE (V.1.4.63, 05/09/2026)
+## Whisper Local — parte da Fase 3 do PROMPT MESTRE (V.1.4.63, 05/09/2026 — DEPLOYADO)
 
 Terceiro provedor de `TRANSCRICAO_PROVEDOR` (junto de `whisper`/`groq`):
 `whisper_local`, self-hosted via `faster-whisper` (CPU, sem `torch`),
@@ -116,13 +118,22 @@ implementado em `agent/whisper_local.py`. Reaproveita a estrutura
 existente de `/audio-transcricao` (refatorada em 3 funcoes despachadas
 por dict) em vez de criar a abstracao `services/transcription/` do
 prompt mestre original — decisao explicita do usuario. Nao exige chave
-de API; primeira ativacao baixa o modelo (`WHISPER_LOCAL_MODEL`, padrao
-`small`) do Hugging Face (~15,8s validado localmente). Validado de ponta
-a ponta com transcricao real (nao so mockada) antes do commit. **Falta**:
-deploy na VPS; captura de audio do sistema/aba (hoje so o microfone do
-vendedor e capturado, `chrome-extension/offscreen.js`); confirmar se o
-`proxy_read_timeout` do nginx da VPS aguenta o download do modelo na
-primeira ativacao. Detalhe completo em CHANGELOG.md (V.1.4.63).
+de API.
+
+**Deploy confirmado na VPS (05/09/2026 ~19h47 UTC)**: `git pull`
+fast-forward `e6eefa4`→`48538a4` (trouxe tambem a V.1.4.62/Langfuse,
+nunca deployada antes), `pip install`+`pip check` limpo, `systemctl
+restart saleia` ativo, `/health` = `versao 1.4.63`. **Validado com
+transcricao real direto na VPS** (processo separado, sem mexer no
+servico rodando): modelo `small` baixado do Hugging Face + transcricao
+de teste rodaram em 4,4s no total — bem abaixo de qualquer
+`proxy_read_timeout` default de nginx, risco descartado.
+
+**Falta**: captura de audio do sistema/aba (hoje so o microfone do
+vendedor e capturado, `chrome-extension/offscreen.js`); ativar de fato
+`TRANSCRICAO_PROVEDOR=whisper_local` em producao pelo Dashboard (decisao
+de produto separada, continua `whisper`/`groq` por enquanto). Detalhe
+completo em CHANGELOG.md (V.1.4.63).
 
 ## Promptfoo / Evaluation Suite — Fase 2 do PROMPT MESTRE (harness criado, 05/09/2026, sem bump de versao)
 
