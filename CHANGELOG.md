@@ -3,6 +3,75 @@
 
 ---
 
+## V.1.4.64 — fix: Sales Memory sem contexto no tempo real (bug de loop asyncio no Ollama)
+> Data: 05/09/2026 | Bug fix (efeito real: Sales Memory volta a funcionar durante /tempo-real)
+
+### CONTEXTO
+Durante a validação ao vivo da extensão (mesma sessão de debug do fix da
+V.1.4.6), os logs da VPS mostraram, em toda chamada de `/tempo-real`:
+```
+ERROR [Ollama] embed() síncrono chamado dentro de um event loop ativo:
+asyncio.run() cannot be called from a running event loop
+WARNING [SalesMemory] Falha ao gerar embedding via ollama.
+```
+O erro já era **detectado e tratado com segurança** (retornava `None`,
+nunca derrubava a análise), mas isso significava que a busca de Sales
+Memory por similaridade ficava **sempre desativada** durante o tempo
+real — silenciosamente, sem nenhum sinal visível pro usuário.
+
+### CAUSA RAIZ
+`agent/multiagente/orquestrador.py::analisar_fragmento_multi` (função
+`async`) chama `sales_memory.buscar_contexto_para_reuniao()` **sem
+`await`** — decisão de design documentada e deliberada (mesmo padrão
+usado por `api/database.py::buscar_conhecimento_compilado_similar`, que
+tem comentário explícito sobre isso). Isso é seguro para o
+`OpenAIEmbeddingProvider` (chamada HTTP síncrona comum), mas
+`OllamaEmbeddingProvider.embed()` implementa a versão síncrona chamando
+`asyncio.run(self.embed_async(text))` internamente — e `asyncio.run()`
+não pode ser chamado quando já existe um event loop rodando no thread
+atual (que é exatamente o caso dentro de uma função `async` já em
+execução). Como `EMBEDDING_PROVIDER=ollama` é o padrão do projeto desde
+a V.1.4.39, esse conflito acontecia em **toda** chamada de `/tempo-real`
+em produção.
+
+### FIX — `services/embeddings/ollama_provider.py::embed()`
+Em vez de só detectar o erro depois de tentar (como já fazia), agora
+checa proativamente se há um loop rodando
+(`asyncio.get_running_loop()`); se houver, roda `embed_async()` numa
+**thread separada com seu próprio loop isolado**
+(`concurrent.futures.ThreadPoolExecutor`) — sem risco de deadlock, já
+que os dois loops nunca se tocam. Sem loop ativo, o caminho continua
+idêntico ao de antes (`asyncio.run()` direto). Bônus: eliminou também um
+`RuntimeWarning: coroutine ... was never awaited` cosmético que já
+aparecia nos logs de produção antes deste fix.
+
+**Não mudou** a decisão de design de chamar essas funções sem `await` —
+isso continua sendo o padrão estabelecido do projeto; o fix é só na
+camada mais baixa (o provider), que agora funciona corretamente nos dois
+cenários (com ou sem loop ativo).
+
+### TESTES
+2 testes novos em `tests/test_embeddings.py`
+(`test_embed_sync_called_from_running_loop_bridges_via_thread` e
+`test_embed_sync_from_running_loop_failure_returns_none`) — chamam o
+método síncrono `embed()` de dentro de um teste `async`
+(`IsolatedAsyncioTestCase`), reproduzindo exatamente o cenário de
+produção. Suite de embeddings completa: 34/34 OK.
+
+**Validado com Ollama real** (fora de mock): chamado `provider.embed()`
+de dentro de uma função `async` local — passou pela ponte de thread
+corretamente e degradou por "conexão recusada" (esperado, Ollama só
+roda na VPS, não nesta máquina de dev) em vez do erro de loop.
+
+### VERSÃO
+- Backend: `1.4.63` → `1.4.64` (`/health`, `/monitor/metricas`).
+
+### ARQUIVOS ALTERADOS
+- `services/embeddings/ollama_provider.py` (fix do `embed()`)
+- `tests/test_embeddings.py` (2 testes novos)
+
+---
+
 ## Extensão Chrome V.1.4.6 — fix: transcrição poluída por outra extensão (EasySub) na mesma aba
 > Data: 05/09/2026 | Bug fix (client-side, extensao Chrome — sem impacto no backend/VPS)
 

@@ -8,6 +8,7 @@ padrão, ou o host configurado em OLLAMA_BASE_URL).
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import logging
 import os
 import time
@@ -105,14 +106,28 @@ class OllamaEmbeddingProvider(EmbeddingProvider):
 
     def embed(self, text: str) -> Optional[EmbeddingResult]:
         try:
-            return asyncio.run(self.embed_async(text))
-        except RuntimeError as e:
-            if "asyncio.run() cannot be called" in str(e):
-                # Já existe um event loop rodando (contexto async chamando código sync) —
-                # não há como bloquear nele; falha explícita em vez de deadlock silencioso.
-                logger.error("[Ollama] embed() síncrono chamado dentro de um event loop ativo: %s", e)
+            asyncio.get_running_loop()
+        except RuntimeError:
+            # Nenhum loop rodando neste thread — caminho normal.
+            try:
+                return asyncio.run(self.embed_async(text))
+            except Exception as e:
+                logger.warning("[Ollama] Erro ao gerar embedding: %s", e)
                 return None
-            logger.warning("[Ollama] Erro ao gerar embedding: %s", e)
+
+        # Já existe um event loop rodando neste thread (ex.: chamado sem
+        # await de dentro de agent/multiagente/orquestrador.py, que é
+        # async — mesmo padrão documentado em
+        # api/database.py::buscar_conhecimento_compilado_similar). Não dá
+        # pra bloquear no loop atual, mas dá pra rodar embed_async() numa
+        # thread separada com seu próprio loop isolado — sem risco de
+        # deadlock, já que os dois loops nunca se tocam.
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(asyncio.run, self.embed_async(text))
+                return future.result(timeout=self._timeout + 5)
+        except Exception as thread_err:
+            logger.warning("[Ollama] embed() via thread separada falhou: %s", thread_err)
             return None
 
     def embed_batch(self, texts: list[str]) -> list[Optional[EmbeddingResult]]:

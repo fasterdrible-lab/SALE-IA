@@ -674,6 +674,13 @@
     if (/^Nenhuma reuni[aã]o ativa$/i.test(texto)) return true;
     if (/^Finalizar captura$/i.test(texto)) return true;
     if (/^Capturar [aá]udio( \(Whisper\))?$/i.test(texto)) return true;
+    // Recursos nativos "Gemini" do proprio Google Meet (banners/tooltips) —
+    // achado em 05/09/2026, mesmo dia do achado do EasySub acima. Match por
+    // frase EXATA (nao "contem Gemini") para nao descartar uma fala real do
+    // cliente que mencione o produto Gemini durante a reuniao.
+    if (/^Notifica[cç][oõ]es do recurso Pe[cç]a ao Gemini$/i.test(texto)) return true;
+    if (/^Pe[cç]a ao Gemini$/i.test(texto)) return true;
+    if (/^Fazer anota[cç][oõ]es com o Gemini$/i.test(texto)) return true;
     // Atalhos de teclado (ex: "Desativar microfone (ctrl + d)", "Ativar legendas (c ou shift + c)")
     if (/\(ctrl\s*\+/i.test(texto)) return true;
     if (/\([a-z]\s+ou\s+shift\s*\+|shift\s*\+\s*[a-z]\)/i.test(texto)) return true;
@@ -1000,10 +1007,20 @@
     // Service Worker do Google Meet (meetsw.js) que intercepta requisições
     // externas feitas diretamente por content scripts.
     if (!chrome.runtime || !chrome.runtime.id) return;
+    console.log('[SALEIA-DBG] enviando /tempo-real, tamanho da transcricao:', transcricaoParcial.length);
     chrome.runtime.sendMessage(
       { tipo: 'fetchBackend', url: url, payload: payload },
       function (resp) {
-        if (chrome.runtime.lastError) { estado.backendOnline = false; return; }
+        if (chrome.runtime.lastError) {
+          console.error('[SALEIA] sendMessage falhou (fetchBackend):', chrome.runtime.lastError.message);
+          estado.backendOnline = false;
+          return;
+        }
+        if (!resp || !resp.ok) {
+          console.error('[SALEIA] /tempo-real falhou:', resp && resp.error);
+          estado.backendOnline = false;
+          return;
+        }
         if (resp && resp.ok) {
           var dados = resp.data;
           estado.backendOnline = true;

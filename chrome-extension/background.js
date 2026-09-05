@@ -162,9 +162,15 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     }
 
     fetch(msg.url, options)
-      .then(function (res) { return res.json(); })
+      .then(function (res) {
+        if (!res.ok) console.warn('[SALEIA] fetchBackend HTTP ' + res.status + ' em ' + msg.url);
+        return res.json();
+      })
       .then(function (data) { sendResponse({ ok: true, data: data }); })
-      .catch(function (err) { sendResponse({ ok: false, error: err.message }); });
+      .catch(function (err) {
+        console.error('[SALEIA] fetchBackend erro de rede em ' + msg.url + ':', err.message);
+        sendResponse({ ok: false, error: err.message });
+      });
     return true;
   }
 

@@ -151,6 +151,30 @@ class TestOllamaProvider(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(resultado.dimension, 768)
         self.assertEqual(provider.dimension, 768)
 
+    async def test_embed_sync_called_from_running_loop_bridges_via_thread(self):
+        # Reproduz o bug real de producao (achado 05/09/2026): agent/
+        # multiagente/orquestrador.py chama sales_memory.buscar_contexto_
+        # para_reuniao() (sync, sem await) de dentro de uma funcao async —
+        # o embed() sincrono batia em "asyncio.run() cannot be called from
+        # a running event loop" e degradava sempre para None, deixando o
+        # Sales Memory sem contexto durante todo o tempo real. Chamar o
+        # metodo SINCRONO embed() aqui dentro de um teste async reproduz
+        # exatamente essa situacao (ha um loop rodando neste thread).
+        provider = OllamaEmbeddingProvider(base_url="http://fake:11434", model="embeddinggemma", timeout=5)
+        with patch("httpx.AsyncClient.post", new=AsyncMock(return_value=_fake_ollama_response(embedding=[0.2] * 768))):
+            resultado = provider.embed("cliente achou caro")
+        self.assertIsNotNone(resultado)
+        self.assertEqual(resultado.dimension, 768)
+
+    async def test_embed_sync_from_running_loop_failure_returns_none(self):
+        # Mesmo cenario acima, mas o Ollama falha de verdade (nao e so o
+        # conflito de loop) — ainda assim nunca lanca, so degrada.
+        import httpx
+        provider = OllamaEmbeddingProvider(base_url="http://fake:11434", timeout=1)
+        with patch("httpx.AsyncClient.post", new=AsyncMock(side_effect=httpx.ConnectError("refused"))):
+            resultado = provider.embed("texto")
+        self.assertIsNone(resultado)
+
     async def test_embed_async_connection_error_returns_none(self):
         import httpx
         provider = OllamaEmbeddingProvider(base_url="http://fake:11434", timeout=1)

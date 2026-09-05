@@ -552,7 +552,19 @@ EMAIL_FROM=noreply@saleia.com.br
 - [x] Causa raiz: `iniciarObservadorLegendas()` observa `document.body` inteiro (nao so o Meet), so exclui `#saleia-sidebar`; a lista `CAPTION_SELECTORS` existe no arquivo mas nunca e usada pra restringir.
 - [x] Fix minimo: 3 novas regras em `eRuidoUI()` excluindo os textos exatos conhecidos do EasySub ("Nenhuma reuniao ativa", "Finalizar captura", "Capturar audio (Whisper)") — mesmo padrao heuristico ja usado no arquivo.
 - [x] Versao da extensao: `1.4.5` -> `1.4.6`.
-- **Pendente**: fix mais robusto (escopar o observer a um container real do Meet, ou excluir o container do EasySub explicitamente) — precisaria inspecionar o codigo do EasySub pra achar um seletor confiavel. Usuario precisa recarregar a extensao (`chrome://extensions`) + recarregar a aba do Meet (F5) pra aplicar — e' fix client-side, sem deploy na VPS.
+- [x] **Causa raiz real do "nada aparece no dashboard" identificada e resolvida**: nao era so ruido de UI — era o content script ficando **orfao** apos multiplos reloads da extensao durante a sessao de debug (aba do Meet aberta antes de um reload da extensao perde a conexao com o novo service worker; `chrome.tabs.sendMessage`/`chrome.runtime.sendMessage` falham silenciosamente). Confirmado removendo e adicionando a extensao do zero + abrindo aba nova — `/iniciar-sessao`, `/audio-transcricao` e `/tempo-real` passaram a responder 200 OK imediatamente, com `ext_ver: "1.4.6"` confirmado nos logs.
+- [x] Usuario cobrou verificacao antes de assumir regressao: confirmado via logs da VPS que `/iniciar-sessao` nunca tinha sido chamado com sucesso em NENHUM teste do dia (nem antes de qualquer mudanca de codigo) — nao foi uma mudanca desta sessao que quebrou o registro em "Sessoes ao Vivo", era o mesmo problema de conexao desde o inicio.
+- **Pendente**: fix mais robusto no filtro de ruido (escopar o observer a um container real do Meet, ou excluir o container do EasySub explicitamente) — precisaria inspecionar o codigo do EasySub pra achar um seletor confiavel; hoje e so whack-a-mole por texto exato.
+
+## Concluido (V.1.4.64 — fix Sales Memory sem contexto no tempo real)
+
+- [x] Achado durante a validacao ao vivo acima: toda chamada de `/tempo-real` gerava `ERROR [Ollama] embed() sincrono chamado dentro de um event loop ativo` + `WARNING [SalesMemory] Falha ao gerar embedding via ollama` — a busca de Sales Memory ficava sempre desativada, silenciosamente, sem afetar a analise (degradava com seguranca, so sem contexto extra).
+- [x] Causa raiz: `agent/multiagente/orquestrador.py` chama `sales_memory.buscar_contexto_para_reuniao()` sem `await` (decisao de design documentada, mesmo padrao de `api/database.py::buscar_conhecimento_compilado_similar`) — mas `OllamaEmbeddingProvider.embed()` usa `asyncio.run()` internamente, que quebra dentro de um loop ja ativo. Como `EMBEDDING_PROVIDER=ollama` e o padrao desde a V.1.4.39, isso acontecia em toda chamada real.
+- [x] Fix em `services/embeddings/ollama_provider.py::embed()`: detecta proativamente loop ativo (`asyncio.get_running_loop()`) e roda `embed_async()` numa thread separada com loop isolado quando necessario — sem mudar a decisao de design de chamar sem `await`, so conserta a camada do provider.
+- [x] 2 testes novos reproduzindo o bug real dentro de `IsolatedAsyncioTestCase`. Suite de embeddings: 34/34 OK.
+- [x] Validado com Ollama real (nao mockado): passou pela ponte de thread corretamente, degradou por "conexao recusada" (esperado, sem Ollama local) em vez do erro de loop.
+- [x] Versao: `1.4.63` -> `1.4.64`.
+- **Pendente**: deploy na VPS + validar que o Sales Memory volta a aparecer no contexto de `/tempo-real` em producao real.
 
 ## Pendente
 
