@@ -177,10 +177,17 @@ Detalhe completo em CHANGELOG.md (V.1.4.62) e CLAUDE.md.
 
 **Confirmado na mesma auditoria**: a Fase 4 do roadmap (Book-to-Skill)
 ja estava ~90% pronta e em producao — e a "Biblioteca de Inteligencia"
-ja documentada abaixo (V.1.4.52-54). Fases 2 (Promptfoo), 3 (captura/
-transcricao local estilo Meetily), 5 (Skill Resolver V2), 6 (Retrieval
-V2 hibrido), 7 (Agent Router por evento) e a maior parte da 8 (Pilot
-Analytics completo) **nao foram iniciadas**.
+ja documentada abaixo (V.1.4.52-54).
+
+**Atualizado em 05/09/2026**: Fase 2 (Promptfoo) ganhou harness completo
+e uma execucao real validada (`evals/`, ver secao propria abaixo). Fase
+3 (captura/transcricao local estilo Meetily) ganhou o Whisper Local
+self-hosted (V.1.4.63) e a captura de audio da aba via `chrome.tabCapture`
+(extensao V.1.4.7) — sem as abstracoes formais `MeetingCaptureProvider`/
+`TranscriptionProvider` do roadmap original, por decisao deliberada (ver
+secoes proprias). Fases 5 (Skill Resolver V2), 6 (Retrieval V2 hibrido),
+7 (Agent Router por evento) e a maior parte da 8 (Pilot Analytics
+completo) **continuam nao iniciadas**.
 
 **Pendente**: `OBSERVABILITY_ENABLED` continua `false` — ninguem gerou
 uma conta Langfuse nem decidiu ativar de fato em producao ainda (decisao

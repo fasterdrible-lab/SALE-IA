@@ -242,13 +242,18 @@ nunca calcula custo, só visualiza (em trace/span) o que
 `api/cost_engine.py`/`api/ai_router.py` já calcularam. Existe porque
 `PROMPT MESTRE — EVOLUÇÃO DA SALEIA.txt` (arquivo solto na raiz do repo,
 fora de `SALEIA/`) descreve um roadmap de 10 fases de evolução da
-SALEIA — esta é a Fase 1 (Langfuse/Observabilidade), a única concluída
-além da Fase 4 (que já existia como "Biblioteca de Inteligência" abaixo).
-Fases 2 (Promptfoo), 3 (captura/transcrição local), 5 (Skill Resolver
-V2), 6 (Retrieval V2 híbrido), 7 (Agent Router por evento) e a maior
-parte da 8 (Pilot Analytics completo) **não foram iniciadas** — antes de
-assumir que uma peça desse roadmap existe, grepe o código, não confie só
-nesta nota.
+SALEIA. Status em 05/09/2026: **Fase 1** (Langfuse/Observabilidade) e
+**Fase 4** (Biblioteca de Inteligência, já existia antes com outro nome)
+concluídas; **Fase 2** (Promptfoo, `evals/`) tem harness completo e uma
+execução real validada (ver seção própria abaixo); **Fase 3** (Meetily —
+captura/transcrição local) tem o Whisper Local self-hosted e a captura
+de áudio da aba implementados (V.1.4.63/extensão V.1.4.7), mas **sem**
+as abstrações formais `MeetingCaptureProvider`/`TranscriptionProvider`
+do roadmap original (decisão deliberada, ver seções próprias). **Fases
+5** (Skill Resolver V2), **6** (Retrieval V2 híbrido), **7** (Agent
+Router por evento) e a maior parte da **8** (Pilot Analytics completo)
+**não foram iniciadas** — antes de assumir que uma peça desse roadmap
+existe, grepe o código, não confie só nesta nota.
 
 - **`services/observability/`**: `ObservabilityProvider` (interface:
   `start_trace`/`end_trace`/`start_span`/`end_span`/`record_generation`/
