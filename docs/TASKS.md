@@ -545,6 +545,15 @@ EMAIL_FROM=noreply@saleia.com.br
 - [x] **Validado o risco do timeout do nginx**: rodado um processo Python separado na propria VPS (sem mexer no servico rodando) baixando o modelo `small` e transcrevendo um audio de teste — 4,4s no total, bem abaixo de qualquer `proxy_read_timeout` default. Risco baixo, nao e mais pendencia.
 - **Pendente**: captura de audio do sistema/aba (so microfone hoje); abstracoes formais MeetingCaptureProvider/TranscriptionProvider (TAREFA 3.1/3.2/3.4) deliberadamente nao criadas; Parakeet (TAREFA 3.6, opcional no prompt mestre); benchmark WER real (TAREFA 3.12); ativar `TRANSCRICAO_PROVEDOR=whisper_local` de fato em producao (decisao de produto separada).
 
+## Concluido (Extensao Chrome V.1.4.6 — fix transcricao poluida por outra extensao)
+
+- [x] Usuario testou reuniao real com Whisper Local ja ativo em producao, mas nada aparecia no dashboard — investigacao nos logs da VPS confirmou zero chamadas de `/tempo-real`/`/audio-transcricao` chegando ao servidor (problema era 100% client-side).
+- [x] Diagnostico via Console do DevTools na aba do Meet: `content.js` capturava "Nenhuma reuniao ativa" (texto do painel flutuante do EasySub, outra extensao do usuario na mesma aba) como se fosse fala real.
+- [x] Causa raiz: `iniciarObservadorLegendas()` observa `document.body` inteiro (nao so o Meet), so exclui `#saleia-sidebar`; a lista `CAPTION_SELECTORS` existe no arquivo mas nunca e usada pra restringir.
+- [x] Fix minimo: 3 novas regras em `eRuidoUI()` excluindo os textos exatos conhecidos do EasySub ("Nenhuma reuniao ativa", "Finalizar captura", "Capturar audio (Whisper)") — mesmo padrao heuristico ja usado no arquivo.
+- [x] Versao da extensao: `1.4.5` -> `1.4.6`.
+- **Pendente**: fix mais robusto (escopar o observer a um container real do Meet, ou excluir o container do EasySub explicitamente) — precisaria inspecionar o codigo do EasySub pra achar um seletor confiavel. Usuario precisa recarregar a extensao (`chrome://extensions`) + recarregar a aba do Meet (F5) pra aplicar — e' fix client-side, sem deploy na VPS.
+
 ## Pendente
 
 - [ ] **Debito tecnico (achado 05/09/2026, fora de escopo)**: migrar `google.generativeai` (totalmente descontinuado pelo Google) para `google.genai`, e `claude-sonnet-4-20250514` (EOL 15/06/2026) para um modelo Anthropic atual.

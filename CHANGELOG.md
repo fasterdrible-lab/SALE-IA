@@ -3,6 +3,65 @@
 
 ---
 
+## Extensão Chrome V.1.4.6 — fix: transcrição poluída por outra extensão (EasySub) na mesma aba
+> Data: 05/09/2026 | Bug fix (client-side, extensao Chrome — sem impacto no backend/VPS)
+
+### CONTEXTO
+Usuário testou uma reunião real com a extensão ativa (Whisper Local já
+ligado em produção) e nada aparecia no dashboard. Investigação nos logs
+da VPS confirmou **zero chamadas de `/tempo-real` ou `/audio-transcricao`**
+chegando ao servidor (nem no `journalctl`, nem no access log do nginx) —
+o problema estava 100% do lado do navegador, não do backend.
+
+### DIAGNÓSTICO — `console` do DevTools na aba do Meet
+Pedido ao usuário abrir o Console na aba do Google Meet revelou a causa:
+`content.js` estava capturando repetidamente o texto **"Nenhuma reunião
+ativa"** como se fosse fala de um participante — esse texto não vem do
+Google Meet, vem do **painel flutuante de outra extensão do próprio
+usuário (EasySub, projeto separado de transcrição)** injetada na mesma
+aba.
+
+### CAUSA RAIZ
+`chrome-extension/content.js::iniciarObservadorLegendas()` registra o
+`MutationObserver` em `document.body` inteiro (`subtree: true`), não
+restrito ao container de legendas do Google Meet — a única exclusão
+existente era `#saleia-sidebar` (a própria UI da SALEIA). Existe até uma
+lista `CAPTION_SELECTORS` no arquivo com os seletores reais de legenda
+do Meet, mas **nunca é usada** para restringir o que é processado — a
+detecção depende inteiramente de heurísticas de texto (`eRuidoUI`/
+`RUIDO_REGEX`) pra distinguir fala real de ruído de UI. Como "Nenhuma
+reunião ativa" não batia com nenhum padrão de ruído conhecido, ela
+passava pelo filtro e era tratada como uma frase real do participante —
+poluindo `estado.transcricao` e (por dedup de texto repetido) impedindo
+que o gatilho de `/tempo-real` (`estado.transcricao.length >
+estado.ultimoIndexEnviado`) visse conteúdo novo de verdade.
+
+### FIX (mínimo, no mesmo padrão já usado no arquivo)
+Adicionadas 3 novas regras em `eRuidoUI()` (mesma técnica das dezenas de
+padrões já existentes ali) excluindo textos exatos conhecidos do painel
+do EasySub: `"Nenhuma reunião ativa"`, `"Finalizar captura"`, `"Capturar
+áudio (Whisper)"`. **Não é um fix estrutural** — continua sendo
+whack-a-mole por heurística de texto, mesmo padrão de todo o resto do
+arquivo. Um fix mais robusto (escopar o `MutationObserver` a um
+container real do Meet, ou excluir explicitamente o container do
+EasySub) fica como pendência — precisaria inspecionar o DOM/código do
+EasySub pra identificar um seletor confiável.
+
+### IMPORTANTE — isto é um fix client-side, não precisa de deploy na VPS
+`chrome-extension/` roda 100% no navegador do vendedor — não há
+`systemctl restart` nem `git pull` na VPS envolvido. Pra aplicar:
+`chrome://extensions` → recarregar a extensão SALEIA → recarregar a aba
+do Google Meet (F5) pra o content script reconectar o observer.
+
+### VERSÃO
+- Extensão Chrome: `1.4.5` → `1.4.6` (`chrome-extension/manifest.json`).
+
+### ARQUIVOS ALTERADOS
+- `chrome-extension/content.js` (3 novas regras em `eRuidoUI`)
+- `chrome-extension/manifest.json` (versão)
+
+---
+
 ## V.1.4.63 — Whisper Local (self-hosted) — parte da Fase 3 do PROMPT MESTRE ("Meetily")
 > Data: 05/09/2026 | Feature (terceiro provedor de transcrição, atrás de configuração — nada muda por padrão)
 

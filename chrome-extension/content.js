@@ -666,6 +666,14 @@
     if (/estabilidade|experi[eê]ncia do usu[aá]rio|desenvolvedores|cuidado com as extens/i.test(texto)) return true;
     // Ícones Material concatenados com texto de UI (ex: "closeFecharperson_add")
     if (/closeFech|person_add|close[A-Z]/i.test(texto)) return true;
+    // Texto vazado de OUTRAS extensões injetadas na mesma aba (ex.: EasySub) —
+    // o MutationObserver observa document.body inteiro (nao so o Meet), entao
+    // qualquer painel flutuante de outra extensao pode ser capturado como se
+    // fosse fala real. Ver achado de 05/09/2026: "Nenhuma reuniao ativa" do
+    // widget do EasySub estava sendo tratado como transcricao.
+    if (/^Nenhuma reuni[aã]o ativa$/i.test(texto)) return true;
+    if (/^Finalizar captura$/i.test(texto)) return true;
+    if (/^Capturar [aá]udio( \(Whisper\))?$/i.test(texto)) return true;
     // Atalhos de teclado (ex: "Desativar microfone (ctrl + d)", "Ativar legendas (c ou shift + c)")
     if (/\(ctrl\s*\+/i.test(texto)) return true;
     if (/\([a-z]\s+ou\s+shift\s*\+|shift\s*\+\s*[a-z]\)/i.test(texto)) return true;
