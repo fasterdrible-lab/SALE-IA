@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.54** (backend) · extensão Chrome **V.1.4.5** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.62** (backend) · extensão Chrome **V.1.4.5** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -234,6 +234,72 @@ resultado real de chamadas de IA**:
 - **Desligar uma otimização da Fase 5 em emergência**: `OTIMIZACAO_
   CACHE_ATIVO=false` (ou `_CONTEXTO_`/`_LOOP_`) no `.env` da VPS +
   `systemctl restart saleia` — não precisa reverter o deploy.
+
+## Observabilidade — Langfuse (Fase 1 do PROMPT MESTRE, V.1.4.62)
+
+Camada de tracing/debugging **paralela** ao Cost Intelligence acima —
+nunca calcula custo, só visualiza (em trace/span) o que
+`api/cost_engine.py`/`api/ai_router.py` já calcularam. Existe porque
+`PROMPT MESTRE — EVOLUÇÃO DA SALEIA.txt` (arquivo solto na raiz do repo,
+fora de `SALEIA/`) descreve um roadmap de 10 fases de evolução da
+SALEIA — esta é a Fase 1 (Langfuse/Observabilidade), a única concluída
+além da Fase 4 (que já existia como "Biblioteca de Inteligência" abaixo).
+Fases 2 (Promptfoo), 3 (captura/transcrição local), 5 (Skill Resolver
+V2), 6 (Retrieval V2 híbrido), 7 (Agent Router por evento) e a maior
+parte da 8 (Pilot Analytics completo) **não foram iniciadas** — antes de
+assumir que uma peça desse roadmap existe, grepe o código, não confie só
+nesta nota.
+
+- **`services/observability/`**: `ObservabilityProvider` (interface:
+  `start_trace`/`end_trace`/`start_span`/`end_span`/`record_generation`/
+  `record_retrieval`/`record_score`), `LangfuseObservabilityProvider`
+  (só backend suportado hoje), `NoOpObservabilityProvider` (padrão —
+  `OBSERVABILITY_ENABLED=false`, zero import de `langfuse`, zero chamada
+  de rede). `get_observability_provider()` (`factory.py`) é o único
+  ponto que módulos de negócio devem chamar — nunca instanciar os
+  providers diretamente. Chamadores nunca cacheiam a instância (chamam
+  inline dentro do próprio `try/except Exception: pass`).
+- **ContextVar, não parâmetro explícito**: `_current_observation`
+  (`provider.py`) carrega "qual trace/span está ativo agora" através de
+  fronteiras `asyncio.gather`/`asyncio.to_thread` sem precisar mudar a
+  assinatura de `chamar_ia`/`analisar_fragmento_multi` — cada um cria
+  automaticamente uma cópia de contexto por Task/thread, isolando os 4
+  agentes (Coach/DISC/Finance/Closer) entre si. **Cuidado em teste**: um
+  `start_trace`/`start_span` sem o `end_*` correspondente vaza pro
+  próximo teste da mesma classe (achado real, corrigido na V.1.4.62 —
+  ver `tests/test_observability.py::setUp` resetando incondicionalmente
+  via `self.addCleanup(_current_observation.set, None)`).
+- **Onde cada instrumentação mora**: trace por ciclo de `/tempo-real`
+  (`api/main.py`), generation por chamada de IA — sucesso/cache hit/
+  falha total (`api/ai_router.py::chamar_ia`, único choke-point,
+  ~100% do tráfego de IA passa por aqui inclusive `chamar_ia_async`),
+  span por agente + retrieval de RAG/Sales Memory/Knowledge Compiler
+  (`agent/multiagente/orquestrador.py::analisar_fragmento_multi`), span
+  de skill resolvida (`agent/skill_resolver.py::resolver_skill_context`
+  — candidatos considerados, selecionada, prioridade, DISC, score,
+  estágio), generation do fallback pra Conta Claude pessoal
+  (`agent/multiagente/claude_fallback.py` — só esse ramo respondeu de
+  verdade quando os 4 provedores centrais falharam, por isso também
+  precisa aparecer como generation, não só como `AiUsageEvent`).
+- **`OBSERVABILITY_CAPTURE_TRANSCRIPT`** (`.env`, default `false`): quem
+  decide incluir a transcrição bruta no trace é o chamador
+  (`api/main.py`), não o provider — por padrão só o tamanho em
+  caracteres vai pro Langfuse, nunca a conversa real do cliente sem
+  decisão explícita.
+- **Dashboard mínimo — decisão de reuso, sem UI nova**: "custo por
+  agente" e "agente mais caro" já existem sem código novo — as 4
+  features `realtime.coach`/`realtime.disc`/`realtime.finance`/
+  `realtime.closer` (`api/ai_features.py`) já aparecem na tabela "Por
+  Feature" da aba Custos (`custo_por_reuniao`/`custos_resumo`, Cost
+  Intelligence Fases 1-2); reuniões/latência/chamadas/fallbacks/erros/
+  provider já estão na aba Monitor. Construir um card de observabilidade
+  paralelo duplicaria dado já servido.
+- **Kill-switch**: `OBSERVABILITY_ENABLED=false` no `.env` (padrão) volta
+  pro `NoOpObservabilityProvider` sem reverter deploy — mesmo padrão dos
+  kill-switches do Cost Intelligence Fases 4-5.
+- **Ainda não ativado em produção**: ninguém criou uma conta Langfuse
+  nem decidiu ligar `OBSERVABILITY_ENABLED=true` de fato — decisão de
+  produto separada da conclusão técnica da Fase 1.
 
 ## Biblioteca de Inteligência / Knowledge Compiler (Fase 1, V.1.4.52)
 

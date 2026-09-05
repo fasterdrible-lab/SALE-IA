@@ -140,39 +140,97 @@ async def analisar_fragmento_multi(
     mapa = mapa_financeiro or {}
     rv = resumo_vivo or "Resumo ainda nao disponivel"
 
+    try:
+        from services.observability.factory import get_observability_provider
+        obs = get_observability_provider()
+    except Exception:
+        from services.observability.noop_provider import NoOpObservabilityProvider
+        obs = NoOpObservabilityProvider()
+    retrieval_span = None
+    try:
+        retrieval_span = obs.start_span(name="retrieval", meeting_id=meeting_id)
+    except Exception:
+        retrieval_span = None
+
     # RAG context — busca uma vez e compartilha entre agentes via client_context
     try:
-        rag = await buscar_contexto_similar(f"{transcricao_parcial} {historico}", top_k=3)
+        query_rag = f"{transcricao_parcial} {historico}"
+        rag = await buscar_contexto_similar(query_rag, top_k=3)
         if rag:
             client_context = (client_context or "") + f"\n\n{rag}"
+        try:
+            obs.record_retrieval(source="base_conhecimento", query=query_rag,
+                                  result_count=1 if rag else 0, meeting_id=meeting_id)
+        except Exception:
+            pass
     except Exception as _e:
         logger.debug("[Multiagente] RAG falhou: %s", _e)
 
     # Sales Memory — memórias comerciais extraídas de reuniões anteriores
     try:
         from agent.sales_memory import buscar_contexto_para_reuniao
-        mem_ctx = buscar_contexto_para_reuniao(f"{transcricao_parcial} {historico}", top_k=3)
+        query_mem = f"{transcricao_parcial} {historico}"
+        mem_ctx = buscar_contexto_para_reuniao(query_mem, top_k=3)
         if mem_ctx:
             client_context = (client_context or "") + f"\n\n{mem_ctx}"
+        try:
+            obs.record_retrieval(source="sales_memory", query=query_mem,
+                                  result_count=1 if mem_ctx else 0, meeting_id=meeting_id)
+        except Exception:
+            pass
     except Exception as _e:
         logger.debug("[Multiagente] Sales Memory falhou: %s", _e)
 
     # Knowledge Compiler (Fase 3) — KnowledgeItems aprovados (livros/playbooks compilados)
     try:
         from api.database import buscar_conhecimento_compilado_similar
-        kc_ctx = buscar_conhecimento_compilado_similar(f"{transcricao_parcial} {historico}", top_k=2)
+        query_kc = f"{transcricao_parcial} {historico}"
+        kc_ctx = buscar_conhecimento_compilado_similar(query_kc, top_k=2)
         if kc_ctx:
             client_context = (client_context or "") + f"\n\n{kc_ctx}"
+        try:
+            obs.record_retrieval(source="knowledge_compiler", query=query_kc,
+                                  result_count=1 if kc_ctx else 0, meeting_id=meeting_id)
+        except Exception:
+            pass
     except Exception as _e:
         logger.debug("[Multiagente] Knowledge Compiler RAG falhou: %s", _e)
+
+    try:
+        if retrieval_span is not None:
+            obs.end_span(retrieval_span)
+    except Exception:
+        pass
 
     coach_coro   = analisar_coach(transcricao_parcial, historico, rv, diag, evts, skill_context, client_context, usuario_id, meeting_id)
     disc_coro    = analisar_disc(transcricao_parcial, historico, perfil_disc_atual, diag, usuario_id, meeting_id)
     finance_coro = analisar_finance(transcricao_parcial, historico, mapa, usuario_id, meeting_id)
     closer_coro  = analisar_closer(transcricao_parcial, rv, scores, diag, usuario_id, meeting_id)
 
+    async def _com_span(nome: str, coro):
+        # Span iniciado DENTRO da coroutine — asyncio.gather cria uma Task
+        # por coroutine (cada uma com copia propria do contextvars.Context),
+        # entao isso isola o span por agente sem vazar entre Coach/DISC/
+        # Finance/Closer. Nao mover start_span pra antes do gather.
+        span = None
+        try:
+            span = obs.start_span(name=f"agent.{nome}", meeting_id=meeting_id)
+        except Exception:
+            span = None
+        try:
+            return await coro
+        finally:
+            if span is not None:
+                try:
+                    obs.end_span(span)
+                except Exception:
+                    pass
+
     resultados = await asyncio.gather(
-        coach_coro, disc_coro, finance_coro, closer_coro,
+        _com_span("coach", coach_coro),
+        _com_span("disc", disc_coro),
+        _com_span("finance", finance_coro),
+        _com_span("closer", closer_coro),
         return_exceptions=True,
     )
 

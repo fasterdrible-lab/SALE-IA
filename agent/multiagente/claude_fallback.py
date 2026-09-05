@@ -9,6 +9,7 @@ dados de fallback/cache (agent/multiagente/orquestrador.py::_safe()).
 """
 
 import logging
+import time
 
 from fastapi import HTTPException
 
@@ -44,6 +45,7 @@ async def chamar_ia_com_fallback_claude(
         if not conexao or conexao["status"] != "ativo" or not conexao["oauth_token_encrypted"]:
             raise
 
+        inicio = time.monotonic()
         try:
             resultado = await claude_account_executor.execute(
                 usuario_id=usuario_id,
@@ -56,6 +58,7 @@ async def chamar_ia_com_fallback_claude(
                 usuario_id, fallback_exc,
             )
             raise exc from fallback_exc
+        latencia_ms = int((time.monotonic() - inicio) * 1000)
 
         resultado.setdefault("_provedor_ia", "claude_account")
 
@@ -78,5 +81,21 @@ async def chamar_ia_com_fallback_claude(
             )
         except Exception as registro_exc:
             logger.warning("[ClaudeFallback] Falha ao registrar evento de uso: %s", registro_exc)
+
+        # Observability Fase 1 (Langfuse): a tentativa nos 4 provedores centrais
+        # ja foi rastreada dentro de chamar_ia_async (api/ai_router.py) ate o
+        # 503; este e o unico ponto que rastreia a chamada real que de fato
+        # respondeu, para "fallback rastreado" cobrir tambem o piloto Claude
+        # Account, nao so o fallback entre provedores centrais.
+        try:
+            from services.observability.factory import get_observability_provider
+            get_observability_provider().record_generation(
+                feature=feature, provider="claude_account", model=None,
+                cost_usd=resultado.get("_custo_real_usd", 0.0) or 0.0,
+                latency_ms=latencia_ms, success=True, fallback_used=True,
+                meeting_id=meeting_id, usuario_id=usuario_id,
+            )
+        except Exception:
+            pass
 
         return resultado

@@ -53,3 +53,10 @@ beautifulsoup4>=4.12.0
 # Usado só em tests/test_knowledge_compiler_extraction.py para gerar um
 # PDF fixture real (com texto) sem depender de um binário externo.
 fpdf2>=2.7.0
+
+# ─── Observability (Sprint 1 — services/observability) ─────────
+# Langfuse Cloud — camada de tracing/debugging paralela ao Cost
+# Intelligence (api/cost_engine.py). Só importado dentro de
+# services/observability/langfuse_provider.py; app funciona sem isso
+# quando OBSERVABILITY_ENABLED=false (padrão, NoOpObservabilityProvider).
+langfuse>=4.0.0

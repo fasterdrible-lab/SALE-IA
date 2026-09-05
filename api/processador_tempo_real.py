@@ -527,6 +527,7 @@ async def analyzeRealtimeMeeting(
             disc_profile=perfil_disc_atual or "",
             score=ultimo_score,
             conversation_stage=ultimo_stage,
+            meeting_id=meeting_id,
         )
     except Exception as _se:
         logger.debug("[Skills] Nao foi possivel resolver skill: %s", _se)

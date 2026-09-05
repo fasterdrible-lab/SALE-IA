@@ -1,6 +1,10 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-02 (V.1.4.54)
+Atualizado em: 2026-09-04 (V.1.4.62 — o corpo deste documento nao
+acompanhou o CHANGELOG.md desde a V.1.4.54; a fonte de verdade sempre
+mais atualizada e o CHANGELOG e o `/health` de producao. Cost
+Intelligence Fases 1-6 e Observabilidade Fase 1 ja estao concluidas —
+ver CHANGELOG.md V.1.4.55-V.1.4.62 e CLAUDE.md).
 
 ## Ambiente
 
@@ -103,6 +107,35 @@ Resumo das ultimas versoes:
 - V.1.4.48 (fix allowed_tools/tools), V.1.4.47 (token corrompido por espaco), V.1.4.46 (ANTHROPIC_API_KEY herdada), V.1.4.45 (piloto em Analisar Transcricao) e V.1.4.44 (piloto Claude Account) confirmadas deployadas.
 
 Extensao Chrome: `V.1.4.5` local/GitHub — deploy pendente, precisa reinstalar no navegador do vendedor. VPS antiga (`204.168.180.25`) deprecada.
+
+## Observabilidade (Langfuse) — Fase 1 do PROMPT MESTRE concluida (V.1.4.62, 04/09/2026)
+
+`PROMPT MESTRE — EVOLUÇÃO DA SALEIA.txt` (arquivo solto na raiz do
+repo, fora de `SALEIA/`) descreve um roadmap de 10 fases de evolucao.
+Investigacao do codigo real (nao so da documentacao) encontrou
+`services/observability/` ja criado e ja integrado numa sessao anterior
+do mesmo dia (`api/ai_router.py`, `api/main.py`,
+`api/processador_tempo_real.py`, `agent/multiagente/orquestrador.py`) —
+mas nunca commitado, nunca documentado, com 1 teste falhando por
+vazamento de ContextVar entre testes. Esta versao fechou a Fase 1
+completa: trace por reuniao/ciclo, span por agente (Coach/DISC/Finance/
+Closer), retrieval rastreado (RAG/Sales Memory/Knowledge Compiler),
+custo+latencia por chamada de IA, skill resolvida rastreada (adicionado
+nesta versao), fallback pra Conta Claude pessoal rastreado (adicionado
+nesta versao) — atras de `OBSERVABILITY_ENABLED` (`false` por padrao,
+`NoOpObservabilityProvider`, zero dependencia de rede quando desligado).
+Detalhe completo em CHANGELOG.md (V.1.4.62) e CLAUDE.md.
+
+**Confirmado na mesma auditoria**: a Fase 4 do roadmap (Book-to-Skill)
+ja estava ~90% pronta e em producao — e a "Biblioteca de Inteligencia"
+ja documentada abaixo (V.1.4.52-54). Fases 2 (Promptfoo), 3 (captura/
+transcricao local estilo Meetily), 5 (Skill Resolver V2), 6 (Retrieval
+V2 hibrido), 7 (Agent Router por evento) e a maior parte da 8 (Pilot
+Analytics completo) **nao foram iniciadas**.
+
+**Pendente**: `OBSERVABILITY_ENABLED` continua `false` — ninguem gerou
+uma conta Langfuse nem decidiu ativar de fato em producao ainda (decisao
+de produto separada, nao tecnica). Deploy na VPS ainda nao feito.
 
 ## Incidente ao vivo — 31/08/2026 (reuniao real sem IA por mais de 1h)
 
@@ -491,7 +524,7 @@ CHANGELOG (V.1.4.44) — resumo:
 - **Cost Intelligence — validacao manual pendente (V.1.4.51)**: os nomes exatos de campo de cache do DeepSeek (`prompt_cache_hit_tokens`) e Gemini (`cached_content_token_count`) nao foram confirmados contra uma resposta real de producao — degradam com seguranca para `0` via `getattr`, mas a granularidade de cache pode estar subestimada ate essa validacao. Fazer 1 chamada real por provedor em homologacao/producao logando `response.usage`/`response.usage_metadata` bruto (`api/ai_router.py::_usage_from_*`). Fases 2-6 do roadmap (dashboard de custos, Budget Guard, Cost Router) ainda nao iniciadas — ver `docs/cost-intelligence-audit.md`.
 - Descomissionar VPS antiga (`204.168.180.25`).
 - Alterar senha do admin via dashboard.
-- **Reindex de embeddings pendente**: rodar `python -m scripts.reindex_embeddings --dry-run --table all` (conferir) e depois sem `--dry-run` (a base atual tem embeddings antigos gerados pela OpenAI, incompativeis com o Ollama).
+- ~~Reindex de embeddings pendente~~ — **verificado em 04/09/2026, nada a fazer**: dry-run rodado direto na VPS via SSH confirmou `base_conhecimento` (54/54) e `sales_memories` (394/394) 100% ja em `ollama`/`embeddinggemma`, sem nenhum embedding legado da OpenAI restante (confirmado tambem por query direta no MySQL). Reindex real nao precisou rodar.
 - **Provedores de IA centrais — status em 31/08/2026** (ver nota de 01/09 abaixo): ainda sem saldo/chave valida (mesmo incidente aberto desde 22/08/2026, agravado). Groq (transcricao) teve a chave corrigida pelo usuario durante a sessao de 31/08, ainda sem validacao end-to-end.
   - **Nota (01/09/2026)**: apos o `systemctl restart` do deploy do Knowledge Compiler, `/health` passou a mostrar os 4 provedores como `status: ok`/`falhas_consecutivas: 0` — **isso e so o restart zerando os contadores em memoria, nao confirma que o saldo/chave foi resolvido** (o proprio achado de 22/08 abaixo ja documentava esse comportamento do `/health`). Nao foi feita nenhuma chamada real de teste contra os 4 provedores nesta sessao para confirmar se voltaram a funcionar de fato.
   - `deepseek`: `APIStatusError 402 Insufficient Balance`.

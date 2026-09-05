@@ -177,6 +177,24 @@ def _stage_match(skill: dict, conversation_stage: str) -> bool:
     return any(s.lower() in stage_lower or stage_lower in s.lower() for s in stage_triggers)
 
 
+def _candidatos_aplicaveis(disc_profile: str, score: float, conversation_stage: str) -> list:
+    """Skills ativas cujos triggers batem com o contexto, ordenadas por
+    prioridade (maior primeiro; empate prefere builtin). Extraído para ser
+    compartilhado por resolver_melhor_skill() e resolver_skill_context() —
+    listar_skills() bate em arquivo+MySQL, não deve rodar duas vezes por
+    resolução."""
+    skills = listar_skills(apenas_ativas=True)
+    candidatos = [
+        skill for skill in skills
+        if _disc_match(skill, disc_profile) and _score_match(skill, score) and _stage_match(skill, conversation_stage)
+    ]
+    candidatos.sort(
+        key=lambda s: (int(s.get("priority") or 50), 1 if s.get("source") == "builtin" else 0),
+        reverse=True,
+    )
+    return candidatos
+
+
 def resolver_melhor_skill(
     disc_profile: str = "",
     score: float = 50.0,
@@ -193,34 +211,46 @@ def resolver_melhor_skill(
     Returns:
         Dict da skill vencedora, ou None se nenhuma se aplica.
     """
-    skills = listar_skills(apenas_ativas=True)
-    candidatos = []
-
-    for skill in skills:
-        if _disc_match(skill, disc_profile) and _score_match(skill, score) and _stage_match(skill, conversation_stage):
-            candidatos.append(skill)
-
-    if not candidatos:
-        return None
-
-    # Maior priority vence; empate: prefere builtin
-    candidatos.sort(
-        key=lambda s: (int(s.get("priority") or 50), 1 if s.get("source") == "builtin" else 0),
-        reverse=True,
-    )
-    return candidatos[0]
+    candidatos = _candidatos_aplicaveis(disc_profile, score, conversation_stage)
+    return candidatos[0] if candidatos else None
 
 
 def resolver_skill_context(
     disc_profile: str = "",
     score: float = 50.0,
     conversation_stage: str = "abertura",
+    meeting_id: Optional[str] = None,
 ) -> str:
     """
     Retorna o texto de injeção da skill escolhida, ou "" se nenhuma aplicável.
     Este texto é adicionado ao final do prompt de tempo real da IA.
+
+    Instrumentação (Observability Fase 1): registra span "skill_resolver"
+    com quantas skills foram consideradas, qual foi selecionada, score,
+    DISC, estágio e prioridade — nunca bloqueia a resolução se o provider
+    de observabilidade falhar.
     """
-    skill = resolver_melhor_skill(disc_profile, score, conversation_stage)
+    candidatos = _candidatos_aplicaveis(disc_profile, score, conversation_stage)
+    skill = candidatos[0] if candidatos else None
+
+    try:
+        from services.observability.factory import get_observability_provider
+        obs = get_observability_provider()
+        span = obs.start_span(
+            name="skill_resolver",
+            meeting_id=meeting_id,
+            input={"disc_profile": disc_profile, "score": score, "conversation_stage": conversation_stage},
+            metadata={
+                "candidatos_considerados": len(candidatos),
+                "skill_selecionada": skill.get("name") if skill else None,
+                "skill_priority": skill.get("priority") if skill else None,
+                "skill_source": skill.get("source") if skill else None,
+            },
+        )
+        obs.end_span(span, output={"skill_selecionada": skill.get("name") if skill else None})
+    except Exception:
+        pass
+
     if not skill:
         return ""
 

@@ -3,6 +3,125 @@
 
 ---
 
+## V.1.4.62 — Observabilidade (Langfuse) — Fase 1 do PROMPT MESTRE concluída
+> Data: 04/09/2026 | Feature (observação — nenhuma chamada real de IA é afetada)
+
+### CONTEXTO
+`PROMPT MESTRE — EVOLUÇÃO DA SALEIA.txt` (raiz do repo, fora de `SALEIA/`)
+descreve um roadmap de 10 fases (Langfuse, Promptfoo, captura/transcrição
+local estilo Meetily, Skill Resolver V2, Retrieval V2 híbrido, Agent
+Router, Pilot Analytics). Ao ser questionado se esse prompt estava
+"finalizado", uma auditoria do código real (não só da documentação)
+encontrou `services/observability/` já criado e já integrado em
+`api/ai_router.py`/`api/main.py`/`api/processador_tempo_real.py`/
+`agent/multiagente/orquestrador.py` numa sessão anterior do mesmo dia —
+mas **nunca commitado, nunca documentado, e com 1 teste falhando**. Esta
+versão fecha essa Fase 1: corrige o teste, completa os 2 itens que
+faltavam (Skill Resolver, fallback Conta Claude) e documenta tudo.
+
+Confirmado nesta auditoria: a Fase 4 do mesmo roadmap (Book-to-Skill)
+já estava ~90% pronta e em produção — é a "Biblioteca de Inteligência"
+(V.1.4.52-54, já documentada). As Fases 2, 3, 5, 6, 7 e a maior parte da
+8 **não foram iniciadas** — sem vestígio de Promptfoo, captura de áudio
+local, `resolver_skills_relevantes`, retrieval híbrido ponderado, ou
+roteamento de agente por evento.
+
+### BUG ENCONTRADO E CORRIGIDO — vazamento de ContextVar entre testes
+`tests/test_observability.py::test_capture_transcript_flag_controls_raw_
+text_presence` chamava `provider.start_trace(...)` mas nunca `end_trace()`
+— como `_current_observation` (ContextVar em `services/observability/
+provider.py`) não é resetado automaticamente entre métodos de teste da
+mesma classe/thread, isso vazava a trace aberta para o próximo teste da
+suíte (`NoOpProviderTest.test_handles_pop_context_on_end`), que esperava
+`get_current_observation() is None` depois de fechar sua própria trace e
+recebia a trace vazada em vez disso. Mesma classe de bug já vista na
+Fase 5 do Cost Intelligence (cache vazando entre testes). Corrigido com
+`self.addCleanup(_current_observation.set, None)` em `setUp()` de
+`NoOpProviderTest` e `LangfuseProviderTest` — reseta incondicionalmente
+ao fim de cada teste, independente de qual token teria sido usado.
+
+### BACKEND — `agent/skill_resolver.py` (TAREFA 1.7 — Instrumentar Skill Resolver)
+- `_candidatos_aplicaveis()` (novo, privado) extrai a lógica de filtro+
+  ordenação compartilhada por `resolver_melhor_skill()` e
+  `resolver_skill_context()` — evita chamar `listar_skills()` (disco +
+  MySQL) duas vezes por resolução.
+- `resolver_skill_context()` ganha parâmetro `meeting_id` e registra um
+  span `skill_resolver` (`start_span`/`end_span`) com `input` (disc/
+  score/stage) e `metadata` (quantas skills foram consideradas, qual foi
+  selecionada, sua prioridade e origem builtin/gerada) — sempre dentro de
+  `try/except Exception: pass`, nunca bloqueia a resolução real.
+- `api/processador_tempo_real.py`: o `record_score` avulso e grosseiro
+  (`skill_resolved: 0.0/1.0`) que vivia aqui foi removido — substituído
+  pelo span rico movido para dentro do próprio módulo (mesmo princípio de
+  encapsulamento que `ai_router.py`/`orquestrador.py` já seguem: cada
+  módulo se instrumenta, o chamador não).
+
+### BACKEND — `agent/multiagente/claude_fallback.py` (fallback rastreado — TAREFA 1.10)
+A tentativa nos 4 provedores centrais já era rastreada dentro de
+`chamar_ia_async` (`api/ai_router.py`) até o `503`; mas a chamada que
+*de fato* respondia — a conta Claude pessoal do vendedor via
+`claude_account_executor.execute()` — só gerava um `AiUsageEvent` (Cost
+Intelligence), nunca um `record_generation` no Langfuse. Corrigido:
+mede `latencia_ms` ao redor do `execute()` e chama
+`get_observability_provider().record_generation(provider="claude_
+account", fallback_used=True, ...)` depois do registro de custo
+existente, mesmo padrão `try/except Exception: pass`.
+
+### DECISÃO — TAREFA 1.8/1.9 (custo por agente, dashboard mínimo) via reuso, sem UI nova
+O roadmap pede uma agregação `meeting_cost` (`coach_cost`/`disc_cost`/
+`finance_cost`/`closer_cost`) e um "dashboard mínimo" no admin (reuniões,
+custo médio, latência, chamadas, fallbacks, erros, provider mais usado,
+agente mais caro). Toda essa informação **já existe** sem código novo:
+`api/database.py::custo_por_reuniao()` (Cost Intelligence Fase 1) já
+agrega custo `por_feature` por `meeting_id`, e as features
+`realtime.coach`/`realtime.disc`/`realtime.finance`/`realtime.closer`
+(`api/ai_features.py`) já são exatamente os 4 agentes — a tabela "Por
+Feature" da aba **Custos** do dashboard (`GET /admin/costs/resumo`) já
+mostra isso hoje. A aba **Monitor** já cobre reuniões/latência/chamadas/
+fallbacks/erros/provider. Construir uma UI paralela dentro do "card de
+observabilidade" duplicaria dado que já é servido — decisão alinhada com
+a própria regra do PROMPT MESTRE ("não criar duplicação funcional").
+
+### CONFIGURAÇÃO — `.env.example` documentado (faltava desde a sessão anterior)
+Nova seção "Observabilidade — tracing/debugging via Langfuse (Sprint 1)":
+`OBSERVABILITY_ENABLED` (default `false` → `NoOpObservabilityProvider`),
+`OBSERVABILITY_PROVIDER` (`langfuse`, único suportado), `LANGFUSE_
+PUBLIC_KEY`/`LANGFUSE_SECRET_KEY`/`LANGFUSE_HOST` e `OBSERVABILITY_
+CAPTURE_TRANSCRIPT` (default `false` — nunca envia transcrição real do
+cliente para o Langfuse sem decisão explícita). `requirements.txt` já
+tinha `langfuse>=4.0.0` documentado desde a sessão anterior.
+
+### TESTES
+- `tests/test_observability.py`: 15/15 (era 14/15 — 1 falha corrigida).
+- `tests/test_skill_resolver.py` (novo, 10 testes): seleção por triggers/
+  prioridade/empate builtin, span de observabilidade com metadados
+  corretos (com e sem skill aplicável), falha do provider de
+  observabilidade nunca quebra a resolução.
+- `tests/test_multiagente_claude_fallback.py`: +1 asserção no teste de
+  sucesso do fallback, confirmando `record_generation(provider=
+  "claude_account", fallback_used=True, ...)`.
+- Suite completa (`discover tests`) rodada sem regressão.
+
+### VERSÃO
+- Backend: `1.4.61` → `1.4.62` (`/health`, `/monitor/metricas`).
+
+### ARQUIVOS ALTERADOS
+- Já existentes de uma sessão anterior (nunca commitados até agora):
+  `services/observability/` (`__init__.py`, `provider.py`, `factory.py`,
+  `langfuse_provider.py`, `noop_provider.py`), `tests/test_observability.py`,
+  `api/ai_router.py`, `api/main.py`, `api/processador_tempo_real.py`,
+  `agent/multiagente/orquestrador.py`, `requirements.txt` (`langfuse>=4.0.0`)
+- Novos nesta sessão: `tests/test_skill_resolver.py`
+- Modificados nesta sessão: `tests/test_observability.py` (fix de
+  vazamento), `agent/skill_resolver.py` (TAREFA 1.7),
+  `agent/multiagente/claude_fallback.py` (fallback rastreado),
+  `api/processador_tempo_real.py` (remove instrumentação duplicada),
+  `tests/test_multiagente_claude_fallback.py`, `.env.example`,
+  `api/main.py` (versão), `CLAUDE.md`, `docs/CURRENT_STATE.md`,
+  `docs/TASKS.md`
+
+---
+
 ## V.1.4.61 — Cost Intelligence Fase 4: Cost Router sai do Shadow Mode (ATIVA em produção)
 > Data: 04/09/2026 | Feature (muda comportamento real de chamadas de IA)
 

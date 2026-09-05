@@ -549,6 +549,16 @@ def chamar_ia(
             meeting_id=meeting_id, usuario_id=usuario_id,
         )
         try:
+            from services.observability.factory import get_observability_provider
+            get_observability_provider().record_generation(
+                feature=feature, provider=resultado_cache.get("_provedor_ia", "cache"),
+                model=resultado_cache.get("_modelo_ia"), prompt_tokens=0, completion_tokens=0,
+                cost_usd=0.0, success=True, cache_hit=True,
+                meeting_id=meeting_id, usuario_id=usuario_id,
+            )
+        except Exception:
+            pass
+        try:
             from api.otimizacao import registrar_cache_hit
             registrar_cache_hit(feature=feature, meeting_id=meeting_id, system_prompt=system_prompt, custo_evitado_usd=custo_evitado)
         except Exception:
@@ -653,6 +663,18 @@ def chamar_ia(
             )
 
             try:
+                from services.observability.factory import get_observability_provider
+                get_observability_provider().record_generation(
+                    feature=feature, provider=provider.name, model=model,
+                    prompt_tokens=custo.input_tokens, completion_tokens=custo.output_tokens,
+                    cost_usd=custo.cost_usd, latency_ms=elapsed_ms,
+                    success=True, fallback_used=failed_before > 0,
+                    meeting_id=meeting_id, usuario_id=usuario_id,
+                )
+            except Exception:
+                pass  # Observability (Sprint 1) — nunca pode afetar a chamada real
+
+            try:
                 from api.cost_router import registrar_decisao
                 registrar_decisao(
                     feature=feature,
@@ -714,6 +736,16 @@ def chamar_ia(
         usuario_id=usuario_id,
         error_message=str(attempts),
     )
+
+    try:
+        from services.observability.factory import get_observability_provider
+        get_observability_provider().record_generation(
+            feature=feature, provider="none", model=None,
+            success=False, error=str(attempts)[:500],
+            meeting_id=meeting_id, usuario_id=usuario_id,
+        )
+    except Exception:
+        pass  # Observability (Sprint 1) — nunca pode afetar a chamada real
 
     raise HTTPException(
         status_code=503,

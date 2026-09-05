@@ -10,7 +10,7 @@ Run:
 
 import asyncio
 import unittest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi import HTTPException
 
@@ -102,6 +102,7 @@ class ChamarIaComFallbackClaudeTest(unittest.TestCase):
 
     def test_503_com_conexao_ativa_cai_no_fallback_claude(self):
         conexao = {"status": "ativo", "oauth_token_encrypted": "cripto"}
+        mock_obs = MagicMock()
         with patch(
             "agent.multiagente.claude_fallback.chamar_ia_async",
             new=AsyncMock(side_effect=HTTPException(status_code=503, detail="fora do ar")),
@@ -113,7 +114,11 @@ class ChamarIaComFallbackClaudeTest(unittest.TestCase):
                         new=AsyncMock(return_value={"dores": ["dor-x"], "_custo_real_usd": 0.05}),
                     ) as mock_execute:
                         with patch("api.database.registrar_evento_uso_ia") as mock_registrar:
-                            resultado = self._run(usuario_id="user-a", feature="realtime.coach")
+                            with patch(
+                                "services.observability.factory.get_observability_provider",
+                                return_value=mock_obs,
+                            ):
+                                resultado = self._run(usuario_id="user-a", feature="realtime.coach")
 
         mock_execute.assert_awaited_once()
         _, kwargs = mock_execute.call_args
@@ -129,6 +134,16 @@ class ChamarIaComFallbackClaudeTest(unittest.TestCase):
         self.assertEqual(reg_kwargs["feature"], "realtime.coach")
         self.assertTrue(reg_kwargs["fallback_used"])
         self.assertEqual(reg_kwargs["cost_usd"], 0.05)
+
+        # Observability Fase 1: fallback pra Conta Claude tambem precisa
+        # aparecer como generation rastreada (nao so no Cost Intelligence).
+        mock_obs.record_generation.assert_called_once()
+        obs_kwargs = mock_obs.record_generation.call_args.kwargs
+        self.assertEqual(obs_kwargs["provider"], "claude_account")
+        self.assertEqual(obs_kwargs["feature"], "realtime.coach")
+        self.assertTrue(obs_kwargs["fallback_used"])
+        self.assertEqual(obs_kwargs["cost_usd"], 0.05)
+        self.assertTrue(obs_kwargs["success"])
 
     def test_fallback_tambem_falhando_relanca_excecao_original(self):
         conexao = {"status": "ativo", "oauth_token_encrypted": "cripto"}

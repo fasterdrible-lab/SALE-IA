@@ -574,7 +574,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.61",
+        "versao":              "1.4.62",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -612,7 +612,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.61",
+        "versao":          "1.4.62",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -674,6 +674,22 @@ async def analisar_tempo_real(req: TempoRealRequest, authorization: str | None =
         except HTTPException:
             pass
 
+    try:
+        from services.observability.factory import get_observability_provider
+        _capturar_transcricao = os.getenv("OBSERVABILITY_CAPTURE_TRANSCRIPT", "false").strip().lower() in ("1", "true", "yes")
+        _obs_input = {"transcript_chars": len(req.transcricao_parcial or "")}
+        if _capturar_transcricao:
+            _obs_input["transcricao_parcial"] = req.transcricao_parcial
+            _obs_input["historico"] = req.historico
+        obs_trace = get_observability_provider().start_trace(
+            name="tempo_real_cycle",
+            meeting_id=req.meeting_id or "default",
+            usuario_id=usuario_id,
+            input=_obs_input,
+        )
+    except Exception:
+        obs_trace = None
+
     # Salvar transcrição bruta ANTES do GPT — garante persistência mesmo se GPT falhar
     # Usa transcricao_nova (delta) se disponível para evitar duplicatas no DB.
     _para_salvar = (req.transcricao_nova or "").strip() or (req.transcricao_parcial or "").strip()
@@ -686,6 +702,7 @@ async def analisar_tempo_real(req: TempoRealRequest, authorization: str | None =
 
     from api.processador_tempo_real import processar_fragmento_tempo_real
 
+    resultado = None
     try:
         resultado = await processar_fragmento_tempo_real(
             transcricao_parcial=req.transcricao_parcial or "",
@@ -699,6 +716,13 @@ async def analisar_tempo_real(req: TempoRealRequest, authorization: str | None =
     except Exception as e:
         logger.error("Erro ao processar fragmento tempo real: %s", e)
         raise HTTPException(status_code=500, detail="Erro ao processar transcricao. Verifique as APIs de IA configuradas.")
+    finally:
+        if obs_trace is not None:
+            try:
+                from services.observability.factory import get_observability_provider
+                get_observability_provider().end_trace(obs_trace, success=(resultado is not None))
+            except Exception:
+                pass
 
     # Persistir última análise para o endpoint /cenario
     try:

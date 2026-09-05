@@ -492,13 +492,25 @@ EMAIL_FROM=noreply@saleia.com.br
 - [x] Commitado localmente e enviado ao GitHub.
 - [x] Deploy na VPS confirmado (`reunioes_ativas: 0` antes e depois do pull, `systemctl restart saleia`, `/health` -> `versao: 1.4.61`, logs limpos). `GET /admin/costs/router` em producao confirma `ativo: true`, 20 decisoes herdadas do shadow mode (100% concordancia / 0% economia, esperado — trafego real so passa por DeepSeek hoje).
 
+## Concluido (V.1.4.62 — Observabilidade Langfuse: Fase 1 do PROMPT MESTRE)
+
+- [x] Ao ser perguntado se `PROMPT MESTRE — EVOLUÇÃO DA SALEIA.txt` (raiz do repo) estava finalizado, auditoria do codigo real encontrou `services/observability/` (Langfuse) ja criado e integrado numa sessao anterior do mesmo dia, mas nunca commitado/documentado, com 1 teste falhando.
+- [x] Corrigido vazamento de ContextVar entre testes (`tests/test_observability.py` — teste que abria trace sem fechar contaminava o teste seguinte): 15/15 testes passando.
+- [x] TAREFA 1.7 (instrumentar Skill Resolver): `agent/skill_resolver.py::resolver_skill_context` ganha span `skill_resolver` com candidatos considerados/skill selecionada/score/DISC/estagio/prioridade. 10 testes novos (`tests/test_skill_resolver.py`).
+- [x] Fallback rastreado tambem para a Conta Claude pessoal (`agent/multiagente/claude_fallback.py`) — antes so virava `AiUsageEvent` (Cost Intelligence), agora tambem gera `record_generation` no Langfuse.
+- [x] TAREFA 1.8/1.9 (custo por agente, dashboard minimo) resolvidas por reuso, sem UI nova: `custo_por_reuniao()` (Cost Intelligence Fase 1) ja agrega por `feature`, e `realtime.coach/disc/finance/closer` ja sao os 4 agentes — ja visivel na aba Custos ("Por Feature"); Monitor ja cobre reunioes/latencia/chamadas/fallbacks/erros/provider.
+- [x] `.env.example` documentado (`OBSERVABILITY_ENABLED`/`OBSERVABILITY_PROVIDER`/`LANGFUSE_*`/`OBSERVABILITY_CAPTURE_TRANSCRIPT`) — faltava desde a sessao anterior.
+- [x] Suite completa (`discover tests`): 389 testes, 8 falhas pre-existentes e nao relacionadas (mesmas de sempre, `test_next_best_question.py`/`test_realtime_memory.py`), sem regressao.
+- **Confirmado na mesma auditoria**: Fase 4 do PROMPT MESTRE (Book-to-Skill) ja estava ~90% pronta em producao (= Biblioteca de Inteligencia, V.1.4.52-54). Fases 2, 3, 5, 6, 7 e a maior parte da 8 do roadmap **nao foram iniciadas**.
+- **Pendente**: commit/push ainda nao feitos (aguardando confirmacao do usuario); deploy na VPS pendente; `OBSERVABILITY_ENABLED` continua `false` (decisao de ativar de fato em producao e separada — precisa de conta Langfuse configurada).
+
 ## Pendente
 
 - [ ] Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI).
 - [ ] Recarregar extensao Chrome: `chrome://extensions` → 🔄 recarregar SALEIA (aplica migracao de URL e V.1.4.3).
 - [ ] Descomissionar VPS antiga `204.168.180.25` apos validacao.
 - [ ] Alterar senha do admin `phpos35@gmail.com` via dashboard.
-- [ ] **Reindex de embeddings pos-deploy**: `python -m scripts.reindex_embeddings --dry-run --table all` (conferir) e depois sem `--dry-run` (embeddings atuais sao da OpenAI, incompativeis com Ollama). Ainda nao executado.
+- [x] **Reindex de embeddings pos-deploy — verificado (04/09/2026), nada pendente**: `--dry-run --table all` rodado direto na VPS via SSH (senha root; `reunioes_ativas: 0` confirmado antes) retornou `ja_atual=54/54` (`base_conhecimento`) e `ja_atual=394/394` (`sales_memories`), `sucesso=0 falha=0` — 100% das linhas ja estao em `ollama`/`embeddinggemma`, confirmado tambem por query direta no MySQL (`GROUP BY embedding_provider, embedding_model`). Nao havia mais nenhum embedding legado da OpenAI para migrar; o reindex real (sem `--dry-run`) nao precisou ser executado por nao haver nada a fazer.
 - [ ] **Corrigir a chave SSH `saleia_vps`** (`Permission denied (publickey,password)`, checado em 01/09/2026 — acesso restabelecido só por senha root fornecida pelo usuario) — checar `authorized_keys` na VPS nova ou gerar/cadastrar chave nova.
 - [ ] **Validar end-to-end a transcricao de audio (Groq)** apos o restart confirmado do V.1.4.50/1.4.51 — chave `GROQ_API_KEY` foi atualizada em 31/08/2026, presente no `.env`, mas nunca testada ponta a ponta (sem trafego real de `/audio-transcricao` desde o restart).
 - [x] **Migracao de reunioes historicas (Drive) — 74/74 concluida (04/09/2026)**: as 23 reunioes que falhavam com 503 em 20/08/2026 foram reprocessadas com sucesso (0 falhas) — a degradacao dos provedores de IA que causava o 503 na epoca ja nao estava mais presente. `scripts/migrar_reunioes_historico.py` processou o total das 74 reunioes exportadas do Google Drive (Gemini Notes) contra producao, cada uma virando um relatorio completo + entrada de Sales Memory. Os 5 `.txt` de chat do lote (so trocas de e-mail no chat do Meet, sem sinal de conversa) continuam propositalmente excluidos. Zip original em `C:\Users\phpos\Downloads\drive-download-20260820T182045Z-1-001.zip`; estado final em `data/migracao_reunioes_estado.json`.
