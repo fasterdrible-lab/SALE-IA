@@ -820,8 +820,17 @@
   function exibirAvisoLegenda() { const a = document.getElementById('saleia-legenda-aviso'); if (a) a.style.display = 'block'; }
   function ocultarAvisoLegenda() { const a = document.getElementById('saleia-legenda-aviso'); if (a) a.style.display = 'none'; }
 
+  // Primeira checagem bem mais cedo que o ciclo normal (60s) — setInterval
+  // só dispara pela primeira vez depois do intervalo inteiro passar, então
+  // sem isso a extensão fica ate 60s sem tentar nenhuma analise mesmo com
+  // legenda/audio ja sendo capturados desde o segundo 0 (achado real,
+  // 05/09/2026 — "Próxima análise em: 60s" parado no início de toda
+  // reunião). Ciclos seguintes continuam no ritmo normal, sem mudar o
+  // custo de IA em regime estável.
+  var PRIMEIRA_ANALISE_SEGUNDOS = 20;
+
   function iniciarContadorRegressivo() {
-    estado.contador = CONFIG.intervaloAnalise;
+    estado.contador = PRIMEIRA_ANALISE_SEGUNDOS;
     estado.timerContador = setInterval(function () {
       if (!estado.ativo) return;
       estado.contador--;
@@ -836,12 +845,18 @@
   }
 
   function iniciarEnvioPeriodico() {
-    estado.timerEnvio = setInterval(function () {
+    function checarEEnviar() {
       if (!estado.ativo) return;
       // Só analisa se houver entradas novas desde o último envio — evita análise de silêncio
       if (estado.transcricao.length <= estado.ultimoIndexEnviado) return;
       enviarParaBackend();
-    }, CONFIG.intervaloAnalise * 1000);
+    }
+    // Primeira checagem em PRIMEIRA_ANALISE_SEGUNDOS (não CONFIG.intervaloAnalise) —
+    // setTimeout dispara uma vez, depois o setInterval assume o ritmo normal.
+    setTimeout(function () {
+      checarEEnviar();
+      estado.timerEnvio = setInterval(checarEEnviar, CONFIG.intervaloAnalise * 1000);
+    }, PRIMEIRA_ANALISE_SEGUNDOS * 1000);
   }
 
   function montarTranscricaoParcial() {

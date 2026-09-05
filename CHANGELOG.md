@@ -3,6 +3,55 @@
 
 ---
 
+## Extensão Chrome V.1.4.8 — fix: demora de até 60s para a primeira análise de cada reunião
+> Data: 05/09/2026 | Bug fix (extensão Chrome — sem impacto no backend/VPS)
+
+### CONTEXTO
+Usuário reportou que a extensão demora para começar a "capturar" as
+transcrições. Legendas e áudio já eram capturados desde o segundo 0
+(`iniciarObservadorLegendas()` roda logo em `iniciar()`), mas nenhuma
+análise era enviada ao backend por até 60 segundos — visível em toda
+sessão de teste do dia como "Próxima análise em: 60s" parado e
+"Aguardando análise..." nos 3 painéis da sidebar por bastante tempo.
+
+### CAUSA RAIZ
+`iniciarContadorRegressivo()` e `iniciarEnvioPeriodico()` usavam
+`setInterval(fn, 60000)` (`CONFIG.intervaloAnalise = 60`) — `setInterval`
+só dispara o callback pela primeira vez depois do intervalo **inteiro**
+passar, nunca imediatamente. Ou seja: mesmo com texto real já acumulado,
+a extensão esperava 60s fixos antes da primeira tentativa de enviar
+qualquer coisa a `/tempo-real`; se essa primeira tentativa não tivesse
+texto novo suficiente, esperava **mais** 60s.
+
+Efeito somado ao gate do servidor (`api/processador_tempo_real.py::
+_pode_chamar_ia`, deliberado e não alterado aqui): exige ≥120 caracteres
+novos ou ≥18 palavras novas desde a última análise
+(`_MIN_NEW_CHARS`/`_MIN_NEW_WORDS`) — se o primeiro disparo do cliente
+aos 60s não atingir esse mínimo, o backend responde
+`analysis_status: "skipped"` e mais um ciclo de 60s é perdido.
+
+### FIX — `chrome-extension/content.js`
+`PRIMEIRA_ANALISE_SEGUNDOS = 20` (novo): a primeira checagem/contagem
+regressiva dispara em 20s (via `setTimeout`), não 60s — só depois disso
+o `setInterval` normal assume o ritmo estável de 60s. Não muda o custo
+de IA em regime normal (ciclos seguintes continuam idênticos a antes),
+só reduz a demora percebida no início de cada reunião.
+
+### VALIDAÇÃO
+Sintaxe verificada (`node --check`). Mudança é só de timing
+(`setTimeout`+`setInterval` em vez de `setInterval` puro) — não altera
+nenhuma lógica de captura/filtro já testada.
+
+### VERSÃO
+- Extensão Chrome: `1.4.7` → `1.4.8`.
+
+### ARQUIVOS ALTERADOS
+- `chrome-extension/content.js` (`iniciarContadorRegressivo`,
+  `iniciarEnvioPeriodico`)
+- `chrome-extension/manifest.json` (versão)
+
+---
+
 ## Extensão Chrome V.1.4.7 — captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE
 > Data: 05/09/2026 | Feature (extensão Chrome — sem impacto no backend/VPS)
 
