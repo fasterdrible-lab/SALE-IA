@@ -504,8 +504,51 @@ EMAIL_FROM=noreply@saleia.com.br
 - **Confirmado na mesma auditoria**: Fase 4 do PROMPT MESTRE (Book-to-Skill) ja estava ~90% pronta em producao (= Biblioteca de Inteligencia, V.1.4.52-54). Fases 2, 3, 5, 6, 7 e a maior parte da 8 do roadmap **nao foram iniciadas**.
 - **Pendente**: commit/push ainda nao feitos (aguardando confirmacao do usuario); deploy na VPS pendente; `OBSERVABILITY_ENABLED` continua `false` (decisao de ativar de fato em producao e separada — precisa de conta Langfuse configurada).
 
+## Concluido (Fase 2 do PROMPT MESTRE — Promptfoo / Evaluation Suite, harness criado)
+
+- [x] `evals/` criado (TAREFA 2.1): `promptfooconfig.yaml` (Coach), `promptfooconfig.finance.yaml` (Finance), `promptfooconfig.redteam.yaml` (red team) — 3 configs separadas porque os schemas de saida dos agentes diferem.
+- [x] `evals/providers/coach_provider.py`/`finance_provider.py`: bridges Python que chamam os agentes reais (`agent.multiagente.coach_agent.analisar_coach`/`finance_agent.analisar_finance`) diretamente — sem duplicar a logica de chamada de IA (`api/ai_router.py`).
+- [x] Golden Dataset (TAREFA 2.2/2.3): 22 casos **sinteticos** (2 por categoria) cobrindo as 11 categorias minimas em `datasets/coach/objections_golden.yaml` — nao sao reunioes reais anonimizadas (sem acesso a MySQL de producao nesta sessao); aviso explicito no topo do arquivo.
+- [x] Next Best Action (TAREFA 2.4): `datasets/coach/next_best_action.yaml`, incluindo o exemplo literal do prompt mestre (mapear decisor, nunca desconto/pressao).
+- [x] Finance Agent: `datasets/finance/price_objections.yaml` (preco, caixa, ROI, checagem de nao-alucinacao de valores).
+- [x] Red teaming (TAREFA 2.8): `scenarios/red_team.yaml` (6 casos — injection, role override, exfiltracao, injecao de desconto, JSON malformado, pressao de fechamento).
+- [x] Criterios de aprovacao (TAREFA 2.7): `evals/APPROVAL_CRITERIA.md`.
+- [x] CI (TAREFA 2.9): `.github/workflows/llm-evals.yml`, roda em PRs que tocam prompts/AI Router/RAG/Skills/Agents.
+- [x] `evals/README.md` (TAREFA 2.10) documentando tudo + pendencias explicitas.
+- [x] `package.json` na raiz de `SALEIA/` (devDependency `promptfoo@0.122.2`, so pra rodar o eval — backend continua 100% Python).
+- [x] Validado sem rodar eval real (custaria dinheiro): YAMLs parseiam (`yaml.safe_load`), providers compilam (`py_compile`), imports dos agentes reais funcionam dentro do venv do projeto (falham no Python global por falta de `fastapi` — documentado).
+- **Pendente**: substituir dataset sintetico por reunioes reais anonimizadas (TAREFA 2.2, precisa acesso a producao); TAREFA 2.5 (comparacao entre os 4 providers) bloqueada pelo incidente de saldo/chave ja documentado; TAREFA 2.6 (comparacao de versoes de prompt) sem objeto ainda; configurar secrets `EVAL_*_API_KEY` no GitHub; estender cobertura para DISC/Closer agents.
+
+## Concluido (Fase 2 Promptfoo — primeira execucao real, 05/09/2026)
+
+- [x] Rodada real confirmada pelo usuario (custo estimado ~US$0,01-0,35 aceito antes de rodar): Coach 27/27, Finance 4/4, Red Team 6/6 (apos corrigir 2 falsos positivos de assert) — **37/37 passou no total**, custo real US$ 0,0122.
+- [x] Achado corrigido: `DEEPSEEK_API_KEY` no `.env` local estava invalida (diferente da chave de producao na VPS, que funciona) — usuario forneceu chave de teste nova, aplicada diretamente no `.env` local.
+- [x] Achado corrigido: venv local sem `google-generativeai` (pinado em `requirements.txt`, nunca instalado nesta maquina) — instalado, sem regressao (`test_smoke` 8/8 OK).
+- [x] Achado registrado (fora do escopo, nao corrigido agora): pacote `google.generativeai` totalmente descontinuado pelo Google (avisa pra migrar pra `google.genai`); modelo `claude-sonnet-4-20250514` deprecado com EOL 15/06/2026.
+- [x] Achado corrigido: 2 dos 6 casos de red team davam falso `[FAIL]` porque o assert checava o JSON inteiro, incluindo campos que citam a fala do cliente verbatim por design (`filtro_cliente.frases_chave`/`key_moments[].quote`) — corrigido restringindo aos campos falados/exibidos ao vendedor.
+- [x] Fix de path: `outputPath` das 3 configs apontava pra fora de `evals/` (resolvia relativo ao CWD, nao ao config) — corrigido.
+- [x] Secret `EVAL_DEEPSEEK_API_KEY` configurado no GitHub (Settings > Secrets and variables > Actions) — unico obrigatorio hoje, ja que e o unico provedor com saldo valido; `.github/workflows/llm-evals.yml` atualizado pra deixar OPENAI/ANTHROPIC/GEMINI comentados (opcionais, prontos pra ativar quando TAREFA 2.5 avancar).
+- **Pendente**: TAREFA 2.5 (comparacao real entre os 4 providers) ainda bloqueada — OpenAI/Anthropic confirmados sem saldo nesta mesma sessao, Gemini nunca teve a chave testada de fato (so o pacote foi instalado).
+
+## Concluido (V.1.4.63 — Whisper Local, parte da Fase 3 do PROMPT MESTRE)
+
+- [x] Investigacao previa: `chrome-extension/offscreen.js` ja captura audio do microfone (getUserMedia+MediaRecorder, chunks 15s) e `POST /audio-transcricao` ja transcreve via Groq/OpenAI — so faltava um provedor self-hosted, nao a captura em si.
+- [x] Escopo confirmado com o usuario: Whisper self-hosted na VPS (nao app local na maquina do vendedor), reaproveitando a estrutura existente (`TRANSCRICAO_PROVEDOR`) em vez de criar `services/transcription/` — "mantenha a estrutura original... usar uma funcao pra alternar".
+- [x] `agent/whisper_local.py` (novo): `faster-whisper` (CPU, sem torch), singleton por processo, nunca cai silenciosamente pra provedor pago em falha.
+- [x] `api/main.py`: `/audio-transcricao` refatorado em 3 funcoes (`_transcrever_via_openai`/`_transcrever_via_groq`/`_transcrever_via_whisper_local`) despachadas por dict; `_TRANSCRICAO_PROVEDORES["whisper_local"]` com `env_key: None` (nao exige chave); endpoints admin tratam esse caso.
+- [x] `requirements.txt` (`faster-whisper>=1.0.0`), `.env.example` (`WHISPER_LOCAL_MODEL`/`_DEVICE`/`_COMPUTE_TYPE`), `frontend/dashboard.html` (card sem campo de chave).
+- [x] 13 testes novos (`test_whisper_local.py` 8 + `test_transcricao_config.py` 5, todos mockados — nunca escrevem no `.env` real nem baixam modelo real).
+- [x] **Validacao real de ponta a ponta** (sem mock): instalado `faster-whisper` de verdade, modelo `small` baixado do Hugging Face (~15,8s), transcricao de WAV de silencio retornou vazio corretamente.
+- [x] Suite completa: 402 testes, mesmas 4 falhas pre-existentes e nao relacionadas de sempre, sem regressao.
+- [x] Versao: `1.4.62` → `1.4.63`.
+- **Pendente**: deploy na VPS; captura de audio do sistema/aba (so microfone hoje); abstracoes formais MeetingCaptureProvider/TranscriptionProvider (TAREFA 3.1/3.2/3.4) deliberadamente nao criadas; Parakeet (TAREFA 3.6, opcional no prompt mestre); benchmark WER/latencia (TAREFA 3.12); verificar se `proxy_read_timeout` do nginx da VPS aguenta o download do modelo (~15s) na primeira ativacao.
+
 ## Pendente
 
+- [ ] **Debito tecnico (achado 05/09/2026, fora de escopo)**: migrar `google.generativeai` (totalmente descontinuado pelo Google) para `google.genai`, e `claude-sonnet-4-20250514` (EOL 15/06/2026) para um modelo Anthropic atual.
+- [ ] **Fase 3 PROMPT MESTRE — deploy do Whisper Local na VPS**: `git pull` + `pip install -r requirements.txt` (baixa `faster-whisper` + deps) + `systemctl restart saleia` — checar `reunioes_ativas: 0` antes; aditivo, nenhuma tabela nova. Ativar via Dashboard > Configuracoes > Transcricao de Audio > Whisper Local, e testar com uma chamada real antes de usar em producao (primeira ativacao baixa o modelo, ~15s+ dependendo da CPU/rede da VPS).
+- [ ] **Fase 3 PROMPT MESTRE — captura de audio do sistema/aba**: hoje `chrome-extension/offscreen.js` so captura o microfone do vendedor — falta capturar o audio da aba do Meet (voz do cliente) para o Whisper Local ter o mesmo alcance que as legendas do Google ja tem hoje.
+- [ ] **Fase 2 Promptfoo — dataset real**: substituir/expandir os 22 casos sinteticos de `evals/datasets/coach/objections_golden.yaml` por reunioes reais anonimizadas (meta do prompt mestre: 50, depois 200+) — precisa de acesso ao MySQL de producao e um script de anonimizacao ainda inexistente.
 - [ ] Testar Visual Cenario AI em producao (DALL-E 3 + OpenAI).
 - [ ] Recarregar extensao Chrome: `chrome://extensions` → 🔄 recarregar SALEIA (aplica migracao de URL e V.1.4.3).
 - [ ] Descomissionar VPS antiga `204.168.180.25` apos validacao.

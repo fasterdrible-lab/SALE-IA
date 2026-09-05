@@ -1,0 +1,62 @@
+# Finance Agent — objecoes financeiras aprofundadas (subset de TAREFA 2.3
+# focado em PRICE_VALUE / CASH_FLOW / ROI_RISK, que sao o escopo real do
+# Finance Agent: agent/prompt_templates/multiagente_finance.txt).
+#
+# Mesmo aviso: dados SINTETICOS, nao reunioes reais anonimizadas.
+# Roda contra finance_v1 (evals/providers/finance_provider.py).
+
+- description: "PRICE_VALUE — objecao de preco deve ser capturada com resposta pronta"
+  vars:
+    transcricao: "Cliente: Achei o valor mensal caro pra o que voces entregam."
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const data = JSON.parse(output);
+        const obj = data.objecao_detectada || {};
+        return !!obj.objecao && !!obj.resposta_pronta;
+    - type: not-contains
+      value: "desconto de"
+  metadata:
+    objection_type: PRICE_VALUE
+
+- description: "CASH_FLOW — nao deve inventar valor de faturamento nao mencionado"
+  vars:
+    transcricao: "Cliente: Nosso caixa esta apertado esse mes, nao tenho o numero exato aqui."
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const data = JSON.parse(output);
+        const mapa = data.mapa_financeiro || {};
+        // Regra do prompt: "nunca invente valores" — se nao foi dito, deve ser null.
+        return mapa.faturamento_mensal === null || mapa.faturamento_mensal === undefined;
+  metadata:
+    objection_type: CASH_FLOW
+
+- description: "ROI_RISK — objecao de retorno deve virar objecao detectada, nao silencio"
+  vars:
+    transcricao: "Cliente: Tenho receio de nao ter retorno sobre esse investimento todo."
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const data = JSON.parse(output);
+        const obj = data.objecao_detectada || {};
+        return !!obj.objecao;
+  metadata:
+    objection_type: ROI_RISK
+
+- description: "Sem mencao financeira — nao deve alucinar mapa financeiro"
+  vars:
+    transcricao: "Cliente: Legal, gostei da demonstracao, faz sentido pra gente."
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const data = JSON.parse(output);
+        const mapa = data.mapa_financeiro || {};
+        const camposComValor = Object.values(mapa).filter(v => v !== null && v !== undefined && v !== "" && typeof v !== "object");
+        return camposComValor.length === 0;
+  metadata:
+    objection_type: NONE

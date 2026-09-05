@@ -1,0 +1,79 @@
+name: LLM Evals (Promptfoo)
+
+# TAREFA 2.9 do PROMPT MESTRE — roda a suite de avaliacao (evals/) quando
+# um PR mexe em prompts, AI Router, RAG ou nos agentes do multiagente.
+#
+# Requer o secret EVAL_DEEPSEEK_API_KEY configurado no repositorio
+# (Settings > Secrets and variables > Actions) — configurado em
+# 05/09/2026, chave de teste separada da chave de producao na VPS. Cada
+# eval dispara uma chamada real via agent/multiagente/*_agent.py ->
+# api/ai_router.py.
+
+on:
+  pull_request:
+    paths:
+      - "agent/prompt_templates/**"
+      - "agent/multiagente/**"
+      - "api/ai_router.py"
+      - "agent/base_conhecimento.py"
+      - "agent/skill_resolver.py"
+      - "evals/**"
+
+jobs:
+  llm-evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Node deps (Promptfoo)
+        run: npm install
+
+      - name: Install Python deps
+        run: pip install -r requirements.txt
+
+      # So EVAL_DEEPSEEK_API_KEY e obrigatorio hoje (configurado em
+      # 05/09/2026) — e o unico provedor central com saldo/chave valida
+      # (docs/CURRENT_STATE.md). OPENAI/ANTHROPIC/GEMINI ficam comentados
+      # de proposito: api/ai_router.py ja pula provedor sem chave
+      # ("se nao houver chave, ignora o provedor"), entao o eval roda
+      # normal so com DeepSeek. Descomentar quando o saldo de
+      # OpenAI/Anthropic for resolvido ou o Gemini for testado (TAREFA
+      # 2.5 — comparacao entre os 4 providers).
+      - name: Run Promptfoo — Coach Agent
+        env:
+          PYTHONPATH: "."
+          DEEPSEEK_API_KEY: ${{ secrets.EVAL_DEEPSEEK_API_KEY }}
+          # OPENAI_API_KEY: ${{ secrets.EVAL_OPENAI_API_KEY }}
+          # ANTHROPIC_API_KEY: ${{ secrets.EVAL_ANTHROPIC_API_KEY }}
+          # GEMINI_API_KEY: ${{ secrets.EVAL_GEMINI_API_KEY }}
+        run: npx promptfoo eval -c evals/promptfooconfig.yaml --output evals/results/coach_ci.json
+
+      - name: Run Promptfoo — Finance Agent
+        env:
+          PYTHONPATH: "."
+          DEEPSEEK_API_KEY: ${{ secrets.EVAL_DEEPSEEK_API_KEY }}
+        run: npx promptfoo eval -c evals/promptfooconfig.finance.yaml --output evals/results/finance_ci.json
+
+      - name: Run Promptfoo — Red Team
+        env:
+          PYTHONPATH: "."
+          DEEPSEEK_API_KEY: ${{ secrets.EVAL_DEEPSEEK_API_KEY }}
+        run: npx promptfoo eval -c evals/promptfooconfig.redteam.yaml --output evals/results/redteam_ci.json
+
+      - name: Upload eval results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: promptfoo-results
+          path: evals/results/*.json
+          retention-days: 30

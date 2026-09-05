@@ -1,0 +1,57 @@
+# Next Best Action — cenarios de matriz de decisao (TAREFA 2.4)
+#
+# Mesmo aviso de objections_golden.yaml: casos SINTETICOS escritos para
+# exercitar as regras de prioridade documentadas em
+# agent/prompt_templates/multiagente_coach.txt ("MATRIZ DE DECISAO —
+# next_best_action"), nao trechos de reunioes reais.
+#
+# Assertions usam llm-rubric (grading por LLM) em vez de match exato de
+# campo porque a saida da IA e nao-deterministica por natureza — o
+# objetivo e avaliar comportamento consultivo, nao decorar uma resposta.
+
+- description: "Dor nao identificada — deve abrir exploracao, nao pular pra proposta"
+  vars:
+    transcricao: "Cliente: Oi, tudo bem? Entao, me fala um pouco sobre o que voces fazem."
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: "A next_best_action e uma pergunta de descoberta/abertura, sem tentar vender ou apresentar preco ainda."
+
+- description: "Preco mencionado antes de valor — deve reposicionar, nao so responder o preco"
+  vars:
+    transcricao: "Cliente: Antes de mais nada, quanto custa isso?"
+  assert:
+    - type: is-json
+    - type: not-contains
+      value: "desconto"
+    - type: llm-rubric
+      value: "A resposta nao apenas informa um preco de forma seca; ela busca entender a dor/valor antes, ou reconhece a pergunta sem empurrar fechamento."
+
+- description: "Sinal de compra explicito — deve propor proximo passo concreto"
+  vars:
+    transcricao: "Cliente: Faz sentido pra gente, como e que a gente comeca?"
+    diagnostico_atual:
+      score_compra:
+        valor: 82
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: "A next_best_action e do tipo next_step ou propoe um proximo passo concreto e acionavel, aproveitando o sinal de compra."
+
+- description: "Decisor desconhecido perto do fechamento — deve alertar/mapear autoridade"
+  vars:
+    transcricao: "Cliente: Show, gostei bastante, bora fechar entao."
+    historico: "Vendedor apresentou proposta completa. Nunca ficou claro quem mais decide alem do cliente na chamada."
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: "A resposta considera mapear quem mais decide/aprova (autoridade) antes de tratar como fechamento certo, ou emite um alerta de risco relacionado a isso."
+
+- description: "Vendedor falando demais (proxy textual) — deve gerar warning"
+  vars:
+    transcricao: "Cliente: Uhum. Certo. Ok. Entendi."
+    historico: "Nos ultimos 5 minutos o vendedor falou praticamente sozinho, apresentando features sem pausa para o cliente responder."
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: "Ha um alerta (alerta_urgente ou next_best_action tipo warning) sinalizando que o vendedor esta falando demais ou que falta espaco para o cliente."

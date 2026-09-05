@@ -1,0 +1,16 @@
+{
+  "name": "saleia-evals",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Suite de avaliacao automatizada de prompts da SALEIA (Fase 2 do PROMPT MESTRE — Promptfoo). O backend continua 100% Python/FastAPI; este package.json existe so para rodar o Promptfoo.",
+  "scripts": {
+    "eval:coach": "promptfoo eval -c evals/promptfooconfig.yaml",
+    "eval:finance": "promptfoo eval -c evals/promptfooconfig.finance.yaml",
+    "eval:redteam": "promptfoo eval -c evals/promptfooconfig.redteam.yaml",
+    "eval:all": "npm run eval:coach && npm run eval:finance && npm run eval:redteam",
+    "eval:view": "promptfoo view"
+  },
+  "devDependencies": {
+    "promptfoo": "0.122.2"
+  }
+}

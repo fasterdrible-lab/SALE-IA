@@ -108,6 +108,44 @@ Resumo das ultimas versoes:
 
 Extensao Chrome: `V.1.4.5` local/GitHub — deploy pendente, precisa reinstalar no navegador do vendedor. VPS antiga (`204.168.180.25`) deprecada.
 
+## Whisper Local — parte da Fase 3 do PROMPT MESTRE (V.1.4.63, 05/09/2026)
+
+Terceiro provedor de `TRANSCRICAO_PROVEDOR` (junto de `whisper`/`groq`):
+`whisper_local`, self-hosted via `faster-whisper` (CPU, sem `torch`),
+implementado em `agent/whisper_local.py`. Reaproveita a estrutura
+existente de `/audio-transcricao` (refatorada em 3 funcoes despachadas
+por dict) em vez de criar a abstracao `services/transcription/` do
+prompt mestre original — decisao explicita do usuario. Nao exige chave
+de API; primeira ativacao baixa o modelo (`WHISPER_LOCAL_MODEL`, padrao
+`small`) do Hugging Face (~15,8s validado localmente). Validado de ponta
+a ponta com transcricao real (nao so mockada) antes do commit. **Falta**:
+deploy na VPS; captura de audio do sistema/aba (hoje so o microfone do
+vendedor e capturado, `chrome-extension/offscreen.js`); confirmar se o
+`proxy_read_timeout` do nginx da VPS aguenta o download do modelo na
+primeira ativacao. Detalhe completo em CHANGELOG.md (V.1.4.63).
+
+## Promptfoo / Evaluation Suite — Fase 2 do PROMPT MESTRE (harness criado, 05/09/2026, sem bump de versao)
+
+`evals/` (raiz do repo `SALEIA/`): suite de avaliacao automatizada dos
+agentes reais (Coach/Finance) via Promptfoo, chamando
+`agent.multiagente.coach_agent.analisar_coach`/`finance_agent.
+analisar_finance` diretamente (sem duplicar `api/ai_router.py`). Inclui
+Golden Dataset das 11 categorias de objecao (**22 casos sinteticos**,
+nao reunioes reais — sem acesso a producao nesta sessao), cenarios de
+Next Best Action, red teaming (injection/role override/exfiltration),
+criterios de aprovacao de troca de prompt (`evals/APPROVAL_CRITERIA.md`)
+e CI (`.github/workflows/llm-evals.yml`).
+
+**Primeira execucao real confirmada no mesmo dia**: 37/37 casos passaram
+via DeepSeek (custo real US$ 0,0122), apos 2 achados de ambiente local
+corrigidos (chave DeepSeek local invalida — diferente da chave de
+producao na VPS, que funciona; `google-generativeai` faltando no venv
+local) e 2 falsos positivos de assert no red team corrigidos (o Coach
+resistiu corretamente as manipulacoes, o assert que checava errado).
+TAREFA 2.5 (comparar os 4 providers) segue bloqueada — OpenAI/Anthropic
+confirmados sem saldo nesta mesma sessao. Detalhe completo em
+`evals/README.md` e CHANGELOG.md.
+
 ## Observabilidade (Langfuse) — Fase 1 do PROMPT MESTRE concluida (V.1.4.62, 04/09/2026)
 
 `PROMPT MESTRE — EVOLUÇÃO DA SALEIA.txt` (arquivo solto na raiz do

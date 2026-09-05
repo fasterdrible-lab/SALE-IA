@@ -2446,18 +2446,24 @@
       const ativoBadge = p.ativo
         ? '<span class="cfg-badge cfg-badge-ativo" style="margin-left:8px">Ativo</span>'
         : '';
-      // Campo de chave + botão salvar para Groq e Whisper
-      const groqKeyRow = p.id === 'groq'
-        ? `<div class="cfg-provedor-key-row" style="margin-top:10px;display:flex;gap:6px;align-items:center">
+      // Campo de chave + botão salvar — Groq e Whisper exigem API key;
+      // whisper_local roda no próprio servidor, sem chave nenhuma.
+      let groqKeyRow;
+      if (p.id === 'groq') {
+        groqKeyRow = `<div class="cfg-provedor-key-row" style="margin-top:10px;display:flex;gap:6px;align-items:center">
             <input type="password" id="tr-key-groq" placeholder="${p.tem_chave ? '••••••••••••••••' : 'Cole a GROQ_API_KEY aqui'}" autocomplete="new-password" style="flex:1">
             <button class="cfg-btn-provedor" onclick="toggleVerChaveGroq(this)" title="Mostrar/ocultar chave" style="padding:0 10px;font-size:1rem">👁</button>
             <button class="cfg-btn-provedor" onclick="salvarChaveGroq()">Salvar chave</button>
-           </div>`
-        : `<div class="cfg-provedor-key-row" style="margin-top:10px;display:flex;gap:6px;align-items:center">
+           </div>`;
+      } else if (p.id === 'whisper_local') {
+        groqKeyRow = `<div style="margin-top:10px;color:var(--muted);font-size:.78rem">🔒 Não precisa de chave de API — roda no próprio servidor. A primeira ativação pode demorar (baixa o modelo).</div>`;
+      } else {
+        groqKeyRow = `<div class="cfg-provedor-key-row" style="margin-top:10px;display:flex;gap:6px;align-items:center">
             <input type="password" id="tr-key-whisper" placeholder="${p.tem_chave ? '••••••••••••••••' : 'Cole a OPENAI_API_KEY aqui'}" autocomplete="new-password" style="flex:1">
             <button class="cfg-btn-provedor" onclick="toggleVerChaveWhisper(this)" title="Mostrar/ocultar chave" style="padding:0 10px;font-size:1rem">👁</button>
             <button class="cfg-btn-provedor" onclick="salvarChaveWhisper()">Salvar chave</button>
            </div>`;
+      }
       // Botão de ativar só aparece quando o provedor não está ativo
       const btnAtivar = p.ativo
         ? '<span style="color:#14B8A6;font-size:.85rem">✅ Provedor ativo</span>'

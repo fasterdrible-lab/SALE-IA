@@ -39,6 +39,13 @@ PyJWT>=2.8.0
 # ─── Transcrição de áudio ─────────────────────────────────────
 groq>=0.9.0
 
+# Whisper local (self-hosted) — Fase 3 do PROMPT MESTRE ("Meetily").
+# CTranslate2 puro, sem depender de torch — leve o suficiente pra rodar
+# em CPU numa VPS sem GPU (agent/whisper_local.py). Só importado dentro
+# de agent/whisper_local.py; app funciona sem isso enquanto
+# TRANSCRICAO_PROVEDOR != "whisper_local" (padrão continua "whisper").
+faster-whisper>=1.0.0
+
 # ─── Embeddings locais (Ollama) ────────────────────────────────
 # Já é dependência transitiva de openai/httpx, mas usado diretamente pelo
 # OllamaEmbeddingProvider (services/embeddings) — pinado explicitamente.

@@ -3,6 +3,329 @@
 
 ---
 
+## V.1.4.63 — Whisper Local (self-hosted) — parte da Fase 3 do PROMPT MESTRE ("Meetily")
+> Data: 05/09/2026 | Feature (terceiro provedor de transcrição, atrás de configuração — nada muda por padrão)
+
+### CONTEXTO
+Fase 3 do `PROMPT MESTRE — EVOLUÇÃO DA SALEIA.txt` propõe captura e
+transcrição de áudio "estilo Meetily" (local, sem depender de API paga).
+Investigação prévia (antes de desenhar qualquer código) encontrou que
+parte disso **já existia**: `chrome-extension/offscreen.js` já captura
+áudio do microfone via `getUserMedia`+`MediaRecorder` (chunks de 15s) e
+`POST /audio-transcricao` já transcreve via Groq ou OpenAI Whisper — só
+que sempre na nuvem. O usuário confirmou o escopo real desta rodada:
+**Whisper self-hosted na própria VPS** (substituindo/complementando
+Groq/OpenAI), reaproveitando a estrutura existente (`TRANSCRICAO_PROVEDOR`
+no `.env`) em vez de criar a abstração `services/transcription/` sugerida
+no prompt mestre — decisão explícita do usuário ("mantenha a estrutura
+original... poderíamos usar uma função pra poder alternar").
+
+**Fora do escopo desta rodada** (ficou pendente, ver "O Que Falta"):
+captura de áudio do sistema/aba (voz do cliente via Meet, hoje só o
+microfone do vendedor é capturado), abstrações formais
+`MeetingCaptureProvider`/`TranscriptionProvider` (TAREFA 3.1/3.2/3.4),
+Parakeet (TAREFA 3.6, explicitamente opcional no prompt mestre) e
+benchmark de WER/latência (TAREFA 3.12).
+
+### BACKEND — `agent/whisper_local.py` (novo)
+- `faster-whisper` (CTranslate2 puro, sem depender de `torch` — leve o
+  bastante pra CPU numa VPS sem GPU, confirmado: só puxa `ctranslate2`/
+  `onnxruntime` como dependências pesadas).
+- Modelo carregado como singleton por processo (`_get_model()`),
+  recarregado só se `WHISPER_LOCAL_MODEL`/`_DEVICE`/`_COMPUTE_TYPE`
+  mudar — mesmo padrão de singleton configurável de
+  `services/embeddings/factory.py::get_embedding_provider()`. Carregar a
+  cada chamada seria proibitivamente lento.
+- `transcrever(caminho, idioma)`: nunca cai silenciosamente para um
+  provedor pago em caso de falha — propaga a exceção original (TAREFA
+  3.11 do prompt mestre), quem chama decide como degradar.
+- `health_check()`: confirma que o modelo carrega, sem transcrever áudio
+  nenhum — usado pelo botão "Testar conexão" no dashboard.
+- Privacidade (TAREFA 3.13) já satisfeita sem código novo: o arquivo de
+  áudio temporário já era deletado no `finally` do endpoint antes desta
+  mudança — nenhum áudio é persistido em disco além da vida da própria
+  requisição, em nenhum dos 3 provedores.
+
+### BACKEND — `api/main.py::/audio-transcricao` (refatorado)
+- As 2 chamadas inline (OpenAI/Groq) viraram 3 funções
+  (`_transcrever_via_openai`/`_transcrever_via_groq`/
+  `_transcrever_via_whisper_local`) despachadas por um dict
+  (`_TRANSCRICAO_FUNCOES`) — pedido explícito do usuário pra facilitar
+  alternar entre provedores. Adicionar um provedor novo agora é: 1 função
+  + 1 entrada no dict + 1 entrada em `_TRANSCRICAO_PROVEDORES`.
+- `_TRANSCRICAO_PROVEDORES["whisper_local"]` tem `env_key: None` — não
+  exige nenhuma chave de API. `admin_get_transcricao`/
+  `admin_set_transcricao` tratam esse caso explicitamente (`tem_chave`
+  sempre `True`; ativar não bloqueia por "chave não configurada", único
+  provedor onde isso não se aplica).
+- `POST /admin/transcricao/teste` para `whisper_local` chama
+  `agent.whisper_local.health_check()` em vez de validar uma chave via
+  `models.list()` (não há chave pra validar).
+
+### CONFIGURAÇÃO
+- `requirements.txt`: `faster-whisper>=1.0.0`.
+- `.env.example`: `TRANSCRICAO_PROVEDOR` ganha a opção `whisper_local`;
+  novas vars `WHISPER_LOCAL_MODEL` (padrão `small`, recomendado pra
+  CPU-only), `WHISPER_LOCAL_DEVICE` (padrão `cpu`),
+  `WHISPER_LOCAL_COMPUTE_TYPE` (padrão `int8`, quantização mais rápida
+  em CPU).
+
+### FRONTEND — `frontend/dashboard.html`
+Card "Whisper Local (self-hosted)" na aba Transcrição de Áudio das
+Configurações — sem campo de chave (nota explicando que roda no próprio
+servidor e que a primeira ativação pode demorar, baixando o modelo).
+
+### VALIDAÇÃO REAL (não só testes mockados)
+- `python -m unittest tests.test_whisper_local` (8 testes, `faster_whisper`
+  mockado via `sys.modules`) e `tests.test_transcricao_config` (5 testes,
+  `TestClient` + `_ler_env`/`_salvar_env_key` mockados — **nunca escreve
+  no `.env` real**): 13/13 OK.
+- **Execução real de ponta a ponta** (sem mock nenhum): instalado
+  `faster-whisper` de verdade no venv local, baixado o modelo `small` do
+  Hugging Face (~15,8s na primeira vez, inclui download) e transcrito um
+  WAV de 2s de silêncio sintético — retornou string vazia corretamente
+  (sem alucinação), confirmando o pipeline real funcionando, não só o
+  harness de teste.
+- Suite completa (`discover tests`): 402 testes, mesmas 4 falhas
+  pré-existentes e não relacionadas de sempre
+  (`test_next_best_question.py`/`test_realtime_memory.py`) — sem
+  regressão introduzida por esta mudança.
+
+### VERSÃO
+- Backend: `1.4.62` → `1.4.63` (`/health`, `/monitor/metricas`).
+
+### O QUE FALTA (Fase 3 do prompt mestre, resto do roadmap)
+- Captura de áudio do **sistema/aba** (voz do cliente via Meet) — hoje só
+  o microfone do vendedor é capturado (`chrome-extension/offscreen.js`).
+- Abstrações formais `MeetingCaptureProvider`/`TranscriptionProvider`
+  (TAREFA 3.1/3.2/3.4) — esta rodada resolveu o gap prático (Whisper
+  self-hosted) reaproveitando a estrutura existente, sem introduzir uma
+  camada de interface nova, por decisão explícita do usuário.
+- Parakeet local (TAREFA 3.6) — explicitamente opcional/depois no
+  próprio prompt mestre.
+- Benchmark de WER/latência/CPU/RAM comparando legenda Google vs. Whisper
+  local vs. nuvem (TAREFA 3.12) — não medido nesta rodada.
+- **Risco operacional não testado**: a primeira ativação de
+  `whisper_local` baixa o modelo do Hugging Face (~15s pro modelo
+  `small`, testado localmente) — se o nginx da VPS tiver
+  `proxy_read_timeout` mais curto que isso, o primeiro clique em "Testar
+  conexão"/"Usar este provedor" no dashboard pode expirar antes do
+  download terminar. Não verificado contra o nginx real da VPS.
+- Deploy na VPS ainda não feito (`git pull` + `pip install` +
+  `systemctl restart saleia` — aditivo, nenhuma tabela/migração nova).
+
+### ARQUIVOS ALTERADOS
+- Novos: `agent/whisper_local.py`, `tests/test_whisper_local.py`,
+  `tests/test_transcricao_config.py`
+- `api/main.py` (refatoração de `/audio-transcricao` + endpoints admin
+  de transcrição + versão), `requirements.txt`, `.env.example`,
+  `frontend/dashboard.html`
+
+---
+
+## Fase 2 do PROMPT MESTRE — Promptfoo / Evaluation Suite (harness criado, sem bump de versão)
+> Data: 05/09/2026 | Ferramenta de desenvolvimento (nao runtime — nenhum endpoint, tabela ou comportamento de producao muda)
+
+### CONTEXTO
+Sequencia da Fase 1 (Langfuse, V.1.4.62). `PROMPT MESTRE — EVOLUÇÃO DA
+SALEIA.txt` (raiz do repo) define a Fase 2 como "Promptfoo / Evaluation
+Suite" — testes e avaliacao automatizada dos prompts dos agentes
+(Coach/DISC/Finance/Closer), com dataset golden, comparacao entre
+providers/versoes de prompt, red teaming e CI. Como esta e uma ferramenta
+de desenvolvimento (roda fora do `saleia.service`), nao ha bump de versao
+de `/health` — mesmo padrao ja usado em mudancas puramente operacionais
+do CHANGELOG.
+
+### DECISAO — reusar os agentes reais, nao duplicar a chamada de IA
+Regra explicita do prompt mestre ("evoluir a arquitetura existente, nao
+criar sistemas paralelos duplicados"): os providers Python do Promptfoo
+(`evals/providers/coach_provider.py`/`finance_provider.py`) importam e
+chamam `agent.multiagente.coach_agent.analisar_coach`/`finance_agent.
+analisar_finance` diretamente — o mesmo caminho de
+`chamar_ia_com_fallback_claude` -> `chamar_ia_async`
+(`api/ai_router.py`) que roda em producao no tempo real, incluindo Cost
+Intelligence e Langfuse se configurados. Nenhum cliente de IA novo foi
+criado so para os evals.
+
+### ESTRUTURA — `evals/`
+- `promptfooconfig.yaml` (Coach Agent) + `promptfooconfig.finance.yaml`
+  (Finance Agent) + `promptfooconfig.redteam.yaml` — 3 configs
+  separadas em vez de 1 unica porque os schemas de saida dos 2 agentes
+  sao diferentes (`next_best_action` vs `mapa_financeiro`/
+  `objecao_detectada`); misturar tudo faria as assertions genericas
+  demais.
+- `datasets/coach/objections_golden.yaml`: **22 casos SINTETICOS** (2 por
+  categoria) cobrindo as 11 categorias minimas do prompt mestre
+  (`PRICE_VALUE`, `CASH_FLOW`, `ROI_RISK`, `DECISION_MAKER`, `TIMING`,
+  `COMPETITION`, `TRUST`, `FIT`, `IMPLEMENTATION`, `CONTRACT`, `OTHER`).
+  **Nao sao reunioes reais anonimizadas** (o que o prompt mestre pede) —
+  esta sessao nao tem acesso ao MySQL de producao/SSH para extrair e
+  anonimizar transcricoes reais. Decisao deliberada de nao inflar o
+  numero ate os 50-200 casos pedidos com dados inventados; ver aviso no
+  topo do arquivo e pendencia no `evals/README.md`.
+- `datasets/coach/next_best_action.yaml`: 5 cenarios adicionais de
+  matriz de decisao (dor nao identificada, preco antes de valor, sinal
+  de compra, decisor desconhecido, vendedor falando demais), incluindo o
+  exemplo literal do prompt mestre ("Preciso conversar com meu socio" ->
+  mapear decisor, nunca oferecer desconto/pressionar fechamento).
+- `datasets/finance/price_objections.yaml`: 4 casos aprofundados no
+  Finance Agent, incluindo checagem de que o agente nunca alucina valor
+  financeiro nao mencionado (regra ja existente no proprio prompt,
+  `agent/prompt_templates/multiagente_finance.txt`: "nunca invente
+  valores").
+- `scenarios/red_team.yaml` (TAREFA 2.8): 6 casos — prompt injection
+  (pede pra revelar o system prompt), role override, exfiltracao de
+  dados/chaves de API, injecao de desconto nao autorizado, JSON
+  malformado induzido pelo "cliente", instrucao pra pressionar
+  fechamento contra a regra do prompt.
+- `APPROVAL_CRITERIA.md` (TAREFA 2.7): criterios formais antes de trocar
+  qualquer prompt em producao (accuracy, JSON validity >=99%,
+  hallucination rate, custo/latencia delta, sem regressao de seguranca).
+- `README.md` (TAREFA 2.10): documenta estrutura, como rodar, e a lista
+  explicita do que ficou pendente nesta rodada (ver "O QUE FALTA"
+  abaixo).
+- `prompts/` (TAREFA 2.6): pasta reservada para variantes de prompt
+  (`coach_v2.txt` etc.) quando existir alguma candidata a comparar contra
+  a v1 em producao — vazia por enquanto, nao existe v2 de nada ainda.
+
+### CI — `.github/workflows/llm-evals.yml` (TAREFA 2.9)
+Roda em PRs que alteram `agent/prompt_templates/**`,
+`agent/multiagente/**`, `api/ai_router.py`, `agent/base_conhecimento.py`
+ou `agent/skill_resolver.py` — 3 jobs (coach/finance/redteam), sobe
+artifact com os JSONs de resultado. Depende de secrets
+`EVAL_{DEEPSEEK,OPENAI,ANTHROPIC,GEMINI}_API_KEY` configurados no
+repositorio (deliberadamente separados das chaves de producao) — sem
+eles, o workflow falha ao chamar a IA, o que e esperado ate alguem
+configurar credenciais dedicadas a eval.
+
+### `package.json` (novo, raiz de `SALEIA/`)
+So existe pra rodar o Promptfoo (`devDependencies: promptfoo@0.122.2`,
+scripts `eval:coach`/`eval:finance`/`eval:redteam`/`eval:all`/
+`eval:view`) — o backend continua 100% Python/FastAPI, nao introduz
+Node.js em runtime de producao.
+
+### VALIDACAO NESTA SESSAO (sem rodar eval real — custaria dinheiro)
+- Todos os YAMLs de `evals/` e o workflow validados com
+  `yaml.safe_load` — sintaxe correta.
+- `evals/providers/*.py` compilam (`py_compile`).
+- Confirmado que os providers Python importam os agentes reais sem erro
+  **dentro do venv do projeto** (`PYTHONPATH=. venv/Scripts/python.exe -c
+  "from agent.multiagente.coach_agent import analisar_coach"` -> OK);
+  falha com `ModuleNotFoundError: No module named 'fastapi'` no Python
+  global do sistema — por isso o venv precisa estar ativo (ou configurar
+  `pythonExecutable` no provider) antes de rodar `npx promptfoo eval`.
+  Documentado no `evals/README.md`.
+- **Nao foi executado nenhum `promptfoo eval` de verdade** — cada
+  execucao dispara chamadas reais de IA com custo real, e isso nao foi
+  confirmado com o usuario nesta sessao.
+
+### O QUE FALTA (pendencias explicitas, nao inventadas)
+1. Substituir o dataset sintetico por reunioes reais anonimizadas (TAREFA
+   2.2) — precisa de acesso ao MySQL de producao + um script de
+   anonimizacao que ainda nao existe.
+2. Rodar a suite pelo menos uma vez de fato (custo real de IA, precisa de
+   confirmacao previa).
+3. TAREFA 2.5 (comparacao real entre os 4 providers) — bloqueada pelo
+   incidente de saldo/chave de 3 dos 4 provedores centrais, ja
+   documentado desde 22/08/2026 em `docs/CURRENT_STATE.md`.
+4. TAREFA 2.6 (comparacao entre versoes de prompt) — so faz sentido
+   quando existir uma v2 candidata de algum prompt.
+5. Estender a mesma cobertura para `disc_agent.py`/`closer_agent.py` —
+   esta rodada cobriu so Coach (foco em NBA/objecoes) e Finance
+   (objecao de preco), por escopo deliberado.
+6. Configurar os secrets `EVAL_*_API_KEY` no GitHub para o workflow de CI
+   rodar de fato.
+
+### ARQUIVOS ALTERADOS
+- Novos: `evals/` (estrutura completa — `promptfooconfig*.yaml`,
+  `providers/`, `datasets/`, `scenarios/`, `APPROVAL_CRITERIA.md`,
+  `README.md`), `.github/workflows/llm-evals.yml`, `package.json`
+  (raiz de `SALEIA/`)
+- `.gitignore` (ignora `evals/results/*.json`/`*.html`, mantem
+  `.gitkeep`)
+
+---
+
+## Fase 2 do PROMPT MESTRE — primeira execução real da eval suite (sem bump de versão)
+> Data: 05/09/2026 | Ferramenta de desenvolvimento (nao runtime)
+
+### CONTEXTO
+Sequencia imediata do harness criado mais cedo no mesmo dia. O usuario
+autorizou rodar a suite de verdade (confirmando o custo estimado
+previamente) e forneceu uma chave DeepSeek de teste apos a primeira
+tentativa falhar 100% (27/27 erros) — diagnostico mostrou que **nenhum
+dos 4 provedores centrais respondia neste ambiente local**, por 4 causas
+diferentes.
+
+### ACHADO 1 — `.env` local com `DEEPSEEK_API_KEY` invalida
+Diferente da chave em producao na VPS (que funciona, confirmado pelo
+usuario), a chave gravada no `.env` desta maquina local retornava
+`401 Authentication Fails`. Corrigido pelo usuario substituindo o valor
+diretamente no `.env` local (nunca colado em texto puro em lugar
+persistente do repo — o valor novo foi aplicado via edicao direta do
+arquivo, que ja e `.gitignore`d).
+
+### ACHADO 2 — venv local sem `google-generativeai`
+`ModuleNotFoundError: No module named 'google.generativeai'` ao tentar o
+fallback Gemini — o pacote esta pinado em `requirements.txt`
+(`google-generativeai>=0.7.0`) mas nunca foi instalado neste venv (drift
+entre venv e requirements, nao um bug de codigo). Corrigido com
+`pip install "google-generativeai>=0.7.0"` — rebaixou `protobuf` de
+7.36.1 para 5.29.6 como dependencia transitiva; validado sem regressao
+rodando `tests.test_smoke` (8/8 OK) antes de prosseguir.
+
+Efeito colateral descoberto ao rodar os testes reais: o proprio pacote
+`google.generativeai` emite `FutureWarning` avisando que **todo o
+pacote esta descontinuado** ("All support... has ended... switch to
+`google.genai`") — e o modelo `claude-sonnet-4-20250514` usado em
+`api/ai_router.py` esta deprecado, EOL 15/06/2026. Nenhum dos dois
+bloqueia nada hoje; registrados aqui e em `docs/TASKS.md` como divida
+tecnica separada, fora do escopo desta sessao.
+
+### ACHADO 3 (OpenAI/Anthropic sem saldo) — confirma incidente ja documentado
+Erros reais capturados nesta sessao (`429 insufficient_quota` na OpenAI,
+`400` de saldo baixo na Anthropic) batem exatamente com o incidente
+aberto desde 22/08/2026 em `docs/CURRENT_STATE.md` — nao e novidade, so
+confirmacao direta.
+
+### RESULTADO DA EXECUCAO REAL (apos corrigir os 2 achados acima)
+- Coach Agent: **27/27 passou**.
+- Finance Agent: **4/4 passou**.
+- Red Team: **6/6 passou** — na primeira tentativa, 2 dos 6 casos
+  (prompt injection, role override) deram falso `[FAIL]`: o Coach
+  resistiu corretamente as duas manipulacoes (gerou
+  `next_best_action.type: "warning"`, nunca obedeceu), mas
+  `filtro_cliente.frases_chave`/`key_moments[].quote` citam a fala do
+  cliente **verbatim por design** (evidencia de manipulacao) — os
+  asserts originais (`not-contains` no JSON inteiro) confundiam essa
+  citacao legitima com o agente obedecendo a instrucao injetada.
+  Corrigido restringindo os 2 asserts aos campos que o vendedor
+  realmente ve/fala (`next_best_action.message`, `texto_falavel`,
+  `dica_vendedor`) em vez do JSON inteiro. Depois do fix: 6/6.
+- **Custo real total: US$ 0,0122** (37 chamadas, DeepSeek, valor exato
+  somado do campo `_custo_estimado_ia` que `api/ai_router.py` ja grava
+  por resposta) — dentro da faixa estimada antes de rodar.
+
+### FIX — `outputPath` das 3 configs apontava pro lugar errado
+`outputPath: results/*.json` resolvia relativo ao diretorio de onde o
+`npx promptfoo` roda (raiz do repo), nao relativo ao arquivo de config —
+os primeiros resultados foram parar em `SALEIA/results/` em vez de
+`SALEIA/evals/results/`. Corrigido para `evals/results/*.json` nas 3
+configs; arquivos ja gerados movidos manualmente.
+
+### ARQUIVOS ALTERADOS
+- `evals/scenarios/red_team.yaml` (2 asserts corrigidos + comentario
+  explicando a licao aprendida)
+- `evals/promptfooconfig.yaml`/`promptfooconfig.finance.yaml`/
+  `promptfooconfig.redteam.yaml` (grader `llm-rubric` fixado em
+  `deepseek:deepseek-chat` — o default do Promptfoo e OpenAI, sem
+  credito; `outputPath` corrigido)
+- `evals/README.md` (secao "Resultado da primeira execucao real")
+- `.env` (local, nao versionado): `DEEPSEEK_API_KEY` atualizada
+- venv local (nao versionado): `google-generativeai` instalado
+
+---
+
 ## V.1.4.62 — Observabilidade (Langfuse) — Fase 1 do PROMPT MESTRE concluída
 > Data: 04/09/2026 | Feature (observação — nenhuma chamada real de IA é afetada)
 

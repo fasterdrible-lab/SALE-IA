@@ -1,0 +1,30 @@
+# SALEIA — Evaluation Suite — Finance Agent
+#
+# Config separada do promptfooconfig.yaml principal porque o schema de
+# saida do Finance Agent (mapa_financeiro/objecao_detectada) e diferente
+# do Coach Agent — misturar os dois na mesma config faria as assertions
+# genericas demais. Mesmo provider Python real (sem duplicar logica de
+# IA), so muda o modulo importado.
+#
+# Rodar (a partir de SALEIA/):
+#   PYTHONPATH=. npx promptfoo eval -c evals/promptfooconfig.finance.yaml
+
+description: "SALEIA — Finance Agent (mapa financeiro, objecao de preco)"
+
+prompts:
+  - "{{transcricao}}"
+
+providers:
+  - id: "python:providers/finance_provider.py"
+    label: finance_v1
+
+defaultTest:
+  assert:
+    - type: is-json
+  options:
+    provider: "deepseek:deepseek-chat"
+
+tests:
+  - file://datasets/finance/*.yaml
+
+outputPath: evals/results/finance_latest.json

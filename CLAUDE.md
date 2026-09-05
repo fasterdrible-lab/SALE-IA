@@ -301,6 +301,92 @@ nesta nota.
   nem decidiu ligar `OBSERVABILITY_ENABLED=true` de fato — decisão de
   produto separada da conclusão técnica da Fase 1.
 
+## Whisper Local — parte da Fase 3 do PROMPT MESTRE (`agent/whisper_local.py`, V.1.4.63)
+
+Terceira opção de `TRANSCRICAO_PROVEDOR` (junto de `whisper`/`groq`),
+self-hosted via `faster-whisper` — roda no próprio servidor, sem enviar
+áudio a nenhuma API externa e sem custo por chamada.
+
+- **Escopo desta rodada, confirmado com o usuário**: só a parte
+  "self-hosted na VPS" da Fase 3 (Meetily) do prompt mestre — não o
+  conceito completo de app rodando na máquina do vendedor. Reaproveita a
+  estrutura existente (`TRANSCRICAO_PROVEDOR`) em vez de criar a
+  abstração `services/transcription/` sugerida no roadmap original.
+- **Já existia antes desta rodada**: captura de áudio do microfone
+  (`chrome-extension/offscreen.js`, `getUserMedia`+`MediaRecorder`, 15s
+  por chunk) e transcrição em nuvem via Groq/OpenAI
+  (`POST /audio-transcricao`). Esta rodada só adicionou o terceiro
+  provedor — não mexeu na captura.
+- **`agent/whisper_local.py`**: modelo `faster-whisper` carregado como
+  singleton por processo (`_get_model()`), recarregado só se
+  `WHISPER_LOCAL_MODEL`/`_DEVICE`/`_COMPUTE_TYPE` mudar — mesmo padrão
+  de `services/embeddings/factory.py`. `transcrever()` nunca cai
+  silenciosamente para um provedor pago em falha (propaga a exceção).
+- **`api/main.py::/audio-transcricao`**: refatorado em 3 funções
+  (`_transcrever_via_openai`/`_transcrever_via_groq`/
+  `_transcrever_via_whisper_local`) despachadas por
+  `_TRANSCRICAO_FUNCOES` (dict) — adicionar um provedor novo é 1 função
+  + 1 entrada no dict + 1 entrada em `_TRANSCRICAO_PROVEDORES`.
+- **Sem chave de API**: `_TRANSCRICAO_PROVEDORES["whisper_local"]["env_key"]
+  is None` — `admin_get_transcricao`/`admin_set_transcricao` tratam esse
+  caso (nunca bloqueia por "chave não configurada", único provedor onde
+  isso não se aplica). `POST /admin/transcricao/teste` chama
+  `agent.whisper_local.health_check()` em vez de validar chave.
+- **Validado com transcrição real** (não só mockada): modelo `small`
+  baixado do Hugging Face e testado contra um WAV real antes do commit
+  (~15,8s na primeira ativação, incluindo download).
+- **Risco não verificado**: se o `proxy_read_timeout` do nginx da VPS for
+  menor que o tempo de download do modelo na primeira ativação, o
+  primeiro "Testar conexão"/"Usar este provedor" no dashboard pode
+  expirar. Não testado contra o nginx real da VPS ainda.
+- **Fora do escopo** (roadmap da Fase 3 continua aberto): captura de
+  áudio do sistema/aba (hoje só o microfone do vendedor é capturado —
+  falta a voz do cliente via Meet), abstrações formais
+  `MeetingCaptureProvider`/`TranscriptionProvider`, Parakeet (opcional no
+  prompt mestre), benchmark de WER/latência.
+
+## Promptfoo / Evaluation Suite — Fase 2 do PROMPT MESTRE (`evals/`)
+
+Suite de avaliacao automatizada dos prompts dos agentes, criada
+05/09/2026 (harness apenas — nunca rodada de fato ainda, custo real de
+IA por execucao). Vive em `evals/` na raiz do repo, com `package.json`
+proprio (`promptfoo` como devDependency) — **nao introduz Node.js em
+runtime de producao**, e uma ferramenta de dev/CI.
+
+- **Nunca duplica a chamada de IA**: `evals/providers/coach_provider.py`/
+  `finance_provider.py` importam e chamam
+  `agent.multiagente.coach_agent.analisar_coach`/`finance_agent.
+  analisar_finance` diretamente — o provider Python do Promptfoo e so
+  uma ponte, roda o mesmo caminho de producao
+  (`chamar_ia_com_fallback_claude` -> `api/ai_router.py::chamar_ia_async`).
+- **3 configs separadas** (`evals/promptfooconfig.yaml` Coach,
+  `promptfooconfig.finance.yaml` Finance, `promptfooconfig.redteam.yaml`
+  red team) porque os schemas de saida dos agentes diferem — misturar
+  tudo numa config so deixaria as assertions genericas demais.
+- **Dataset e sintetico, nao real**: `evals/datasets/coach/
+  objections_golden.yaml` tem 22 casos escritos a mao (2 por categoria
+  das 11 minimas do prompt mestre) — a tarefa original pede "reunioes
+  reais anonimizadas", mas nenhuma sessao ate agora teve acesso ao MySQL
+  de producao para extrair/anonimizar transcricoes de verdade. Ver aviso
+  no topo do arquivo antes de tratar os resultados como sinal real de
+  qualidade do prompt.
+- **Rodar exige o venv ativo**: os providers Python importam `agent`/
+  `api`, que dependem de `fastapi`/`sqlmodel`/etc. — no Python global do
+  sistema (fora do venv) a import falha com `ModuleNotFoundError:
+  No module named 'fastapi'`. Ativar `venv\Scripts\activate` antes de
+  `npx promptfoo eval`.
+- **Custa dinheiro real**: cada teste do dataset dispara uma chamada real
+  de IA no provedor configurado no `.env`. Nunca rodar em CI ou
+  localmente sem confirmar o custo esperado — nenhuma execucao real foi
+  feita ainda.
+- `evals/APPROVAL_CRITERIA.md` — criterios formais antes de trocar
+  qualquer prompt de `agent/prompt_templates/*.txt` em producao.
+- `.github/workflows/llm-evals.yml` roda em PRs que tocam
+  `agent/prompt_templates/**`/`agent/multiagente/**`/`api/ai_router.py`/
+  RAG/Skills — precisa dos secrets `EVAL_*_API_KEY` configurados no
+  GitHub (ainda nao configurados).
+- Detalhe completo, decisoes e pendencias explicitas em `evals/README.md`.
+
 ## Biblioteca de Inteligência / Knowledge Compiler (Fase 1, V.1.4.52)
 
 Feature grande (roadmap de 6 fases) que transforma documentos comerciais (livros, playbooks, treinamentos, manuais) em conhecimento estruturado reutilizável pelo RAG/Sales Memory/Playbook/Skill. **Esta fase só cobre upload + extração determinística de texto — sem IA ainda.** Atrás de `KNOWLEDGE_COMPILER_ENABLED` (`false` por padrão, endpoints somem via `404`, mesmo padrão do `CLAUDE_ACCOUNT_PILOT`).

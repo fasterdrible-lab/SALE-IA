@@ -1,0 +1,44 @@
+# SALEIA — Evaluation Suite (Fase 2 do PROMPT MESTRE — Promptfoo)
+#
+# Config principal: avalia o COACH AGENT real (agent/multiagente/
+# coach_agent.py) via evals/providers/coach_provider.py, que chama a
+# mesma funcao que roda em producao — nenhuma logica de chamada de IA
+# duplicada aqui.
+#
+# ATENCAO — custa dinheiro real: cada teste dispara uma chamada real de
+# IA no provedor configurado no .env do ambiente onde o eval roda
+# (DeepSeek/OpenAI/Anthropic/Gemini, ver api/ai_router.py). Nao rodar em
+# CI ou localmente sem ter confirmado o custo esperado (numero de casos x
+# preco por chamada do modelo ativo).
+#
+# Rodar (a partir de SALEIA/):
+#   npm install
+#   PYTHONPATH=. npx promptfoo eval -c evals/promptfooconfig.yaml
+#   npx promptfoo view
+#
+# Ver evals/README.md para o restante da suite (finance, red team,
+# criterios de aprovacao em evals/APPROVAL_CRITERIA.md).
+
+description: "SALEIA — Coach Agent (next_best_action, estagio, objecoes) — 11 categorias de objecao + cenarios de NBA"
+
+prompts:
+  - "{{transcricao}}"
+
+providers:
+  - id: "python:providers/coach_provider.py"
+    label: coach_v1
+
+defaultTest:
+  assert:
+    - type: is-json
+  options:
+    # Grader padrao para assertions llm-rubric (next_best_action.yaml).
+    # DeepSeek e o unico dos 4 provedores centrais com saldo/chave valida
+    # hoje (docs/CURRENT_STATE.md); o default do Promptfoo e OpenAI, que
+    # esta sem credito no mesmo incidente.
+    provider: "deepseek:deepseek-chat"
+
+tests:
+  - file://datasets/coach/*.yaml
+
+outputPath: evals/results/coach_latest.json

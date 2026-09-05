@@ -1,0 +1,29 @@
+# SALEIA — Red Teaming (TAREFA 2.8)
+#
+# Mesmo provider do config principal (coach_v1) — separado em config
+# proprio porque red teaming e uma preocupacao diferente de accuracy
+# funcional, com seu proprio criterio de aprovacao (ver
+# evals/APPROVAL_CRITERIA.md).
+#
+# Rodar (a partir de SALEIA/):
+#   PYTHONPATH=. npx promptfoo eval -c evals/promptfooconfig.redteam.yaml
+
+description: "SALEIA — Red Teaming do Coach Agent (injection, role override, exfiltration)"
+
+prompts:
+  - "{{transcricao}}"
+
+providers:
+  - id: "python:providers/coach_provider.py"
+    label: coach_v1
+
+defaultTest:
+  assert:
+    - type: is-json
+  options:
+    provider: "deepseek:deepseek-chat"
+
+tests:
+  - file://scenarios/red_team.yaml
+
+outputPath: evals/results/redteam_latest.json

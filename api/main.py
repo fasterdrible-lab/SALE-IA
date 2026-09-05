@@ -574,7 +574,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.62",
+        "versao":              "1.4.63",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -612,7 +612,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.62",
+        "versao":          "1.4.63",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -2481,12 +2481,61 @@ async def cenario_conducao(meeting_id: str, req: ConducaoRequest, authorization:
 # ─────────────────────────────────────────────
 # WHISPER — transcrição de áudio em tempo real
 # ─────────────────────────────────────────────
+def _transcrever_via_openai(tmp_path: str) -> tuple[str, str]:
+    from openai import OpenAI
+    openai_key = os.getenv("OPENAI_API_KEY", "")
+    if not openai_key:
+        raise HTTPException(status_code=500, detail="OPENAI_API_KEY não configurada. Configure em Configurações > APIs.")
+    with OpenAI(api_key=openai_key) as openai_client, open(tmp_path, 'rb') as f:
+        transcript = openai_client.audio.transcriptions.create(
+            model="whisper-1",
+            file=f,
+            language="pt",
+        )
+    return (transcript.text.strip() if transcript.text else ""), "[Whisper]"
+
+
+def _transcrever_via_groq(tmp_path: str) -> tuple[str, str]:
+    groq_key = os.getenv("GROQ_API_KEY", "")
+    if not groq_key:
+        raise HTTPException(status_code=500, detail="GROQ_API_KEY não configurada. Configure em Configurações > Transcrição de Áudio.")
+    from groq import Groq as GroqClient
+    groq_client = GroqClient(api_key=groq_key)
+    with open(tmp_path, 'rb') as f:
+        transcript = groq_client.audio.transcriptions.create(
+            file=(tmp_path, f.read()),
+            model="whisper-large-v3",
+            language="pt",
+            temperature=0,
+            response_format="verbose_json",
+        )
+    return (transcript.text.strip() if transcript.text else ""), "[Groq]"
+
+
+def _transcrever_via_whisper_local(tmp_path: str) -> tuple[str, str]:
+    # Fase 3 do PROMPT MESTRE ("Meetily") — roda no proprio servidor,
+    # sem enviar audio a nenhuma API externa. Ver agent/whisper_local.py.
+    from agent.whisper_local import transcrever as _transcrever_local
+    return _transcrever_local(tmp_path, idioma="pt"), "[Whisper Local]"
+
+
+# Dispatch por provedor — TRANSCRICAO_PROVEDOR seleciona qual funcao
+# roda em /audio-transcricao. Adicionar um provedor novo = adicionar uma
+# funcao aqui + uma entrada em _TRANSCRICAO_PROVEDORES (mais abaixo).
+_TRANSCRICAO_FUNCOES = {
+    "whisper": _transcrever_via_openai,
+    "groq": _transcrever_via_groq,
+    "whisper_local": _transcrever_via_whisper_local,
+}
+
+
 @app.post("/audio-transcricao")
 async def audio_transcricao(req: AudioTranscricaoRequest):
     """
-    Recebe um chunk de áudio (base64, audio/webm) da extensão Chrome,
-    transcreve via Whisper (OpenAI) ou Groq e retorna o texto.
-    O provedor ativo é controlado pela variável TRANSCRICAO_PROVEDOR no .env.
+    Recebe um chunk de áudio (base64, audio/webm) da extensão Chrome e
+    transcreve via um dos provedores de _TRANSCRICAO_FUNCOES (OpenAI
+    Whisper, Groq, ou Whisper local self-hosted). O provedor ativo é
+    controlado pela variável TRANSCRICAO_PROVEDOR no .env.
     Chamado pelo background.js a cada ~15 segundos durante a captura.
     """
     import base64
@@ -2505,6 +2554,7 @@ async def audio_transcricao(req: AudioTranscricaoRequest):
         return {"texto": "", "ok": True, "motivo": "chunk muito pequeno"}
 
     provedor_transcricao = os.getenv("TRANSCRICAO_PROVEDOR", "whisper")
+    funcao_transcricao = _TRANSCRICAO_FUNCOES.get(provedor_transcricao, _transcrever_via_openai)
     ext = '.webm' if 'webm' in (req.mime_type or '') else '.ogg'
     tmp_path = None
     try:
@@ -2512,35 +2562,7 @@ async def audio_transcricao(req: AudioTranscricaoRequest):
             tmp.write(audio_bytes)
             tmp_path = tmp.name
 
-        if provedor_transcricao == "groq":
-            groq_key = os.getenv("GROQ_API_KEY", "")
-            if not groq_key:
-                raise HTTPException(status_code=500, detail="GROQ_API_KEY não configurada. Configure em Configurações > Transcrição de Áudio.")
-            from groq import Groq as GroqClient
-            groq_client = GroqClient(api_key=groq_key)
-            with open(tmp_path, 'rb') as f:
-                transcript = groq_client.audio.transcriptions.create(
-                    file=(tmp_path, f.read()),
-                    model="whisper-large-v3",
-                    language="pt",
-                    temperature=0,
-                    response_format="verbose_json",
-                )
-            label = "[Groq]"
-        else:
-            from openai import OpenAI
-            openai_key = os.getenv("OPENAI_API_KEY", "")
-            if not openai_key:
-                raise HTTPException(status_code=500, detail="OPENAI_API_KEY não configurada. Configure em Configurações > APIs.")
-            with OpenAI(api_key=openai_key) as openai_client, open(tmp_path, 'rb') as f:
-                transcript = openai_client.audio.transcriptions.create(
-                    model="whisper-1",
-                    file=f,
-                    language="pt",
-                )
-            label = "[Whisper]"
-
-        texto = transcript.text.strip() if transcript.text else ""
+        texto, label = funcao_transcricao(tmp_path)
 
         if texto and req.meeting_id and req.meeting_id != "default":
             try:
@@ -4017,6 +4039,12 @@ _TRANSCRICAO_PROVEDORES = {
         "env_key": "GROQ_API_KEY",
         "nota":    "Mais rápido e gratuito até o limite da cota Groq. Crie uma chave em console.groq.com.",
     },
+    "whisper_local": {
+        "nome":    "Whisper Local (self-hosted)",
+        "modelo":  "faster-whisper",
+        "env_key": None,  # não exige chave de API — roda no próprio servidor
+        "nota":    "Roda no próprio servidor (CPU), sem enviar áudio a nenhuma API externa e sem custo por chamada. Mais lento que a nuvem; primeira ativação baixa o modelo (WHISPER_LOCAL_MODEL, padrão 'small').",
+    },
 }
 
 
@@ -4028,14 +4056,22 @@ def admin_get_transcricao(authorization: str | None = _Header(default=None)):
     provedor_atual = env.get("TRANSCRICAO_PROVEDOR", "whisper")
     provedores = []
     for pid, conf in _TRANSCRICAO_PROVEDORES.items():
-        chave = env.get(conf["env_key"], "")
+        # whisper_local não exige chave de API (env_key=None) — sempre
+        # pronto pra ativar, "chave" aqui não se aplica.
+        if conf["env_key"] is None:
+            tem_chave = True
+            modelo = os.getenv("WHISPER_LOCAL_MODEL", conf["modelo"]) if pid == "whisper_local" else conf["modelo"]
+        else:
+            chave = env.get(conf["env_key"], "")
+            tem_chave = bool(chave and len(chave) > 8)
+            modelo = conf["modelo"]
         provedores.append({
             "id":        pid,
             "nome":      conf["nome"],
-            "modelo":    conf["modelo"],
+            "modelo":    modelo,
             "nota":      conf["nota"],
             "ativo":     pid == provedor_atual,
-            "tem_chave": bool(chave and len(chave) > 8),
+            "tem_chave": tem_chave,
         })
     return {"provedores": provedores, "provedor_atual": provedor_atual}
 
@@ -4073,6 +4109,12 @@ async def admin_testar_transcricao(req: TranscricaoTesteRequest, authorization: 
                 return {"ok": False, "detalhe": "OPENAI_API_KEY não configurada. Configure em Configuração de APIs."}
             client = _OAI(api_key=chave)
             await client.models.list()
+        elif pid == "whisper_local":
+            # Sem chave de API — "testar conexão" aqui confirma que o
+            # modelo local carrega (baixa na primeira vez, se necessário).
+            from agent.whisper_local import health_check as _whisper_local_health
+            resultado = await _whisper_local_health()
+            return resultado
         return {"ok": True}
     except Exception as e:
         detalhe = str(e)[:150]
@@ -4094,13 +4136,15 @@ def admin_set_transcricao(req: TranscricaoConfigRequest, authorization: str | No
     # Apenas salvar a chave, sem ativar o provedor
     if req.apenas_salvar:
         return {"ok": True, "msg": "Chave salva com sucesso."}
-    # Verificar se a chave necessária existe antes de ativar
-    env = _ler_env()
-    chave = env.get(conf["env_key"], "")
-    if not chave:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Chave de API do {conf['nome']} não configurada. Adicione antes de ativar.",
-        )
+    # Verificar se a chave necessária existe antes de ativar — provedores
+    # sem env_key (ex.: whisper_local) não exigem nenhuma chave.
+    if conf["env_key"] is not None:
+        env = _ler_env()
+        chave = env.get(conf["env_key"], "")
+        if not chave:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Chave de API do {conf['nome']} não configurada. Adicione antes de ativar.",
+            )
     _salvar_env_key("TRANSCRICAO_PROVEDOR", req.provedor)
     return {"ok": True, "provedor": req.provedor, "modelo": conf["modelo"]}
