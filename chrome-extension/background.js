@@ -235,10 +235,13 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
       .then(function (res) { return res.json(); })
       .then(function (data) {
         if (data.texto && data.texto.trim()) {
-          // Envia texto transcrito para o content.js da aba do Meet
+          // Envia texto transcrito para o content.js da aba do Meet.
+          // fonte:'aba' identifica que veio do tabCapture (participantes),
+          // não do microfone do vendedor — content.js usa isso pra rotular
+          // o speaker corretamente (Fase 3 do PROMPT MESTRE).
           chrome.tabs.query({ url: 'https://meet.google.com/*' }, function (tabs) {
             tabs.forEach(function (tab) {
-              chrome.tabs.sendMessage(tab.id, { tipo: 'transcricaoAudio', texto: data.texto.trim() }, function () {
+              chrome.tabs.sendMessage(tab.id, { tipo: 'transcricaoAudio', texto: data.texto.trim(), fonte: msg.fonte || 'aba' }, function () {
                 if (chrome.runtime.lastError) { /* ignora — aba pode não ter content.js */ }
               });
             });
@@ -331,12 +334,24 @@ setInterval(verificarHeartbeat, 15000);
 // CAPTURA DE ÁUDIO — helper async
 // ─────────────────────────────────────────────
 async function handleIniciarCaptura(tabId) {
-  // Usa audioCapture (microfone) — não requer invocação da extensão via popup
+  // Fase 3 do PROMPT MESTRE ("Meetily") — captura o áudio da ABA (voz dos
+  // participantes), complementando o microfone do vendedor que já é
+  // capturado direto em content.js (getUserMedia na própria página do
+  // Meet). O streamId do tabCapture só pode ser obtido aqui (contexto do
+  // service worker) — content scripts não têm acesso a chrome.tabCapture.
+  var tabStreamId = null;
+  try {
+    tabStreamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: tabId });
+  } catch (e) {
+    console.warn('[SALEIA] tabCapture indisponível para esta aba:', e && e.message);
+    return { ok: false, error: 'tabCapture indisponível: ' + (e && e.message) };
+  }
+
   return new Promise(function (resolve) {
     chrome.offscreen.createDocument({
       url: chrome.runtime.getURL('offscreen.html'),
       reasons: ['USER_MEDIA'],
-      justification: 'Captura microfone para transcrição com OpenAI Whisper',
+      justification: 'Captura do áudio da aba (participantes) para transcrição com Whisper',
     }).catch(function (e) {
       // Documento já existe — ok, continuamos
       console.log('[SALEIA] offscreen já existia:', e && e.message);
@@ -347,7 +362,7 @@ async function handleIniciarCaptura(tabId) {
       }, 6000);
 
       chrome.runtime.sendMessage(
-        { tipo: 'iniciarGravacaoOffscreen' },
+        { tipo: 'iniciarGravacaoOffscreen', tabStreamId: tabStreamId },
         function (resp) {
           clearTimeout(timer);
           if (chrome.runtime.lastError) {

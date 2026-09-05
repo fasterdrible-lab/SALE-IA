@@ -301,6 +301,53 @@ nesta nota.
   nem decidiu ligar `OBSERVABILITY_ENABLED=true` de fato — decisão de
   produto separada da conclusão técnica da Fase 1.
 
+## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
+
+Complementa o Whisper Local: até V.1.4.6, o pipeline de áudio só
+capturava o **microfone do vendedor**; agora também captura o **áudio da
+aba** (vozes dos participantes) via `chrome.tabCapture`.
+
+- **Achado**: existiam 2 mecanismos de captura de áudio na extensão — um
+  preparado desde abril/2026 (`background.js::handleIniciarCaptura` +
+  `offscreen.js`, pensado pra `chrome.tabCapture`) que **nenhum botão da
+  UI jamais chamava**, e o mecanismo real usado pelo botão
+  ("🎤 Capturar áudio (Whisper)"): `getUserMedia` direto em `content.js`,
+  só microfone. Antes de escrever qualquer código, confirme qual caminho
+  está de fato conectado à UI — grep pela mensagem (`iniciarCaptura`,
+  `whisperChunk`, etc.) no arquivo que dispara o botão, não só onde o
+  handler está definido.
+- **Por que o microfone continua em `content.js` e não foi movido pro
+  offscreen document**: documentos offscreen não têm UI visível para o
+  prompt de permissão do Chrome aparecer — pedir `getUserMedia({audio:
+  true})` lá dentro tende a falhar silenciosamente. `content.js` roda na
+  própria página do Meet, onde o prompt já funciona. `offscreen.js`
+  captura só o áudio da aba (`chromeMediaSource: 'tab'`), que **não**
+  exige prompt em tempo de execução — só a permissão `tabCapture` no
+  manifest.
+- **`chrome.tabCapture.getMediaStreamId({ targetTabId })`** só pode ser
+  chamado do contexto do service worker (`background.js`) — content
+  scripts não têm acesso a `chrome.tabCapture`. Por isso o streamId é
+  resolvido em `handleIniciarCaptura` e repassado ao offscreen document
+  via mensagem.
+- **Capturar áudio da aba intercepta a saída de som** — sem reconectar
+  via `AudioContext` (`fonte.connect(audioContext.destination)` em
+  `offscreen.js`), o vendedor pararia de ouvir a reunião inteira enquanto
+  a captura estivesse ativa.
+- **Mesclagem por texto, não por áudio**: mic e aba são gravados e
+  transcritos **separadamente** (dois `MediaRecorder`/duas chamadas de
+  `/audio-transcricao`), cada um rotulado (`Vendedor`/`Cliente`) e
+  commitado no mesmo transcript via `commitarFrase()` — evita toda a
+  complexidade de compartilhar `MediaStream` entre `content.js` (página)
+  e `offscreen.js` (contexto separado da extensão).
+- **Best-effort, nunca bloqueia o que já funcionava**: se `tabCapture`
+  falhar (permissão, política do Chrome, etc.), o microfone continua
+  gravando normalmente — só a voz do cliente fica sem cobertura extra do
+  Whisper (ainda coberta pelas legendas do Google, se o CC estiver
+  ligado).
+- **Não testado ao vivo ainda** — só validado estaticamente
+  (`node --check` nos 3 arquivos). `chrome.tabCapture` e permissões de
+  offscreen document só se confirmam de verdade numa reunião real.
+
 ## Whisper Local — parte da Fase 3 do PROMPT MESTRE (`agent/whisper_local.py`, V.1.4.63)
 
 Terceira opção de `TRANSCRICAO_PROVEDOR` (junto de `whisper`/`groq`),

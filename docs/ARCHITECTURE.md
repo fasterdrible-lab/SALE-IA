@@ -9,6 +9,7 @@ O SALEIA monitora reunioes de vendas, captura transcricoes, orienta o vendedor e
 ### Chrome Extension
 
 - Captura legendas/transcricao do Google Meet.
+- Captura audio do microfone (vendedor, content.js) e da aba (participantes, background.js+offscreen.js via `chrome.tabCapture` — V.1.4.7) para transcricao via Whisper (nuvem ou local).
 - Envia trechos novos para o backend.
 - Exibe dicas, alertas, proxima pergunta, acoes recomendadas, recapitulacao viva e propensao de compra (Alta/Media/Baixa/Nao determinada) na sidebar.
 - Toggle "API ativa/desligada" (V.1.4.40): usuario pode pausar todo envio de dados ao backend sem encerrar a reuniao; estado persiste em `chrome.storage.local`.

@@ -156,6 +156,14 @@
         }
       }, 15000);
     }
+    // Rejeita texto com < 3 palavras únicas (ruído de fundo / eco) — mesmo
+    // filtro usado tanto pro áudio do microfone quanto pro áudio da aba.
+    function passaFiltroRuidoAudio(texto) {
+      var palavras = texto.toLowerCase().replace(/[^a-záéíóúãõâêîôûàçü\s]/g, '').split(/\s+/).filter(Boolean);
+      var unicas = new Set(palavras);
+      return !(unicas.size < 3 && palavras.length < 6);
+    }
+
     function enviarChunkWhisper(blob) {
       if (!estado.ativo) return; // API desligada — nenhuma chamada ao backend
       var reader = new FileReader();
@@ -173,14 +181,11 @@
         }, function (data) {
           if (data && data.texto && data.texto.trim()) {
             var texto = data.texto.trim();
-            // Filtro de ruído: rejeita texto com < 3 palavras únicas (ruído de fundo / eco)
-            var palavras = texto.toLowerCase().replace(/[^a-záéíóúãõâêîôûàçü\s]/g, '').split(/\s+/).filter(Boolean);
-            var unicas = new Set(palavras);
-            if (unicas.size < 3 && palavras.length < 6) {
+            if (!passaFiltroRuidoAudio(texto)) {
               console.log('[SALEIA] chunk descartado (ruído/repetição):', texto);
               return;
             }
-            commitarFrase('Audio', texto);
+            commitarFrase('Vendedor', texto);
             setAudioStatus('🎤 ' + texto.slice(0, 50) + '…', '#00d4aa');
             enviarParaBackend();
           } else if (data && (data.ok === false || data.error)) {
@@ -191,6 +196,29 @@
         });
       };
       reader.readAsDataURL(blob);
+    }
+
+    // Fase 3 do PROMPT MESTRE ("Meetily") — captura o áudio da ABA
+    // (participantes), via background.js + offscreen.js (chrome.tabCapture).
+    // Best-effort: se falhar, o microfone continua funcionando normalmente,
+    // só a voz do cliente não é coberta pelo Whisper (ainda coberta pelas
+    // legendas do Google, se o CC estiver ligado).
+    function iniciarCapturaAba() {
+      if (!chrome.runtime || !chrome.runtime.id) return;
+      chrome.runtime.sendMessage({ tipo: 'iniciarCaptura', meeting_id: MEETING_ID }, function (resp) {
+        if (chrome.runtime.lastError || !resp || !resp.ok) {
+          console.warn('[SALEIA] Captura do áudio da aba indisponível:', chrome.runtime.lastError ? chrome.runtime.lastError.message : (resp && resp.error));
+          return;
+        }
+        console.log('[SALEIA] Captura do áudio da aba iniciada.');
+      });
+    }
+
+    function pararCapturaAba() {
+      if (!chrome.runtime || !chrome.runtime.id) return;
+      chrome.runtime.sendMessage({ tipo: 'pararCaptura' }, function () {
+        if (chrome.runtime.lastError) { /* aba já pode ter sido fechada — ignora */ }
+      });
     }
     if (btnAudio) btnAudio.addEventListener('click', function () {
       var btn = this;
@@ -209,6 +237,7 @@
             btn.style.background = '#2d0a0a'; btn.style.borderColor = '#ff4444'; btn.style.color = '#ff4444';
             setAudioStatus('🎤 Whisper ativo — gravando...', '#00d4aa');
             iniciarCicloWhisper(); // ciclos de 15s com WebM completo a cada ciclo
+            iniciarCapturaAba(); // Fase 3: também captura o áudio da aba (participantes)
           })
           .catch(function (err) {
             btn.disabled = false;
@@ -221,6 +250,7 @@
           });
       } else {
         pararWhisper();
+        pararCapturaAba(); // Fase 3: encerra também a captura do áudio da aba
         btn.textContent = '🎤 Capturar áudio (Whisper)';
         btn.style.background = '#1a1a2e'; btn.style.borderColor = '#00d4aa'; btn.style.color = '#00d4aa';
         setAudioStatus('', '');
@@ -230,6 +260,17 @@
     chrome.runtime.onMessage.addListener(function (msg) {
       if (msg.tipo === 'toggle') { estado.ativo = msg.valor; atualizarStatusSidebar(); }
       if (msg.tipo === 'backendUrl') { CONFIG.backendUrl = msg.valor; }
+      // Fase 3 do PROMPT MESTRE — texto transcrito do áudio da ABA
+      // (participantes), vindo de background.js/offscreen.js. Rotulado
+      // "Cliente" (normalizado por rotuloParticipante, mesmo padrão das
+      // legendas) pra diferenciar do microfone do vendedor.
+      if (msg.tipo === 'transcricaoAudio') {
+        var textoAba = (msg.texto || '').trim();
+        if (textoAba && passaFiltroRuidoAudio(textoAba)) {
+          commitarFrase(msg.fonte === 'aba' ? 'Cliente' : 'Vendedor', textoAba);
+          enviarParaBackend();
+        }
+      }
       if (msg.tipo === 'backendStatus') {
         // Enquanto a API estiver desligada, o status já mostra "API desligada" —
         // não sobrescrever com o resultado do heartbeat.

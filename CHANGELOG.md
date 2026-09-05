@@ -3,6 +3,114 @@
 
 ---
 
+## Extensão Chrome V.1.4.7 — captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE
+> Data: 05/09/2026 | Feature (extensão Chrome — sem impacto no backend/VPS)
+
+### CONTEXTO
+Continuação da Fase 3 ("Meetily") após o Whisper Local (V.1.4.63): até
+aqui, o pipeline de áudio só capturava o **microfone do vendedor**
+(`content.js`, `getUserMedia` direto na página do Meet) — a voz dos
+participantes só chegava via legendas do Google (`CAPTION_SELECTORS`),
+nunca pelo Whisper. Esta rodada fecha esse gap.
+
+### ACHADO — dois mecanismos de captura de áudio coexistiam, só um funcionava
+Investigação prévia encontrou `chrome-extension/offscreen.js` e o handler
+`handleIniciarCaptura`/`iniciarCaptura` em `background.js` já preparados
+para `chrome.tabCapture` (comentário "CAPTURA DE ÁUDIO — Whisper via
+tabCapture + offscreen" desde abril/2026) — mas **nenhum botão da UI
+jamais enviava a mensagem `iniciarCaptura`**. O botão real
+("🎤 Capturar áudio (Whisper)") sempre usou um segundo mecanismo,
+totalmente separado: `getUserMedia` direto em `content.js` (só
+microfone, via mensagem `whisperChunk`). O caminho do `tabCapture` era
+código morto, nunca exercitado pela UI.
+
+### DECISÃO DE DESIGN — não capturar microfone dentro do offscreen document
+Documentos offscreen não têm UI visível para o prompt de permissão do
+Chrome aparecer — pedir `getUserMedia({audio:true})` lá dentro tende a
+falhar silenciosamente (sem tela pra o usuário clicar "Permitir"). Por
+isso o microfone **continua** sendo capturado em `content.js` (roda na
+própria página do Meet, onde o prompt já funciona hoje) — o
+`offscreen.js` passou a capturar **só** o áudio da aba via
+`chrome.tabCapture`, que não exige prompt de permissão em tempo de
+execução (é liberado pela permissão `tabCapture` do manifest). As duas
+transcrições (mic + aba) são mescladas por **texto**, não por áudio —
+evita toda a complexidade de compartilhar `MediaStream` entre contextos
+diferentes da extensão.
+
+### BACKEND (extensão) — `chrome-extension/manifest.json`
+Permissão `tabCapture` adicionada.
+
+### BACKEND (extensão) — `chrome-extension/background.js`
+- `handleIniciarCaptura(tabId)`: agora resolve
+  `chrome.tabCapture.getMediaStreamId({ targetTabId: tabId })` (só
+  possível no contexto do service worker — content scripts não têm
+  acesso a `chrome.tabCapture`) antes de acionar o offscreen document.
+- Handler `audioChunk` (usado pelo áudio da aba): relay
+  `transcricaoAudio` pro content.js ganha o campo `fonte: 'aba'`, pra
+  diferenciar do áudio do microfone na hora de rotular o speaker.
+
+### BACKEND (extensão) — `chrome-extension/offscreen.js` (reescrito)
+Deixou de tentar capturar microfone (nunca funcionaria de verdade, ver
+decisão acima) — captura só o áudio da aba via
+`chromeMediaSource: 'tab'`. Como isso **intercepta** o áudio de saída da
+aba (o vendedor pararia de ouvir a reunião), um `AudioContext` reconecta
+o stream capturado de volta em `audioContext.destination` — a gravação
+usa o `MediaStream` original (`tabStream`), a reconexão é só pra
+restaurar o som.
+
+### BACKEND (extensão) — `chrome-extension/content.js`
+- Filtro de ruído de áudio (rejeita texto com <3 palavras únicas)
+  extraído para `passaFiltroRuidoAudio()`, reutilizado tanto pelo
+  microfone quanto pela aba (antes só existia inline no fluxo do mic).
+- `iniciarCapturaAba()`/`pararCapturaAba()` (novas): disparam
+  `iniciarCaptura`/`pararCaptura` pro `background.js`, chamadas junto
+  com o início/fim da captura de microfone já existente no botão — best
+  effort, se o `tabCapture` falhar o microfone continua funcionando
+  normalmente (nunca bloqueia a feature que já funcionava).
+- Novo caso `transcricaoAudio` no listener de mensagens: recebe o texto
+  transcrito do áudio da aba (push assíncrono do `background.js`, já que
+  o offscreen document gera chunks por conta própria, sem um
+  request/response direto) e commita como fala do "Cliente" — mesmo
+  rótulo normalizado (`rotuloParticipante()`) que as legendas já usam,
+  unificando os dois canais no mesmo transcript.
+- Rótulo do microfone trocado de "Audio" (genérico) para "Vendedor" —
+  também passa a normalizar para o nome configurado do vendedor.
+
+### PRIVACIDADE (TAREFA 3.13, já satisfeita, sem mudança)
+Nenhum áudio novo é persistido — o áudio da aba segue o mesmo ciclo de
+15s → transcrição → descarte que o microfone já usava.
+
+### VALIDAÇÃO
+Sintaxe verificada (`node --check`) nos 3 arquivos + manifest JSON
+válido. **Não testado ao vivo nesta sessão** — `chrome.tabCapture` e o
+comportamento de permissão em documentos offscreen só podem ser
+validados de verdade numa reunião real do Meet; próxima sessão de teste
+deve confirmar isso nos logs (`journalctl -u saleia`, procurar por 2
+`meeting_id` diferentes ou volume maior de `/audio-transcricao`) e no
+console da extensão (`[SALEIA-OFFSCREEN] Gravação do áudio da aba
+iniciada.`).
+
+### VERSÃO
+- Extensão Chrome: `1.4.6` → `1.4.7` (`chrome-extension/manifest.json`).
+
+### O QUE FALTA (Fase 3 do prompt mestre, resto do roadmap)
+- Validação ao vivo desta feature (ver "VALIDAÇÃO" acima).
+- Abstrações formais `MeetingCaptureProvider`/`TranscriptionProvider`
+  (TAREFA 3.1/3.2/3.4) — continuam deliberadamente não criadas.
+- Parakeet local (TAREFA 3.6) — opcional no prompt mestre.
+- Benchmark de WER/latência (TAREFA 3.12).
+
+### ARQUIVOS ALTERADOS
+- `chrome-extension/manifest.json` (permissão `tabCapture` + versão)
+- `chrome-extension/background.js` (`handleIniciarCaptura` + relay
+  `audioChunk`)
+- `chrome-extension/offscreen.js` (reescrito — só áudio da aba)
+- `chrome-extension/content.js` (`passaFiltroRuidoAudio`,
+  `iniciarCapturaAba`/`pararCapturaAba`, handler `transcricaoAudio`,
+  rótulo "Vendedor")
+
+---
+
 ## V.1.4.64 — fix: Sales Memory sem contexto no tempo real (bug de loop asyncio no Ollama)
 > Data: 05/09/2026 | Bug fix (efeito real: Sales Memory volta a funcionar durante /tempo-real)
 
