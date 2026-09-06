@@ -575,6 +575,16 @@ EMAIL_FROM=noreply@saleia.com.br
 - [x] Versao: `1.4.64` -> `1.4.65`.
 - **Deliberadamente NAO feito**: `resolver_skills_relevantes()` nao foi plugada em `api/processador_tempo_real.py` — `resolver_melhor_skill()`/`resolver_skill_context()` continuam sendo o unico caminho ativo em producao. Integrar (mesmo que em shadow mode primeiro, como Cost Router/Otimizacao) e decisao de produto separada.
 
+## Concluido (V.1.4.66 — Marcar reuniao ganha/perdida (UI) + outcome no retrieval, TAREFA 6.4 da Fase 6)
+
+- [x] Investigacao previa confirmou `meeting_status`, `client_profiles` e `client_meetings` com 0 linhas em producao. Causa raiz: botao de marcar reuniao como ganha ja existia (`marcarComoGanha()`, `PATCH /relatorios/{id}/status`), mas era pouco visivel (0.7rem, sem opcao "Perdida") — ninguem usava de fato. Correcao de uma afirmacao errada feita antes na mesma investigacao (uma busca por `marcar-ganha`, slug antigo ja renomeado, deu falso negativo).
+- [x] `frontend/dashboard.html`: `marcarComoGanha()` substituida por `statusReuniaoBotoesHTML()`/`marcarStatusReuniao()` — botoes "Ganha"/"Perdida" lado a lado (ou badge quando ja decidido), em 2 contextos (`card` discreto na lista, `detalhe` destacado num card proprio "Resultado desta reuniao" na tela de detalhe). Mesmo endpoint de sempre, sem mudanca de backend pra isso.
+- [x] `agent/sales_memory.py`: `buscar_memorias_semantico()` agora ajusta o ranking por cosseno usando o outcome da reuniao de origem — `won` +0.05, `lost` -0.10 (capado em [0,1]), sem status = neutro (100% das memorias hoje). Resolve status via `agent.playbook_generator.listar_status_reunioes()` (IN-clause numa tabela so) — nunca JOIN direto entre `sales_memories` e `meeting_status`, que quebra por incompatibilidade real de collation entre as duas colunas (achado durante a investigacao). Escopo restrito a `sales_memories` (unica fonte com link direto e confiavel via `source_meeting_id`) — `base_conhecimento` (sem coluna de meeting-id) e `knowledge_items` (curadoria manual) ficam de fora, deliberadamente.
+- [x] Campo novo `"outcome"` em cada resultado de `buscar_memorias_semantico()` — aditivo, nao quebra `buscar_contexto_para_reuniao()` nem `GET /sales-memories/buscar`.
+- [x] 13 testes novos em `tests/test_sales_memory.py` (ajuste puro, resolucao de status, fluxo completo de ranking incluindo reordenacao e top_k).
+- [x] Versao: `1.4.65` -> `1.4.66`.
+- **Pendente**: deploy na VPS (mudanca de `agent/sales_memory.py` exige `git pull` + `systemctl restart saleia`; `dashboard.html` e estatico, nao exige restart). Efeito real do ajuste de ranking so aparece conforme reunioes forem marcadas pelos novos botoes — base ainda vazia no momento do commit.
+
 ## Pendente
 
 - [ ] **Debito tecnico (achado 05/09/2026, fora de escopo)**: migrar `google.generativeai` (totalmente descontinuado pelo Google) para `google.genai`, e `claude-sonnet-4-20250514` (EOL 15/06/2026) para um modelo Anthropic atual.

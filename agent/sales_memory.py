@@ -409,7 +409,7 @@ def _fetch_rows_com_metadados(conn):
         with conn.cursor() as cur:
             cur.execute(
                 "SELECT id, memory_type, title, content, confidence, tags, embedding, "
-                "embedding_provider, embedding_model, embedding_dim "
+                "embedding_provider, embedding_model, embedding_dim, source_meeting_id "
                 "FROM sales_memories WHERE embedding IS NOT NULL"
             )
             return cur.fetchall(), True
@@ -417,7 +417,7 @@ def _fetch_rows_com_metadados(conn):
         logger.debug("[SalesMemory] Colunas de metadados de embedding ausentes, usando fallback legado: %s", e)
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, memory_type, title, content, confidence, tags, embedding "
+                "SELECT id, memory_type, title, content, confidence, tags, embedding, source_meeting_id "
                 "FROM sales_memories WHERE embedding IS NOT NULL"
             )
             return cur.fetchall(), False
@@ -457,14 +457,16 @@ def _carregar_cache_memorias() -> dict:
 
     meta_majoritaria = max(contagem_meta.items(), key=lambda kv: kv[1])[0] if contagem_meta else None
 
-    ids, tipos, titulos, conteudos, confs, tags_list, vecs = [], [], [], [], [], [], []
+    ids, tipos, titulos, conteudos, confs, tags_list, vecs, origens = [], [], [], [], [], [], [], []
     excluidas = 0
     for row in rows:
         emb = row[6]
         if tem_metadados:
             prov, model, dim = row[7], row[8], row[9]
+            origem_meeting_id = row[10]
         else:
             prov, model, dim = None, None, None
+            origem_meeting_id = row[7]
 
         if isinstance(emb, str):
             try:
@@ -492,6 +494,7 @@ def _carregar_cache_memorias() -> dict:
         except Exception:
             tags_list.append([])
         vecs.append(emb)
+        origens.append(origem_meeting_id or "")
 
     if excluidas:
         logger.warning(
@@ -520,6 +523,7 @@ def _carregar_cache_memorias() -> dict:
         "conteudos": conteudos,
         "confs": confs,
         "tags": tags_list,
+        "origens": origens,
         "matrix": np.array(vecs, dtype=np.float32),
         "embedding_meta": embedding_meta,
     }
@@ -617,6 +621,39 @@ def gerar_e_salvar_embeddings_em_lote(itens: list) -> int:
 # BUSCA SEMÂNTICA
 # ─────────────────────────────────────────────────────────
 
+# Ajuste de ranking por outcome da reunião de origem (Fase 6 do PROMPT MESTRE,
+# TAREFA 6.4 — Retrieval V2 híbrido). Memórias sem status registrado (reunião
+# nunca marcada como ganha/perdida) ficam neutras — não sobem nem descem.
+OUTCOME_BOOST_WON = 0.05
+OUTCOME_PENALTY_LOST = 0.10
+
+
+def _status_reunioes_origem(meeting_ids: set) -> dict:
+    """Resolve status (won/lost/open) das reuniões de origem via lookup
+    por IN-clause em `meeting_status` — nunca um JOIN direto contra
+    `sales_memories`, que quebra por incompatibilidade real de collation
+    entre as duas tabelas (utf8mb4_unicode_ci x utf8mb4_0900_ai_ci)."""
+    ids_validos = [m for m in meeting_ids if m]
+    if not ids_validos:
+        return {}
+    try:
+        from agent.playbook_generator import listar_status_reunioes
+        return listar_status_reunioes(ids_validos)
+    except Exception as e:
+        logger.debug("[SalesMemory] Erro ao resolver status das reuniões de origem: %s", e)
+        return {}
+
+
+def _ajustar_similaridade_por_outcome(sim: float, status: Optional[str]) -> float:
+    """Aplica boost/penalidade de ranking conforme o outcome da reunião
+    que originou a memória. Sem status (ou 'open') = neutro."""
+    if status == "won":
+        return min(1.0, sim + OUTCOME_BOOST_WON)
+    if status == "lost":
+        return max(0.0, sim - OUTCOME_PENALTY_LOST)
+    return sim
+
+
 def buscar_memorias_semantico(
     query: str,
     top_k: int = 5,
@@ -656,7 +693,7 @@ def buscar_memorias_semantico(
     vec = np.array(vec_query, dtype=np.float32)
     resultados_brutos = cosine_top_k(vec, cache["matrix"], min(top_k * 3, len(cache["ids"])))
 
-    resultados = []
+    candidatos = []
     for idx, sim in resultados_brutos:
         if sim < similarity_min:
             continue
@@ -664,6 +701,17 @@ def buscar_memorias_semantico(
             continue
         if cache["confs"][idx] < confidence_min:
             continue
+        candidatos.append((idx, sim))
+
+    origens = cache.get("origens") or []
+    meeting_ids = {origens[idx] for idx, _ in candidatos if idx < len(origens) and origens[idx]}
+    status_map = _status_reunioes_origem(meeting_ids)
+
+    resultados = []
+    for idx, sim in candidatos:
+        origem = origens[idx] if idx < len(origens) else ""
+        status = status_map.get(origem) if origem else None
+        sim_ajustada = _ajustar_similaridade_por_outcome(sim, status)
 
         resultados.append({
             "id":          cache["ids"][idx],
@@ -672,13 +720,12 @@ def buscar_memorias_semantico(
             "content":     cache["conteudos"][idx],
             "confidence":  cache["confs"][idx],
             "tags":        cache["tags"][idx],
-            "similarity":  round(sim, 4),
+            "similarity":  round(sim_ajustada, 4),
+            "outcome":     status,
         })
 
-        if len(resultados) >= top_k:
-            break
-
-    return resultados
+    resultados.sort(key=lambda r: r["similarity"], reverse=True)
+    return resultados[:top_k]
 
 
 def buscar_contexto_para_reuniao(fragmento: str, top_k: int = 3) -> Optional[str]:

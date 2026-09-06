@@ -3093,9 +3093,7 @@
     const provHTML = provLabel ? `<span style="font-size:.72rem;color:var(--muted);margin-left:6px">${escHtml(provLabel)}</span>` : '';
     const mid = escHtml(r.meeting_id || r.id || '');
     const statusAtual = r.status || 'open';
-    const wonBtn = statusAtual === 'won'
-      ? `<span style="font-size:.72rem;color:#2dd4bf;font-weight:700;padding:2px 8px;border:1px solid #2dd4bf;border-radius:4px;margin-left:6px">✓ Ganha</span>`
-      : `<button onclick="marcarComoGanha(event,'${mid}')" style="font-size:.7rem;padding:2px 8px;background:transparent;border:1px solid var(--gold);color:var(--gold);border-radius:4px;cursor:pointer;margin-left:6px">Ganha</button>`;
+    const wonBtn = statusReuniaoBotoesHTML(mid, statusAtual, 'card');
     const letraProp = prop ? prop.charAt(0).toUpperCase() : '?';
     return `<div class="reuniao-card" onclick='verDetalhe(${JSON.stringify(r)})'>
       <div class="score-circle" style="border-color:${cor};color:${cor}">${letraProp}</div>
@@ -3107,22 +3105,48 @@
     </div>`;
   }
 
-  async function marcarComoGanha(event, meetingId) {
-    event.stopPropagation();
+  // Fase 6 do PROMPT MESTRE (Retrieval V2 — outcome): antes só existia o
+  // botão "Ganha", minúsculo, sem "Perdida" — resultado real medido em
+  // produção: 0 reuniões marcadas em meses de uso (ninguém via o botão).
+  // statusReuniaoBotoesHTML() é usada tanto no card da lista quanto na
+  // tela de detalhe (contexto 'card' vs 'detalhe' só muda o tamanho).
+  function statusReuniaoBotoesHTML(meetingId, status, contexto) {
+    if (!meetingId) return '';
+    const grande = contexto === 'detalhe';
+    const pad = grande ? '7px 16px' : '2px 8px';
+    const font = grande ? '.85rem' : '.7rem';
+    if (status === 'won') {
+      return `<span style="font-size:${font};color:#2dd4bf;font-weight:700;padding:${pad};border:1px solid #2dd4bf;border-radius:4px;margin-left:6px">✓ Ganha</span>`;
+    }
+    if (status === 'lost') {
+      return `<span style="font-size:${font};color:#f87171;font-weight:700;padding:${pad};border:1px solid #f87171;border-radius:4px;margin-left:6px">✕ Perdida</span>`;
+    }
+    return `<span style="margin-left:6px;display:inline-flex;gap:4px">
+      <button onclick="marcarStatusReuniao(event,'${meetingId}','won','${contexto}')" style="font-size:${font};padding:${pad};background:transparent;border:1px solid var(--gold);color:var(--gold);border-radius:4px;cursor:pointer;font-weight:${grande ? 600 : 400}">${grande ? '✓ Marcar como Ganha' : 'Ganha'}</button>
+      <button onclick="marcarStatusReuniao(event,'${meetingId}','lost','${contexto}')" style="font-size:${font};padding:${pad};background:transparent;border:1px solid #f87171;color:#f87171;border-radius:4px;cursor:pointer;font-weight:${grande ? 600 : 400}">${grande ? '✕ Marcar como Perdida' : 'Perdida'}</button>
+    </span>`;
+  }
+
+  async function marcarStatusReuniao(event, meetingId, status, contexto) {
+    if (event) event.stopPropagation();
     if (!meetingId) return;
     try {
       const r = await fetchJsonWithFallback(`/relatorios/${encodeURIComponent(meetingId)}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'won' }),
+        body: JSON.stringify({ status }),
       });
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      // Atualiza cache local e re-renderiza
       _reunioesCache = _reunioesCache.map(re => {
         const rid = re.meeting_id || re.id || '';
-        return rid === meetingId ? { ...re, status: 'won' } : re;
+        return rid === meetingId ? { ...re, status } : re;
       });
-      renderizarReunioes(_reunioesCache);
+      if (contexto === 'detalhe') {
+        const el = document.getElementById('det-status-reuniao');
+        if (el) el.innerHTML = statusReuniaoBotoesHTML(meetingId, status, 'detalhe');
+      } else {
+        renderizarReunioes(_reunioesCache);
+      }
     } catch (e) {
       alert('Erro ao marcar reunião: ' + e.message);
     }
@@ -4207,9 +4231,16 @@
     }
     html += `</div>`;
 
-    // Botão vincular ao cliente
+    // Resultado da reunião (Fase 6 do PROMPT MESTRE — Retrieval V2/outcome):
+    // aqui é onde o vendedor já está olhando o relatório inteiro logo após
+    // a reunião — ponto de menor fricção pra registrar o resultado, ao
+    // contrário do botão minúsculo que já existia só na lista.
     const midDetalhe = r.meeting_id || r.id || '';
     if (midDetalhe) {
+      html += `<div class="info-card" style="margin-bottom:16px;text-align:center">
+        <h3 style="margin-bottom:10px">🏁 Resultado desta reunião</h3>
+        <div id="det-status-reuniao">${statusReuniaoBotoesHTML(escHtml(midDetalhe), r.status || 'open', 'detalhe')}</div>
+      </div>`;
       html += `<div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
         <button onclick="vincularDetalheAoCliente('${escHtml(midDetalhe)}','${escHtml(r.titulo||r.nome_reuniao||'')}')" style="padding:6px 14px;font-size:.82rem;background:transparent;border:1px solid #2dd4bf;color:#2dd4bf;border-radius:6px;cursor:pointer">🔗 Vincular ao Cliente</button>
         <button onclick="abrirFollowup('${escHtml(midDetalhe)}')" style="padding:6px 14px;font-size:.82rem;background:transparent;border:1px solid var(--gold);color:var(--gold);border-radius:6px;cursor:pointer">📩 Follow-up</button>

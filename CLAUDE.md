@@ -252,10 +252,13 @@ as abstrações formais `MeetingCaptureProvider`/`TranscriptionProvider`
 do roadmap original (decisão deliberada, ver seções próprias). **Fase 5**
 (Skill Resolver V2) tem `resolver_skills_relevantes()` implementada e
 testada (V.1.4.65), mas **não plugada em produção** ainda (ver seção
-própria). **Fase 6** (Retrieval V2 híbrido), **Fase 7** (Agent Router
-por evento) e a maior parte da **Fase 8** (Pilot Analytics completo)
-**não foram iniciadas** — antes de assumir que uma peça desse roadmap
-existe, grepe o código, não confie só nesta nota.
+própria). **Fase 6** (Retrieval V2 híbrido) tem a TAREFA 6.4 (outcome
+won/lost no ranking de Sales Memory) implementada e ativa em produção
+desde V.1.4.66 (ver seção própria) — resto da fase (client_profiles/
+client_meetings) segue bloqueado por falta de dado real. **Fase 7**
+(Agent Router por evento) e a maior parte da **Fase 8** (Pilot Analytics
+completo) **não foram iniciadas** — antes de assumir que uma peça desse
+roadmap existe, grepe o código, não confie só nesta nota.
 
 - **`services/observability/`**: `ObservabilityProvider` (interface:
   `start_trace`/`end_trace`/`start_span`/`end_span`/`record_generation`/
@@ -343,6 +346,52 @@ real ainda.
   Cost Router e na Otimização (Cost Intelligence Fases 4/5). Diferente
   daquelas, esta rodada nem criou o hook de shadow mode ainda — é decisão
   de produto em aberto.
+
+## Outcome no Retrieval de Sales Memory — TAREFA 6.4 da Fase 6 do PROMPT MESTRE (`agent/sales_memory.py`, V.1.4.66)
+
+`buscar_memorias_semantico()` agora ajusta o ranking por cosseno usando
+o outcome (`won`/`lost`) da reunião que originou cada memória —
+**ativo em produção**, diferente do Skill Resolver V2 acima.
+
+- **Por que só `sales_memories` e não `base_conhecimento`/
+  `knowledge_items`**: só `sales_memories.source_meeting_id` tem link
+  direto e confiável com `meeting_status.meeting_id`.
+  `base_conhecimento` não tem nenhuma coluna de meeting-id no schema;
+  `knowledge_items` é conteúdo curado manualmente da Biblioteca de
+  Inteligência, sem conceito de "reunião de origem" ganha/perdida.
+  Investigação confirmou isso antes de escrever qualquer código —
+  não estender o ajuste a essas duas tabelas foi decisão deliberada,
+  não lacuna esquecida.
+- **Nunca faça `JOIN` direto entre `sales_memories` e `meeting_status`**
+  — `source_meeting_id` (utf8mb4_unicode_ci) e `meeting_id`
+  (utf8mb4_0900_ai_ci) têm collations diferentes nesta base; um `JOIN`/
+  `WHERE ... =` cruzando as duas colunas lança
+  `pymysql.err.OperationalError: (1267, "Illegal mix of
+  collations...")`. Use sempre `agent.playbook_generator.
+  listar_status_reunioes(ids)` (lookup por `IN (...)` numa tabela só,
+  cruzamento feito em Python) — mesmo padrão já usado por
+  `GET /relatorios` pra enriquecer a listagem com `status`.
+- **Ajuste é neutro por padrão**: `_ajustar_similaridade_por_outcome()`
+  só altera a similaridade quando existe uma linha em `meeting_status`
+  para aquela reunião de origem (`won` → `+0.05`, `lost` → `-0.10`,
+  capado em `[0, 1]`). Memória sem `source_meeting_id` ou de reunião
+  nunca marcada — **100% das memórias em produção até 05/09/2026,
+  já que `meeting_status` estava com 0 linhas** — não muda de posição.
+  Efeito real só aparece conforme os novos botões "Ganha"/"Perdida" do
+  Dashboard (`frontend/dashboard.html::statusReuniaoBotoesHTML()`,
+  mesma versão) forem usados.
+- **Campo novo aditivo**: cada resultado de `buscar_memorias_semantico()`
+  ganha `"outcome"` (`"won"|"lost"|"open"|None`) — não remove nem
+  renomeia nenhum campo existente, então `buscar_contexto_para_reuniao()`
+  e `GET /sales-memories/buscar` continuam funcionando sem mudança.
+- **Achado que motivou esta rodada**: o botão de marcar reunião como
+  ganha já existia desde antes (`marcarComoGanha()` no dashboard,
+  chamando `PATCH /relatorios/{id}/status`) — o problema nunca foi
+  ausência de UI, foi visibilidade (0.7rem, sem opção "Perdida",
+  escondido no card). Antes de assumir "feature não existe", confirme
+  com grep amplo (`marcarComoGanha`, `status.*lost`, não só o nome do
+  endpoint documentado) — uma busca por `marcar-ganha` (slug antigo já
+  renomeado) deu falso negativo nesta mesma investigação.
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

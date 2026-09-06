@@ -3,6 +3,95 @@
 
 ---
 
+## V.1.4.66 — Marcar reunião ganha/perdida (UI) + Retrieval por outcome — Fase 6 do PROMPT MESTRE
+> Data: 05/09/2026 | Feature ativa em produção após deploy
+
+### CONTEXTO
+Investigação da Fase 6 (Retrieval V2 híbrido) encontrou `meeting_status`,
+`client_profiles` e `client_meetings` com **0 linhas** em produção — a
+funcionalidade de outcome nunca foi realmente usada. Causa raiz: o botão
+de marcar reunião como ganha já existia (`marcarComoGanha()`, chamando
+`PATCH /relatorios/{id}/status`, endpoint que já suporta `open|won|lost`),
+mas era pouco visível (0.7rem, escondido no card, sem opção "Perdida") —
+ninguém o usava de fato. Escopo confirmado com o usuário: melhorar a UI
+pra frente + já plugar o outcome no retrieval de Sales Memory, mesmo
+sabendo que a base de `meeting_status` está vazia hoje (efeito real só
+aparece conforme reuniões forem marcadas daqui pra frente).
+
+### FRONTEND — `frontend/dashboard.html`
+- `marcarComoGanha()` (só ganhar, sem opção perder) substituída por
+  `statusReuniaoBotoesHTML(meetingId, status, contexto)` +
+  `marcarStatusReuniao(event, meetingId, status, contexto)` — mesmo
+  endpoint `PATCH /relatorios/{id}/status`, agora com botões "Ganha"/
+  "Perdida" lado a lado, ou um badge (✓ Ganha / ✕ Perdida) quando já
+  decidido.
+- Dois contextos de renderização (`contexto: 'card'|'detalhe'`): no card
+  da lista o botão continua discreto; no detalhe da reunião
+  (`verDetalhe()`) ganhou um card próprio "🏁 Resultado desta reunião",
+  visualmente destacado, antes dos botões de "Vincular ao Cliente"/
+  "Follow-up" — objetivo é tornar a ação óbvia sem esperar que o
+  vendedor associe a reunião a um `client_profile` primeiro (que
+  também está com 0 linhas em produção).
+
+### BACKEND — outcome no retrieval de Sales Memory (`agent/sales_memory.py`)
+TAREFA 6.4 do roadmap, com escopo reduzido à única fonte de RAG que tem
+link direto e confiável com `meeting_status`: `sales_memories.
+source_meeting_id`. **Não cobre** `base_conhecimento` (schema não tem
+nenhuma coluna de meeting_id) nem `knowledge_items` (conteúdo curado
+manualmente, sem conceito de "reunião de origem" ganha/perdida).
+- `_carregar_cache_memorias()`: cache passa a guardar também
+  `origens` (`source_meeting_id` por memória, `""` quando ausente) —
+  mesma linha do cache de `embedding_meta`, carregado uma vez e
+  invalidado por `invalidar_cache_memorias()`.
+- `_status_reunioes_origem(meeting_ids)`: resolve status via
+  `agent.playbook_generator.listar_status_reunioes()` (lookup por
+  `IN (...)` numa tabela só) — **nunca** um `JOIN` direto contra
+  `sales_memories`, que quebra com
+  `pymysql.err.OperationalError: (1267, "Illegal mix of collations
+  (utf8mb4_unicode_ci,IMPLICIT) and (utf8mb4_0900_ai_ci,IMPLICIT)...")`
+  (achado real durante a investigação — `source_meeting_id` e
+  `meeting_id` têm collations diferentes nesta base).
+- `_ajustar_similaridade_por_outcome(sim, status)`: `won` → `+0.05` na
+  similaridade (capado em 1.0); `lost` → `-0.10` (capado em 0.0);
+  `None`/`"open"` → neutro, sem alteração. Memória sem `source_meeting_id`
+  ou de reunião nunca marcada (100% das memórias hoje) não muda de
+  ranking.
+- `buscar_memorias_semantico()`: separa filtragem (tipo/confiança/
+  similaridade mínima) de ranking — calcula o status de todas as
+  reuniões de origem dos candidatos filtrados numa única chamada,
+  aplica o ajuste, reordena por similaridade ajustada e só então corta
+  em `top_k`. Cada resultado ganha um campo novo `"outcome"`
+  (`"won"|"lost"|"open"|None`) — aditivo, não quebra consumidores
+  existentes (`buscar_contexto_para_reuniao()`, `GET /sales-memories/
+  buscar`) que só liam os campos antigos.
+
+### TESTES
+13 testes novos em `tests/test_sales_memory.py`: ajuste puro (boost/
+penalidade/neutro/clamping em 0 e 1), resolução de status (ids vazios
+não chamam o playbook, ids válidos são repassados, falha no lookup
+retorna vazio sem lançar) e o fluxo completo de `buscar_memorias_
+semantico()` (memória sem status fica neutra, memória de reunião
+ganha sobe no ranking quando a diferença bruta é menor que o boost,
+memória de reunião perdida desce, `top_k` respeitado após reordenação).
+
+### VERSÃO
+- Backend: `1.4.65` → `1.4.66` (`/health`, `/monitor/metricas`).
+
+### O QUE FALTA
+- Base de `meeting_status` ainda vazia em produção — o ajuste de
+  ranking só terá efeito real conforme reuniões forem marcadas pelos
+  novos botões. Vale observar `GET /sales-memories/buscar` (campo
+  `outcome`) depois de algumas semanas de uso real.
+- Resto da Fase 6 (retrieval híbrido considerando `client_profiles`/
+  `client_meetings`) segue bloqueado pelas mesmas tabelas vazias —
+  não vale investir mais lógica ali até haver dado real.
+- Deploy: mudança de `agent/sales_memory.py` exige `git pull` +
+  `systemctl restart saleia` na VPS (muda comportamento de retrieval em
+  runtime); a mudança em `dashboard.html` é arquivo estático servido
+  direto, não exige restart do serviço.
+
+---
+
 ## V.1.4.65 — Skill Resolver V2 (início) — Fase 5 do PROMPT MESTRE
 > Data: 05/09/2026 | Feature nova, NÃO ativada em produção (shadow — nem isso ainda: nem plugada no pipeline real)
 
