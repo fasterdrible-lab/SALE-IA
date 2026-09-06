@@ -134,5 +134,74 @@ class ResolverSkillContextTest(unittest.TestCase):
         self.assertIn("[SKILL]", texto)
 
 
+class ResolverSkillsRelevantesTest(unittest.TestCase):
+    """TAREFA 5.2/5.3 do PROMPT MESTRE (Skill Resolver V2)."""
+
+    def test_primary_e_a_mesma_que_resolver_melhor_skill_escolheria(self):
+        baixa = _skill("baixa", priority=40)
+        alta = _skill("alta", priority=90)
+        with patch.object(skill_resolver, "listar_skills", return_value=[baixa, alta]):
+            resultado = skill_resolver.resolver_skills_relevantes()
+        self.assertEqual(resultado["primary"]["name"], "alta")
+
+    def test_sem_candidato_primary_e_none_e_listas_vazias(self):
+        with patch.object(skill_resolver, "listar_skills", return_value=[_skill("fora", min_score=90, max_score=100)]):
+            resultado = skill_resolver.resolver_skills_relevantes(score=10.0)
+        self.assertIsNone(resultado["primary"])
+        self.assertEqual(resultado["supporting"], [])
+        self.assertEqual(resultado["cases"], [])
+
+    def test_supporting_limitado_a_2_mesmo_com_mais_candidatos(self):
+        skills = [_skill(f"s{i}", priority=100 - i) for i in range(5)]
+        with patch.object(skill_resolver, "listar_skills", return_value=skills):
+            resultado = skill_resolver.resolver_skills_relevantes()
+        self.assertEqual(resultado["primary"]["name"], "s0")
+        self.assertEqual([s["name"] for s in resultado["supporting"]], ["s1", "s2"])
+
+    def test_case_reconhecido_pelo_prefixo_e_separado_de_primary_supporting(self):
+        normal = _skill("normal", priority=90)
+        caso = _skill("caso-real", priority=95, system_injection="[CASE] Cliente X fechou apos objecao de preco")
+        with patch.object(skill_resolver, "listar_skills", return_value=[normal, caso]):
+            resultado = skill_resolver.resolver_skills_relevantes()
+        self.assertEqual(resultado["primary"]["name"], "normal")
+        self.assertEqual([c["name"] for c in resultado["cases"]], ["caso-real"])
+
+    def test_cases_limitado_a_1_mesmo_com_mais_de_um_case(self):
+        caso1 = _skill("caso1", priority=95, system_injection="[CASE] A")
+        caso2 = _skill("caso2", priority=90, system_injection="[CASE] B")
+        with patch.object(skill_resolver, "listar_skills", return_value=[caso1, caso2]):
+            resultado = skill_resolver.resolver_skills_relevantes()
+        self.assertEqual(len(resultado["cases"]), 1)
+        self.assertEqual(resultado["cases"][0]["name"], "caso1")
+
+    def test_skills_existentes_sem_trigger_novo_continuam_batendo_igual(self):
+        # Nenhuma das 5 skills builtin declara os triggers novos — precisa
+        # continuar aplicavel independente do valor dos sinais novos.
+        skill = _skill("sem-triggers-novos")
+        with patch.object(skill_resolver, "listar_skills", return_value=[skill]):
+            com_sinal = skill_resolver.resolver_skills_relevantes(buying_signal=True, urgency=True)
+            sem_sinal = skill_resolver.resolver_skills_relevantes(buying_signal=False, urgency=False)
+        self.assertEqual(com_sinal["primary"]["name"], "sem-triggers-novos")
+        self.assertEqual(sem_sinal["primary"]["name"], "sem-triggers-novos")
+
+    def test_trigger_novo_filtra_quando_declarado_na_skill(self):
+        skill = dict(_skill("so-com-buying-signal"))
+        skill["triggers"] = dict(skill["triggers"], requires_buying_signal=True)
+        with patch.object(skill_resolver, "listar_skills", return_value=[skill]):
+            sem_sinal = skill_resolver.resolver_skills_relevantes(buying_signal=False)
+            com_sinal = skill_resolver.resolver_skills_relevantes(buying_signal=True)
+        self.assertIsNone(sem_sinal["primary"])
+        self.assertEqual(com_sinal["primary"]["name"], "so-com-buying-signal")
+
+    def test_filtra_por_disc_score_e_stage_igual_ao_v1(self):
+        fora_disc = _skill("fora_disc", disc=["C"])
+        aplicavel = _skill("aplicavel", disc=["D"], stages=["descoberta"])
+        with patch.object(skill_resolver, "listar_skills", return_value=[fora_disc, aplicavel]):
+            resultado = skill_resolver.resolver_skills_relevantes(
+                disc_profile="D", score=50.0, conversation_stage="descoberta",
+            )
+        self.assertEqual(resultado["primary"]["name"], "aplicavel")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -185,9 +185,12 @@ e uma execucao real validada (`evals/`, ver secao propria abaixo). Fase
 self-hosted (V.1.4.63) e a captura de audio da aba via `chrome.tabCapture`
 (extensao V.1.4.7) — sem as abstracoes formais `MeetingCaptureProvider`/
 `TranscriptionProvider` do roadmap original, por decisao deliberada (ver
-secoes proprias). Fases 5 (Skill Resolver V2), 6 (Retrieval V2 hibrido),
-7 (Agent Router por evento) e a maior parte da 8 (Pilot Analytics
-completo) **continuam nao iniciadas**.
+secoes proprias). Fase 5 (Skill Resolver V2) ganhou `resolver_skills_
+relevantes()` (V.1.4.65) com 4 dos 11 triggers novos (os unicos com sinal
+estruturado real hoje) — **nao plugada em producao ainda**, so uma
+capacidade nova testada e pronta. Fases 6 (Retrieval V2 hibrido), 7
+(Agent Router por evento) e a maior parte da 8 (Pilot Analytics completo)
+**continuam nao iniciadas**.
 
 **Pendente**: `OBSERVABILITY_ENABLED` continua `false` — ninguem gerou
 uma conta Langfuse nem decidiu ativar de fato em producao ainda (decisao

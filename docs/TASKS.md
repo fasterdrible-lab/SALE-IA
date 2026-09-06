@@ -566,6 +566,15 @@ EMAIL_FROM=noreply@saleia.com.br
 - [x] Versao: `1.4.63` -> `1.4.64`.
 - **Pendente**: deploy na VPS + validar que o Sales Memory volta a aparecer no contexto de `/tempo-real` em producao real.
 
+## Concluido (V.1.4.65 — Skill Resolver V2, inicio da Fase 5)
+
+- [x] Investigacao previa: dos 11 sinais novos pedidos pelo prompt mestre, so 4 tem sinal estruturado real hoje (buying_signal via key_moments/eventos; budget_status/decision_maker_status/urgency via Closer::maturity_score). Os outros 7 (objection_type, pain_type, product, segment, competitor, meeting_type, risk) nao sao classificados por nenhum agente hoje — nao implementados, pra nao filtrar sobre dado inexistente.
+- [x] `agent/skill_resolver.py`: `resolver_skills_relevantes()` (TAREFA 5.2/5.3) retorna `{primary, supporting (max 2), cases (max 1)}` em vez de 1 unica vencedora; `_sinal_bool_match()` + `_candidatos_aplicaveis_v2()` adicionam os 4 triggers novos como opcionais (skill que nao declara continua batendo igual — zero regressao nas 5 skills builtin/custom existentes).
+- [x] "cases" reconhecidos pelo prefixo `[CASE]` que `mapear_knowledge_item_para_skill()` ja grava no `system_injection` (reaproveita dado existente).
+- [x] 8 testes novos + validado sem mock contra as 5 skills builtin reais: `primary` bateu 100% com `resolver_melhor_skill()` em 3 cenarios, `supporting` trouxe skill extra aplicavel num deles.
+- [x] Versao: `1.4.64` -> `1.4.65`.
+- **Deliberadamente NAO feito**: `resolver_skills_relevantes()` nao foi plugada em `api/processador_tempo_real.py` — `resolver_melhor_skill()`/`resolver_skill_context()` continuam sendo o unico caminho ativo em producao. Integrar (mesmo que em shadow mode primeiro, como Cost Router/Otimizacao) e decisao de produto separada.
+
 ## Pendente
 
 - [ ] **Debito tecnico (achado 05/09/2026, fora de escopo)**: migrar `google.generativeai` (totalmente descontinuado pelo Google) para `google.genai`, e `claude-sonnet-4-20250514` (EOL 15/06/2026) para um modelo Anthropic atual.

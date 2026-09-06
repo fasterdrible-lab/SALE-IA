@@ -215,6 +215,115 @@ def resolver_melhor_skill(
     return candidatos[0] if candidatos else None
 
 
+# ─────────────────────────────────────────────────────────
+# SKILL RESOLVER V2 (Fase 5 do PROMPT MESTRE)
+# ─────────────────────────────────────────────────────────
+#
+# TAREFA 5.1 — Expandir triggers: o prompt mestre pede 11 sinais novos
+# (objection_type, pain_type, budget_status, decision_maker_status,
+# buying_signal, risk, product, segment, competitor, meeting_type,
+# urgency). Só 4 têm hoje um sinal estruturado real em algum agente —
+# os outros 7 exigiriam um agente novo pra extrair esse dado (nenhum
+# lugar do sistema classifica objection_type/pain_type/product/segment/
+# competitor/meeting_type hoje) e por isso NAO foram adicionados aqui,
+# pra nao inventar filtro sobre dado que nao existe:
+#   - buying_signal          <- key_moments/eventos com type="buying_signal"
+#   - budget_status          <- Closer::maturity_score.budget_identificado
+#   - decision_maker_status  <- Closer::maturity_score.decisores_mapeados
+#   - urgency                <- Closer::maturity_score.urgencia_identificada
+#
+# TAREFA 5.2/5.3 — resolver_skills_relevantes() substitui o conceito de
+# "1 vencedora" por 3 baldes (primary/supporting/cases), com os limites
+# pedidos (max primary=1, supporting=2, cases=1).
+#
+# Deliberadamente NAO plugado em processador_tempo_real.py ainda — trocar
+# resolver_skill_context() (1 skill) por multiplas skills no prompt muda
+# tamanho/custo de contexto em producao real, mesmo padrao de
+# "ativar so depois de confirmar com o usuario" ja usado no Cost Router/
+# Otimizacao (Fases 4/5 do Cost Intelligence). resolver_melhor_skill() e
+# resolver_skill_context() continuam sendo o caminho ativo em producao,
+# sem nenhuma mudanca de comportamento.
+
+def _sinal_bool_match(skill: dict, chave_trigger: str, valor_real: Optional[bool]) -> bool:
+    """Trigger booleano opcional e generico (buying_signal, budget_status,
+    decision_maker_status, urgency). Skill que nao declara `chave_trigger`
+    em `triggers` nao tem restricao (mesmo espirito de "lista vazia =
+    qualquer valor" dos matches existentes) — condicao necessaria pra
+    nenhuma das 5 skills builtin/custom existentes mudar de comportamento."""
+    triggers = skill.get("triggers", {}) or {}
+    exigido = triggers.get(chave_trigger)
+    if exigido is None:
+        return True
+    return bool(valor_real) == bool(exigido)
+
+
+def _candidatos_aplicaveis_v2(
+    disc_profile: str,
+    score: float,
+    conversation_stage: str,
+    buying_signal: Optional[bool] = None,
+    budget_status: Optional[bool] = None,
+    decision_maker_status: Optional[bool] = None,
+    urgency: Optional[bool] = None,
+) -> list:
+    """Mesmo filtro de _candidatos_aplicaveis() (DISC/score/stage) mais os
+    4 triggers novos suportados (TAREFA 5.1). Skills que nao usam os
+    triggers novos continuam batendo exatamente como antes."""
+    skills = listar_skills(apenas_ativas=True)
+    candidatos = [
+        skill for skill in skills
+        if _disc_match(skill, disc_profile)
+        and _score_match(skill, score)
+        and _stage_match(skill, conversation_stage)
+        and _sinal_bool_match(skill, "requires_buying_signal", buying_signal)
+        and _sinal_bool_match(skill, "requires_budget_status", budget_status)
+        and _sinal_bool_match(skill, "requires_decision_maker_status", decision_maker_status)
+        and _sinal_bool_match(skill, "requires_urgency", urgency)
+    ]
+    candidatos.sort(
+        key=lambda s: (int(s.get("priority") or 50), 1 if s.get("source") == "builtin" else 0),
+        reverse=True,
+    )
+    return candidatos
+
+
+def resolver_skills_relevantes(
+    disc_profile: str = "",
+    score: float = 50.0,
+    conversation_stage: str = "abertura",
+    buying_signal: Optional[bool] = None,
+    budget_status: Optional[bool] = None,
+    decision_maker_status: Optional[bool] = None,
+    urgency: Optional[bool] = None,
+) -> dict:
+    """
+    TAREFA 5.2/5.3 do PROMPT MESTRE — em vez de eleger 1 unica skill
+    vencedora, retorna ate 3 grupos:
+        {"primary": dict|None, "supporting": list[dict], "cases": list[dict]}
+
+    Limites (TAREFA 5.3): max 1 primary, max 2 supporting, max 1 case.
+    "cases" sao skills geradas a partir de KnowledgeItems tipo CASE
+    (Biblioteca de Inteligencia Fase 4/Fase 3 de integracao) — reconhecidas
+    pelo prefixo "[CASE]" que mapear_knowledge_item_para_skill() ja grava
+    no system_injection; nao existe hoje nenhum campo separado marcando
+    "isto e um case", entao a deteccao usa o dado que ja existe em vez de
+    criar uma coluna nova so pra isso.
+    """
+    candidatos = _candidatos_aplicaveis_v2(
+        disc_profile, score, conversation_stage,
+        buying_signal, budget_status, decision_maker_status, urgency,
+    )
+
+    cases = [c for c in candidatos if (c.get("system_injection") or "").startswith("[CASE]")]
+    demais = [c for c in candidatos if c not in cases]
+
+    return {
+        "primary": demais[0] if demais else None,
+        "supporting": demais[1:3],
+        "cases": cases[:1],
+    }
+
+
 def resolver_skill_context(
     disc_profile: str = "",
     score: float = 50.0,

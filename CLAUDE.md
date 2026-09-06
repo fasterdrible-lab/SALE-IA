@@ -249,9 +249,11 @@ execução real validada (ver seção própria abaixo); **Fase 3** (Meetily —
 captura/transcrição local) tem o Whisper Local self-hosted e a captura
 de áudio da aba implementados (V.1.4.63/extensão V.1.4.7), mas **sem**
 as abstrações formais `MeetingCaptureProvider`/`TranscriptionProvider`
-do roadmap original (decisão deliberada, ver seções próprias). **Fases
-5** (Skill Resolver V2), **6** (Retrieval V2 híbrido), **7** (Agent
-Router por evento) e a maior parte da **8** (Pilot Analytics completo)
+do roadmap original (decisão deliberada, ver seções próprias). **Fase 5**
+(Skill Resolver V2) tem `resolver_skills_relevantes()` implementada e
+testada (V.1.4.65), mas **não plugada em produção** ainda (ver seção
+própria). **Fase 6** (Retrieval V2 híbrido), **Fase 7** (Agent Router
+por evento) e a maior parte da **Fase 8** (Pilot Analytics completo)
 **não foram iniciadas** — antes de assumir que uma peça desse roadmap
 existe, grepe o código, não confie só nesta nota.
 
@@ -305,6 +307,42 @@ existe, grepe o código, não confie só nesta nota.
 - **Ainda não ativado em produção**: ninguém criou uma conta Langfuse
   nem decidiu ligar `OBSERVABILITY_ENABLED=true` de fato — decisão de
   produto separada da conclusão técnica da Fase 1.
+
+## Skill Resolver V2 — início da Fase 5 do PROMPT MESTRE (`agent/skill_resolver.py`, V.1.4.65)
+
+`resolver_skills_relevantes()` (novo) — substitui o conceito de "1
+skill vencedora" por 3 grupos: `{"primary", "supporting" (max 2),
+"cases" (max 1)}`. **Não plugado em produção** — `resolver_melhor_skill()`/
+`resolver_skill_context()` continuam sendo o único caminho ativo em
+`api/processador_tempo_real.py`, sem nenhuma mudança de comportamento
+real ainda.
+
+- **Só 4 dos 11 triggers novos do roadmap foram implementados**
+  (`buying_signal`, `budget_status`, `decision_maker_status`, `urgency`)
+  — são os únicos com sinal estruturado real hoje
+  (`key_moments`/`eventos` com `type="buying_signal"`; Closer::
+  `maturity_score.budget_identificado`/`.decisores_mapeados`/
+  `.urgencia_identificada`). Os outros 7 (`objection_type`, `pain_type`,
+  `product`, `segment`, `competitor`, `meeting_type`, `risk`) não são
+  classificados por nenhum agente hoje — antes de adicioná-los como
+  trigger, alguém precisa construir a extração desse sinal primeiro
+  (provavelmente um novo agente ou campo no Closer/Finance).
+- **Backward-compatible por design**: os triggers novos são chaves
+  opcionais (`requires_buying_signal` etc.) em `triggers` — skill que não
+  declara a chave não tem restrição nenhuma. As 5 skills builtin/
+  customizadas de hoje não usam nenhuma delas, então continuam batendo
+  exatamente igual a antes (confirmado sem mock, `primary` bateu 100% com
+  `resolver_melhor_skill()` em 3 cenários reais).
+- **"cases"** são skills geradas a partir de `KnowledgeItem` tipo `CASE`
+  (Biblioteca de Inteligência) — reconhecidas pelo prefixo `"[CASE]"` que
+  `mapear_knowledge_item_para_skill()` já grava no `system_injection`,
+  não por uma coluna nova.
+- **Por que não foi plugado**: injetar múltiplas skills no prompt do
+  Coach muda tamanho/custo de contexto em produção real — mesmo
+  princípio de "confirmar com o usuário antes de ativar" já usado no
+  Cost Router e na Otimização (Cost Intelligence Fases 4/5). Diferente
+  daquelas, esta rodada nem criou o hook de shadow mode ainda — é decisão
+  de produto em aberto.
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

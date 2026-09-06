@@ -3,6 +3,89 @@
 
 ---
 
+## V.1.4.65 — Skill Resolver V2 (início) — Fase 5 do PROMPT MESTRE
+> Data: 05/09/2026 | Feature nova, NÃO ativada em produção (shadow — nem isso ainda: nem plugada no pipeline real)
+
+### CONTEXTO
+Fase 5 do roadmap pede substituir `resolver_melhor_skill()` (elege 1
+única skill vencedora) por `resolver_skills_relevantes()`, retornando
+`{"primary", "supporting", "cases"}`, e expandir os triggers de
+DISC/score/stage para 11 sinais novos (`objection_type`, `pain_type`,
+`budget_status`, `decision_maker_status`, `buying_signal`, `risk`,
+`product`, `segment`, `competitor`, `meeting_type`, `urgency`).
+
+### DECISÃO — só os triggers que já existem como sinal estruturado
+Investigação prévia (antes de escrever código): dos 11 sinais pedidos,
+só 4 têm hoje um campo estruturado real em algum agente —
+`buying_signal` (key_moments/eventos com `type="buying_signal"`),
+`budget_status`/`decision_maker_status`/`urgency` (Closer::
+`maturity_score.budget_identificado`/`.decisores_mapeados`/
+`.urgencia_identificada`). Os outros 7 (`objection_type`, `pain_type`,
+`product`, `segment`, `competitor`, `meeting_type`, `risk`) não são
+classificados por nenhum agente hoje — adicioná-los como trigger seria
+filtrar sobre um dado que não existe. Implementados só os 4 reais.
+
+### BACKEND — `agent/skill_resolver.py`
+- `_sinal_bool_match()`: trigger booleano opcional e genérico
+  (`requires_buying_signal`/`requires_budget_status`/
+  `requires_decision_maker_status`/`requires_urgency`) — skill que não
+  declara a chave não tem restrição, mesmo espírito de "lista vazia =
+  qualquer valor" dos matches existentes. Garante que as 5 skills
+  builtin/customizadas de hoje continuam batendo exatamente igual (nenhuma
+  declara os triggers novos).
+- `_candidatos_aplicaveis_v2()`: mesmo filtro de DISC/score/stage + os 4
+  triggers novos.
+- `resolver_skills_relevantes()` (TAREFA 5.2/5.3): retorna `{"primary":
+  dict|None, "supporting": list[<=2], "cases": list[<=1]}`. "cases" são
+  skills geradas de `KnowledgeItem` tipo `CASE` (Biblioteca de
+  Inteligência) — reconhecidas pelo prefixo `"[CASE]"` que
+  `mapear_knowledge_item_para_skill()` já grava no `system_injection`
+  (reaproveita dado existente, não cria coluna nova só pra isso).
+
+### DECISÃO — NÃO plugado no pipeline real ainda
+`resolver_melhor_skill()`/`resolver_skill_context()` continuam sendo o
+único caminho ativo em `api/processador_tempo_real.py` — nenhuma
+chamada real de produção usa `resolver_skills_relevantes()` ainda.
+Motivo: injetar múltiplas skills no prompt do Coach muda tamanho/custo
+de contexto em produção real — mesmo princípio de "shadow mode antes de
+ativar" já usado no Cost Router e na Otimização (Cost Intelligence
+Fases 4/5). Diferente daquelas, esta rodada nem chegou a criar o hook de
+shadow mode (que registraria a decisão sem usá-la) — ficou só a função
+testada e pronta, aguardando decisão de produto sobre como/quando
+integrar.
+
+### TESTES
+8 testes novos em `tests/test_skill_resolver.py` (primary igual ao V1,
+listas vazias sem candidato, limite de 2 em supporting, limite de 1 em
+cases, reconhecimento do prefixo `[CASE]`, skills existentes continuam
+batendo sem os triggers novos, trigger novo filtra quando declarado,
+filtro DISC/score/stage igual ao V1). Validado também sem mock, contra
+as 5 skills builtin reais: `primary` de `resolver_skills_relevantes()`
+bateu 100% com `resolver_melhor_skill()` em 3 cenários diferentes, e
+`supporting` trouxe uma skill aplicável extra num deles — confirma zero
+regressão e valor real agregado.
+
+### VERSÃO
+- Backend: `1.4.64` → `1.4.65` (`/health`, `/monitor/metricas`).
+
+### O QUE FALTA (Fase 5 do prompt mestre, resto do roadmap)
+- Os 7 triggers sem sinal estruturado (`objection_type`, `pain_type`,
+  `product`, `segment`, `competitor`, `meeting_type`, `risk`) — exigem
+  um agente novo de classificação antes de fazer sentido como trigger.
+- Decisão de produto: integrar `resolver_skills_relevantes()` no
+  pipeline real (mesmo que em shadow mode primeiro) ou manter só como
+  capacidade de biblioteca por enquanto.
+- Deploy na VPS ainda não feito (aditivo, nenhuma tabela nova, nenhuma
+  mudança de comportamento real até ser plugado em algum lugar).
+
+### ARQUIVOS ALTERADOS
+- `agent/skill_resolver.py` (`_sinal_bool_match`,
+  `_candidatos_aplicaveis_v2`, `resolver_skills_relevantes`)
+- `tests/test_skill_resolver.py` (8 testes novos)
+- `api/main.py` (versão)
+
+---
+
 ## Fase 2 Promptfoo — dataset real (34 objeções anonimizadas substituem os 22 sintéticos)
 > Data: 05/09/2026 | Ferramenta de desenvolvimento (evals/, sem impacto em produção)
 
