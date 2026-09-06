@@ -3,6 +3,90 @@
 
 ---
 
+## Fase 2 Promptfoo — dataset real (34 objeções anonimizadas substituem os 22 sintéticos)
+> Data: 05/09/2026 | Ferramenta de desenvolvimento (evals/, sem impacto em produção)
+
+### CONTEXTO
+Pendência documentada desde a criação do harness (mesmo dia): o golden
+dataset (`evals/datasets/coach/objections_golden.yaml`) usava 22 casos
+100% inventados. O usuário pediu para resolver isso com dados reais.
+
+### FONTE — `sales_memories` (memory_type='objection')
+Consultada via SSH, **somente leitura**, direto no MySQL de produção:
+34 registros existiam no banco nesta data (100% dos que existiam — não
+uma amostra). Cada linha já é um **resumo gerado pela IA**
+(`agent/sales_memory.py::salvar_memoria`, Sales Memory Fase 1,
+V.1.4.31), não a transcrição verbatim da reunião.
+
+### DECISÃO — usar o resumo já existente, não a transcrição bruta
+Confirmada com o usuário antes de processar em escala: reescrever os 34
+resumos como fala em primeira pessoa ("Cliente: ...") em vez de puxar a
+transcrição verbatim de `MeetingMemory`. Motivo: o resumo já é uma
+síntese de "o que aconteceu" (menor risco de privacidade) — a
+transcrição bruta traria nomes, empresas, valores e detalhes sem
+nenhum filtro, exigindo uma anonimização muito mais pesada (NER,
+revisão linha a linha) fora do escopo desta rodada.
+
+### ANONIMIZAÇÃO
+2 nomes próprios de clientes apareciam no conteúdo original ("Joaby",
+"Andrea") — nenhum dos dois foi usado nas versões reescritas. Valores
+monetários genéricos (faixas de preço comuns) foram mantidos por não
+serem identificadores; um valor muito específico e raro (uma reserva de
+capital alta) foi generalizado.
+
+### CLASSIFICAÇÃO
+Os 34 casos foram classificados manualmente nas 11 categorias mínimas
+do prompt mestre. Distribuição real (não uniforme, é a distribuição de
+verdade do negócio): `CASH_FLOW` domina (9 casos), `FIT` não apareceu
+**nenhuma vez**. Os 2 casos de `FIT` continuam sintéticos, isolados em
+`evals/datasets/coach/objections_fit_gap.yaml` e claramente marcados
+(`fonte: sintetico`) — única categoria sem exemplo real disponível.
+
+### ARQUIVOS
+- `evals/datasets/coach/objections_golden.yaml` **removido**.
+- `evals/datasets/coach/objections_real.yaml` (novo, 34 casos reais,
+  `metadata.fonte: sales_memories` + `memoria_id` de cada um pra
+  rastreabilidade).
+- `evals/datasets/coach/objections_fit_gap.yaml` (novo, 2 casos
+  sintéticos, só FIT).
+
+### ACHADO — mesmo tipo de falso positivo do red team, de novo
+Primeira rodada real: 38/41 (3 falhas), todas em casos `PRICE_VALUE`
+com assert `not-contains: "desconto"`. Causa: o campo `dica_vendedor`
+dizia **"Não ofereça desconto imediatamente..."** — o Coach Agent
+estava se comportando corretamente (aconselhando o vendedor a NÃO dar
+desconto), mas o assert de substring pura não distingue "recomendar
+desconto" de "recomendar não dar desconto". Corrigido trocando as 4
+ocorrências de `not-contains: "desconto"` por `llm-rubric` (julgamento
+semântico via DeepSeek). Segunda rodada: **41/41 (100%)**.
+
+**Lição registrada em `evals/README.md`**: é a segunda vez no mesmo dia
+que um assert de substring dá falso positivo por não entender
+polaridade (a primeira foi no red team, com citações verbatim do
+cliente sendo confundidas com o agente obedecendo). `llm-rubric` é a
+escolha certa sempre que a checagem for sobre **o que a IA recomenda
+fazer**, não sobre presença literal de uma palavra.
+
+### VALIDAÇÃO / CUSTO REAL
+41/41 casos passaram via DeepSeek. Custo real total: **US$ 0,0093**
+(campo `_custo_estimado_ia` de `api/ai_router.py`, somado direto das
+respostas).
+
+### O QUE FALTA
+- Volume (36 casos) ainda abaixo da meta de 50-200 do prompt mestre —
+  só existiam 34 objeções reais no banco nesta data; cresce
+  organicamente conforme mais reuniões forem analisadas.
+- `disc_agent.py`/`closer_agent.py` continuam fora do escopo desta
+  suite (só Coach e Finance cobertos).
+
+### ARQUIVOS ALTERADOS
+- Novos: `evals/datasets/coach/objections_real.yaml`,
+  `evals/datasets/coach/objections_fit_gap.yaml`
+- Removido: `evals/datasets/coach/objections_golden.yaml`
+- `evals/README.md` (2 seções novas documentando a troca e o achado)
+
+---
+
 ## Extensão Chrome V.1.4.8 — fix: demora de até 60s para a primeira análise de cada reunião
 > Data: 05/09/2026 | Bug fix (extensão Chrome — sem impacto no backend/VPS)
 

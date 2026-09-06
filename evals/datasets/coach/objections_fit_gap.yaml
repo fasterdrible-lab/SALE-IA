@@ -1,0 +1,28 @@
+# Complemento SINTETICO — so a categoria FIT
+#
+# Das 11 categorias minimas do prompt mestre, "FIT" (duvida se o
+# produto/servico serve pro tipo de negocio do cliente) e a UNICA que
+# nao apareceu nenhuma vez nas 34 objecoes reais de
+# objections_real.yaml (distribuicao real do negocio, nao uma escolha
+# nossa). Os 2 casos abaixo sao sinteticos, mantidos so pra nao deixar
+# essa categoria sem nenhuma cobertura de teste — ver aviso equivalente
+# que existia no antigo objections_golden.yaml (removido, substituido
+# pelos dados reais).
+
+- description: "FIT 1 — duvida se serve pro tipo de negocio"
+  vars:
+    transcricao: "Cliente: Nao sei se isso serve pro nosso tipo de negocio, e bem diferente do que voces geralmente atendem."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: FIT
+    fonte: sintetico
+
+- description: "FIT 2 — caso especifico demais"
+  vars:
+    transcricao: "Cliente: Nosso caso e bem especifico, duvido que isso resolva pra gente do jeito que esta."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: FIT
+    fonte: sintetico

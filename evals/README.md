@@ -19,7 +19,8 @@ evals/
 │   └── finance_provider.py
 ├── datasets/
 │   ├── coach/
-│   │   ├── objections_golden.yaml   # 11 categorias de objecao (TAREFA 2.2/2.3)
+│   │   ├── objections_real.yaml     # 34 objecoes REAIS anonimizadas (TAREFA 2.2/2.3)
+│   │   ├── objections_fit_gap.yaml  # 2 casos sinteticos so pra categoria FIT (sem exemplo real)
 │   │   └── next_best_action.yaml    # Cenarios de NBA (TAREFA 2.4)
 │   └── finance/
 │       └── price_objections.yaml    # Objecoes financeiras aprofundadas
@@ -116,22 +117,57 @@ bastava pra derrubar o fallback pro Gemini antes mesmo de tentar a API).
   `finance_latest.json`/`redteam_latest.json` (`git`-ignorados, gerados a
   cada `promptfoo eval`).
 
+## Segunda execucao real — dataset trocado por objecoes reais (05/09/2026)
+
+Apos substituir `objections_golden.yaml` (22 sinteticos) por
+`objections_real.yaml` (34 reais) + `objections_fit_gap.yaml` (2
+sinteticos so pra FIT), rodada real contra o Coach Agent: **41/41
+casos** (27 antigos de NBA + 34 reais + 2 gap de FIT, menos os 22
+sinteticos removidos = 41 no total), custo real **US$ 0,0093**.
+
+- **Primeira tentativa: 38/41 (3 falhas)** — mesma classe de falso
+  positivo do red team acima: os 3 casos `PRICE_VALUE` com assert
+  `not-contains: "desconto"` falharam porque o campo `dica_vendedor`
+  dizia literalmente **"Não ofereça desconto imediatamente..."** — o
+  Coach estava fazendo exatamente o certo (aconselhando o vendedor a
+  NÃO dar desconto), mas o assert bruto de substring nao distingue
+  "recomendar desconto" de "recomendar NAO dar desconto".
+- **Fix**: as 4 ocorrencias de `not-contains: "desconto"` em
+  `objections_real.yaml` foram trocadas por `llm-rubric` (julgamento
+  semantico via DeepSeek, mesmo grader ja configurado em
+  `defaultTest.options.provider`): "a resposta nao recomenda oferecer
+  desconto — dizer explicitamente para NAO oferecer conta como
+  passando". Segunda tentativa: **41/41 (100%)**.
+- **Licao recorrente**: esta e a segunda vez no mesmo dia que um assert
+  de substring pura (`not-contains`) deu falso positivo por nao entender
+  polaridade/intencao (a primeira foi no red team, com as citacoes
+  verbatim do cliente). Prefira `llm-rubric` sempre que a checagem for
+  sobre **o que a IA recomenda fazer**, nao sobre presenca/ausencia
+  literal de uma palavra.
+
 ## Estado atual desta Fase 2 (o que foi feito nesta sessao)
 
 - [x] TAREFA 2.1 — estrutura `evals/` criada.
 - [x] TAREFA 2.2/2.3 — Golden Dataset com as 11 categorias minimas
   (`PRICE_VALUE`, `CASH_FLOW`, `ROI_RISK`, `DECISION_MAKER`, `TIMING`,
-  `COMPETITION`, `TRUST`, `FIT`, `IMPLEMENTATION`, `CONTRACT`, `OTHER`),
-  **22 casos SINTETICOS** (2 por categoria) — **nao** as "reunioes reais
-  anonimizadas" que a tarefa pede, porque esta sessao nao tem acesso ao
-  MySQL de producao. Ver aviso no topo de `datasets/coach/
-  objections_golden.yaml`. Volume minimo pedido (50, depois 200+) ainda
-  nao atingido de proposito — melhor ter 22 casos reais depois do que 50
-  inventados agora.
+  `COMPETITION`, `TRUST`, `FIT`, `IMPLEMENTATION`, `CONTRACT`, `OTHER`).
+  **Atualizado em 05/09/2026**: os 22 casos sinteticos foram substituidos
+  por **34 objecoes REAIS anonimizadas** (`datasets/coach/
+  objections_real.yaml`), extraidas da tabela `sales_memories` de
+  producao (`memory_type='objection'`, TODAS as que existiam no banco) —
+  reescritas manualmente como fala em primeira pessoa e anonimizadas
+  (removidos 2 nomes proprios que apareciam no conteudo original). A
+  unica categoria sem nenhum exemplo real (`FIT`) ganhou 2 casos
+  sinteticos isolados em `objections_fit_gap.yaml`, claramente
+  identificados. Ver aviso completo no topo de `objections_real.yaml`
+  pra saber exatamente o que "real" significa aqui (resumo da IA
+  reescrito, nao a transcricao verbatim — decisao deliberada de reduzir
+  risco de privacidade).
 - [x] TAREFA 2.4 — Next Best Action: o caso literal do prompt mestre
   ("Preciso conversar com meu socio" -> mapear decisor, nunca desconto/
-  pressao) esta em `objections_golden.yaml` (DECISION_MAKER 1) +
-  `next_best_action.yaml` com mais 4 cenarios de matriz de decisao.
+  pressao) esta em `next_best_action.yaml`, mais 4 cenarios de matriz de
+  decisao. O DECISION_MAKER real (aprovacao de conselho/familia) esta em
+  `objections_real.yaml`.
 - [~] TAREFA 2.5 — Comparacao entre providers: a config suporta multiplos
   `providers:` (bastaria adicionar mais entradas apontando pro mesmo
   provider Python com uma env var de override de provedor), mas **nao
@@ -152,10 +188,14 @@ bastava pra derrubar o fallback pro Gemini antes mesmo de tentar a API).
 
 ## Pendencias explicitas (nao inventadas, decisao de produto/acesso)
 
-1. **Substituir o dataset sintetico por reunioes reais anonimizadas** —
-   precisa de alguem com acesso ao MySQL de producao (`sales_memories`/
-   relatorios) rodando um script de anonimizacao (nao existe ainda) para
-   extrair os 50-200 casos reais que a TAREFA 2.2 pede.
+1. ~~Substituir o dataset sintetico por reunioes reais anonimizadas~~ —
+   **feito em 05/09/2026**: 34 objecoes reais de `sales_memories`
+   (TODAS as que existiam), reescritas e anonimizadas. Volume (36 com o
+   gap de FIT) ainda abaixo da meta de 50-200 do prompt mestre — so
+   existiam 34 registros `objection` no banco nesta data; crescera
+   organicamente conforme mais reunioes forem analisadas e Sales Memory
+   extrair mais objecoes. Suite re-rodada apos a troca: 41/41 passou
+   (100%), custo real US$ 0,0093.
 2. ~~Rodar a suite de fato pelo menos uma vez~~ — **feito em 05/09/2026**:
    37/37 casos passaram via DeepSeek (custo real US$ 0,0122), apos
    corrigir a `DEEPSEEK_API_KEY` local (estava invalida) e instalar

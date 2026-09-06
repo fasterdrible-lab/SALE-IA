@@ -1,0 +1,383 @@
+# Golden Dataset — Coach Agent, REUNIOES REAIS ANONIMIZADAS (TAREFA 2.2)
+#
+# Substitui os 22 casos sinteticos de objections_golden.yaml (removido).
+# Fonte: tabela `sales_memories` de producao (memory_type='objection'),
+# 34 registros — TODOS os que existiam no banco em 05/09/2026, puxados
+# via SSH read-only e nunca gravados em nenhum arquivo do repo em forma
+# bruta.
+#
+# IMPORTANTE — o que "real" significa aqui:
+# O conteudo original em `sales_memories.content` ja e um RESUMO gerado
+# pela IA (agent/sales_memory.py::salvar_memoria), nao a transcricao
+# verbatim da reuniao — decisao deliberada desta sessao (ver conversa),
+# escolhida por reduzir risco de privacidade (o resumo ja e uma sintese
+# de "o que aconteceu", nao a fala crua do cliente). Cada caso abaixo foi
+# REESCRITO manualmente como uma fala em primeira pessoa ("Cliente: ...")
+# que captura a mesma objecao/situacao real, removendo:
+# - nomes proprios de clientes (apareciam 2 vezes no dataset original)
+#   — nunca usados aqui;
+# - qualquer referencia que pudesse identificar uma empresa especifica
+#   (nomes de empresa, RH nem cargo peculiar).
+# Valores monetarios genericos (faixas de preco comuns, tipo "1000 a
+# 1500 por mes") foram mantidos por nao serem identificadores por si so
+# e serem uteis pro realismo da categoria PRICE_VALUE/CASH_FLOW; valores
+# muito especificos e raros (ex.: "R$150 mil em CDB") foram generalizados.
+#
+# `memoria_id` no metadata referencia o id (UUID) da linha original em
+# sales_memories — util pra rastreabilidade interna, nao e informacao
+# de cliente.
+#
+# Distribuicao real por categoria (nao e uniforme, e a distribuicao real
+# de objecoes do negocio): CASH_FLOW domina (9), FIT nao aparece nenhuma
+# vez — ver evals/datasets/coach/objections_fit_gap.yaml pros 2 casos
+# sinteticos que cobrem essa lacuna especifica.
+#
+# Todos os casos rodam contra coach_v1 (evals/providers/coach_provider.py).
+
+- description: "IMPLEMENTATION — trava em duvida sobre logistica/estoque"
+  vars:
+    transcricao: "Cliente: Minha maior duvida e como eu vou lidar com estoque e armazenagem disso, nunca mexi com produto fisico."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: IMPLEMENTATION
+    fonte: sales_memories
+    memoria_id: "2b62ff55-9244-4e80-9595-259ac775b395"
+
+- description: "PRICE_VALUE — objecao ao valor do plano principal"
+  vars:
+    transcricao: "Cliente: Gostei bastante do projeto, mas o valor do plano principal ta acima do que eu tinha em mente, eu imaginava algo entre 1000 e 1500 por mes."
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: "A resposta nao recomenda que o vendedor ofereca desconto ao cliente agora. Se o texto disser explicitamente para NAO oferecer desconto (ex.: numa dica pro vendedor), isso conta como PASSANDO na regra — o problema seria so recomendar dar o desconto."
+  metadata:
+    objection_type: PRICE_VALUE
+    fonte: sales_memories
+    memoria_id: "ef4317e9-4a5d-4901-9c53-3acd4d74e087"
+
+- description: "DECISION_MAKER — precisa validar parceria externa antes"
+  vars:
+    transcricao: "Cliente: Antes de fechar eu preciso validar uma parceria que eu tenho com outro fornecedor, quero ver se da certo essa sociedade primeiro."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: DECISION_MAKER
+    fonte: sales_memories
+    memoria_id: "f3928fca-cbc6-44f8-bb6f-98119e17ecf2"
+
+- description: "ROI_RISK — receio de risco financeiro em compra de estoque"
+  vars:
+    transcricao: "Cliente: Fico receoso de colocar dinheiro em estoque e produto sem saber se vai vender de verdade, e um risco financeiro grande pra mim."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: ROI_RISK
+    fonte: sales_memories
+    memoria_id: "001ca33c-0215-4dd5-b301-d55862b7160a"
+
+- description: "CASH_FLOW — caixa apertado por queda recente nas vendas"
+  vars:
+    transcricao: "Cliente: Nosso caixa ta bem restrito agora, as vendas cairam esses ultimos meses e nao sobra muito pra investir nisso agora."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: CASH_FLOW
+    fonte: sales_memories
+    memoria_id: "c841c995-ecd7-4826-b93b-bda39f7f55e1"
+
+- description: "PRICE_VALUE — objecao de preco em projeto amplo"
+  vars:
+    transcricao: "Cliente: O projeto completo ficou caro demais pra gente, precisava ser um valor bem menor pra fazer sentido no nosso orcamento agora."
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: "A resposta nao recomenda que o vendedor ofereca desconto ao cliente agora. Se o texto disser explicitamente para NAO oferecer desconto (ex.: numa dica pro vendedor), isso conta como PASSANDO na regra — o problema seria so recomendar dar o desconto."
+  metadata:
+    objection_type: PRICE_VALUE
+    fonte: sales_memories
+    memoria_id: "5ff9dce0-7a90-4879-845b-a7303515b03d"
+
+- description: "TRUST — receio de golpe no mercado digital"
+  vars:
+    transcricao: "Cliente: Sinceramente eu tenho bastante receio de cair em golpe, ja ouvi muita historia ruim de gente que caiu em fraude nesse mercado digital."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: TRUST
+    fonte: sales_memories
+    memoria_id: "db0e765d-4655-467e-b3ff-97f0f313be23"
+
+- description: "IMPLEMENTATION — medo de desfocar da operacao fisica atual"
+  vars:
+    transcricao: "Cliente: Meu medo e desviar a atencao do meu negocio fisico que ja funciona bem e acabar comprometendo o que ja ta rodando."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: IMPLEMENTATION
+    fonte: sales_memories
+    memoria_id: "a4131271-d621-404d-9752-887aa92fdf04"
+
+- description: "ROI_RISK — duvida sobre margem baixa e complexidade operacional"
+  vars:
+    transcricao: "Cliente: Ja ouvi falar que a margem nesse tipo de operacao e bem apertada e precisa de muita gente especializada, fico em duvida se compensa."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: ROI_RISK
+    fonte: sales_memories
+    memoria_id: "2a68b896-1518-46f9-9c3e-c2fa7e52de24"
+
+- description: "COMPETITION — vai comparar com outros fornecedores"
+  vars:
+    transcricao: "Cliente: Antes de decidir eu vou olhar propostas de outros concorrentes de voces tambem, quero comparar direitinho."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: COMPETITION
+    fonte: sales_memories
+    memoria_id: "b59aab0d-fc3b-45ca-a647-fa4eed4b2238"
+
+- description: "CASH_FLOW — sem limite/fluxo de caixa pra pagar a entrada integral"
+  vars:
+    transcricao: "Cliente: Eu topo o valor do projeto, mas agora nao tenho fluxo de caixa pra pagar a entrada inteira de uma vez."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: CASH_FLOW
+    fonte: sales_memories
+    memoria_id: "5a61400c-5f1d-49bb-99b7-2e6034dab64b"
+
+- description: "PRICE_VALUE — relutancia com fee mensal mesmo tendo reserva alta"
+  vars:
+    transcricao: "Cliente: Eu tenho uma reserva guardada boa, mas fico incomodado com esse fee mensal fixo, parece um custo de risco que eu nao queria assumir."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: PRICE_VALUE
+    fonte: sales_memories
+    memoria_id: "0a85bc69-dee7-4935-b58d-abadadb0c876"
+
+- description: "CASH_FLOW — caixa comprometido por estoque sazonal"
+  vars:
+    transcricao: "Cliente: Meu caixa ta comprometido agora porque investi pesado em estoque pra data comemorativa, precisava adiar um pouco o investimento nisso."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: CASH_FLOW
+    fonte: sales_memories
+    memoria_id: "a0b021fe-4457-43bf-a18b-724a79073b11"
+
+- description: "TRUST — condiciona fechamento a visita presencial por medo de golpe"
+  vars:
+    transcricao: "Cliente: Eu so fecho depois de uma visita presencial, ja tive experiencia ruim antes e prefiro nao correr esse risco de novo."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: TRUST
+    fonte: sales_memories
+    memoria_id: "49f45415-1018-482e-be68-387d7f53702a"
+
+- description: "IMPLEMENTATION — ansiedade com burocracia regulatoria"
+  vars:
+    transcricao: "Cliente: Fico preocupado com toda a burocracia de habilitacao na Receita Federal antes de comecar a operar com importacao."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: IMPLEMENTATION
+    fonte: sales_memories
+    memoria_id: "93abb89b-2d0d-4d73-9ec9-dd0a50ed983b"
+
+- description: "OTHER — duvida se o sucessor tem maturidade pra tocar a operacao"
+  vars:
+    transcricao: "Cliente: Minha preocupacao e se meu filho vai ter maturidade suficiente pra tocar essa nova operacao sozinho no dia a dia."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: OTHER
+    fonte: sales_memories
+    memoria_id: "5b4fd604-88e8-4ebc-a2d7-9f5888f81e46"
+
+- description: "TIMING — decisao congelada esperando evento externo"
+  vars:
+    transcricao: "Cliente: Prefiro esperar sair o resultado de uma coisa que ta acontecendo aqui antes de decidir qualquer investimento novo."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: TIMING
+    fonte: sales_memories
+    memoria_id: "3e463a90-1aee-4874-8ff1-f529ae530773"
+
+- description: "IMPLEMENTATION — falta de espaco fisico pra estoque"
+  vars:
+    transcricao: "Cliente: Nao tenho espaco fisico nenhum pra guardar estoque, isso me trava de comecar a vender online."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: IMPLEMENTATION
+    fonte: sales_memories
+    memoria_id: "f56f8b2b-af45-4481-9c8d-fd489a645de0"
+
+- description: "CASH_FLOW — limite de cartao insuficiente pra entrada"
+  vars:
+    transcricao: "Cliente: Quero muito fechar, mas meu limite no cartao nao cobre o valor da entrada de uma vez so."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: CASH_FLOW
+    fonte: sales_memories
+    memoria_id: "e87b3506-e4e2-46ab-885c-99361c0dd078"
+
+- description: "PRICE_VALUE — objecao de custo do pacote completo"
+  vars:
+    transcricao: "Cliente: O pacote completo ficou fora do que eu consigo pagar por mes, eu tava pensando em algo entre 1000 e 1500."
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: "A resposta nao recomenda que o vendedor ofereca desconto ao cliente agora. Se o texto disser explicitamente para NAO oferecer desconto (ex.: numa dica pro vendedor), isso conta como PASSANDO na regra — o problema seria so recomendar dar o desconto."
+  metadata:
+    objection_type: PRICE_VALUE
+    fonte: sales_memories
+    memoria_id: "37328f24-7ad9-48ff-b578-ad7a1a4dd88f"
+
+- description: "CASH_FLOW — gargalo financeiro temporario por investimento pontual"
+  vars:
+    transcricao: "Cliente: Gostei muito da metodologia, mas agora eu tive um gasto grande com mudanca de espaco e o orcamento ta apertado esse mes."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: CASH_FLOW
+    fonte: sales_memories
+    memoria_id: "4ee79485-c135-4c6d-b473-49d6bfca2e3a"
+
+- description: "CONTRACT — receio fiscal na transferencia de estoque"
+  vars:
+    transcricao: "Cliente: Minha equipe fiscal fica receosa de complicacao na nota ao transferir mercadoria pro centro de distribuicao de voces."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: CONTRACT
+    fonte: sales_memories
+    memoria_id: "51a03710-67bc-458c-9f50-9df77fbb7c3f"
+
+- description: "CONTRACT — termo contratual trava aprovacao do financeiro/juridico"
+  vars:
+    transcricao: "Cliente: O nosso contabil nao consegue registrar isso como 'entrada' do jeito que ta no contrato, isso ta travando a aprovacao aqui internamente."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: CONTRACT
+    fonte: sales_memories
+    memoria_id: "945f5a5d-cccd-460b-80a4-a52c49398af7"
+
+- description: "CASH_FLOW — restricao de forma de pagamento por regime tributario"
+  vars:
+    transcricao: "Cliente: Aqui a gente e Lucro Real, entao a gente nao usa cartao corporativo pra valor grande, precisaria ser boleto vinculado a nota fiscal."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: CASH_FLOW
+    fonte: sales_memories
+    memoria_id: "cb757a1a-4448-4f70-8e8b-19f1359ff64d"
+
+- description: "CASH_FLOW — viabilidade financeira do investimento"
+  vars:
+    transcricao: "Cliente: Eu gostei da proposta, mas financeiramente esse investimento agora ta dificil de encaixar do jeito que ta."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: CASH_FLOW
+    fonte: sales_memories
+    memoria_id: "5a2d3f4d-ec7c-4c18-852f-f20d65e32f4f"
+
+- description: "CONTRACT — receio de multa contratual por experiencia passada"
+  vars:
+    transcricao: "Cliente: Ja levei multa de contrato de longo prazo antes numa experiencia ruim, fico com pe atras com esse tipo de compromisso agora."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: CONTRACT
+    fonte: sales_memories
+    memoria_id: "6b30bca1-24d9-4e59-a0cf-3cbe13b7e657"
+
+- description: "ROI_RISK — preocupacao com risco, sugere escalonar investimento"
+  vars:
+    transcricao: "Cliente: Prefiro ir escalonando o investimento aos poucos conforme os dados forem validando, tenho receio do risco financeiro de ir tudo de uma vez."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: ROI_RISK
+    fonte: sales_memories
+    memoria_id: "ba6fbe30-558b-48eb-8e6f-94fc403e80c2"
+
+- description: "CASH_FLOW — condiciona compra a reducao da entrada"
+  vars:
+    transcricao: "Cliente: Eu topo fechar, mas preciso que a entrada seja menor do que ta agora pra eu conseguir me organizar financeiramente."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: CASH_FLOW
+    fonte: sales_memories
+    memoria_id: "72680749-8c1e-4ebb-80ba-77616c19e5f6"
+
+- description: "CASH_FLOW — preocupacao com limite do cartao em pagamento recorrente"
+  vars:
+    transcricao: "Cliente: Se eu parcelar assim no cartao, isso vai comprometer todo o meu limite disponivel? Fico com receio disso."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: CASH_FLOW
+    fonte: sales_memories
+    memoria_id: "696eeba0-4ec5-426a-86da-74be6f8c4e73"
+
+- description: "COMPETITION — concorrencia informal no mercado do cliente"
+  vars:
+    transcricao: "Cliente: Tem muito concorrente meu que trabalha informal, sem nota, e eles conseguem cobrar mais barato que eu por isso."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: COMPETITION
+    fonte: sales_memories
+    memoria_id: "cd17895b-4b65-4e5b-b084-17958177d1b5"
+
+- description: "DECISION_MAKER — precisa de aprovacao do conselho/juridico antes"
+  vars:
+    transcricao: "Cliente: Aqui eu preciso levar isso pro conselho aprovar e passar pelo juridico antes de eu poder fechar qualquer coisa."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: DECISION_MAKER
+    fonte: sales_memories
+    memoria_id: "28a6d132-2e25-4857-81aa-2195666d07f7"
+
+- description: "OTHER — insegurança por falta de experiencia propria"
+  vars:
+    transcricao: "Cliente: Eu nunca tive experiencia nenhuma com vendas, fico inseguro se eu vou dar conta de tocar isso direito."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: OTHER
+    fonte: sales_memories
+    memoria_id: "9a4097c9-fa7d-4691-ba29-e3524abe8fc7"
+
+- description: "DECISION_MAKER — quer comparar propostas e envolver a familia na decisao"
+  vars:
+    transcricao: "Cliente: Eu quero analisar propostas de outras empresas ainda, e essa decisao eu preciso conversar com minha familia antes tambem."
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: "A resposta nao recomenda que o vendedor ofereca desconto ao cliente agora. Se o texto disser explicitamente para NAO oferecer desconto (ex.: numa dica pro vendedor), isso conta como PASSANDO na regra — o problema seria so recomendar dar o desconto."
+  metadata:
+    objection_type: DECISION_MAKER
+    fonte: sales_memories
+    memoria_id: "a02416d3-82a8-4a49-a7ec-3da7db72e934"
+
+- description: "ROI_RISK — cautela apos fracasso com investimento anterior em tecnologia"
+  vars:
+    transcricao: "Cliente: Ja investi alto numa outra tecnologia antes e nao deu certo, isso me deixou bem mais cauteloso com investimento novo agora."
+  assert:
+    - type: is-json
+  metadata:
+    objection_type: ROI_RISK
+    fonte: sales_memories
+    memoria_id: "5cc50085-f6dd-49e5-9426-44f7fc58c484"
