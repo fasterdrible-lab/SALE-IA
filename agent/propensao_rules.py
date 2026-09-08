@@ -33,6 +33,8 @@ def classificar_propensao(score_valor) -> str:
         valor = float(score_valor)
     except (TypeError, ValueError):
         return "nao_determinada"
+    if valor != valor:  # NaN nunca é igual a si mesmo — mais rápido que importar math só para isto
+        return "nao_determinada"
     if valor >= LIMIAR_ALTA:
         return "alta"
     if valor >= LIMIAR_MEDIA:

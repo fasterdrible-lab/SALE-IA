@@ -57,6 +57,10 @@ class SmokeSuite(unittest.TestCase):
         cls._ctx = TestClient(_main.app)
         cls.client = cls._ctx.__enter__()
 
+        # 5. Token válido — /recapitulacao-manual passou a exigir autenticação
+        token = _main._gerar_token("1", "smoke@teste.com", "operador")
+        cls._auth_headers = {"Authorization": f"Bearer {token}"}
+
     @classmethod
     def tearDownClass(cls):
         cls._ctx.__exit__(None, None, None)
@@ -102,6 +106,7 @@ class SmokeSuite(unittest.TestCase):
                 "transcricao": "Vendedor: Olá, tudo bem? Cliente: Sim, tenho interesse.",
                 "titulo_reuniao": "Smoke Test",
             },
+            headers=self._auth_headers,
         )
         self.assertEqual(r.status_code, 200)
 
@@ -112,6 +117,7 @@ class SmokeSuite(unittest.TestCase):
                 "transcricao": "Vendedor: Olá, tudo bem? Cliente: Sim, tenho interesse.",
                 "titulo_reuniao": "Smoke Test",
             },
+            headers=self._auth_headers,
         ).json()
         for key in ("recapitulacao", "perfil_disc", "diagnostico_financeiro", "gerado_em"):
             self.assertIn(key, data, msg=f"Chave ausente na resposta: {key}")
@@ -120,8 +126,16 @@ class SmokeSuite(unittest.TestCase):
         r = self.client.post(
             "/recapitulacao-manual",
             json={"transcricao": "", "titulo_reuniao": "Smoke"},
+            headers=self._auth_headers,
         )
         self.assertEqual(r.status_code, 400)
+
+    def test_recapitulacao_manual_requires_auth(self):
+        r = self.client.post(
+            "/recapitulacao-manual",
+            json={"transcricao": "Vendedor: Olá. Cliente: Oi.", "titulo_reuniao": "Smoke"},
+        )
+        self.assertEqual(r.status_code, 401)
 
 
 if __name__ == "__main__":

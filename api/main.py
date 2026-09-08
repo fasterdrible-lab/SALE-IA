@@ -17,6 +17,7 @@ import re
 import csv
 import io
 import json
+import time
 import uuid
 import asyncio
 import html as html_module
@@ -29,7 +30,7 @@ from typing import Optional, List
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect, Header, Form, UploadFile, File
+from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect, Header, Form, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
 from pydantic import BaseModel
@@ -735,11 +736,30 @@ async def analisar_tempo_real(req: TempoRealRequest, authorization: str | None =
 
 
 @app.post("/webhook/tactiq")
-def receber_webhook_tactiq(req: TactiqWebhookRequest, background_tasks: BackgroundTasks):
+async def receber_webhook_tactiq(request: Request, background_tasks: BackgroundTasks):
     """
     Recebe transcrição completa do Tactiq ao final da reunião.
     Processa automaticamente e armazena o relatório.
+
+    Valida a assinatura HMAC (header X-Tactiq-Signature, segredo
+    TACTIQ_WEBHOOK_SECRET) usando a mesma implementação de
+    api/webhook_tactiq.py::_validar_assinatura_webhook — se a variável não
+    estiver configurada, mantém o comportamento anterior (aceita sem
+    validar, modo desenvolvimento), para não quebrar quem ainda não
+    configurou o segredo.
     """
+    from api.webhook_tactiq import _validar_assinatura_webhook
+
+    body_bytes = await request.body()
+    assinatura = request.headers.get("X-Tactiq-Signature")
+    if not _validar_assinatura_webhook(body_bytes, assinatura):
+        raise HTTPException(status_code=401, detail="Assinatura do webhook inválida. Verifique TACTIQ_WEBHOOK_SECRET.")
+
+    try:
+        req = TactiqWebhookRequest.model_validate_json(body_bytes)
+    except Exception:
+        raise HTTPException(status_code=422, detail="Payload inválido.")
+
     if not req.transcript:
         raise HTTPException(status_code=400, detail="Transcrição vazia")
 
@@ -812,10 +832,11 @@ def processar_transcricao_completa(req: TactiqWebhookRequest):
 
 
 @app.post("/diagnostico-financeiro")
-def diagnostico_financeiro(req: DiagnosticoFinanceiroRequest):
+def diagnostico_financeiro(req: DiagnosticoFinanceiroRequest, authorization: str | None = Header(default=None)):
     """
     Extrai informações financeiras do cliente a partir da transcrição.
     """
+    _req_auth(authorization)
     if not req.transcricao:
         raise HTTPException(status_code=400, detail="Transcrição vazia")
 
@@ -824,10 +845,11 @@ def diagnostico_financeiro(req: DiagnosticoFinanceiroRequest):
 
 
 @app.post("/perfil-disc")
-def identificar_perfil_disc(req: PerfilDiscRequest):
+def identificar_perfil_disc(req: PerfilDiscRequest, authorization: str | None = Header(default=None)):
     """
     Identifica o perfil DISC do cliente e sugere estratégias.
     """
+    _req_auth(authorization)
     if not req.transcricao:
         raise HTTPException(status_code=400, detail="Transcrição vazia")
 
@@ -836,12 +858,13 @@ def identificar_perfil_disc(req: PerfilDiscRequest):
 
 
 @app.post("/recapitulacao-completa")
-def recapitulacao_completa(req: RecapitulacaoRequest, background_tasks: BackgroundTasks):
+def recapitulacao_completa(req: RecapitulacaoRequest, background_tasks: BackgroundTasks, authorization: str | None = Header(default=None)):
     """
     Gera recapitulação emocional e estratégica completa pós-reunião.
     Substitui o processo manual de colar transcrição no Claude.
     Após gerar, dispara extração de memórias comerciais em background.
     """
+    _req_auth(authorization)
     if not req.transcricao:
         raise HTTPException(status_code=400, detail="Transcrição vazia")
 
@@ -1402,8 +1425,9 @@ def stats_sales_memories(authorization: str | None = Header(default=None)):
 
 
 @app.get("/relatorios")
-def listar_relatorios_endpoint():
+def listar_relatorios_endpoint(authorization: str | None = Header(default=None)):
     """Lista todos os relatórios salvos (banco SQLite + fallback arquivos JSON)."""
+    _req_auth(authorization)
     try:
         # Tentar banco primeiro
         try:
@@ -1705,12 +1729,13 @@ def historico_uso_reuniao(meeting_id: str, authorization: str | None = Header(de
 
 
 @app.post("/recapitulacao-manual")
-def recapitulacao_manual(req: RecapitulacaoRequest, background_tasks: BackgroundTasks):
+def recapitulacao_manual(req: RecapitulacaoRequest, background_tasks: BackgroundTasks, authorization: str | None = Header(default=None)):
     """
     Endpoint simplificado: cola a transcrição e gera recapitulação + DISC + diagnóstico financeiro.
     Ideal para uso no painel HTML sem a extensão Chrome.
     Após salvar o relatório, dispara extração de memórias comerciais em background.
     """
+    _req_auth(authorization)
     if not req.transcricao:
         raise HTTPException(status_code=400, detail="Transcrição vazia")
 
@@ -1805,11 +1830,12 @@ def manual_tecnico():
 # ─────────────────────────────────────────────
 
 @app.get("/sessoes")
-def listar_sessoes_endpoint():
+def listar_sessoes_endpoint(authorization: str | None = Header(default=None)):
     """
     Lista todas as sessões gravadas durante reuniões ao vivo.
     Cada sessão contém a transcrição acumulada e a última análise da IA.
     """
+    _req_auth(authorization)
     try:
         from agent.sessao_manager import listar_sessoes
         sessoes = listar_sessoes(limite=200)
@@ -1819,10 +1845,11 @@ def listar_sessoes_endpoint():
 
 
 @app.get("/sessoes/{sessao_id}")
-def buscar_sessao_endpoint(sessao_id: int):
+def buscar_sessao_endpoint(sessao_id: int, authorization: str | None = Header(default=None)):
     """
     Retorna a sessão completa com transcrição e última análise da IA.
     """
+    _req_auth(authorization)
     try:
         from agent.sessao_manager import buscar_sessao
         s = buscar_sessao(sessao_id)
@@ -1836,10 +1863,11 @@ def buscar_sessao_endpoint(sessao_id: int):
 
 
 @app.delete("/sessoes/{sessao_id}")
-def deletar_sessao_endpoint(sessao_id: int):
+def deletar_sessao_endpoint(sessao_id: int, authorization: str | None = Header(default=None)):
     """
     Remove uma sessão pelo ID.
     """
+    _req_auth(authorization)
     try:
         from agent.sessao_manager import deletar_sessao
         ok = deletar_sessao(sessao_id)
@@ -1868,11 +1896,12 @@ def iniciar_sessao_endpoint(req: IniciarSessaoRequest):
 
 
 @app.post("/sessoes/{sessao_id}/exportar-base")
-def exportar_base_endpoint(sessao_id: int, req: ExportarBaseRequest):
+def exportar_base_endpoint(sessao_id: int, req: ExportarBaseRequest, authorization: str | None = Header(default=None)):
     """
     Exporta a transcrição de uma sessão para a base de conhecimento da IA.
     Gera embedding e insere na tabela base_conhecimento.
     """
+    _req_auth(authorization)
     try:
         from agent.sessao_manager import exportar_para_base_conhecimento
         resultado = exportar_para_base_conhecimento(sessao_id, req.titulo or "", req.tipo or "reuniao")
@@ -1886,8 +1915,9 @@ def exportar_base_endpoint(sessao_id: int, req: ExportarBaseRequest):
 
 
 @app.get("/base")
-def listar_base():
+def listar_base(authorization: str | None = Header(default=None)):
     """Lista todos os documentos da base de conhecimento (sem embeddings)."""
+    _req_auth(authorization)
     from agent.sessao_manager import _get_conn, migrar_colunas_embedding_metadata_base_conhecimento
     migrar_colunas_embedding_metadata_base_conhecimento()
     try:
@@ -1919,6 +1949,7 @@ async def adicionar_base(
     tipo: str = Form("instrucao"),
     texto: str = Form(...),
     arquivo: Optional[UploadFile] = File(None),
+    authorization: str | None = Header(default=None),
 ):
     """Adiciona um documento à base de conhecimento, gerando embedding via
     o EmbeddingProvider configurado (Ollama por padrão, OpenAI opcional).
@@ -1927,6 +1958,7 @@ async def adicionar_base(
     sempre, incl. via OCR) — `arquivo`, quando enviado, é preservado à parte
     em disco só para permitir o download do documento original depois.
     """
+    _req_auth(authorization)
     if not titulo or not titulo.strip():
         raise HTTPException(status_code=400, detail="Título obrigatório")
     if not texto or len(texto.strip()) < 10:
@@ -2025,8 +2057,9 @@ def baixar_documento_base(doc_id: int, authorization: str | None = Header(defaul
 
 
 @app.delete("/base/{doc_id}")
-def remover_base(doc_id: int):
+def remover_base(doc_id: int, authorization: str | None = Header(default=None)):
     """Remove um documento da base de conhecimento (e o arquivo original, se houver)."""
+    _req_auth(authorization)
     from agent.sessao_manager import _get_conn
     try:
         conn = _get_conn()
@@ -2592,11 +2625,12 @@ async def audio_transcricao(req: AudioTranscricaoRequest):
 # ─────────────────────────────────────────────
 
 @app.post("/generate-visual-scenario")
-async def generate_visual_scenario(req: VisualScenarioRequest):
+async def generate_visual_scenario(req: VisualScenarioRequest, authorization: str | None = Header(default=None)):
     """
     Gera cenários visuais atual e futuro do cliente via DALL-E 3.
     Usa transcrição + perfil DISC + score para extrair contexto e criar imagens.
     """
+    _req_auth(authorization)
     if not req.meeting_id:
         raise HTTPException(status_code=400, detail="meeting_id obrigatório.")
     if not req.transcript or len(req.transcript.strip()) < 50:
@@ -2622,8 +2656,9 @@ async def generate_visual_scenario(req: VisualScenarioRequest):
 
 
 @app.get("/visual-scenarios/{meeting_id}")
-def listar_visual_scenarios(meeting_id: str):
+def listar_visual_scenarios(meeting_id: str, authorization: str | None = Header(default=None)):
     """Lista os cenários visuais gerados para um meeting_id (últimos 10)."""
+    _req_auth(authorization)
     from agent.visual_scenario import listar_cenarios
     try:
         cenarios = listar_cenarios(meeting_id)
@@ -2651,7 +2686,14 @@ import bcrypt as _bcrypt
 import jwt as _jwt
 from datetime import timedelta
 
-_JWT_SECRET = os.environ.get("JWT_SECRET", "saleia-secret-change-me")
+_JWT_SECRET = os.environ.get("JWT_SECRET")
+if not _JWT_SECRET:
+    raise RuntimeError(
+        "JWT_SECRET não configurada no .env — necessária para assinar/validar "
+        "tokens de autenticação. Gere um valor forte (ex.: "
+        "python -c \"import secrets; print(secrets.token_urlsafe(48))\") e "
+        "defina JWT_SECRET no .env antes de iniciar a aplicação."
+    )
 _JWT_ALGO = "HS256"
 _JWT_EXP_HOURS = 72
 
@@ -2682,6 +2724,44 @@ class AuthLoginRequest(BaseModel):
     senha: str
 
 
+# ── Rate limiting simples de /auth/login (em memória, por processo — mesmo
+# padrão já usado pelo circuit breaker de api/ai_router.py e pelo cache de
+# api/otimizacao.py neste projeto) ──
+_LOGIN_MAX_TENTATIVAS = 5
+_LOGIN_BLOQUEIO_SEGUNDOS = 900  # 15 min
+_LOGIN_TENTATIVAS_FALHAS: dict[str, list[float]] = {}
+_LOGIN_BLOQUEADO_ATE: dict[str, float] = {}
+
+
+def _login_verificar_bloqueio(email: str) -> None:
+    """Levanta 429 se o e-mail estiver temporariamente bloqueado por excesso
+    de tentativas falhas. Não distingue e-mail inexistente de senha errada
+    (mesma política de _auth_login, que já responde 401 genérico nos dois
+    casos) — o contador é por e-mail informado, não por conta confirmada."""
+    bloqueado_ate = _LOGIN_BLOQUEADO_ATE.get(email)
+    if bloqueado_ate and time.time() < bloqueado_ate:
+        restante = int(bloqueado_ate - time.time())
+        raise HTTPException(
+            status_code=429,
+            detail=f"Muitas tentativas de login falhas. Tente novamente em {restante}s.",
+        )
+
+
+def _login_registrar_falha(email: str) -> None:
+    agora = time.time()
+    janela = _LOGIN_TENTATIVAS_FALHAS.setdefault(email, [])
+    janela.append(agora)
+    corte = agora - _LOGIN_BLOQUEIO_SEGUNDOS
+    janela[:] = [t for t in janela if t >= corte]
+    if len(janela) >= _LOGIN_MAX_TENTATIVAS:
+        _LOGIN_BLOQUEADO_ATE[email] = agora + _LOGIN_BLOQUEIO_SEGUNDOS
+
+
+def _login_registrar_sucesso(email: str) -> None:
+    _LOGIN_TENTATIVAS_FALHAS.pop(email, None)
+    _LOGIN_BLOQUEADO_ATE.pop(email, None)
+
+
 class AuthCadastroRequest(BaseModel):
     nome: str
     email: str
@@ -2699,24 +2779,31 @@ class AuthRedefinirSenhaRequest(BaseModel):
 
 @app.post("/auth/login")
 def auth_login(req: AuthLoginRequest):
+    email_normalizado = req.email.strip().lower()
+    _login_verificar_bloqueio(email_normalizado)
+
     from agent.sessao_manager import _get_conn
     conn = _get_conn()
     try:
         with conn.cursor() as cur:
             cur.execute(
                 "SELECT id, nome, email, senha_hash, perfil, status FROM usuarios WHERE email=%s LIMIT 1",
-                (req.email.strip().lower(),),
+                (email_normalizado,),
             )
             row = cur.fetchone()
     finally:
         conn.close()
 
     if not row:
+        _login_registrar_falha(email_normalizado)
         raise HTTPException(status_code=401, detail="E-mail ou senha incorretos.")
     uid, nome, email, senha_hash, perfil, status = row
 
     if not _verificar_senha(req.senha, senha_hash):
+        _login_registrar_falha(email_normalizado)
         raise HTTPException(status_code=401, detail="E-mail ou senha incorretos.")
+
+    _login_registrar_sucesso(email_normalizado)
 
     if status == "pendente":
         raise HTTPException(status_code=403, detail="Conta aguardando aprovação do administrador.")
