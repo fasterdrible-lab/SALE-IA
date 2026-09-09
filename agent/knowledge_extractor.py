@@ -245,6 +245,14 @@ def extrair_e_salvar_memorias(
             len(ids), meeting_id,
         )
 
+        if ids and meeting_id:
+            try:
+                from agent.knowledge_graph import registrar_aresta
+                for mem_id in ids:
+                    registrar_aresta("reuniao", meeting_id, "memoria", mem_id, "gerou_memoria")
+            except Exception:
+                pass
+
         # Gerar embeddings para busca semântica (em sequência, no mesmo background thread)
         if ids:
             itens = [(mem_id, mem["content"]) for mem_id, mem in zip(ids, memorias)]

@@ -68,6 +68,7 @@ def criar_tabela_skills() -> None:
                     system_injection    LONGTEXT,
                     tactics             LONGTEXT,
                     is_active           TINYINT(1)   NOT NULL DEFAULT 1,
+                    status              VARCHAR(20)  NOT NULL DEFAULT 'approved',
                     source              VARCHAR(50)  NOT NULL DEFAULT 'generated',
                     source_playbook_id  VARCHAR(36),
                     created_at          DATETIME     NOT NULL,
@@ -376,11 +377,39 @@ def resolver_skill_context(
 # CRUD DE SKILLS (DB)
 # ─────────────────────────────────────────────────────────
 
+def migrar_coluna_status_skills():
+    """Adiciona coluna status (VARCHAR, default 'approved') à tabela
+    skills, se ainda não existir. Preparação para o pipeline
+    automático-com-aprovação (Sales Brain Fase 7.3) — skills já
+    existentes ficam 'approved' pelo DEFAULT, sem mudança de comportamento
+    até o gate de aprovação entrar em vigor."""
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute("SHOW COLUMNS FROM skills LIKE 'status'")
+            if cur.fetchone() is None:
+                cur.execute(
+                    "ALTER TABLE skills ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'approved'"
+                )
+                logger.info("[Skills] Coluna status adicionada à tabela skills.")
+        conn.close()
+    except Exception as e:
+        logger.error("[Skills] Erro ao migrar coluna status: %s", e)
+
+
 def salvar_skill(skill: dict) -> str:
-    """Persiste uma skill customizada no MySQL. Retorna UUID."""
+    """Persiste uma skill customizada no MySQL. Retorna UUID.
+
+    `skill.get("status")` controla o gate de aprovação (Sales Brain Fase
+    7.3): 'pending' nasce inativa (`is_active=0`, some do skill_resolver
+    até aprovação); qualquer outro valor (default 'approved') nasce ativa
+    como sempre — mantém compatibilidade com todos os chamadores
+    existentes, que não passam esse campo."""
     sid = str(uuid.uuid4())
     agora = datetime.now()
     triggers = skill.get("triggers") or {}
+    status = str(skill.get("status") or "approved")
+    is_active = 0 if status == "pending" else 1
     conn = _get_conn()
     with conn.cursor() as cur:
         cur.execute(
@@ -388,8 +417,8 @@ def salvar_skill(skill: dict) -> str:
             INSERT INTO skills
                 (id, name, description, trigger_disc, trigger_min_score, trigger_max_score,
                  trigger_stages, priority, system_injection, tactics,
-                 is_active, source, source_playbook_id, created_at, updated_at)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,1,%s,%s,%s,%s)
+                 is_active, status, source, source_playbook_id, created_at, updated_at)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             """,
             (
                 sid,
@@ -402,6 +431,8 @@ def salvar_skill(skill: dict) -> str:
                 int(skill.get("priority") or 70),
                 str(skill.get("system_injection") or ""),
                 json.dumps(skill.get("tactics") or [], ensure_ascii=False),
+                is_active,
+                status,
                 str(skill.get("source") or "generated"),
                 skill.get("source_playbook_id"),
                 agora,
@@ -480,7 +511,7 @@ def gerar_skill_de_knowledge_item(item: dict) -> str:
 
 def atualizar_skill(skill_id: str, campos: dict) -> bool:
     """Atualiza campos editáveis de uma skill DB."""
-    _EDITAVEIS = {"name", "description", "system_injection", "tactics", "priority", "is_active",
+    _EDITAVEIS = {"name", "description", "system_injection", "tactics", "priority", "is_active", "status",
                   "trigger_disc", "trigger_min_score", "trigger_max_score", "trigger_stages"}
     sets, vals = [], []
     for k, v in campos.items():
@@ -569,14 +600,38 @@ def gerar_skill(contexto: str, source_playbook_id: Optional[str] = None) -> Opti
     return None
 
 
+def _autopilot_ativo() -> bool:
+    """Mesmo kill-switch de agent/playbook_generator.py::autopilot_ativo()
+    (SALES_BRAIN_AUTOPILOT_ENABLED) — duplicado aqui de propósito, mesmo
+    padrão de kill-switch checado localmente em cada módulo já usado no
+    Cost Intelligence (ex.: OTIMIZACAO_*_ATIVO)."""
+    return os.getenv("SALES_BRAIN_AUTOPILOT_ENABLED", "true").strip().lower() != "false"
+
+
 def gerar_e_salvar_skill(contexto: str, source_playbook_id: Optional[str] = None) -> Optional[str]:
-    """Pipeline completo: gera via IA e persiste. Retorna UUID ou None."""
+    """Pipeline completo: gera via IA e persiste. Retorna UUID ou None.
+
+    Toda skill gerada por IA (manual, pelo botão '🧠 Skill', ou automática,
+    após um playbook nascer — Sales Brain Fase 7.3) nasce 'pending' —
+    mesma rede de segurança já usada no Knowledge Compiler (DRAFT/APPROVED)
+    — enquanto SALES_BRAIN_AUTOPILOT_ENABLED estiver ativo. Skills mapeadas
+    de um KnowledgeItem já aprovado (gerar_skill_de_knowledge_item) não
+    passam por aqui, e continuam nascendo aprovadas."""
     try:
         skill = gerar_skill(contexto, source_playbook_id)
         if not skill:
             return None
+        skill["status"] = "pending" if _autopilot_ativo() else "approved"
         sid = salvar_skill(skill)
-        logger.info("✅ [Skills] Skill '%s' salva (id=%s)", skill.get("name"), sid)
+        logger.info("✅ [Skills] Skill '%s' salva (id=%s, status=%s)", skill.get("name"), sid, skill["status"])
+
+        if source_playbook_id:
+            try:
+                from agent.knowledge_graph import registrar_aresta
+                registrar_aresta("playbook", source_playbook_id, "skill", sid, "gerou_skill")
+            except Exception:
+                pass
+
         return sid
     except Exception as e:
         logger.error("[Skills] Erro no pipeline de geração: %s", e)

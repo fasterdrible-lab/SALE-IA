@@ -1,12 +1,13 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-05 (V.1.4.63 — o corpo deste documento nao
-acompanhou o CHANGELOG.md desde a V.1.4.54; a fonte de verdade sempre
-mais atualizada e o CHANGELOG e o `/health` de producao. Cost
-Intelligence Fases 1-6, Observabilidade Fase 1 e Whisper Local ja estao
-concluidas e **confirmadas em producao via `/health` (`versao: 1.4.63`,
-05/09/2026 ~19h47 UTC)** — ver CHANGELOG.md V.1.4.55-V.1.4.63 e
-CLAUDE.md).
+Atualizado em: 2026-09-09 (V.1.4.70, local — **ainda nao deployada na
+VPS**; producao continua em `1.4.63` confirmada via `/health` em
+05/09/2026, ver secao "Sales Brain — Fase 7" abaixo e CHANGELOG.md
+V.1.4.67-V.1.4.70. O corpo deste documento nao acompanhou o CHANGELOG.md
+entre V.1.4.54 e V.1.4.66; a fonte de verdade sempre mais atualizada e o
+CHANGELOG e o `/health` de producao. Cost Intelligence Fases 1-6,
+Observabilidade Fase 1 e Whisper Local seguem concluidas e confirmadas em
+producao — ver CHANGELOG.md V.1.4.55-V.1.4.63 e CLAUDE.md).
 
 ## Ambiente
 
@@ -465,6 +466,55 @@ Modelos padrao:
 - Tabela MySQL `followups`: id, meeting_id, client_id, canal, assunto, mensagem, call_to_action, tom, disc_profile, score, dias_apos, agendado_para, status (pendente/enviado/descartado).
 - Endpoints: `POST /relatorios/{mid}/followups/gerar`, `GET /relatorios/{mid}/followups`, `PATCH /followups/{fid}`, `DELETE /followups/{fid}`.
 - Dashboard/Relatório: botão "📩 Follow-up" — seção expandível com cards por canal, botão copiar e marcar enviado.
+
+#### Fase 7 — Sales Operating System (V.1.4.67-1.4.70, 09/09/2026)
+
+Última fase do EPIC "SALEIA SALES BRAIN" — transforma as Fases 1-6 acima
+(já isoladas) numa plataforma única com aprendizado contínuo e visão
+consolidada. Investigação prévia corrigiu 3 lacunas das Fases 1-6 (busca
+semântica de relatórios/transcrições, Resumo do Cliente visual, gate de
+aprovação) antes de construir a Fase 7 propriamente dita.
+
+- **V.1.4.67 — Gaps**: `agent/semantic_search.py` (tabela `semantic_index`
+  própria, `GET /busca-semantica`) indexa relatório+transcrição de cada
+  reunião — **só para busca humana**, nunca injetado de volta no prompt
+  de IA em tempo real (evitaria duplicar contexto, mesmo princípio já
+  usado pra não mapear `KnowledgeItem → sales_memory`). `GET /clientes/
+  resumo-reuniao/{meeting_id}` + card no Dashboard (`verDetalhe()`) —
+  **nunca em `cenario.html`**, que é a tela do próprio cliente (achado
+  de segurança de dado durante a implementação). Coluna `status`
+  (default `'approved'`) preparada em `sales_memories`/`playbooks`/
+  `skills` para a rodada seguinte.
+- **V.1.4.68 — Aprendizado Contínuo com aprovação (Fase 7.3 do EPIC)**:
+  memória/playbook/skill gerados por IA nascem `pending` — só entram em
+  uso real (`buscar_memorias_semantico()`, `listar_playbooks(apenas_
+  ativos=True)`, `resolver_melhor_skill()`) depois de 1 aprovação
+  (`PATCH .../status`), mesma rede de segurança do Knowledge Compiler
+  (`DRAFT`/`APPROVED`). Achado: extração de memória e geração de
+  playbook **já eram automáticas** desde V.1.4.31/32 — só faltava o
+  *gate*, e a geração de skill a partir de playbook (antes só manual)
+  passou a auto-disparar também. Kill-switch `SALES_BRAIN_AUTOPILOT_
+  ENABLED` (default `true`).
+- **V.1.4.69 — Knowledge Graph (Fase 7.2)**: `agent/knowledge_graph.py`
+  (tabela `graph_edges`, arestas simples `from_type/from_id/to_type/
+  to_id/relacao`, sem lib de grafo) relaciona cliente↔reunião↔memória↔
+  playbook↔skill via hooks best-effort nos 4 pontos de criação.
+  `GET /grafo/conexoes/{tipo}/{id}` + backfill `scripts/
+  backfill_knowledge_graph.py --dry-run` para dado histórico.
+- **V.1.4.70 — Workspace Comercial (Fase 7.1)**: nova aba no Dashboard
+  (`GET /workspace/resumo`, `GET /workspace/pendencias`) — visão única
+  com contadores, fila de aprovação (memória/playbook/skill pendentes)
+  e busca semântica, sem precisar visitar 5 abas separadas.
+- **Decisão deliberada, não implementada**: skills como pastas de
+  arquivo (pedido literal do EPIC) — seria regressão funcional frente ao
+  que já existe (skills em MySQL, editáveis pelo dashboard, integradas
+  ao `skill_resolver`).
+- 48 testes novos no total (9+18+9+8 + 4 do Resumo do Cliente). Suite
+  completa sem regressão em cada rodada.
+- **Pendente**: deploy das 4 rodadas juntas na VPS — aditivo (2 tabelas
+  novas, 1 coluna nova em 3 tabelas, tudo com `DEFAULT` seguro, zero
+  mudança de comportamento pra dado já existente até o backfill do grafo
+  rodar). Detalhe completo por rodada no `CHANGELOG.md`.
 
 ### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)
 - `services/embeddings/`: interface `EmbeddingProvider` (`embed`, `embed_async`, `embed_batch`, `health_check`), `OllamaEmbeddingProvider` (HTTP local via `httpx`, zero import de SDKs de LLM externos), `OpenAIEmbeddingProvider`, `factory.get_embedding_provider()` (lê `EMBEDDING_PROVIDER`, erro explícito em valor desconhecido).

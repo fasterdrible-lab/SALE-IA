@@ -256,6 +256,11 @@ def vincular_reuniao(
             _recalcular_stats(cur, client_id)
         conn.close()
         logger.info("[Clientes] Reunião %s vinculada ao cliente %s (score=%s)", meeting_id, client_id, score)
+        try:
+            from agent.knowledge_graph import registrar_aresta
+            registrar_aresta("cliente", client_id, "reuniao", meeting_id, "teve_reuniao")
+        except Exception:
+            pass
         return True
     except Exception as e:
         logger.error("[Clientes] Erro ao vincular reunião: %s", e)

@@ -80,6 +80,7 @@ def criar_tabela_sales_memories():
         source_meeting_id VARCHAR(200),
         confidence        FLOAT        NOT NULL DEFAULT 0.8,
         tags              TEXT,
+        status            VARCHAR(20)  NOT NULL DEFAULT 'approved',
         created_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         INDEX idx_type        (memory_type),
@@ -111,6 +112,7 @@ def salvar_memoria(
     organization_id: Optional[str] = None,
     confidence: float = 0.8,
     tags: Optional[list] = None,
+    status: str = "approved",
 ) -> str:
     """
     Persiste um aprendizado comercial. Retorna o id gerado.
@@ -123,6 +125,9 @@ def salvar_memoria(
         organization_id: tenant futuro (nullable por ora)
         confidence: confiança da IA na qualidade desta memória (0.0–1.0)
         tags: lista de strings para facilitar busca (ex: ["B2B", "SaaS", "preço"])
+        status: 'approved' (default — entra direto na busca semântica/RAG) ou
+            'pending' (Sales Brain Fase 7.3 — aguarda aprovação humana antes
+            de aparecer em buscar_memorias_semantico()/listar_memorias())
 
     Returns:
         id da memória criada (UUID v4)
@@ -136,9 +141,9 @@ def salvar_memoria(
     sql = """
     INSERT INTO sales_memories
         (id, organization_id, memory_type, title, content,
-         source_meeting_id, confidence, tags, created_at, updated_at)
+         source_meeting_id, confidence, tags, status, created_at, updated_at)
     VALUES
-        (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+        (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
     """
     try:
         conn = _get_conn()
@@ -146,23 +151,27 @@ def salvar_memoria(
             cur.execute(sql, (
                 mem_id, organization_id, memory_type,
                 title, content, source_meeting_id,
-                confidence, tags_json,
+                confidence, tags_json, status,
             ))
         conn.commit()
         conn.close()
-        logger.info("[SalesMemory] Memória salva: %s (tipo=%s, reunião=%s)", mem_id, memory_type, source_meeting_id)
+        logger.info("[SalesMemory] Memória salva: %s (tipo=%s, reunião=%s, status=%s)", mem_id, memory_type, source_meeting_id, status)
         return mem_id
     except Exception as e:
         logger.error("[SalesMemory] Erro ao salvar memória: %s", e)
         raise
 
 
-def salvar_memorias_em_lote(memorias: list) -> list:
+def salvar_memorias_em_lote(memorias: list, status: str = "pending") -> list:
     """
     Salva uma lista de memórias de uma só vez (pós-extração pelo Knowledge Extractor).
 
     Args:
         memorias: lista de dicts com os mesmos campos de salvar_memoria()
+        status: status default aplicado a cada memória do lote quando o dict
+            não traz `status` explicitamente. Default 'pending' — hoje o
+            único chamador é o pipeline automático pós-reunião (Sales Brain
+            Fase 7.3), então cada memória nasce aguardando aprovação.
 
     Returns:
         lista de ids criados
@@ -178,11 +187,37 @@ def salvar_memorias_em_lote(memorias: list) -> list:
                 organization_id=mem.get("organization_id"),
                 confidence=float(mem.get("confidence", 0.8)),
                 tags=mem.get("tags", []),
+                status=mem.get("status") or status,
             )
             ids.append(mem_id)
         except Exception as e:
             logger.warning("[SalesMemory] Falha ao salvar memória em lote: %s — %s", mem.get("title"), e)
     return ids
+
+
+def atualizar_status_memoria(mem_id: str, status: str) -> bool:
+    """Aprova ou rejeita uma memória pendente (Sales Brain Fase 7.3).
+    Só 'approved'/'rejected' são aceitos aqui — 'pending' é só o estado de
+    criação. Invalida o cache de embeddings, já que ele passa a filtrar por
+    status='approved'."""
+    if status not in ("approved", "rejected"):
+        raise ValueError(f"status inválido: {status!r}. Use 'approved' ou 'rejected'.")
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE sales_memories SET status = %s, updated_at = NOW() WHERE id = %s",
+                (status, mem_id),
+            )
+            affected = cur.rowcount
+        conn.commit()
+        conn.close()
+        if affected:
+            invalidar_cache_memorias()
+        return affected > 0
+    except Exception as e:
+        logger.error("[SalesMemory] Erro ao atualizar status da memória %s: %s", mem_id, e)
+        return False
 
 
 # ─────────────────────────────────────────────────────────
@@ -210,11 +245,17 @@ def listar_memorias(
     organization_id: Optional[str] = None,
     source_meeting_id: Optional[str] = None,
     confidence_min: float = 0.0,
+    status: Optional[str] = "approved",
     limit: int = 100,
     offset: int = 0,
 ) -> list:
     """
     Lista memórias com filtros opcionais.
+
+    Args:
+        status: filtro por status ('approved'/'pending'/'rejected'). Default
+            'approved' — mesmo padrão seguro do RAG (buscar_memorias_semantico).
+            Passe None para listar todas (ex.: fila de aprovação do Workspace).
 
     Returns:
         lista de dicts com todos os campos da tabela
@@ -231,11 +272,14 @@ def listar_memorias(
     if source_meeting_id:
         conditions.append("source_meeting_id = %s")
         params.append(source_meeting_id)
+    if status:
+        conditions.append("status = %s")
+        params.append(status)
 
     where = " AND ".join(conditions)
     sql = f"""
         SELECT id, organization_id, memory_type, title, content,
-               source_meeting_id, confidence, tags, created_at, updated_at
+               source_meeting_id, confidence, tags, status, created_at, updated_at
         FROM sales_memories
         WHERE {where}
         ORDER BY created_at DESC
@@ -245,7 +289,7 @@ def listar_memorias(
 
     columns = (
         "id", "organization_id", "memory_type", "title", "content",
-        "source_meeting_id", "confidence", "tags", "created_at", "updated_at",
+        "source_meeting_id", "confidence", "tags", "status", "created_at", "updated_at",
     )
 
     try:
@@ -364,6 +408,27 @@ def migrar_coluna_embedding_memories():
         logger.error("[SalesMemory] Erro ao migrar coluna embedding: %s", e)
 
 
+def migrar_coluna_status_memories():
+    """Adiciona coluna status (VARCHAR, default 'approved') à tabela
+    sales_memories, se ainda não existir. Preparação para o pipeline
+    automático-com-aprovação (Sales Brain Fase 7.3) — memórias já
+    existentes ficam 'approved' pelo DEFAULT, sem mudança de comportamento
+    até o gate de aprovação entrar em vigor."""
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute("SHOW COLUMNS FROM sales_memories LIKE 'status'")
+            if cur.fetchone() is None:
+                cur.execute(
+                    "ALTER TABLE sales_memories ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'approved'"
+                )
+                logger.info("[SalesMemory] Coluna status adicionada à tabela sales_memories.")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.error("[SalesMemory] Erro ao migrar coluna status: %s", e)
+
+
 def migrar_colunas_embedding_metadata_memories():
     """Adiciona colunas de metadados de embedding (provider/model/dim) à
     tabela sales_memories, se ainda não existirem. Necessário para que
@@ -410,7 +475,7 @@ def _fetch_rows_com_metadados(conn):
             cur.execute(
                 "SELECT id, memory_type, title, content, confidence, tags, embedding, "
                 "embedding_provider, embedding_model, embedding_dim, source_meeting_id "
-                "FROM sales_memories WHERE embedding IS NOT NULL"
+                "FROM sales_memories WHERE embedding IS NOT NULL AND status = 'approved'"
             )
             return cur.fetchall(), True
     except Exception as e:
@@ -418,7 +483,7 @@ def _fetch_rows_com_metadados(conn):
         with conn.cursor() as cur:
             cur.execute(
                 "SELECT id, memory_type, title, content, confidence, tags, embedding, source_meeting_id "
-                "FROM sales_memories WHERE embedding IS NOT NULL"
+                "FROM sales_memories WHERE embedding IS NOT NULL AND status = 'approved'"
             )
             return cur.fetchall(), False
 

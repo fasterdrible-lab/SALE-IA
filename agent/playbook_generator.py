@@ -70,6 +70,7 @@ def criar_tabelas_playbook() -> None:
                     closing_sequence    LONGTEXT,
                     source_meeting_id   VARCHAR(255),
                     is_active           TINYINT(1)   NOT NULL DEFAULT 1,
+                    status              VARCHAR(20)  NOT NULL DEFAULT 'approved',
                     created_at          DATETIME     NOT NULL,
                     updated_at          DATETIME     NOT NULL,
                     INDEX idx_active      (is_active),
@@ -80,6 +81,27 @@ def criar_tabelas_playbook() -> None:
         logger.info("✅ Tabelas meeting_status e playbooks verificadas/criadas.")
     except Exception as e:
         logger.error("❌ Erro ao criar tabelas de playbook: %s", e)
+
+
+def migrar_coluna_status_playbooks():
+    """Adiciona coluna status (VARCHAR, default 'approved') à tabela
+    playbooks, se ainda não existir. Preparação para o pipeline
+    automático-com-aprovação (Sales Brain Fase 7.3) — playbooks já
+    existentes ficam 'approved' pelo DEFAULT, sem mudança de comportamento
+    até o gate de aprovação entrar em vigor."""
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute("SHOW COLUMNS FROM playbooks LIKE 'status'")
+            if cur.fetchone() is None:
+                cur.execute(
+                    "ALTER TABLE playbooks ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'approved'"
+                )
+                logger.info("[Playbook] Coluna status adicionada à tabela playbooks.")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.error("[Playbook] Erro ao migrar coluna status: %s", e)
 
 
 # ─────────────────────────────────────────────────────────
@@ -201,9 +223,17 @@ def listar_status_reunioes(meeting_ids: list) -> dict:
 # ─────────────────────────────────────────────────────────
 
 def salvar_playbook(playbook: dict) -> str:
-    """Persiste um playbook gerado. Retorna o UUID criado."""
+    """Persiste um playbook gerado. Retorna o UUID criado.
+
+    `playbook.get("status")` controla o gate de aprovação (Sales Brain Fase
+    7.3): 'pending' nasce inativo (`is_active=0`, some de `listar_playbooks
+    (apenas_ativos=True)` até aprovação); qualquer outro valor (default
+    'approved') nasce ativo como sempre — mantém compatibilidade com todos
+    os chamadores existentes, que não passam esse campo."""
     pid = str(uuid.uuid4())
     agora = datetime.now()
+    status = str(playbook.get("status") or "approved")
+    is_active = 0 if status == "pending" else 1
     conn = _get_conn()
     with conn.cursor() as cur:
         cur.execute(
@@ -211,8 +241,8 @@ def salvar_playbook(playbook: dict) -> str:
             INSERT INTO playbooks
                 (id, name, target_persona, steps, objections,
                  winning_arguments, closing_sequence, source_meeting_id,
-                 is_active, created_at, updated_at)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,1,%s,%s)
+                 is_active, status, created_at, updated_at)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             """,
             (
                 pid,
@@ -223,6 +253,8 @@ def salvar_playbook(playbook: dict) -> str:
                 json.dumps(playbook.get("winningArguments") or [], ensure_ascii=False),
                 json.dumps(playbook.get("closingSequence") or [], ensure_ascii=False),
                 playbook.get("source_meeting_id"),
+                is_active,
+                status,
                 agora,
                 agora,
             ),
@@ -314,7 +346,7 @@ def obter_playbook(playbook_id: str) -> Optional[dict]:
 def atualizar_playbook(playbook_id: str, campos: dict) -> bool:
     """Atualiza campos editáveis de um playbook (name, targetPersona, is_active, steps, etc.)."""
     _EDITAVEIS = {"name", "target_persona", "steps", "objections",
-                  "winning_arguments", "closing_sequence", "is_active"}
+                  "winning_arguments", "closing_sequence", "is_active", "status"}
     sets, vals = [], []
     for k, v in campos.items():
         if k not in _EDITAVEIS:
@@ -459,14 +491,45 @@ def gerar_playbook(relatorio: dict, transcricao: str, meeting_id: Optional[str] 
     return None
 
 
+def _montar_contexto_skill_de_playbook(playbook: dict) -> str:
+    """Monta o mesmo texto de contexto que `transformarEmSkill()`
+    (frontend/dashboard.html) monta para o botão manual '🧠 Skill' — reusa
+    o formato para que a skill auto-gerada (Fase 7.3) fique idêntica à que
+    o botão manual geraria para o mesmo playbook."""
+    partes = [f"Playbook: {playbook.get('name') or ''}"]
+    if playbook.get("targetPersona"):
+        partes.append(f"Persona: {playbook['targetPersona']}")
+    steps = playbook.get("steps") or []
+    if steps:
+        partes.append("Passos: " + " | ".join(str(s) for s in steps))
+    args = playbook.get("winningArguments") or []
+    if args:
+        partes.append("Argumentos vencedores: " + " | ".join(str(a) for a in args))
+    fechamento = playbook.get("closingSequence") or []
+    if fechamento:
+        partes.append("Sequência de fechamento: " + " | ".join(str(c) for c in fechamento))
+    return "\n".join(partes)
+
+
+def autopilot_ativo() -> bool:
+    """Kill-switch único do pipeline automático-com-aprovação (Sales Brain
+    Fase 7.3): memória, playbook e skill auto-gerados nascem 'pending' só
+    enquanto isto for True. `false` no .env + restart volta ao
+    comportamento de sempre (playbook/skill nascem ativos direto) sem
+    reverter deploy — mesmo padrão dos kill-switches do Cost Intelligence."""
+    return os.getenv("SALES_BRAIN_AUTOPILOT_ENABLED", "true").strip().lower() != "false"
+
+
 def gerar_e_salvar_playbook(
     relatorio: dict,
     transcricao: str,
     meeting_id: Optional[str] = None,
 ) -> Optional[str]:
     """
-    Pipeline completo: detecta sucesso → gera playbook via IA → persiste.
-    Projetado para execução em BackgroundTask.
+    Pipeline completo: detecta sucesso → gera playbook via IA → persiste
+    como 'pending' (aguardando aprovação — Sales Brain Fase 7.3, atrás do
+    kill-switch SALES_BRAIN_AUTOPILOT_ENABLED). Projetado para execução em
+    BackgroundTask.
 
     Returns:
         UUID do playbook criado, ou None.
@@ -477,9 +540,26 @@ def gerar_e_salvar_playbook(
             logger.info("[Playbook] IA não retornou playbook válido para reunião %s", meeting_id)
             return None
 
+        playbook["status"] = "pending" if autopilot_ativo() else "approved"
         pid = salvar_playbook(playbook)
-        logger.info("✅ [Playbook] Playbook '%s' salvo (id=%s) para reunião %s",
-                    playbook.get("name"), pid, meeting_id)
+        logger.info("✅ [Playbook] Playbook '%s' salvo (id=%s, status=%s) para reunião %s",
+                    playbook.get("name"), pid, playbook["status"], meeting_id)
+
+        if meeting_id:
+            try:
+                from agent.knowledge_graph import registrar_aresta
+                registrar_aresta("reuniao", meeting_id, "playbook", pid, "gerou_playbook")
+            except Exception:
+                pass
+
+        if autopilot_ativo():
+            try:
+                from agent.skill_resolver import gerar_e_salvar_skill
+                contexto = _montar_contexto_skill_de_playbook(playbook)
+                gerar_e_salvar_skill(contexto, source_playbook_id=pid)
+            except Exception as e:
+                logger.warning("[Playbook] Falha ao auto-disparar geração de skill para playbook %s: %s", pid, e)
+
         return pid
     except Exception as e:
         logger.error("[Playbook] Erro no pipeline de geração (reunião %s): %s", meeting_id, e)

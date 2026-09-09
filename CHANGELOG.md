@@ -3,6 +3,254 @@
 
 ---
 
+## V.1.4.70 — Workspace Comercial — Sales Brain Fase 7.1
+> Data: 09/09/2026 | Local + a deployar
+
+### CONTEXTO
+Última rodada do EPIC "SALEIA SALES BRAIN": visão única agregando
+clientes, playbooks, skills, memórias e follow-ups, com a fila de
+aprovação (Fase 7.3) e as conexões do Knowledge Graph (Fase 7.2) expostas
+num só lugar — em vez de o vendedor precisar visitar 5 abas separadas.
+
+### BACKEND
+- `agent/followup_generator.py::listar_followups_pendentes(limit)` (novo)
+  — primeira listagem global de follow-ups (as existentes eram sempre
+  escopadas a um `meeting_id`).
+- `api/main.py`: `GET /workspace/resumo` (contadores de clientes ativos/
+  playbooks ativos/skills ativas/memórias aprovadas/follow-ups pendentes/
+  pendências de aprovação, cada bloco isolado em `try/except` — falha
+  parcial nunca derruba o endpoint) e `GET /workspace/pendencias` (fila
+  unificada memória+playbook+skill com `status='pending'`, pronta pra
+  Aprovar/Rejeitar).
+
+### FRONTEND — `frontend/dashboard.html`
+- Nova aba "🧭 Workspace Comercial" (`carregarWorkspace()`, padrão
+  `Promise.all` já usado em `carregarCustos()`): cards de contadores,
+  seção "🔔 Pendências de Aprovação" com Aprovar/Rejeitar inline, barra
+  de busca semântica (`GET /busca-semantica`, ver V.1.4.67) e painel de
+  "🔗 Conexões" (`GET /grafo/conexoes/...`, ver V.1.4.69).
+- Página Clientes ganhou botão "🕸️ Conexões" no detalhe do cliente,
+  abrindo o mesmo painel do Workspace.
+
+### TESTES
+8 testes novos (`tests/test_workspace_endpoints.py`): agregação de
+contadores, isolamento de falha parcial, fila de pendências mesclando os
+3 tipos, `/grafo/conexoes` (tipo inválido → 400, delega corretamente) e
+`/busca-semantica` (query curta → 400, repassa `fontes`). Suite completa
+sem regressão.
+
+### VERSÃO
+- Backend: `1.4.66` → `1.4.70` (`/health`, `/monitor/metricas` — bump
+  único cobrindo as 4 rodadas desta sessão, V.1.4.67-1.4.70, ver entradas
+  abaixo).
+
+### O QUE FALTA
+- Deploy na VPS (`git pull` + `systemctl restart saleia`) — 4 tabelas
+  novas aditivas (`semantic_index`, `graph_edges`) + 3 colunas novas
+  (`status` em `sales_memories`/`playbooks`/`skills`, default `'approved'`
+  — sem impacto em dado existente).
+- Botão "🔗 Conexões" só foi plugado na página Clientes — estender aos
+  cards de Playbooks/Skills é follow-up trivial (mesma função
+  `verConexoesWorkspace()`).
+
+---
+
+## V.1.4.69 — Knowledge Graph — Sales Brain Fase 7.2
+> Data: 09/09/2026 | Local + a deployar
+
+### CONTEXTO
+Relaciona as entidades que o Sales Brain já produz (cliente, reunião,
+memória, playbook, skill) sem introduzir um banco de grafo — uma tabela
+de arestas relacional no MySQL existente, populada nos próprios pontos de
+criação de cada entidade.
+
+### NOVO MÓDULO — `agent/knowledge_graph.py`
+- `graph_edges` (`from_type/from_id/to_type/to_id/relacao`, UNIQUE KEY
+  composta — `registrar_aresta()` é idempotente via `INSERT IGNORE`).
+- `registrar_aresta()` e `buscar_conexoes()`: sempre best-effort, nunca
+  lançam — projetadas pra viver dentro de um `try/except: pass` no ponto
+  de criação de cada entidade, sem nunca poder quebrar o fluxo principal.
+- `buscar_conexoes()` resolve rótulo legível (nome/título) de cada
+  entidade conectada com lookups pontuais (1 coluna por id), não carrega
+  a entidade inteira.
+
+### HOOKS (best-effort, um por ponto de criação)
+- `agent/client_intelligence.py::vincular_reuniao` → `cliente→reuniao`.
+- `agent/knowledge_extractor.py::extrair_e_salvar_memorias` →
+  `reuniao→memoria` por memória salva.
+- `agent/playbook_generator.py::gerar_e_salvar_playbook` →
+  `reuniao→playbook`.
+- `agent/skill_resolver.py::gerar_e_salvar_skill` → `playbook→skill`
+  quando há `source_playbook_id`.
+
+### BACKFILL — `scripts/backfill_knowledge_graph.py`
+CLI idempotente (`--dry-run`) que popula arestas pra dado histórico
+(`client_meetings`, `sales_memories.source_meeting_id`, `playbooks.
+source_meeting_id`, `skills.source_playbook_id`) — sem isso o grafo
+nasceria vazio pra tudo que já existia antes desta versão.
+
+### API — `api/main.py`
+- `GET /grafo/conexoes/{tipo}/{id}` (`_req_auth`) — tipo em
+  `{cliente,reuniao,memoria,playbook,skill}`, 400 em tipo inválido.
+
+### TESTES
+9 testes novos (`tests/test_knowledge_graph.py`): tipo/id inválido não
+grava, aresta válida usa `INSERT IGNORE`, falha de conexão nunca lança,
+resolução de direção (entrada/saída) em `buscar_conexoes()`.
+
+---
+
+## V.1.4.68 — Aprendizado Contínuo com aprovação — Sales Brain Fase 7.3
+> Data: 09/09/2026 | Local + a deployar
+
+### CONTEXTO
+O EPIC pedia pipeline 100% automático (Reunião → Extração → Memória →
+Playbook → Skill, sem intervenção manual). Decisão confirmada com o
+usuário: **automático com aprovação** — o pipeline roda sozinho, mas todo
+artefato gerado por IA nasce `pending` e só entra em uso real (RAG/
+skill_resolver/lista de playbooks ativos) depois de 1 clique — mesma rede
+de segurança já usada no Knowledge Compiler (`DRAFT`/`APPROVED`).
+Investigação prévia corrigiu uma suposição errada: a extração de memória
+e a geração de playbook **já eram automáticas** desde V.1.4.31/32 (via
+`background_tasks` em `/recapitulacao-completa` e `/recapitulacao-manual`)
+— só a geração de skill a partir de um playbook era manual (botão "🧠
+Skill"). O gap real era o *gate* de aprovação, não a automação em si.
+
+### BACKEND
+- **`agent/sales_memory.py`**: `salvar_memoria(..., status="approved")`;
+  `salvar_memorias_em_lote(memorias, status="pending")` — único chamador
+  hoje é o pipeline automático, então todo lote nasce pendente por
+  padrão (item pode sobrescrever via `mem["status"]`). `listar_memorias
+  (..., status="approved")` e a query de `_fetch_rows_com_metadados()`
+  (usada por `buscar_memorias_semantico()`, o RAG real) passam a filtrar
+  `status='approved'` — memória pendente nunca aparece em produção.
+  `atualizar_status_memoria(id, status)` (novo — `approved`/`rejected`,
+  invalida o cache de embeddings).
+- **`agent/playbook_generator.py`**: `salvar_playbook()` deriva
+  `is_active` de `status` (`pending` → `is_active=0`, reaproveitando o
+  filtro que `listar_playbooks(apenas_ativos=True)` já tinha).
+  `gerar_e_salvar_playbook()` marca `status='pending'` e, com o
+  autopilot ativo, **auto-dispara a geração de skill** logo em seguida
+  (`_montar_contexto_skill_de_playbook()` monta o mesmo texto que
+  `transformarEmSkill()` no dashboard monta pro botão manual — skill
+  auto-gerada fica idêntica à que o botão geraria pro mesmo playbook).
+  `autopilot_ativo()` — kill-switch `SALES_BRAIN_AUTOPILOT_ENABLED`
+  (default `true`).
+- **`agent/skill_resolver.py`**: `salvar_skill()` — mesmo padrão
+  `status`→`is_active`. `gerar_e_salvar_skill()` (manual **e**
+  automático) sempre nasce `pending` com o autopilot ativo — decisão
+  deliberada: skill gerada por IA a partir de contexto livre é o mesmo
+  risco esteja o clique atrás dela ou não, diferente de
+  `gerar_skill_de_knowledge_item()` (Knowledge Compiler), que continua
+  nascendo aprovada porque o `KnowledgeItem` de origem já passou por
+  revisão humana antes.
+- **`api/main.py`**: `PATCH /sales-memories/{id}/status` (novo, espelha
+  `PATCH /biblioteca/itens/{id}`). Aprovação de playbook/skill reusa os
+  `PATCH /playbooks/{id}` e `PATCH /skills/{id}` **já existentes** — só
+  `"status"` entrou na whitelist `_EDITAVEIS` de cada um.
+- **Schema**: coluna `status VARCHAR(20) DEFAULT 'approved'` em
+  `sales_memories`/`playbooks`/`skills` (na `CREATE TABLE` pra bases
+  novas + migração `ALTER TABLE` idempotente pra bases existentes,
+  mesmo padrão de `migrar_coluna_embedding_memories`) — dado existente
+  vira `approved` pelo `DEFAULT`, zero mudança de comportamento pra quem
+  já estava em produção antes do gate entrar em vigor.
+
+### FRONTEND — `frontend/dashboard.html`
+Cards de Playbook e Skill ganham badge "⏳ Pendente de aprovação" e
+botões ✅ Aprovar / ❌ Rejeitar quando `status==='pending'` (no lugar dos
+botões normais de editar/ativar/desativar, que só fazem sentido depois
+da aprovação).
+
+### TESTES
+18 testes novos (`tests/test_sales_brain_approval.py`): wiring de
+`status`→`is_active` em `salvar_skill`/`salvar_playbook`, kill-switch
+`SALES_BRAIN_AUTOPILOT_ENABLED` (default ativo, `false` desativa,
+case-insensitive), auto-disparo de skill após playbook (e sua ausência
+com o autopilot desligado), `salvar_memoria`/`salvar_memorias_em_lote`
+(default `approved` vs `pending`, override por item), validação de
+`atualizar_status_memoria`, filtro de `listar_memorias`. Suite completa
+sem regressão (453 testes, mesmas falhas pré-existentes de sempre).
+
+### VERSÃO
+- Backend: `1.4.67` → `1.4.68`.
+
+---
+
+## V.1.4.67 — Gaps do EPIC Sales Brain: busca semântica de relatórios/transcrições + Resumo do Cliente
+> Data: 09/09/2026 | Local + a deployar
+
+### CONTEXTO
+Ao ser perguntado se o EPIC "SALEIA SALES BRAIN" (Fases 1-6) já estava
+implementado, auditoria do código real (não só da doc) confirmou que sim
+— desde V.1.4.31-37 — com 3 lacunas: (1) embeddings/busca semântica só
+cobriam `sales_memories`/`base_conhecimento`, não relatórios nem
+transcrições completas (Tarefa 1.3); (2) skills como estrutura de pastas
+de arquivo (`skills/objection-price/...`) não existiam; (3) "Resumo do
+Cliente" ao abrir a reunião não existia como card visual, só como string
+injetada no prompt da IA (Tarefa 4.3).
+
+**Decisão deliberada sobre a lacuna (2): não implementada.** Skills como
+arquivos estáticos seriam uma regressão funcional real frente ao que já
+existe — registros em `skills` (MySQL) editáveis pelo dashboard
+(`PATCH /skills/{id}`), versionados (`updated_at`) e integrados ao
+`skill_resolver`. Mesma classe de decisão já tomada antes no projeto
+(ex.: skills sem `organization_id`).
+
+### BUSCA SEMÂNTICA — novo módulo `agent/semantic_search.py`
+- Tabela própria `semantic_index` (não retrofitada em `Relatorio`/
+  `MeetingMemory` — essas duas tabelas SQLModel não são o que os 2
+  endpoints de relatório de fato escrevem hoje; embedding é gerado
+  direto do `resultado`/`transcricao` já em memória no hook pós-relatório).
+- `indexar_relatorio()`/`indexar_transcricao()`: disparadas em
+  `background_tasks`, no mesmo hook onde `extrair_e_salvar_memorias()`
+  já roda (`POST /recapitulacao-completa`, `POST /recapitulacao-manual`).
+- `buscar_semantico_unificado(query, fontes, top_k)`: mescla resultados
+  de `semantic_index` (relatórios/transcrições) com
+  `buscar_memorias_semantico()` (memórias), reordenados por
+  similaridade. **Só para busca humana — nunca injetado de volta no
+  prompt de IA em tempo real**, mesmo princípio já usado pra não mapear
+  `KnowledgeItem → sales_memory` (evita duplicar conteúdo no contexto).
+- `GET /busca-semantica?q=&fontes=&top_k=` (novo). `GET /admin/
+  embeddings/status` ganha a terceira tabela (`semantic_index`) no
+  diagnóstico.
+
+### RESUMO DO CLIENTE — card no Dashboard (nunca em `cenario.html`)
+Achado importante durante a implementação: `cenario.html` é a tela
+mostrada/compartilhada com o **cliente** durante a reunião ("📋 Seu
+Perfil", segunda pessoa) — colocar ali objeções/dores internas vazaria
+informação sensível de volta pro próprio cliente. Card fica só na tela
+de detalhe da reunião no Dashboard, 100% interna ao vendedor.
+- `GET /clientes/resumo-reuniao/{meeting_id}` (novo) — encadeia
+  `buscar_cliente_por_reuniao()` + `obter_cliente()` (ambos já existiam
+  em `agent/client_intelligence.py`, T4.3 da Fase 4).
+- `frontend/dashboard.html::verDetalhe()` — placeholder
+  `#det-resumo-cliente` preenchido por `carregarResumoClienteDetalhe()`
+  (fetch assíncrono após o resto do relatório já estar na tela); vazio
+  quando a reunião não tem cliente vinculado.
+
+### SCHEMA (preparação para V.1.4.68)
+Coluna `status VARCHAR(20) DEFAULT 'approved'` adicionada a
+`sales_memories`/`playbooks`/`skills` — sem uso ainda nesta versão, só
+a migração idempotente (mesmo padrão de `migrar_coluna_embedding_
+memories`), pra não misturar migração de schema com mudança de
+comportamento na versão seguinte.
+
+### TESTES
+9 testes novos (`tests/test_semantic_search.py`): extração de texto do
+relatório, filtro por fonte, mescla com memórias respeitando `top_k`,
+cache vazio não lança. 4 testes novos (`tests/
+test_resumo_cliente_endpoint.py`): 401 sem token, sem cliente vinculado,
+com cliente vinculado, cliente órfão (vínculo existe mas perfil sumiu).
+Suite completa sem regressão (435 testes, mesmas falhas pré-existentes).
+
+### VERSÃO
+- Backend: `1.4.66` → `1.4.67`.
+
+### O QUE FALTA
+- Deploy das 4 rodadas (V.1.4.67-70) juntas na VPS.
+
+---
+
 ## V.1.4.66 — Marcar reunião ganha/perdida (UI) + Retrieval por outcome — Fase 6 do PROMPT MESTRE
 > Data: 05/09/2026 | Feature ativa em produção após deploy
 

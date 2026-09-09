@@ -337,6 +337,31 @@ async def on_startup():
     except Exception as e:
         logger.warning("Tabela followups não criada: %s", e)
     try:
+        from agent.semantic_search import criar_tabela_semantic_index
+        criar_tabela_semantic_index()
+    except Exception as e:
+        logger.warning("Tabela semantic_index não criada: %s", e)
+    try:
+        from agent.knowledge_graph import criar_tabela_graph_edges
+        criar_tabela_graph_edges()
+    except Exception as e:
+        logger.warning("Tabela graph_edges não criada: %s", e)
+    try:
+        from agent.sales_memory import migrar_coluna_status_memories
+        migrar_coluna_status_memories()
+    except Exception as e:
+        logger.warning("Coluna status (sales_memories) não migrada: %s", e)
+    try:
+        from agent.playbook_generator import migrar_coluna_status_playbooks
+        migrar_coluna_status_playbooks()
+    except Exception as e:
+        logger.warning("Coluna status (playbooks) não migrada: %s", e)
+    try:
+        from agent.skill_resolver import migrar_coluna_status_skills
+        migrar_coluna_status_skills()
+    except Exception as e:
+        logger.warning("Coluna status (skills) não migrada: %s", e)
+    try:
         from api.metricas_historico import criar_tabela_metricas, criar_tabela_teste_provedores
         criar_tabela_metricas()
         criar_tabela_teste_provedores()
@@ -645,7 +670,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.66",
+        "versao":              "1.4.70",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -683,7 +708,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.66",
+        "versao":          "1.4.70",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -959,10 +984,13 @@ def recapitulacao_completa(req: RecapitulacaoRequest, background_tasks: Backgrou
     try:
         from agent.knowledge_extractor import extrair_e_salvar_memorias
         from agent.playbook_generator import _eh_reuniao_de_sucesso, gerar_e_salvar_playbook
+        from agent.semantic_search import indexar_relatorio, indexar_transcricao
         meeting_id = req.meeting_id or f"completa_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         background_tasks.add_task(extrair_e_salvar_memorias, resultado, req.transcricao, meeting_id)
         if _eh_reuniao_de_sucesso(resultado, meeting_id):
             background_tasks.add_task(gerar_e_salvar_playbook, resultado, req.transcricao, meeting_id)
+        background_tasks.add_task(indexar_relatorio, meeting_id, req.titulo_reuniao, resultado)
+        background_tasks.add_task(indexar_transcricao, meeting_id, req.titulo_reuniao, req.transcricao)
     except Exception as e:
         logger.warning("Não foi possível agendar pipeline pós-reunião: %s", e)
 
@@ -1278,6 +1306,25 @@ def obter_cliente_endpoint(client_id: str, authorization: str | None = Header(de
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/clientes/resumo-reuniao/{meeting_id}")
+def resumo_cliente_da_reuniao_endpoint(meeting_id: str, authorization: str | None = Header(default=None)):
+    """Resumo interno do cliente vinculado a uma reunião — só para o
+    vendedor (tela de detalhe da reunião no Dashboard). Nunca expor em
+    cenario.html, que é a tela compartilhada com o próprio cliente."""
+    _req_auth(authorization)
+    try:
+        from agent.client_intelligence import buscar_cliente_por_reuniao, obter_cliente
+        client_id = buscar_cliente_por_reuniao(meeting_id)
+        if not client_id:
+            return {"vinculado": False}
+        cliente = obter_cliente(client_id)
+        if not cliente:
+            return {"vinculado": False}
+        return {"vinculado": True, **cliente}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.patch("/clientes/{client_id}")
 def atualizar_cliente_endpoint(
     client_id: str,
@@ -1497,6 +1544,152 @@ def stats_sales_memories(authorization: str | None = Header(default=None)):
     try:
         from agent.sales_memory import contar_por_tipo
         return {"por_tipo": contar_por_tipo()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.patch("/sales-memories/{mem_id}/status")
+def atualizar_status_memoria_endpoint(
+    mem_id: str,
+    body: dict,
+    authorization: str | None = Header(default=None),
+):
+    """Aprova ou rejeita uma memória pendente (Sales Brain Fase 7.3) —
+    mesmo padrão de PATCH /biblioteca/itens/{id} (Knowledge Compiler)."""
+    _req_auth(authorization)
+    status = str(body.get("status") or "")
+    if status not in ("approved", "rejected"):
+        raise HTTPException(status_code=400, detail="Campo 'status' deve ser 'approved' ou 'rejected'.")
+    try:
+        from agent.sales_memory import atualizar_status_memoria
+        ok = atualizar_status_memoria(mem_id, status)
+        if not ok:
+            raise HTTPException(status_code=404, detail="Memória não encontrada.")
+        return {"ok": True, "status": status}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/workspace/resumo")
+def workspace_resumo_endpoint(authorization: str | None = Header(default=None)):
+    """Contadores agregados do Workspace Comercial (Sales Brain Fase 7.1) —
+    visão única de clientes/playbooks/skills/memórias/follow-ups/pendências
+    de aprovação. Cada bloco é best-effort (falha isolada vira 0, nunca
+    derruba o endpoint inteiro)."""
+    _req_auth(authorization)
+    resumo = {
+        "clientes_ativos": 0, "playbooks_ativos": 0, "skills_ativas": 0,
+        "memorias_aprovadas": 0, "followups_pendentes": 0, "pendencias_aprovacao": 0,
+    }
+    try:
+        from agent.client_intelligence import listar_clientes
+        resumo["clientes_ativos"] = len(listar_clientes(status="ativo", limit=500))
+    except Exception as e:
+        logger.debug("[workspace_resumo] clientes: %s", e)
+    try:
+        from agent.playbook_generator import listar_playbooks
+        resumo["playbooks_ativos"] = len(listar_playbooks(apenas_ativos=True, limit=500))
+    except Exception as e:
+        logger.debug("[workspace_resumo] playbooks: %s", e)
+    try:
+        from agent.skill_resolver import listar_skills
+        resumo["skills_ativas"] = len(listar_skills(apenas_ativas=True))
+    except Exception as e:
+        logger.debug("[workspace_resumo] skills: %s", e)
+    try:
+        from agent.sales_memory import listar_memorias
+        resumo["memorias_aprovadas"] = len(listar_memorias(status="approved", limit=500))
+    except Exception as e:
+        logger.debug("[workspace_resumo] memorias: %s", e)
+    try:
+        from agent.followup_generator import listar_followups_pendentes
+        resumo["followups_pendentes"] = len(listar_followups_pendentes(limit=500))
+    except Exception as e:
+        logger.debug("[workspace_resumo] followups: %s", e)
+    try:
+        from agent.sales_memory import listar_memorias as _lm
+        from agent.playbook_generator import listar_playbooks as _lp
+        from agent.skill_resolver import listar_skills as _ls
+        pendencias = len(_lm(status="pending", limit=500))
+        pendencias += len([p for p in _lp(limit=500) if p.get("status") == "pending"])
+        pendencias += len([s for s in _ls(apenas_ativas=False) if s.get("status") == "pending"])
+        resumo["pendencias_aprovacao"] = pendencias
+    except Exception as e:
+        logger.debug("[workspace_resumo] pendencias: %s", e)
+    return resumo
+
+
+@app.get("/workspace/pendencias")
+def workspace_pendencias_endpoint(authorization: str | None = Header(default=None)):
+    """Fila unificada de memórias/playbooks/skills aguardando aprovação
+    (Sales Brain Fase 7.3), pronta para renderizar com Aprovar/Rejeitar."""
+    _req_auth(authorization)
+    pendencias = []
+    try:
+        from agent.sales_memory import listar_memorias
+        for m in listar_memorias(status="pending", limit=100):
+            pendencias.append({"tipo": "memoria", "id": m["id"], "titulo": m.get("title"),
+                                "detalhe": m.get("memory_type"), "criado_em": m.get("created_at")})
+    except Exception as e:
+        logger.debug("[workspace_pendencias] memorias: %s", e)
+    try:
+        from agent.playbook_generator import listar_playbooks
+        for p in listar_playbooks(limit=100):
+            if p.get("status") == "pending":
+                pendencias.append({"tipo": "playbook", "id": p["id"], "titulo": p.get("name"),
+                                    "detalhe": p.get("source_meeting_id"), "criado_em": p.get("created_at")})
+    except Exception as e:
+        logger.debug("[workspace_pendencias] playbooks: %s", e)
+    try:
+        from agent.skill_resolver import listar_skills
+        for s in listar_skills(apenas_ativas=False):
+            if s.get("status") == "pending":
+                pendencias.append({"tipo": "skill", "id": s.get("id"), "titulo": s.get("name"),
+                                    "detalhe": s.get("source_playbook_id"), "criado_em": s.get("created_at")})
+    except Exception as e:
+        logger.debug("[workspace_pendencias] skills: %s", e)
+    return {"total": len(pendencias), "pendencias": pendencias}
+
+
+@app.get("/grafo/conexoes/{tipo}/{entity_id}")
+def conexoes_grafo_endpoint(tipo: str, entity_id: str, authorization: str | None = Header(default=None)):
+    """Conexões diretas (1 salto) de uma entidade no Knowledge Graph
+    (Sales Brain Fase 7.2): cliente, reuniao, memoria, playbook ou skill."""
+    _req_auth(authorization)
+    try:
+        from agent.knowledge_graph import TIPOS_VALIDOS, buscar_conexoes
+        if tipo not in TIPOS_VALIDOS:
+            raise HTTPException(status_code=400, detail=f"Tipo inválido. Use um de: {sorted(TIPOS_VALIDOS)}")
+        conexoes = buscar_conexoes(tipo, entity_id)
+        return {"tipo": tipo, "id": entity_id, "total": len(conexoes), "conexoes": conexoes}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/busca-semantica")
+def busca_semantica_endpoint(
+    q: str,
+    fontes: Optional[str] = None,
+    top_k: int = 5,
+    authorization: str | None = Header(default=None),
+):
+    """Busca semântica unificada sobre memórias/relatórios/transcrições
+    (Sales Brain, Tarefa 1.3). Só para consulta humana (ex.: Workspace
+    Comercial) — nunca alimenta o prompt de IA em tempo real.
+    `fontes`: lista separada por vírgula entre relatorios,transcricoes,memorias
+    (default: todas)."""
+    _req_auth(authorization)
+    if not q or len(q.strip()) < 3:
+        raise HTTPException(status_code=400, detail="Parâmetro 'q' deve ter pelo menos 3 caracteres")
+    fontes_lista = [f.strip() for f in fontes.split(",") if f.strip()] if fontes else None
+    try:
+        from agent.semantic_search import buscar_semantico_unificado
+        resultados = buscar_semantico_unificado(q.strip(), fontes=fontes_lista, top_k=top_k)
+        return {"query": q, "total": len(resultados), "resultados": resultados}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -1849,10 +2042,13 @@ def recapitulacao_manual(req: RecapitulacaoRequest, background_tasks: Background
     try:
         from agent.knowledge_extractor import extrair_e_salvar_memorias
         from agent.playbook_generator import _eh_reuniao_de_sucesso, gerar_e_salvar_playbook
+        from agent.semantic_search import indexar_relatorio, indexar_transcricao
         meeting_id = req.meeting_id or f"manual_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         background_tasks.add_task(extrair_e_salvar_memorias, resultado, req.transcricao, meeting_id)
         if _eh_reuniao_de_sucesso(resultado, meeting_id):
             background_tasks.add_task(gerar_e_salvar_playbook, resultado, req.transcricao, meeting_id)
+        background_tasks.add_task(indexar_relatorio, meeting_id, req.titulo_reuniao, resultado)
+        background_tasks.add_task(indexar_transcricao, meeting_id, req.titulo_reuniao, req.transcricao)
     except Exception as e:
         logger.warning("Não foi possível agendar pipeline pós-reunião: %s", e)
 
@@ -4114,10 +4310,12 @@ async def admin_embeddings_status(authorization: str | None = _Header(default=No
         "indexado": {
             "base_conhecimento": {"total": 0, "com_embedding": 0, "provider_atual": 0},
             "sales_memories": {"total": 0, "com_embedding": 0, "provider_atual": 0},
+            "semantic_index": {"total": 0, "com_embedding": 0, "provider_atual": 0},
         },
         "cache": {
             "base_conhecimento": {"carregado": False, "itens": 0},
             "sales_memories": {"carregado": False, "itens": 0},
+            "semantic_index": {"carregado": False, "itens": 0},
         },
     }
 
@@ -4190,6 +4388,34 @@ async def admin_embeddings_status(authorization: str | None = _Header(default=No
         resposta["cache"]["sales_memories"]["carregado"] = cache_sm is not None
         if cache_sm and not cache_sm.get("vazio"):
             resposta["cache"]["sales_memories"]["itens"] = len(cache_sm.get("ids", []))
+    except Exception:
+        pass
+
+    try:
+        from agent.semantic_search import _get_conn as _si_conn
+        conn = _si_conn()
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM semantic_index")
+            resposta["indexado"]["semantic_index"]["total"] = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) FROM semantic_index WHERE embedding IS NOT NULL")
+            resposta["indexado"]["semantic_index"]["com_embedding"] = cur.fetchone()[0]
+            if provider_nome and modelo_nome:
+                cur.execute(
+                    "SELECT COUNT(*) FROM semantic_index "
+                    "WHERE embedding_provider = %s AND embedding_model = %s",
+                    (provider_nome, modelo_nome),
+                )
+                resposta["indexado"]["semantic_index"]["provider_atual"] = cur.fetchone()[0]
+        conn.close()
+    except Exception as e:
+        logger.debug("[admin_embeddings_status] contagem semantic_index falhou: %s", e)
+
+    try:
+        import agent.semantic_search as _ss
+        cache_si = _ss._cache_indice
+        resposta["cache"]["semantic_index"]["carregado"] = cache_si is not None
+        if cache_si and not cache_si.get("vazio"):
+            resposta["cache"]["semantic_index"]["itens"] = len(cache_si.get("ids", []))
     except Exception:
         pass
 

@@ -585,6 +585,17 @@ EMAIL_FROM=noreply@saleia.com.br
 - [x] Versao: `1.4.65` -> `1.4.66`.
 - **Pendente**: deploy na VPS (mudanca de `agent/sales_memory.py` exige `git pull` + `systemctl restart saleia`; `dashboard.html` e estatico, nao exige restart). Efeito real do ajuste de ranking so aparece conforme reunioes forem marcadas pelos novos botoes — base ainda vazia no momento do commit.
 
+## Concluido (V.1.4.67-1.4.70 — EPIC SALES BRAIN: gaps + Fase 7 Sales Operating System)
+
+Usuario colou o EPIC "SALEIA SALES BRAIN" completo (Fases 1-7) e perguntou se ja estava implementado. Investigacao confirmou Fases 1-6 ja em producao desde V.1.4.31-37; 3 lacunas encontradas + Fase 7 (nao existia) foram tratadas nesta sessao, em 4 rodadas de versao. Detalhe completo por rodada no CHANGELOG.md.
+
+- [x] V.1.4.67 — Busca semantica de relatorios/transcricoes (`agent/semantic_search.py`, novo, tabela `semantic_index`, `GET /busca-semantica`) — so para busca humana, nunca injetada no prompt de IA em tempo real (evita duplicar contexto). Card "Resumo do Cliente" (`GET /clientes/resumo-reuniao/{meeting_id}`) na tela de detalhe da reuniao no Dashboard — achado importante: `cenario.html` e a tela do proprio CLIENTE, colocar o resumo la vazaria objecoes/dores internas de volta pro cliente. Coluna `status` (default `approved`) preparada em `sales_memories`/`playbooks`/`skills` para a rodada seguinte. 13 testes novos.
+- [x] V.1.4.68 — Pipeline automatico-com-aprovacao (Fase 7.3): memoria/playbook/skill gerados por IA nascem `pending`, so entram em RAG/producao apos aprovacao (`PATCH /sales-memories/{id}/status` novo; `PATCH /playbooks|skills/{id}` reusados, so ganharam `status` na whitelist editavel). Playbook auto-gerado agora auto-dispara geracao de skill (lacuna real do EPIC — antes so o botao manual existia). Kill-switch `SALES_BRAIN_AUTOPILOT_ENABLED`. 18 testes novos.
+- [x] V.1.4.69 — Knowledge Graph (Fase 7.2): `agent/knowledge_graph.py` (tabela `graph_edges`, arestas simples, sem lib de grafo), hooks best-effort nos 4 pontos de criacao (cliente-reuniao, reuniao-memoria, reuniao-playbook, playbook-skill), `GET /grafo/conexoes/{tipo}/{id}`, backfill `scripts/backfill_knowledge_graph.py --dry-run`. 9 testes novos.
+- [x] V.1.4.70 — Workspace Comercial (Fase 7.1): nova aba no Dashboard agregando contadores + fila de pendencias de aprovacao + busca semantica + painel de conexoes (`GET /workspace/resumo`, `GET /workspace/pendencias`). 8 testes novos.
+- [x] Decisao deliberada, nao implementada: skills como pastas de arquivo (pedido literal do EPIC) — regressao funcional frente ao que ja existe (skills em MySQL, editaveis pelo dashboard, integradas ao skill_resolver).
+- **Pendente**: deploy das 4 rodadas juntas na VPS (`git pull` + `systemctl restart saleia` — 2 tabelas novas aditivas `semantic_index`/`graph_edges` + coluna `status` nova em 3 tabelas, tudo com DEFAULT seguro); estender botao "Conexoes" aos cards de Playbooks/Skills (hoje so na pagina Clientes); backfill real do Knowledge Graph (`scripts/backfill_knowledge_graph.py`, sem `--dry-run`) apos deploy.
+
 ## Pendente
 
 - [ ] **Debito tecnico (achado 05/09/2026, fora de escopo)**: migrar `google.generativeai` (totalmente descontinuado pelo Google) para `google.genai`, e `claude-sonnet-4-20250514` (EOL 15/06/2026) para um modelo Anthropic atual.

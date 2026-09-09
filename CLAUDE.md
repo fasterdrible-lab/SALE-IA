@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.62** (backend) · extensão Chrome **V.1.4.5** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.70** (backend, local — ainda não deployada; produção confirmada em V.1.4.63) · extensão Chrome **V.1.4.5** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -392,6 +392,100 @@ o outcome (`won`/`lost`) da reunião que originou cada memória —
   com grep amplo (`marcarComoGanha`, `status.*lost`, não só o nome do
   endpoint documentado) — uma busca por `marcar-ganha` (slug antigo já
   renomeado) deu falso negativo nesta mesma investigação.
+
+## Sales Operating System — Fase 7 do EPIC Sales Brain (V.1.4.67-1.4.70, local)
+
+Usuário colou o EPIC "SALEIA SALES BRAIN" (7 fases) e perguntou se já
+estava implementado. Fases 1-6 já existiam em produção desde V.1.4.31-37
+(Sales Memory, Playbook Engine, Sales Skills, Client Intelligence,
+Multiagent System, Follow-up — ver seção própria acima). Esta rodada
+fechou 3 lacunas das Fases 1-6 e construiu a Fase 7 (que não existia).
+**Ainda não deployada na VPS** — produção continua em V.1.4.63.
+
+### Gaps das Fases 1-6 fechados (V.1.4.67)
+- **Busca semântica de relatórios/transcrições** (`agent/
+  semantic_search.py`, tabela própria `semantic_index`): indexa cada
+  reunião via `background_tasks` no mesmo hook onde `extrair_e_salvar_
+  memorias()` já roda. **Só para busca humana** (`GET /busca-semantica`,
+  usado no Workspace) — **nunca** injetado de volta no prompt de IA em
+  tempo real, mesmo princípio já usado pra não mapear `KnowledgeItem →
+  sales_memory` (evitaria duplicar contexto).
+- **Resumo do Cliente**: card na tela de detalhe da reunião do Dashboard
+  (`GET /clientes/resumo-reuniao/{meeting_id}`), **nunca em
+  `cenario.html`** — essa tela é mostrada/compartilhada com o próprio
+  CLIENTE ("📋 Seu Perfil", segunda pessoa); colocar ali objeções/dores
+  internas vazaria dado sensível de volta pro cliente.
+- Skills como pastas de arquivo (pedido literal do EPIC): **decisão
+  deliberada de não implementar** — regressão funcional frente ao que já
+  existe (skills em MySQL, editáveis pelo dashboard, integradas ao
+  `skill_resolver`).
+
+### Aprendizado Contínuo com aprovação — Fase 7.3 (V.1.4.68)
+O EPIC pedia pipeline 100% automático, sem intervenção manual. Decisão
+confirmada com o usuário: **automático com aprovação** — roda sozinho
+após cada reunião, mas todo artefato gerado por IA nasce `status=
+'pending'` e só entra em uso real depois de 1 clique. Mesma rede de
+segurança do Knowledge Compiler (`DRAFT`/`APPROVED`).
+
+- Extração de memória e geração de playbook **já eram automáticas**
+  desde V.1.4.31/32 (`background_tasks` em `/recapitulacao-completa` e
+  `/recapitulacao-manual`, gated por `agent.playbook_generator.
+  _eh_reuniao_de_sucesso()`) — o gap real era só o *gate* de aprovação,
+  não a automação. Geração de skill a partir de um playbook (antes só
+  via botão manual "🧠 Skill") passou a **auto-disparar** também, logo
+  após o playbook nascer.
+- `sales_memories`/`playbooks`/`skills` ganharam coluna `status`
+  (`approved` por padrão — dado existente não muda de comportamento).
+  Para playbook/skill, `status='pending'` implica `is_active=0`, então
+  o gate reusa o filtro `is_active` que `listar_playbooks(apenas_
+  ativos=True)`/`resolver_melhor_skill()` já tinham — nenhuma query nova
+  precisou ser escrita para "esconder" o pendente do caminho real de
+  produção. Para memória, `buscar_memorias_semantico()` (o RAG de
+  verdade) passou a filtrar `status='approved'` direto na query.
+- Aprovação reusa os `PATCH /playbooks/{id}` e `PATCH /skills/{id}` **já
+  existentes** — só `"status"` entrou na whitelist editável de cada um.
+  Memória ganhou endpoint novo (`PATCH /sales-memories/{id}/status`,
+  não existia nenhum antes).
+- **Kill-switch único**: `SALES_BRAIN_AUTOPILOT_ENABLED` (env, default
+  `true`) — `false` no `.env` + restart volta ao comportamento de sempre
+  (playbook/skill nascem ativos direto), sem reverter deploy. Mesmo
+  padrão dos kill-switches do Cost Intelligence.
+- `gerar_skill_de_knowledge_item()` (Knowledge Compiler) **não** passa
+  por esse gate — continua nascendo aprovada, porque o `KnowledgeItem`
+  de origem já foi revisado por humano antes (fase anterior do próprio
+  Knowledge Compiler).
+
+### Knowledge Graph — Fase 7.2 (V.1.4.69)
+`agent/knowledge_graph.py`: tabela `graph_edges` (arestas simples
+`from_type/from_id/to_type/to_id/relacao`, sem lib de grafo nova) —
+relaciona cliente↔reunião↔memória↔playbook↔skill. `registrar_aresta()`
+é chamada best-effort (`try/except: pass`) nos 4 pontos de criação de
+entidade (`client_intelligence.vincular_reuniao`, `knowledge_extractor.
+extrair_e_salvar_memorias`, `playbook_generator.gerar_e_salvar_playbook`,
+`skill_resolver.gerar_e_salvar_skill`) — nunca pode quebrar o fluxo
+principal se falhar. `GET /grafo/conexoes/{tipo}/{id}` resolve rótulo
+legível de cada nó conectado. `scripts/backfill_knowledge_graph.py
+--dry-run` popula arestas pra dado histórico (sem isso o grafo nasceria
+vazio pra tudo que já existia).
+
+### Workspace Comercial — Fase 7.1 (V.1.4.70)
+Nova aba no Dashboard (`GET /workspace/resumo`, `GET /workspace/
+pendencias`) — visão única com contadores (clientes/playbooks/skills/
+memórias/follow-ups) + fila de aprovação (memória/playbook/skill
+pendentes, com Aprovar/Rejeitar inline) + busca semântica, sem precisar
+visitar 5 abas separadas. Botão "🔗 Conexões" plugado na página Clientes
+(`verConexoesWorkspace()`) — estender aos cards de Playbooks/Skills é
+follow-up trivial, mesma função.
+
+### Runbook rápido
+- **Ver o que está pendente de aprovação**: aba Workspace Comercial, ou
+  `GET /workspace/pendencias`.
+- **Desligar o autopilot em emergência**: `SALES_BRAIN_AUTOPILOT_
+  ENABLED=false` no `.env` da VPS + `systemctl restart saleia`.
+- **Buscar em relatórios/transcrições/memórias**: `GET /busca-semantica
+  ?q=...` (ou a barra de busca na aba Workspace).
+- **Ver como duas entidades se conectam**: `GET /grafo/conexoes/{tipo}
+  /{id}` (`tipo` em `cliente|reuniao|memoria|playbook|skill`).
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

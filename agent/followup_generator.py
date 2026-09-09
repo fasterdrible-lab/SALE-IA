@@ -244,6 +244,21 @@ def listar_followups(meeting_id: str) -> list[dict]:
     return [_ser(r) for r in rows]
 
 
+def listar_followups_pendentes(limit: int = 20) -> list[dict]:
+    """Lista follow-ups pendentes de todas as reuniões (Workspace Comercial,
+    Sales Brain Fase 7.1) — diferente de listar_followups(), que é sempre
+    escopado a uma reunião."""
+    with _get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM followups WHERE status='pendente' "
+                "ORDER BY agendado_para ASC, created_at DESC LIMIT %s",
+                (limit,),
+            )
+            rows = cur.fetchall()
+    return [_ser(r) for r in rows]
+
+
 def obter_followup(fid: str) -> dict | None:
     with _get_conn() as conn:
         with conn.cursor() as cur:

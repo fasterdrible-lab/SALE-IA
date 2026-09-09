@@ -988,6 +988,9 @@
       <button class="nav-item active" data-page="dashboard" onclick="mostrarPagina('dashboard', this)">
         <span class="nav-icon">📊</span><span class="nav-label">Dashboard</span>
       </button>
+      <button class="nav-item" data-page="workspace" onclick="mostrarPagina('workspace', this)">
+        <span class="nav-icon">🧭</span><span class="nav-label">Workspace Comercial</span>
+      </button>
       <button class="nav-item" data-page="reunioes" onclick="mostrarPagina('reunioes', this)">
         <span class="nav-icon">📋</span><span class="nav-label">Reuniões</span>
       </button>
@@ -1059,6 +1062,39 @@
         </div>
         <h3>Últimas reuniões</h3>
         <div class="reunioes" id="dash-reunioes"><div style="color:var(--muted)">Carregando...</div></div>
+      </div>
+
+      <!-- WORKSPACE COMERCIAL (Sales Brain Fase 7.1) -->
+      <div class="page" id="page-workspace">
+        <h2>🧭 Workspace Comercial</h2>
+        <p style="color:var(--muted);font-size:.85rem;margin-bottom:16px">Visão única de clientes, playbooks, skills, memórias e follow-ups — inclusive o que ainda precisa da sua aprovação.</p>
+
+        <div class="toolbar" style="margin-bottom:16px">
+          <input type="text" id="ws-busca" placeholder="Buscar em memórias, relatórios e transcrições..." style="flex:1;min-width:260px" onkeydown="if(event.key==='Enter') buscarWorkspace()" />
+          <button class="btn" onclick="buscarWorkspace()">🔎 Buscar</button>
+        </div>
+        <div id="ws-busca-resultados"></div>
+
+        <div class="metrics" id="ws-metrics" style="margin-bottom:20px">
+          <div class="metric"><div class="metric-val" id="ws-m-clientes">–</div><div class="metric-lbl">Clientes ativos</div></div>
+          <div class="metric"><div class="metric-val" id="ws-m-playbooks">–</div><div class="metric-lbl">Playbooks ativos</div></div>
+          <div class="metric"><div class="metric-val" id="ws-m-skills">–</div><div class="metric-lbl">Skills ativas</div></div>
+          <div class="metric"><div class="metric-val" id="ws-m-memorias">–</div><div class="metric-lbl">Memórias aprovadas</div></div>
+          <div class="metric"><div class="metric-val" id="ws-m-followups">–</div><div class="metric-lbl">Follow-ups pendentes</div></div>
+        </div>
+
+        <div class="info-card" style="margin-bottom:20px">
+          <h3>🔔 Pendências de Aprovação</h3>
+          <div id="ws-pendencias"><div style="color:var(--muted)">Carregando...</div></div>
+        </div>
+
+        <div id="ws-conexoes-painel" style="display:none" class="info-card">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <h3 id="ws-conexoes-titulo">🔗 Conexões</h3>
+            <button class="btn btn-secondary" onclick="document.getElementById('ws-conexoes-painel').style.display='none'">✕ Fechar</button>
+          </div>
+          <div id="ws-conexoes-lista"></div>
+        </div>
       </div>
 
       <!-- REUNIÕES -->
@@ -1894,6 +1930,7 @@
     if (btn) btn.classList.add('active');
     if (nome !== 'monitor') _pararMonitor();
     if (nome === 'dashboard')     carregarDashboard();
+    if (nome === 'workspace')     carregarWorkspace();
     if (nome === 'reunioes')      carregarReunioes();
     if (nome === 'sessoes')       carregarSessoes();
     if (nome === 'base')          { carregarBase(); initDropzone(); }
@@ -3027,6 +3064,124 @@
     }
   }
 
+  /* ─── Workspace Comercial (Sales Brain Fase 7.1) ───── */
+  async function carregarWorkspace() {
+    try {
+      const [rResumo, rPend] = await Promise.all([
+        fetchJsonWithFallback('/workspace/resumo'),
+        fetchJsonWithFallback('/workspace/pendencias'),
+      ]);
+      const resumo = await rResumo.json();
+      document.getElementById('ws-m-clientes').textContent  = resumo.clientes_ativos ?? '–';
+      document.getElementById('ws-m-playbooks').textContent = resumo.playbooks_ativos ?? '–';
+      document.getElementById('ws-m-skills').textContent    = resumo.skills_ativas ?? '–';
+      document.getElementById('ws-m-memorias').textContent  = resumo.memorias_aprovadas ?? '–';
+      document.getElementById('ws-m-followups').textContent = resumo.followups_pendentes ?? '–';
+
+      const pend = await rPend.json();
+      renderizarPendenciasWorkspace(pend.pendencias || []);
+    } catch (e) {
+      document.getElementById('ws-pendencias').innerHTML = '<div style="color:#f87171">Erro ao carregar o Workspace: ' + escHtml(e.message) + '</div>';
+    }
+  }
+
+  const _WS_ICONE_TIPO = { memoria: '🧠', playbook: '🎯', skill: '⚡' };
+
+  function renderizarPendenciasWorkspace(lista) {
+    const container = document.getElementById('ws-pendencias');
+    if (!lista.length) {
+      container.innerHTML = '<div style="color:var(--muted);font-size:.85rem">Nenhuma pendência — tudo que a IA gerou automaticamente já foi revisado.</div>';
+      return;
+    }
+    container.innerHTML = lista.map(p => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:1.1rem">${_WS_ICONE_TIPO[p.tipo] || '❓'}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.85rem;font-weight:600">${escHtml(p.titulo || 'Sem título')}</div>
+          <div style="font-size:.72rem;color:var(--muted)">${escHtml(p.tipo)}${p.detalhe ? ' · ' + escHtml(String(p.detalhe)) : ''}</div>
+        </div>
+        <button onclick="aprovarPendenciaWorkspace('${p.tipo}','${escHtml(p.id)}')" style="padding:4px 10px;font-size:.75rem;background:transparent;border:1px solid #2dd4bf;color:#2dd4bf;border-radius:4px;cursor:pointer">✅ Aprovar</button>
+        <button onclick="rejeitarPendenciaWorkspace('${p.tipo}','${escHtml(p.id)}')" style="padding:4px 10px;font-size:.75rem;background:transparent;border:1px solid #f87171;color:#f87171;border-radius:4px;cursor:pointer">❌ Rejeitar</button>
+      </div>`).join('');
+  }
+
+  const _WS_ENDPOINT_TIPO = { memoria: '/sales-memories', playbook: '/playbooks', skill: '/skills' };
+
+  async function _atualizarStatusPendenciaWorkspace(tipo, id, status) {
+    const base = _WS_ENDPOINT_TIPO[tipo];
+    if (!base) return;
+    const path = tipo === 'memoria' ? `${base}/${encodeURIComponent(id)}/status` : `${base}/${encodeURIComponent(id)}`;
+    const body = tipo === 'memoria'
+      ? { status }
+      : (status === 'approved' ? { status: 'approved', is_active: true } : { status: 'rejected' });
+    const r = await fetchJsonWithFallback(path, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+  }
+
+  async function aprovarPendenciaWorkspace(tipo, id) {
+    try {
+      await _atualizarStatusPendenciaWorkspace(tipo, id, 'approved');
+      carregarWorkspace();
+    } catch (e) {
+      alert('Erro ao aprovar: ' + e.message);
+    }
+  }
+
+  async function rejeitarPendenciaWorkspace(tipo, id) {
+    if (!window.confirm('Rejeitar este item gerado automaticamente? Ele continua salvo, mas nunca entra em uso.')) return;
+    try {
+      await _atualizarStatusPendenciaWorkspace(tipo, id, 'rejected');
+      carregarWorkspace();
+    } catch (e) {
+      alert('Erro ao rejeitar: ' + e.message);
+    }
+  }
+
+  async function buscarWorkspace() {
+    const q = document.getElementById('ws-busca').value.trim();
+    const alvo = document.getElementById('ws-busca-resultados');
+    if (q.length < 3) { alvo.innerHTML = '<div style="color:var(--muted);font-size:.82rem;margin-bottom:16px">Digite ao menos 3 caracteres.</div>'; return; }
+    alvo.innerHTML = '<div style="color:var(--muted);font-size:.82rem;margin-bottom:16px">Buscando...</div>';
+    try {
+      const r = await fetchJsonWithFallback('/busca-semantica?q=' + encodeURIComponent(q));
+      const d = await r.json();
+      const itens = d.resultados || [];
+      if (!itens.length) { alvo.innerHTML = '<div style="color:var(--muted);font-size:.82rem;margin-bottom:16px">Nenhum resultado.</div>'; return; }
+      alvo.innerHTML = '<div class="info-card" style="margin-bottom:16px"><h3>Resultados da busca</h3>' + itens.map(it => `
+        <div style="padding:8px 0;border-bottom:1px solid var(--border)">
+          <div style="font-size:.75rem;color:var(--muted)">${escHtml(it.fonte)} · similaridade ${(Number(it.similarity||0)*100).toFixed(0)}%</div>
+          <div style="font-size:.85rem;font-weight:600">${escHtml(it.titulo || it.meeting_id || '')}</div>
+          <div style="font-size:.8rem;color:#cbd5e1">${escHtml((it.trecho || '').slice(0,240))}</div>
+        </div>`).join('') + '</div>';
+    } catch (e) {
+      alvo.innerHTML = '<div style="color:#f87171;margin-bottom:16px">Erro na busca: ' + escHtml(e.message) + '</div>';
+    }
+  }
+
+  async function verConexoesWorkspace(tipo, id, titulo) {
+    const painel = document.getElementById('ws-conexoes-painel');
+    const lista  = document.getElementById('ws-conexoes-lista');
+    document.getElementById('ws-conexoes-titulo').textContent = '🔗 Conexões — ' + (titulo || id);
+    painel.style.display = '';
+    lista.innerHTML = '<div style="color:var(--muted)">Carregando...</div>';
+    try {
+      const r = await fetchJsonWithFallback(`/grafo/conexoes/${encodeURIComponent(tipo)}/${encodeURIComponent(id)}`);
+      const d = await r.json();
+      const conexoes = d.conexoes || [];
+      lista.innerHTML = conexoes.length
+        ? conexoes.map(c => `<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:.85rem">
+            ${c.direcao === 'saida' ? '→' : '←'} <b>${escHtml(c.tipo)}</b>: ${escHtml(c.rotulo)} <span style="color:var(--muted);font-size:.72rem">(${escHtml(c.relacao)})</span>
+          </div>`).join('')
+        : '<div style="color:var(--muted);font-size:.85rem">Sem conexões registradas ainda.</div>';
+    } catch (e) {
+      lista.innerHTML = '<div style="color:#f87171">Erro ao carregar conexões: ' + escHtml(e.message) + '</div>';
+    }
+  }
+
   /* ─── Reuniões ────────────────────────────────────── */
   async function carregarReunioes() {
     const container = document.getElementById('lista-reunioes');
@@ -3204,14 +3359,25 @@
     const ativo   = !!p.is_active;
     const pid     = escHtml(p.id);
 
-    const badgeAtivo = ativo
-      ? `<span style="font-size:.72rem;padding:2px 8px;background:rgba(45,212,191,.12);color:#2dd4bf;border-radius:4px;border:1px solid #2dd4bf">Ativo</span>`
-      : `<span style="font-size:.72rem;padding:2px 8px;background:rgba(248,113,113,.1);color:#f87171;border-radius:4px;border:1px solid #f87171">Inativo</span>`;
+    const pendente = p.status === 'pending';
+    const badgeAtivo = pendente
+      ? `<span style="font-size:.72rem;padding:2px 8px;background:rgba(251,191,36,.12);color:#fbbf24;border-radius:4px;border:1px solid #fbbf24">⏳ Pendente de aprovação</span>`
+      : ativo
+        ? `<span style="font-size:.72rem;padding:2px 8px;background:rgba(45,212,191,.12);color:#2dd4bf;border-radius:4px;border:1px solid #2dd4bf">Ativo</span>`
+        : `<span style="font-size:.72rem;padding:2px 8px;background:rgba(248,113,113,.1);color:#f87171;border-radius:4px;border:1px solid #f87171">Inativo</span>`;
 
     const stepsHTML    = _listaPlaybook(p.steps,             '📋 Passos');
     const objecoesHTML = _listaPlaybook(p.objections,        '💬 Objeções', true);
     const argHTML      = _listaPlaybook(p.winning_arguments, '⚡ Argumentos vencedores');
     const closeHTML    = _listaPlaybook(p.closing_sequence,  '🤝 Sequência de fechamento');
+
+    const acoesHTML = pendente
+      ? `<button onclick="aprovarPlaybook('${pid}')" style="padding:4px 10px;font-size:.75rem;background:transparent;border:1px solid #2dd4bf;color:#2dd4bf;border-radius:4px;cursor:pointer">✅ Aprovar</button>
+         <button onclick="rejeitarPlaybook('${pid}')" style="padding:4px 10px;font-size:.75rem;background:transparent;border:1px solid #f87171;color:#f87171;border-radius:4px;cursor:pointer">❌ Rejeitar</button>`
+      : `<button onclick="editarPlaybook('${pid}')" style="padding:4px 10px;font-size:.75rem;background:transparent;border:1px solid var(--gold);color:var(--gold);border-radius:4px;cursor:pointer">✏️ Editar</button>
+         <button onclick="transformarEmSkill('${pid}')" style="padding:4px 10px;font-size:.75rem;background:transparent;border:1px solid #a78bfa;color:#a78bfa;border-radius:4px;cursor:pointer">🧠 Skill</button>
+         <button onclick="togglePlaybook('${pid}',${ativo ? 0 : 1})" style="padding:4px 10px;font-size:.75rem;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:4px;cursor:pointer">${ativo ? '⏸ Desativar' : '▶ Ativar'}</button>
+         <button onclick="deletarPlaybook('${pid}')" style="padding:4px 10px;font-size:.75rem;background:transparent;border:1px solid #f87171;color:#f87171;border-radius:4px;cursor:pointer">🗑</button>`;
 
     return `<div class="reuniao-card" style="flex-direction:column;align-items:flex-start;gap:12px;padding:18px 20px">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;width:100%;gap:12px;flex-wrap:wrap">
@@ -3225,14 +3391,40 @@
           </div>
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap">
-          <button onclick="editarPlaybook('${pid}')" style="padding:4px 10px;font-size:.75rem;background:transparent;border:1px solid var(--gold);color:var(--gold);border-radius:4px;cursor:pointer">✏️ Editar</button>
-          <button onclick="transformarEmSkill('${pid}')" style="padding:4px 10px;font-size:.75rem;background:transparent;border:1px solid #a78bfa;color:#a78bfa;border-radius:4px;cursor:pointer">🧠 Skill</button>
-          <button onclick="togglePlaybook('${pid}',${ativo ? 0 : 1})" style="padding:4px 10px;font-size:.75rem;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:4px;cursor:pointer">${ativo ? '⏸ Desativar' : '▶ Ativar'}</button>
-          <button onclick="deletarPlaybook('${pid}')" style="padding:4px 10px;font-size:.75rem;background:transparent;border:1px solid #f87171;color:#f87171;border-radius:4px;cursor:pointer">🗑</button>
+          ${acoesHTML}
         </div>
       </div>
       ${stepsHTML}${objecoesHTML}${argHTML}${closeHTML}
     </div>`;
+  }
+
+  async function aprovarPlaybook(id) {
+    try {
+      const r = await fetchJsonWithFallback(`/playbooks/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'approved', is_active: true }),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      carregarPlaybooks();
+    } catch (e) {
+      alert('Erro ao aprovar playbook: ' + e.message);
+    }
+  }
+
+  async function rejeitarPlaybook(id) {
+    if (!window.confirm('Rejeitar este playbook gerado automaticamente? Ele continuará salvo, mas nunca entrará em uso.')) return;
+    try {
+      const r = await fetchJsonWithFallback(`/playbooks/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'rejected' }),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      carregarPlaybooks();
+    } catch (e) {
+      alert('Erro ao rejeitar playbook: ' + e.message);
+    }
   }
 
   function _listaPlaybook(items, titulo, isObj = false) {
@@ -3631,15 +3823,20 @@
     const stages   = (triggers.stages || s.trigger_stages || []).join(', ') || 'Qualquer';
     const sid      = escHtml(s.id || '');
     const isDb     = s.source !== 'builtin';
-    const badgeAtivo = ativo
-      ? `<span style="font-size:.7rem;padding:1px 6px;background:rgba(45,212,191,.12);color:#2dd4bf;border-radius:3px;border:1px solid #2dd4bf">Ativo</span>`
-      : `<span style="font-size:.7rem;padding:1px 6px;background:rgba(248,113,113,.1);color:#f87171;border-radius:3px;border:1px solid #f87171">Inativo</span>`;
-    const deleteBtn = isDb ? `<button onclick="deletarSkill('${sid}')" style="padding:2px 8px;font-size:.7rem;background:transparent;border:1px solid #f87171;color:#f87171;border-radius:3px;cursor:pointer">🗑</button>` : '';
-    const toggleBtn = isDb ? `<button onclick="toggleSkill('${sid}',${ativo ? 0 : 1})" style="padding:2px 8px;font-size:.7rem;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:3px;cursor:pointer">${ativo ? '⏸' : '▶'}</button>` : '';
+    const pendente = s.status === 'pending';
+    const badgeAtivo = pendente
+      ? `<span style="font-size:.7rem;padding:1px 6px;background:rgba(251,191,36,.12);color:#fbbf24;border-radius:3px;border:1px solid #fbbf24">⏳ Pendente</span>`
+      : ativo
+        ? `<span style="font-size:.7rem;padding:1px 6px;background:rgba(45,212,191,.12);color:#2dd4bf;border-radius:3px;border:1px solid #2dd4bf">Ativo</span>`
+        : `<span style="font-size:.7rem;padding:1px 6px;background:rgba(248,113,113,.1);color:#f87171;border-radius:3px;border:1px solid #f87171">Inativo</span>`;
+    const deleteBtn = isDb && !pendente ? `<button onclick="deletarSkill('${sid}')" style="padding:2px 8px;font-size:.7rem;background:transparent;border:1px solid #f87171;color:#f87171;border-radius:3px;cursor:pointer">🗑</button>` : '';
+    const toggleBtn = isDb && !pendente ? `<button onclick="toggleSkill('${sid}',${ativo ? 0 : 1})" style="padding:2px 8px;font-size:.7rem;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:3px;cursor:pointer">${ativo ? '⏸' : '▶'}</button>` : '';
+    const aprovarBtn = pendente ? `<button onclick="aprovarSkill('${sid}')" style="padding:2px 8px;font-size:.7rem;background:transparent;border:1px solid #2dd4bf;color:#2dd4bf;border-radius:3px;cursor:pointer">✅</button>` : '';
+    const rejeitarBtn = pendente ? `<button onclick="rejeitarSkill('${sid}')" style="padding:2px 8px;font-size:.7rem;background:transparent;border:1px solid #f87171;color:#f87171;border-radius:3px;cursor:pointer">❌</button>` : '';
     return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">
         <div style="font-weight:700;font-size:.88rem;color:var(--gold)">${nome}</div>
-        <div style="display:flex;gap:4px;align-items:center;flex-shrink:0">${badgeAtivo}${toggleBtn}${deleteBtn}</div>
+        <div style="display:flex;gap:4px;align-items:center;flex-shrink:0">${badgeAtivo}${aprovarBtn}${rejeitarBtn}${toggleBtn}${deleteBtn}</div>
       </div>
       ${desc ? `<div style="font-size:.78rem;color:var(--muted);margin-bottom:8px">${desc}</div>` : ''}
       <div style="font-size:.75rem;color:var(--muted);display:grid;grid-template-columns:1fr 1fr;gap:4px">
@@ -3663,6 +3860,35 @@
       renderizarSkills(_skillsCache);
     } catch (e) {
       alert('Erro ao alterar skill: ' + e.message);
+    }
+  }
+
+  async function aprovarSkill(id) {
+    try {
+      const r = await fetchJsonWithFallback(`/skills/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'approved', is_active: true }),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      carregarSkills();
+    } catch (e) {
+      alert('Erro ao aprovar skill: ' + e.message);
+    }
+  }
+
+  async function rejeitarSkill(id) {
+    if (!window.confirm('Rejeitar esta skill gerada automaticamente? Ela continuará salva, mas nunca entrará em uso.')) return;
+    try {
+      const r = await fetchJsonWithFallback(`/skills/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'rejected' }),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      carregarSkills();
+    } catch (e) {
+      alert('Erro ao rejeitar skill: ' + e.message);
     }
   }
 
@@ -3941,6 +4167,7 @@
         </select>
         <button onclick="editarNotasCliente('${cid}')" style="padding:4px 10px;font-size:.78rem;background:transparent;border:1px solid var(--gold);color:var(--gold);border-radius:4px;cursor:pointer">✏️ Notas</button>
         <button onclick="vincularReuniaoAoCliente('${cid}')" style="padding:4px 10px;font-size:.78rem;background:transparent;border:1px solid #2dd4bf;color:#2dd4bf;border-radius:4px;cursor:pointer">🔗 Reunião</button>
+        <button onclick="verConexoesWorkspace('cliente','${cid}','${escHtml(c.nome||'')}')" style="padding:4px 10px;font-size:.78rem;background:transparent;border:1px solid #a78bfa;color:#a78bfa;border-radius:4px;cursor:pointer">🕸️ Conexões</button>
       </div>
     </div>`;
 
@@ -4237,6 +4464,9 @@
     // contrário do botão minúsculo que já existia só na lista.
     const midDetalhe = r.meeting_id || r.id || '';
     if (midDetalhe) {
+      // Resumo do Cliente (Sales Brain, gap da Tarefa 4.3): interno, só o
+      // vendedor vê — nunca em cenario.html, que é a tela do próprio cliente.
+      html += `<div id="det-resumo-cliente"></div>`;
       html += `<div class="info-card" style="margin-bottom:16px;text-align:center">
         <h3 style="margin-bottom:10px">🏁 Resultado desta reunião</h3>
         <div id="det-status-reuniao">${statusReuniaoBotoesHTML(escHtml(midDetalhe), r.status || 'open', 'detalhe')}</div>
@@ -4248,7 +4478,36 @@
     }
 
     document.getElementById('det-conteudo').innerHTML = html;
-    if (midDetalhe) carregarFollowupsExistentes(midDetalhe);
+    if (midDetalhe) {
+      carregarFollowupsExistentes(midDetalhe);
+      carregarResumoClienteDetalhe(midDetalhe);
+    }
+  }
+
+  async function carregarResumoClienteDetalhe(meetingId) {
+    const alvo = document.getElementById('det-resumo-cliente');
+    if (!alvo) return;
+    try {
+      const r = await fetchJsonWithFallback('/clientes/resumo-reuniao/' + encodeURIComponent(meetingId));
+      const d = await r.json();
+      if (!d.vinculado) { alvo.innerHTML = ''; return; }
+      const objecoes = d.objecoes_recorrentes || [];
+      const dores    = d.dores_recorrentes || [];
+      const timeline = d.reunioes || [];
+      const scoreMedio = Number(d.score_medio || 0);
+      alvo.innerHTML = `<div class="info-card" style="margin-bottom:16px">
+        <h3>🧭 Resumo do Cliente${d.nome ? ' — ' + escHtml(d.nome) : ''}</h3>
+        <div class="metrics" style="margin:10px 0">
+          <div class="metric"><div class="metric-val">${d.disc_profile ? escHtml(d.disc_profile) : '–'}</div><div class="metric-lbl">DISC</div></div>
+          <div class="metric"><div class="metric-val">${timeline.length}</div><div class="metric-lbl">Reuniões</div></div>
+          <div class="metric"><div class="metric-val">${scoreMedio > 0 ? scoreMedio.toFixed(0) : '–'}</div><div class="metric-lbl">Score médio</div></div>
+        </div>
+        ${objecoes.length ? `<p style="margin-top:6px"><strong style="color:var(--muted);font-size:.82rem">🛡️ Objeções recorrentes:</strong> ${objecoes.map(o=>escHtml(o)).join(', ')}</p>` : ''}
+        ${dores.length ? `<p style="margin-top:6px"><strong style="color:var(--muted);font-size:.82rem">🩹 Dores recorrentes:</strong> ${dores.map(o=>escHtml(o)).join(', ')}</p>` : ''}
+      </div>`;
+    } catch (e) {
+      alvo.innerHTML = '';
+    }
   }
 
   async function vincularDetalheAoCliente(meetingId, titulo) {
