@@ -8,15 +8,26 @@ mantendo compatibilidade total com a extensão Chrome e o dashboard.
 
 import asyncio
 import logging
+import os
 
 from agent.base_conhecimento import buscar_contexto_similar
 from agent.multiagente.coach_agent import analisar_coach
 from agent.multiagente.disc_agent import analisar_disc
 from agent.multiagente.finance_agent import analisar_finance
 from agent.multiagente.closer_agent import analisar_closer
+from agent.multiagente.bigfive_agent import analisar_bigfive
 from agent.propensao_rules import classificar_propensao
 
 logger = logging.getLogger(__name__)
+
+
+def bigfive_agent_ativo() -> bool:
+    """Kill-switch do agente Big Five (5o agente em tempo real, +1 chamada
+    de IA por ciclo). `false` no .env + restart volta a rodar so os 4
+    agentes originais, sem custo do Big Five — mesmo padrao de todo
+    kill-switch ja usado no projeto (Cost Router, Otimizacao, Knowledge
+    Compiler)."""
+    return os.getenv("BIGFIVE_AGENT_ENABLED", "true").strip().lower() != "false"
 
 _FALLBACK_NBA = {
     "type": "question",
@@ -65,7 +76,7 @@ def _safe(result, default=None):
     return result
 
 
-def _mesclar(coach: dict, disc: dict, finance: dict, closer: dict) -> dict:
+def _mesclar(coach: dict, disc: dict, finance: dict, closer: dict, bigfive: dict) -> dict:
     resultado: dict = {"status": "updated"}
 
     # T5.1 — Coach
@@ -90,6 +101,11 @@ def _mesclar(coach: dict, disc: dict, finance: dict, closer: dict) -> dict:
     # T5.3 — Finance
     resultado["mapa_financeiro"]   = finance.get("mapa_financeiro") or {}
     resultado["objecao_detectada"] = finance.get("objecao_detectada") or {}
+
+    # Big Five — inferencia comportamental de personalidade (nunca recebe
+    # astrologia como entrada; astrologia so entra no relatorio final,
+    # nunca aqui, garantindo por construcao que uma nao contamina a outra)
+    resultado["perfil_bigfive"] = bigfive.get("perfil_bigfive") or {}
 
     # T5.4 — Closer
     resultado["score_compra"]    = closer.get("score_compra") or {"valor": None, "justificativa": None}
@@ -133,6 +149,7 @@ async def analisar_fragmento_multi(
     client_context: str = "",
     usuario_id: str | None = None,
     meeting_id: str | None = None,
+    perfil_bigfive_atual: dict = None,
 ) -> dict:
     diag = diagnostico_atual or {}
     scores = historico_scores or []
@@ -206,6 +223,11 @@ async def analisar_fragmento_multi(
     disc_coro    = analisar_disc(transcricao_parcial, historico, perfil_disc_atual, diag, usuario_id, meeting_id)
     finance_coro = analisar_finance(transcricao_parcial, historico, mapa, usuario_id, meeting_id)
     closer_coro  = analisar_closer(transcricao_parcial, rv, scores, diag, usuario_id, meeting_id)
+    bigfive_ativo = bigfive_agent_ativo()
+    bigfive_coro = (
+        analisar_bigfive(transcricao_parcial, historico, perfil_bigfive_atual or {}, diag, usuario_id, meeting_id)
+        if bigfive_ativo else None
+    )
 
     async def _com_span(nome: str, coro):
         # Span iniciado DENTRO da coroutine — asyncio.gather cria uma Task
@@ -226,28 +248,36 @@ async def analisar_fragmento_multi(
                 except Exception:
                     pass
 
-    resultados = await asyncio.gather(
+    coroutines = [
         _com_span("coach", coach_coro),
         _com_span("disc", disc_coro),
         _com_span("finance", finance_coro),
         _com_span("closer", closer_coro),
-        return_exceptions=True,
-    )
+    ]
+    if bigfive_coro is not None:
+        coroutines.append(_com_span("bigfive", bigfive_coro))
 
-    coach_r, disc_r, finance_r, closer_r = resultados
+    resultados = await asyncio.gather(*coroutines, return_exceptions=True)
 
-    for nome, res in [("Coach", coach_r), ("DISC", disc_r), ("Finance", finance_r), ("Closer", closer_r)]:
+    coach_r, disc_r, finance_r, closer_r = resultados[:4]
+    bigfive_r = resultados[4] if bigfive_coro is not None else {}
+
+    nomes_resultados = [("Coach", coach_r), ("DISC", disc_r), ("Finance", finance_r), ("Closer", closer_r)]
+    if bigfive_coro is not None:
+        nomes_resultados.append(("BigFive", bigfive_r))
+    for nome, res in nomes_resultados:
         if isinstance(res, Exception):
             logger.warning("[Multiagente] %s falhou: %s", nome, res)
 
-    # Cost Intelligence Fase 1 — soma o custo dos 4 agentes ANTES do merge:
+    # Cost Intelligence Fase 1 — soma o custo dos agentes ANTES do merge:
     # _mesclar() nao preserva os campos _*_ia dos agentes (monta o dict final
     # campo a campo), entao sem isso MeetingMemory.provider_cost_estimate
     # ficava sempre 0.0 para todo o trafego de tempo real (achado da auditoria
-    # em docs/cost-intelligence-audit.md).
+    # em docs/cost-intelligence-audit.md). bigfive_r fica {} (custo 0) quando
+    # o kill-switch BIGFIVE_AGENT_ENABLED esta desligado.
     custo_ciclo = sum(
         (_safe(r).get("_custo_estimado_ia") or _safe(r).get("_custo_real_usd") or 0.0)
-        for r in (coach_r, disc_r, finance_r, closer_r)
+        for r in (coach_r, disc_r, finance_r, closer_r, bigfive_r)
     )
 
     resultado = _mesclar(
@@ -255,6 +285,7 @@ async def analisar_fragmento_multi(
         _safe(disc_r),
         _safe(finance_r),
         _safe(closer_r),
+        _safe(bigfive_r),
     )
     resultado["_custo_ciclo_ia_usd"] = round(custo_ciclo, 6)
     return resultado

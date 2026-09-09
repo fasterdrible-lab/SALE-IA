@@ -1,13 +1,14 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-09 (V.1.4.70, local — **ainda nao deployada na
+Atualizado em: 2026-09-09 (V.1.4.71, local — **ainda nao deployada na
 VPS**; producao continua em `1.4.63` confirmada via `/health` em
-05/09/2026, ver secao "Sales Brain — Fase 7" abaixo e CHANGELOG.md
-V.1.4.67-V.1.4.70. O corpo deste documento nao acompanhou o CHANGELOG.md
-entre V.1.4.54 e V.1.4.66; a fonte de verdade sempre mais atualizada e o
-CHANGELOG e o `/health` de producao. Cost Intelligence Fases 1-6,
-Observabilidade Fase 1 e Whisper Local seguem concluidas e confirmadas em
-producao — ver CHANGELOG.md V.1.4.55-V.1.4.63 e CLAUDE.md).
+05/09/2026, ver secao "Sales Brain — Fase 7" e "Big Five + Astrologia
+opcional" abaixo e CHANGELOG.md V.1.4.67-V.1.4.71. O corpo deste
+documento nao acompanhou o CHANGELOG.md entre V.1.4.54 e V.1.4.66; a
+fonte de verdade sempre mais atualizada e o CHANGELOG e o `/health` de
+producao. Cost Intelligence Fases 1-6, Observabilidade Fase 1 e Whisper
+Local seguem concluidas e confirmadas em producao — ver CHANGELOG.md
+V.1.4.55-V.1.4.63 e CLAUDE.md).
 
 ## Ambiente
 
@@ -515,6 +516,43 @@ aprovação) antes de construir a Fase 7 propriamente dita.
   novas, 1 coluna nova em 3 tabelas, tudo com `DEFAULT` seguro, zero
   mudança de comportamento pra dado já existente até o backfill do grafo
   rodar). Detalhe completo por rodada no `CHANGELOG.md`.
+
+#### Big Five + Astrologia opcional (V.1.4.71, 09/09/2026)
+
+Extensão do motor multiagente — não um produto novo. Objetivo: entender
+melhor *por que o cliente* respondeu de determinada forma ou fez uma
+objeção, cruzando DISC (já existia) com uma nova camada de Big Five
+(inferida da conversa) e, opcionalmente, astrologia (signo solar, só
+quando dia/mês de nascimento surgem naturalmente na conversa — nunca
+perguntado, nunca inventado).
+
+- **5º agente em tempo real**: `agent/multiagente/bigfive_agent.py`
+  (mesmo padrão de `disc_agent.py`), atrás do kill-switch
+  `BIGFIVE_AGENT_ENABLED` (default `true` — quando `false`, a coroutine
+  nem é criada, zero custo extra). `perfil_bigfive` persiste em
+  `MeetingMemory.current_diagnosis` (reuso do campo JSON existente) e
+  realimenta Coach/Closer automaticamente no ciclo seguinte, já que
+  `{diagnostico_atual}` é lido pelos dois.
+- **Astrologia — signo solar, nunca mapa natal**: `agent/signo_solar_
+  rules.py` (função pura, sem IA, sem efemérides). Dia/mês só é
+  extraído quando mencionado, uma vez, por `PROMPT_RECAPITULACAO`
+  (mesma chamada de IA, sem custo novo) — `client_profiles` ganha
+  `data_nascimento_dia`/`_mes` (nullable, nunca sobrescrito). **Garantia
+  por construção**: nenhum prompt de DISC/Big Five tem canal de entrada
+  para dado de signo — astrologia nunca pode ajustar esses scores,
+  confirmado por teste de guarda arquitetural (grep + inspeção de
+  imports), não só por instrução no prompt.
+- **"Por que essa objeção aconteceu"**: `objecoes_com_motivo` +
+  `sintese_comportamental` — campos aditivos no relatório final
+  (`objecoes_levantadas`, lista de strings usada em 4+ lugares do
+  dashboard, nunca mudou de tipo — evita repetir a classe de bug
+  "[object Object]" já corrigida antes no projeto).
+- Dashboard: 4 cards novos (`verDetalhe()`), astrologia sempre com
+  disclaimer visível quando presente.
+- 34 testes novos, suite completa sem regressão.
+- **Pendente**: deploy na VPS (aditivo — 2 colunas nullable, sem
+  migração em `MeetingMemory`); validação real com uma reunião onde o
+  cliente menciona o próprio aniversário.
 
 ### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)
 - `services/embeddings/`: interface `EmbeddingProvider` (`embed`, `embed_async`, `embed_batch`, `health_check`), `OllamaEmbeddingProvider` (HTTP local via `httpx`, zero import de SDKs de LLM externos), `OpenAIEmbeddingProvider`, `factory.get_embedding_provider()` (lê `EMBEDDING_PROVIDER`, erro explícito em valor desconhecido).

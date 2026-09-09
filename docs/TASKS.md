@@ -596,6 +596,20 @@ Usuario colou o EPIC "SALEIA SALES BRAIN" completo (Fases 1-7) e perguntou se ja
 - [x] Decisao deliberada, nao implementada: skills como pastas de arquivo (pedido literal do EPIC) — regressao funcional frente ao que ja existe (skills em MySQL, editaveis pelo dashboard, integradas ao skill_resolver).
 - **Pendente**: deploy das 4 rodadas juntas na VPS (`git pull` + `systemctl restart saleia` — 2 tabelas novas aditivas `semantic_index`/`graph_edges` + coluna `status` nova em 3 tabelas, tudo com DEFAULT seguro); estender botao "Conexoes" aos cards de Playbooks/Skills (hoje so na pagina Clientes); backfill real do Knowledge Graph (`scripts/backfill_knowledge_graph.py`, sem `--dry-run`) apos deploy.
 
+## Concluido (V.1.4.71 — Big Five + Astrologia opcional)
+
+Usuario colou um spec de 60 tarefas pra um modulo de autoconhecimento do vendedor (Big Five/DISC via questionario + astrologia com mapa natal). Escopo real, depois de discussao: entender melhor *por que o cliente* respondeu daquela forma/fez aquela objecao — nao um produto novo, extensao do motor multiagente ja existente.
+
+- [x] 5o agente em tempo real `agent/multiagente/bigfive_agent.py` (infere Big Five do CLIENTE a partir da conversa, sem questionario, mesmo padrao do disc_agent.py) — atras do kill-switch `BIGFIVE_AGENT_ENABLED` (default true, zero custo quando desligado). `perfil_bigfive` persiste em `MeetingMemory.current_diagnosis` (reuso, sem coluna nova) e realimenta Coach/Closer no ciclo seguinte automaticamente.
+- [x] `agent/signo_solar_rules.py` (novo) — signo solar puro (dia+mes, sem mapa natal/efemerides), 12 signos estruturados. So usado quando o cliente menciona o proprio aniversario espontaneamente na conversa (nunca perguntado) — extraido 1x por `PROMPT_RECAPITULACAO` (mesma chamada de IA, sem custo novo).
+- [x] `client_profiles` ganha `data_nascimento_dia`/`data_nascimento_mes` (nullable) — `salvar_nascimento_cliente()` nunca sobrescreve. `obter_cliente()` anexa `perfil_astrologico` automaticamente (aparece de graca no card Resumo do Cliente, V.1.4.67).
+- [x] `objecoes_com_motivo` + `sintese_comportamental` (campos aditivos no `PROMPT_RECAPITULACAO`, cruzando DISC+Big Five) — `objecoes_levantadas` (lista de strings) nunca mudou de tipo, pra nao repetir a classe de bug "[object Object]" ja corrigida antes (renderiza em 4+ lugares do dashboard).
+- [x] Garantia por construcao (nao so por instrucao de prompt): nenhum prompt de DISC/Big Five tem placeholder de entrada pra dado de signo/astrologia — teste de guarda arquitetural confirma isso via grep + inspecao de imports.
+- [x] Dashboard: 4 cards novos (Big Five, Por que essas objecoes aconteceram, Sintese Comportamental, Perfil Astrologico com disclaimer sempre visivel).
+- [x] 34 testes novos (`test_signo_solar_rules.py`, `test_bigfive_agent.py`, `test_orquestrador_bigfive.py`, `test_client_intelligence_nascimento.py`, `test_perfil_astrologico_helper.py`). Suite completa sem regressao.
+- **Fora de escopo deliberado**: questionario de autoavaliacao do vendedor, mapa natal/efemerides, exibicao em tempo real na extensao Chrome, motor de compatibilidade entre pessoas.
+- **Pendente**: deploy na VPS (aditivo — 2 colunas nullable em `client_profiles`, sem migracao em `MeetingMemory`); validar em producao com uma reuniao real onde o cliente menciona o proprio aniversario.
+
 ## Pendente
 
 - [ ] **Debito tecnico (achado 05/09/2026, fora de escopo)**: migrar `google.generativeai` (totalmente descontinuado pelo Google) para `google.genai`, e `claude-sonnet-4-20250514` (EOL 15/06/2026) para um modelo Anthropic atual.

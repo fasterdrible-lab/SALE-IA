@@ -3,6 +3,108 @@
 
 ---
 
+## V.1.4.71 — Big Five + Astrologia opcional: entender por que o cliente respondeu daquela forma
+> Data: 09/09/2026 | Local + a deployar
+
+### CONTEXTO
+Usuário colou um spec de 60 tarefas para um "Módulo de Perfil Integrado"
+(plataforma de autoconhecimento do vendedor: questionários Big Five/DISC,
+astrologia com mapa natal, comparação entre pessoas). Depois de discussão,
+o pedido real era bem mais enxuto e sobre o **cliente**, não o vendedor:
+treinar a SALEIA para entender melhor *por que* o cliente respondeu de
+determinada forma ou fez uma objeção — cruzando DISC (já existe), uma
+nova camada de Big Five inferida da conversa (sem questionário) e,
+quando dia/mês de nascimento surgirem naturalmente na conversa (ex.: papo
+de aniversário no rapport — nunca perguntado, nunca inventado), uma
+camada de astrologia (signo solar). Astrologia nunca ajusta os scores de
+DISC/Big Five — garantido por construção, não só por instrução de prompt.
+
+### BIG FIVE — 5º agente em tempo real
+- `agent/multiagente/bigfive_agent.py` + `agent/prompt_templates/
+  multiagente_bigfive.txt` (novo) — espelha exatamente `disc_agent.py`:
+  infere Abertura/Conscienciosidade/Extroversão/Amabilidade/Estabilidade
+  emocional (0-100) a partir do comportamento na conversa, nunca de
+  questionário. `feature=ai_features.REALTIME_BIGFIVE` (novo) — cost
+  tracking "Por Feature" de graça, sem código extra.
+- `agent/multiagente/orquestrador.py`: 5º agente paralelo (`asyncio.
+  gather`), atrás do kill-switch `BIGFIVE_AGENT_ENABLED` (default
+  `true`) — quando `false`, a coroutine nem é criada (zero custo extra,
+  não só resultado ignorado). `_mesclar()` ganha `perfil_bigfive`.
+- `api/processador_tempo_real.py`/`api/database.py::
+  registrar_analise_meeting()`: `perfil_bigfive` persiste em
+  `MeetingMemory.current_diagnosis` (reuso do campo JSON existente, sem
+  coluna nova) e volta pro próximo ciclo — como `{diagnostico_atual}` já
+  é lido por Coach e Closer, o Big Five passa a enriquecer o raciocínio
+  deles automaticamente no ciclo seguinte, sem plumbing extra.
+
+### ASTROLOGIA OPCIONAL — signo solar, nunca mapa natal
+- `agent/signo_solar_rules.py` (novo) — função pura `calcular_signo(dia,
+  mes)`, mesmo padrão de `propensao_rules.py` (zero IA, zero rede, zero
+  biblioteca de efemérides). Base dos 12 signos (elemento, modalidade,
+  regência, arquétipo, comunicação, motivadores, pontos fortes/atenção)
+  estruturada a partir do próprio conteúdo detalhado que o usuário
+  forneceu no spec original.
+- Dia/mês só é usado quando o cliente menciona espontaneamente na
+  conversa — `PROMPT_RECAPITULACAO` (`api/main.py`) ganha o campo
+  `data_nascimento_mencionada` (extraído 1x, na mesma chamada de IA que
+  já existia, sem custo novo; regra explícita "nunca pergunte, nunca
+  invente, retorne null se ausente").
+- `client_profiles` ganha `data_nascimento_dia`/`data_nascimento_mes`
+  (nullable) — `agent/client_intelligence.py::salvar_nascimento_cliente()`
+  só grava se a coluna ainda for `NULL` (nunca sobrescreve, evita
+  flip-flop de extração ruidosa numa reunião futura). `obter_cliente()`
+  passa a anexar `perfil_astrologico` automaticamente — aparece de graça
+  no card "Resumo do Cliente" (V.1.4.67), sem tocar no endpoint.
+- **Garantia por construção, não só por prompt**: nem `multiagente_disc.
+  txt` nem `multiagente_bigfive.txt` têm um placeholder de substituição
+  que traga dado de signo/astrologia como entrada — astrologia é
+  processada só depois, no relatório final, por um módulo (`signo_solar_
+  rules.py`) que não importa nada de IA. Teste de guarda arquitetural
+  confirma isso estaticamente (grep nos prompts + inspeção do módulo).
+
+### "POR QUE ESSA OBJEÇÃO ACONTECEU" — síntese comportamental
+`PROMPT_RECAPITULACAO` ganha 2 campos aditivos (mesma chamada de IA,
+`objecoes_levantadas` — lista de strings — **nunca muda de tipo**, para
+não repetir a classe de bug "[object Object]" já corrigida antes no
+projeto, já que essa lista renderiza em pelo menos 4 lugares diferentes
+de `dashboard.html`):
+- `objecoes_com_motivo`: `[{objecao, motivo_provavel}]` — lista paralela
+  nova, cruzando DISC+Big Five para explicar a causa de cada objeção.
+- `sintese_comportamental`: `{resumo, convergencias[], divergencias[],
+  usa_astrologia}` — astrologia só entra como comentário narrativo
+  complementar, nunca como evidência de peso igual a DISC/Big Five.
+
+### DASHBOARD — `frontend/dashboard.html::verDetalhe()`
+4 cards novos e aditivos: "🧬 Perfil Big Five" (5 barras), "🔍 Por que
+essas objeções aconteceram", "✨ Síntese Comportamental" e "♈ Perfil
+Astrológico" (só renderiza quando há dado real; disclaimer fixo sempre
+visível, nunca escondido em tooltip).
+
+### TESTES
+34 testes novos: `test_signo_solar_rules.py` (13, inclui guarda
+arquitetural), `test_bigfive_agent.py` (3), `test_orquestrador_bigfive.py`
+(4), `test_client_intelligence_nascimento.py` (6), `test_perfil_
+astrologico_helper.py` (5), mais os já existentes. Suite completa sem
+regressão.
+
+### VERSÃO
+- Backend: `1.4.70` → `1.4.71` (`/health`, `/monitor/metricas`).
+
+### FORA DE ESCOPO (DELIBERADO)
+Questionário de autoavaliação do vendedor, mapa natal/efemérides/hora e
+local de nascimento, exibição em tempo real do astrológico na extensão
+Chrome, motor de compatibilidade entre duas pessoas — o pedido real era
+sobre entender o cliente numa call, não um produto de autoconhecimento.
+
+### O QUE FALTA
+- Deploy na VPS — aditivo (1 tabela nova `client_profiles` ganha 2
+  colunas nullable; `MeetingMemory` sem migração, reusa campo existente).
+- Validar em produção real: uma reunião onde o cliente menciona o
+  próprio aniversário, confirmar `perfil_astrologico` aparecendo
+  corretamente no relatório.
+
+---
+
 ## V.1.4.70 — Workspace Comercial — Sales Brain Fase 7.1
 > Data: 09/09/2026 | Local + a deployar
 

@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.70** (backend, local — ainda não deployada; produção confirmada em V.1.4.63) · extensão Chrome **V.1.4.5** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.71** (backend, local — ainda não deployada; produção confirmada em V.1.4.63) · extensão Chrome **V.1.4.5** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -486,6 +486,66 @@ follow-up trivial, mesma função.
   ?q=...` (ou a barra de busca na aba Workspace).
 - **Ver como duas entidades se conectam**: `GET /grafo/conexoes/{tipo}
   /{id}` (`tipo` em `cliente|reuniao|memoria|playbook|skill`).
+
+## Big Five + Astrologia opcional (V.1.4.71, local)
+
+Extensão do motor multiagente — **não** o produto de autoconhecimento do
+vendedor que um spec de 60 tarefas colado pelo usuário originalmente
+descrevia. Escopo real, confirmado com o usuário: entender melhor *por
+que o cliente* respondeu de determinada forma ou fez uma objeção numa
+call de vendas.
+
+- **`agent/multiagente/bigfive_agent.py`** (5º agente em tempo real,
+  mesmo padrão de `disc_agent.py`): infere as 5 dimensões do Big Five
+  **do cliente**, a partir do comportamento na conversa — nunca
+  questionário, nunca recebe astrologia como entrada. Atrás do
+  kill-switch `BIGFIVE_AGENT_ENABLED` (env, default `true`) —
+  `agent/multiagente/orquestrador.py::bigfive_agent_ativo()` controla
+  se a coroutine é criada; quando `false`, o agente nem é instanciado
+  (zero custo de IA extra, não só resultado descartado). `+1 chamada de
+  IA por ciclo de tempo real (~+25%)` quando ativo — pese isso antes de
+  reativar em produção se o custo dos 4 provedores centrais voltar a
+  ser um problema.
+- **`perfil_bigfive` persiste em `MeetingMemory.current_diagnosis`**
+  (reuso do campo JSON existente — `api/database.py::
+  registrar_analise_meeting()`, sem coluna nova) — como
+  `{diagnostico_atual}` já é lido pelos prompts de Coach e Closer, o
+  Big Five realimenta o raciocínio deles automaticamente no ciclo
+  seguinte, sem nenhum plumbing extra.
+- **Astrologia — só signo solar, nunca mapa natal**: `agent/
+  signo_solar_rules.py` (função pura, mesmo padrão de
+  `propensao_rules.py` — zero IA, zero rede, zero biblioteca de
+  efemérides). O dia/mês de nascimento **nunca é perguntado** — só
+  usado quando o cliente menciona espontaneamente (ex.: papo de
+  aniversário no rapport), extraído **uma vez por reunião** dentro da
+  mesma chamada de `PROMPT_RECAPITULACAO` (campo
+  `data_nascimento_mencionada`, sem chamada de IA extra). `client_
+  profiles` ganha `data_nascimento_dia`/`_mes` (nullable) —
+  `salvar_nascimento_cliente()` só grava se a coluna ainda for `NULL`
+  (nunca sobrescreve). `obter_cliente()` anexa `perfil_astrologico`
+  automaticamente, então já aparece de graça no card "Resumo do
+  Cliente" (V.1.4.67) sem tocar naquele endpoint.
+- **Garantia por construção, não só por instrução de prompt**: nenhum
+  dos prompts `multiagente_disc.txt`/`multiagente_bigfive.txt` tem um
+  placeholder de substituição trazendo signo/astrologia como entrada —
+  astrologia só é processada depois, no relatório final, por um módulo
+  que não importa nada de IA. `tests/test_signo_solar_rules.py::
+  GuardaArquiteturalTest` confirma isso estaticamente (grep nos prompts
+  + inspeção de imports) — nunca confie só no texto do prompt pedindo
+  pra IA ignorar astrologia.
+- **`objecoes_com_motivo`/`sintese_comportamental`**: campos aditivos no
+  `PROMPT_RECAPITULACAO`, cruzando DISC+Big Five para explicar a causa
+  de cada objeção. **`recapitulacao_estrategica.objecoes_levantadas`
+  (lista de strings) nunca mudou de tipo** — renderiza em pelo menos 4
+  lugares de `dashboard.html`; trocar pra lista de objetos ali
+  repetiria a classe de bug "[object Object]" já corrigida antes no
+  projeto (V.1.3.x). Se precisar estender a causa de uma objeção no
+  futuro, sempre em campo novo, nunca mudando o tipo de um existente.
+- Astrologia na síntese comportamental é sempre comentário narrativo
+  complementar (regra explícita no prompt: "na interpretação
+  astrológica...") — nunca evidência de peso igual a DISC/Big Five, e
+  `sintese_comportamental.usa_astrologia` fica `false` quando não há
+  dado de nascimento.
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

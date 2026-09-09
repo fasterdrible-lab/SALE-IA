@@ -69,6 +69,8 @@ def criar_tabelas_clientes() -> None:
                     total_reunioes       INT          NOT NULL DEFAULT 0,
                     status_negociacao    VARCHAR(30)  NOT NULL DEFAULT 'ativo',
                     notas                TEXT,
+                    data_nascimento_dia  TINYINT      NULL DEFAULT NULL,
+                    data_nascimento_mes  TINYINT      NULL DEFAULT NULL,
                     created_at           DATETIME     NOT NULL,
                     updated_at           DATETIME     NOT NULL,
                     INDEX idx_nome   (nome),
@@ -91,6 +93,54 @@ def criar_tabelas_clientes() -> None:
         logger.info("✅ Tabelas client_profiles e client_meetings verificadas/criadas.")
     except Exception as e:
         logger.error("❌ Erro ao criar tabelas de clientes: %s", e)
+
+
+def migrar_colunas_client_profiles():
+    """Adiciona as colunas de dia/mês de nascimento a client_profiles se
+    ainda não existirem (bases criadas antes desta versão). Dado usado só
+    para a camada opcional de astrologia (signo solar) — nunca perguntado
+    diretamente ao cliente, só extraído quando mencionado naturalmente na
+    conversa (ver PROMPT_RECAPITULACAO em api/main.py)."""
+    alteracoes = [
+        "ALTER TABLE client_profiles ADD COLUMN data_nascimento_dia TINYINT NULL DEFAULT NULL",
+        "ALTER TABLE client_profiles ADD COLUMN data_nascimento_mes TINYINT NULL DEFAULT NULL",
+    ]
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            for sql in alteracoes:
+                try:
+                    cur.execute(sql)
+                    conn.commit()
+                except Exception:
+                    # coluna já existe — ignorar
+                    conn.rollback()
+        conn.close()
+        logger.info("[Clientes] Colunas data_nascimento_dia/mes verificadas.")
+    except Exception as e:
+        logger.error("[Clientes] Erro ao migrar colunas de nascimento: %s", e)
+
+
+def salvar_nascimento_cliente(client_id: str, dia: int, mes: int) -> bool:
+    """Grava dia/mês de nascimento do cliente — só se ainda não estiver
+    definido (nunca sobrescreve; evita flip-flop de uma extração ruidosa
+    numa reunião futura). Retorna True se gravou."""
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE client_profiles SET data_nascimento_dia = %s, data_nascimento_mes = %s, "
+                "updated_at = %s WHERE id = %s AND data_nascimento_dia IS NULL",
+                (int(dia), int(mes), datetime.now(), client_id),
+            )
+            affected = cur.rowcount
+        conn.close()
+        if affected:
+            logger.info("[Clientes] Nascimento (dia/mes) salvo para cliente %s.", client_id)
+        return affected > 0
+    except Exception as e:
+        logger.error("[Clientes] Erro ao salvar nascimento do cliente %s: %s", client_id, e)
+        return False
 
 
 # ─────────────────────────────────────────────────────────
@@ -492,4 +542,19 @@ def _deserializar_cliente(row: dict, reunioes: list = None) -> dict:
             if isinstance(r.get("data"), datetime):
                 r["data"] = r["data"].isoformat()
         row["reunioes"] = reunioes
+
+    # Astrologia opcional (signo solar) — só presente quando dia/mês de
+    # nascimento foram naturalmente mencionados em alguma reunião e
+    # extraídos por PROMPT_RECAPITULACAO (api/main.py). Nunca substitui
+    # nem ajusta disc_profile.
+    dia, mes = row.get("data_nascimento_dia"), row.get("data_nascimento_mes")
+    row["perfil_astrologico"] = None
+    if dia and mes:
+        try:
+            from agent.signo_solar_rules import calcular_signo, obter_perfil_signo
+            signo = calcular_signo(dia, mes)
+            if signo:
+                row["perfil_astrologico"] = obter_perfil_signo(signo)
+        except Exception:
+            row["perfil_astrologico"] = None
     return row

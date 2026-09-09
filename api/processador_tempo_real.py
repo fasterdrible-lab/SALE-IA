@@ -393,6 +393,7 @@ def _normalizar_resposta_realtime(resultado: dict | str | None, memoria: Optiona
     resultado["mapa_financeiro"] = mapa_merged
     resultado["historico_resumido"] = resultado.get("resumo_vivo") or resultado.get("historico_resumido") or ""
     resultado.setdefault("perfil_disc", resultado.get("perfil_disc") or {})
+    resultado.setdefault("perfil_bigfive", resultado.get("perfil_bigfive") or {})
     resultado.setdefault("temperatura", resultado.get("temperatura") or {})
     resultado.setdefault("objecao_detectada", resultado.get("objecao_detectada") or {})
     resultado.setdefault("dado_esquecido", resultado.get("dado_esquecido"))
@@ -554,6 +555,7 @@ async def analyzeRealtimeMeeting(
             client_context=client_context,
             usuario_id=usuario_id,
             meeting_id=meeting_id,
+            perfil_bigfive_atual=(diagnostico_atual or {}).get("perfil_bigfive") or {},
         )
     except Exception as _e:
         logger.exception("[TempoReal] Falha ao analisar fragmento: %s", _e)

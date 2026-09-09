@@ -10,6 +10,7 @@ REALTIME_COACH = "realtime.coach"
 REALTIME_DISC = "realtime.disc"
 REALTIME_FINANCE = "realtime.finance"
 REALTIME_CLOSER = "realtime.closer"
+REALTIME_BIGFIVE = "realtime.bigfive"
 REALTIME_RECAP_VIVA = "realtime.recap_viva"
 REALTIME_CLAUDE_ACCOUNT_FALLBACK = "realtime.claude_account_fallback"
 

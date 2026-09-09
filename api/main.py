@@ -327,8 +327,9 @@ async def on_startup():
     except Exception as e:
         logger.warning("Tabela skills não criada: %s", e)
     try:
-        from agent.client_intelligence import criar_tabelas_clientes
+        from agent.client_intelligence import criar_tabelas_clientes, migrar_colunas_client_profiles
         criar_tabelas_clientes()
+        migrar_colunas_client_profiles()
     except Exception as e:
         logger.warning("Tabelas de clientes não criadas: %s", e)
     try:
@@ -558,6 +559,37 @@ Retorne APENAS um JSON válido (sem markdown):
   "momento_reuniao": "abertura|desenvolvimento|negociação|fechamento|resistência"
 }"""
 
+def _processar_perfil_astrologico(resultado: dict, meeting_id: str) -> None:
+    """Astrologia opcional (signo solar): se o cliente mencionou dia/mês de
+    nascimento na conversa (PROMPT_RECAPITULACAO extrai isso, nunca
+    pergunta), calcula o signo e anexa a resultado['perfil_astrologico'] —
+    nunca ajusta perfil_disc/perfil_bigfive, que já foram calculados antes
+    e de forma independente. Se a reunião tem cliente vinculado, persiste
+    o dado (só uma vez — salvar_nascimento_cliente nunca sobrescreve).
+    Síncrono e sem custo de IA — roda antes da resposta ser devolvida."""
+    resultado["perfil_astrologico"] = None
+    nascimento = resultado.get("data_nascimento_mencionada")
+    if not isinstance(nascimento, dict):
+        return
+    dia, mes = nascimento.get("dia"), nascimento.get("mes")
+    try:
+        from agent.signo_solar_rules import calcular_signo, obter_perfil_signo
+        signo = calcular_signo(dia, mes)
+        if not signo:
+            return
+        resultado["perfil_astrologico"] = obter_perfil_signo(signo)
+    except Exception as e:
+        logger.debug("[Astrologia] Falha ao calcular signo: %s", e)
+        return
+    try:
+        from agent.client_intelligence import buscar_cliente_por_reuniao, salvar_nascimento_cliente
+        client_id = buscar_cliente_por_reuniao(meeting_id)
+        if client_id:
+            salvar_nascimento_cliente(client_id, dia, mes)
+    except Exception as e:
+        logger.debug("[Astrologia] Falha ao persistir nascimento do cliente: %s", e)
+
+
 PROMPT_RECAPITULACAO = """Você é SALEIA, especialista em recapitulação de reuniões de vendas consultivas.
 
 Gere uma recapitulação completa e estratégica da reunião com base na transcrição.
@@ -586,6 +618,33 @@ REGRAS PARA O BLOCO "propensao" (classificação de propensão de compra):
   compra, Engajamento, Próximo passo e Objeções.
 - Nunca inclua raciocínio interno, apenas fatores/evidências/conclusões.
 
+REGRAS PARA "data_nascimento_mencionada":
+- Preencha SOMENTE se o cliente mencionar explicitamente dia e mês do
+  próprio aniversário/nascimento na conversa (ex.: papo de rapport).
+  NUNCA pergunte, NUNCA infira, NUNCA invente — se não houver menção
+  clara e literal, retorne null.
+
+REGRAS PARA "perfil_bigfive" (inferência comportamental, não questionário):
+- Mesma lógica do DISC: infira as 5 dimensões (0-100) a partir de COMO o
+  cliente se comportou na conversa, nunca do signo/astrologia. Se não
+  houver evidência suficiente para uma dimensão, é preferível um valor
+  neutro (50) com confiança "baixa" do que forçar um extremo sem base.
+
+REGRAS PARA "objecoes_com_motivo" e "sintese_comportamental":
+- Para cada objeção real (mesmas objeções de objecoes_levantadas),
+  explique a causa provável cruzando DISC + Big Five já calculados acima
+  — cite o traço comportamental que explica a objeção, nunca invente uma
+  causa genérica.
+- "sintese_comportamental.convergencias"/"divergencias" comparam DISC e
+  Big Five entre si (nunca astrologia como evidência de convergência).
+- Astrologia (quando "data_nascimento_mencionada" não for null) só pode
+  aparecer na síntese como comentário narrativo complementar, sempre
+  introduzido por "na interpretação astrológica..." ou equivalente —
+  nunca como evidência de peso igual a DISC/Big Five, e nunca alterando
+  os valores numéricos de "perfil_bigfive" ou "perfil_disc". Se
+  "data_nascimento_mencionada" for null, defina "usa_astrologia": false
+  e não mencione astrologia em nenhum texto.
+
 Retorne APENAS um JSON válido (sem markdown):
 {
   "resumo_executivo": "3 linhas resumindo o essencial",
@@ -612,6 +671,24 @@ Retorne APENAS um JSON válido (sem markdown):
     "tipo": "D|I|S|C",
     "descricao": "como o perfil se manifestou",
     "estrategia_fechamento": "melhor abordagem para fechar com este perfil"
+  },
+  "perfil_bigfive": {
+    "abertura": 0,
+    "conscienciosidade": 0,
+    "extroversao": 0,
+    "amabilidade": 0,
+    "estabilidade_emocional": 0,
+    "confianca": "alta|media|baixa"
+  },
+  "data_nascimento_mencionada": {"dia": 0, "mes": 0},
+  "objecoes_com_motivo": [
+    {"objecao": "objeção real levantada", "motivo_provavel": "causa comportamental, citando DISC/Big Five"}
+  ],
+  "sintese_comportamental": {
+    "resumo": "1-3 linhas cruzando DISC e Big Five",
+    "convergencias": ["pontos onde DISC e Big Five apontam na mesma direção"],
+    "divergencias": ["pontos onde DISC e Big Five divergem, sem tentar corrigir um pelo outro"],
+    "usa_astrologia": false
   },
   "proximos_passos": [
     {
@@ -670,7 +747,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.70",
+        "versao":              "1.4.71",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -708,7 +785,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.70",
+        "versao":          "1.4.71",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -986,6 +1063,7 @@ def recapitulacao_completa(req: RecapitulacaoRequest, background_tasks: Backgrou
         from agent.playbook_generator import _eh_reuniao_de_sucesso, gerar_e_salvar_playbook
         from agent.semantic_search import indexar_relatorio, indexar_transcricao
         meeting_id = req.meeting_id or f"completa_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        _processar_perfil_astrologico(resultado, meeting_id)
         background_tasks.add_task(extrair_e_salvar_memorias, resultado, req.transcricao, meeting_id)
         if _eh_reuniao_de_sucesso(resultado, meeting_id):
             background_tasks.add_task(gerar_e_salvar_playbook, resultado, req.transcricao, meeting_id)
@@ -2027,6 +2105,12 @@ def recapitulacao_manual(req: RecapitulacaoRequest, background_tasks: Background
     global ultimo_relatorio
     ultimo_relatorio = resultado
 
+    meeting_id_manual = req.meeting_id or f"manual_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    try:
+        _processar_perfil_astrologico(resultado, meeting_id_manual)
+    except Exception as e:
+        logger.warning("Não foi possível processar perfil astrológico: %s", e)
+
     # Salvar em arquivo
     try:
         import unicodedata, re
@@ -2043,7 +2127,7 @@ def recapitulacao_manual(req: RecapitulacaoRequest, background_tasks: Background
         from agent.knowledge_extractor import extrair_e_salvar_memorias
         from agent.playbook_generator import _eh_reuniao_de_sucesso, gerar_e_salvar_playbook
         from agent.semantic_search import indexar_relatorio, indexar_transcricao
-        meeting_id = req.meeting_id or f"manual_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        meeting_id = meeting_id_manual
         background_tasks.add_task(extrair_e_salvar_memorias, resultado, req.transcricao, meeting_id)
         if _eh_reuniao_de_sucesso(resultado, meeting_id):
             background_tasks.add_task(gerar_e_salvar_playbook, resultado, req.transcricao, meeting_id)

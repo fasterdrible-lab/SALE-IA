@@ -665,6 +665,7 @@ def registrar_analise_meeting(meeting_id: str, analise: dict) -> dict:
     diagnostico_atual = {
         "alerta_urgente": analise.get("alerta_urgente"),
         "perfil_disc": analise.get("perfil_disc"),
+        "perfil_bigfive": analise.get("perfil_bigfive"),
         "mapa_financeiro": analise.get("mapa_financeiro"),
         "temperatura": analise.get("temperatura"),
         "proxima_fala": analise.get("proxima_fala"),

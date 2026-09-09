@@ -4458,6 +4458,72 @@
     }
     html += `</div>`;
 
+    // Big Five (inferência comportamental, nunca ajustada por astrologia)
+    // + "por que essas objeções aconteceram" + síntese comportamental +
+    // perfil astrológico opcional — entendimento humano do cliente.
+    const bigfive = dados.perfil_bigfive || recap.perfil_bigfive || {};
+    if (bigfive && Object.keys(bigfive).length) {
+      const dims = [
+        ['Abertura', bigfive.abertura], ['Conscienciosidade', bigfive.conscienciosidade],
+        ['Extroversão', bigfive.extroversao], ['Amabilidade', bigfive.amabilidade],
+        ['Estabilidade emocional', bigfive.estabilidade_emocional],
+      ];
+      html += `<div class="info-card" style="margin-bottom:16px">
+        <h3>🧬 Perfil Big Five <span style="font-size:.72rem;color:var(--muted);font-weight:400">(inferência comportamental)</span></h3>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+          ${dims.map(([label, valor]) => {
+            const v = Number(valor || 0);
+            return `<div>
+              <div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:2px">
+                <span>${label}</span><span style="color:var(--muted)">${v || '–'}</span>
+              </div>
+              <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden">
+                <div style="background:var(--primary);height:100%;width:${Math.max(0,Math.min(100,v))}%"></div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    }
+
+    const objecoesComMotivo = dados.objecoes_com_motivo || recap.objecoes_com_motivo || [];
+    if (objecoesComMotivo.length) {
+      html += `<div class="info-card" style="margin-bottom:16px">
+        <h3>🔍 Por que essas objeções aconteceram</h3>
+        ${objecoesComMotivo.map(o => `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+          <div style="font-weight:600;font-size:.88rem">${escHtml(o.objecao || '')}</div>
+          <div style="color:#cbd5e1;font-size:.82rem;margin-top:2px">${escHtml(o.motivo_provavel || '')}</div>
+        </div>`).join('')}
+      </div>`;
+    }
+
+    const sintese = dados.sintese_comportamental || recap.sintese_comportamental || {};
+    if (sintese.resumo || sintese.convergencias?.length || sintese.divergencias?.length) {
+      html += `<div class="info-card" style="margin-bottom:16px">
+        <h3>✨ Síntese Comportamental</h3>
+        ${sintese.resumo ? `<p style="color:#cbd5e1;margin-top:6px">${escHtml(sintese.resumo)}</p>` : ''}
+        ${sintese.convergencias?.length ? `<div style="margin-top:8px"><strong style="color:#2dd4bf;font-size:.82rem">✓ Convergências</strong><ul style="margin:4px 0 0 18px;padding:0">${sintese.convergencias.map(c=>`<li>${escHtml(c)}</li>`).join('')}</ul></div>` : ''}
+        ${sintese.divergencias?.length ? `<div style="margin-top:8px"><strong style="color:#fbbf24;font-size:.82rem">↔ Divergências</strong><ul style="margin:4px 0 0 18px;padding:0">${sintese.divergencias.map(d=>`<li>${escHtml(d)}</li>`).join('')}</ul></div>` : ''}
+      </div>`;
+    }
+
+    const astro = dados.perfil_astrologico || null;
+    if (astro && astro.nome) {
+      html += `<div class="info-card" style="margin-bottom:16px;border-color:#a78bfa33">
+        <h3>${escHtml(astro.simbolo || '♈')} Perfil Astrológico — ${escHtml(astro.nome)}</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;font-size:.8rem;color:var(--muted)">
+          <span>${escHtml(astro.periodo || '')}</span>
+          <span>${escHtml(astro.elemento_info?.emoji || '')} ${escHtml(astro.elemento || '')}</span>
+          <span>${escHtml(astro.modalidade || '')}</span>
+          <span>Regente: ${escHtml(astro.regente || '')}</span>
+        </div>
+        <div style="color:#a78bfa;font-weight:600;font-size:.85rem">Arquétipo: ${escHtml(astro.arquetipo || '')}</div>
+        ${astro.comunicacao ? `<p style="color:#cbd5e1;margin-top:8px;font-size:.85rem"><strong>Comunicação:</strong> ${escHtml(astro.comunicacao)}</p>` : ''}
+        ${astro.motivadores?.length ? `<p style="color:#cbd5e1;margin-top:4px;font-size:.85rem"><strong>Motivadores:</strong> ${astro.motivadores.map(escHtml).join(', ')}</p>` : ''}
+        <p style="color:var(--muted);font-size:.72rem;margin-top:10px;font-style:italic">${escHtml(astro.disclaimer || '')}</p>
+      </div>`;
+    }
+
     // Resultado da reunião (Fase 6 do PROMPT MESTRE — Retrieval V2/outcome):
     // aqui é onde o vendedor já está olhando o relatório inteiro logo após
     // a reunião — ponto de menor fricção pra registrar o resultado, ao
