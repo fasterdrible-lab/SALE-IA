@@ -21,18 +21,30 @@ logging.disable(logging.CRITICAL)
 # Helpers para montar respostas fake da IA
 # ─────────────────────────────────────────────
 
-def _make_ai_response(**nbq_override) -> dict:
-    """Monta resposta mínima válida da IA com next_best_question."""
-    nbq = {
-        "question": "Quanto esse problema está custando por mês?",
+def _make_ai_response(**nba_override) -> dict:
+    """Monta resposta mínima válida da IA com next_best_action.
+
+    Desde a V.1.4.28, next_best_question NUNCA é preservado diretamente da
+    IA — api/processador_tempo_real.py::_normalizar_resposta_realtime
+    sempre o regenera a partir de next_best_action via _nba_para_nbq()
+    (next_best_question virou só um alias de backward-compat). Por isso o
+    fake da IA precisa popular next_best_action, não next_best_question,
+    para os testes exercitarem o caminho real (ver CLAUDE.md, seção
+    "Arquitetura do Motor de Análise").
+    """
+    nba = {
+        "type": "question",
         "category": "impacto_financeiro",
+        "title": "Aprofundar impacto",
+        "message": "Quanto esse problema está custando por mês?",
         "objective": "Quantificar a dor",
         "reason": "Cliente mencionou perda de produtividade sem valor.",
-        "expected_score_impact": "+8",
-        "urgency_level": "medium",
-        "follow_up_question": "E se continuar por 6 meses?",
+        "expected_effect": "Cliente quantifica o custo do problema",
+        "risk_if_ignored": "Conversa sem urgência mensurável",
+        "follow_up": "E se continuar por 6 meses?",
+        "confidence": 0.6,
     }
-    nbq.update(nbq_override)
+    nba.update(nba_override)
     return {
         "status": "updated",
         "resumo_vivo": "Cliente tem dor operacional.",
@@ -46,7 +58,7 @@ def _make_ai_response(**nbq_override) -> dict:
         "objecao_detectada": {"objecao": None, "resposta_pronta": None},
         "dado_esquecido": None,
         "score_compra": {"valor": 45, "justificativa": "Dor identificada, sem fechamento."},
-        "next_best_question": nbq,
+        "next_best_action": nba,
         "eventos": [],
         "key_moments": [],
         "current_diagnosis": {},
@@ -88,38 +100,41 @@ class TestNBQFallback(unittest.TestCase):
 # ─────────────────────────────────────────────
 
 class TestNBQNormalizacao(unittest.TestCase):
-    """Verifica que _normalizar_resposta_realtime preenche next_best_question."""
+    """Verifica que _normalizar_resposta_realtime deriva next_best_question
+    a partir de next_best_action (mapeamento feito por _nba_para_nbq —
+    next_best_question é só um alias de backward-compat desde a V.1.4.28,
+    nunca preservado diretamente do que a IA mandou nesse campo)."""
 
     def setUp(self):
         from api.processador_tempo_real import _normalizar_resposta_realtime, _fallback_next_best_question
         self._normalizar = _normalizar_resposta_realtime
         self._fallback_q = _fallback_next_best_question()["question"]
 
-    # Cenário 1: IA retornou next_best_question válido → deve preservar
-    def test_cenario_1_nbq_valido_preservado(self):
-        ai = _make_ai_response(category="impacto_financeiro", question="Qual o custo mensal?")
+    # Cenário 1: IA retornou next_best_action válido → nbq é derivado dele
+    def test_cenario_1_nbq_derivado_do_nba_valido(self):
+        ai = _make_ai_response(category="impacto_financeiro", message="Qual o custo mensal?")
         resultado = self._normalizar(ai, None, {})
         self.assertEqual(resultado["next_best_question"]["question"], "Qual o custo mensal?")
         self.assertEqual(resultado["next_best_question"]["category"], "impacto_financeiro")
 
-    # Cenário 2: IA retornou next_best_question ausente → deve usar fallback
-    def test_cenario_2_nbq_ausente_usa_fallback(self):
+    # Cenário 2: IA retornou next_best_action ausente → deve usar fallback
+    def test_cenario_2_nba_ausente_usa_fallback(self):
         ai = _make_ai_response()
-        del ai["next_best_question"]
+        del ai["next_best_action"]
         resultado = self._normalizar(ai, None, {})
         self.assertIn("next_best_question", resultado)
         self.assertEqual(resultado["next_best_question"]["question"], self._fallback_q)
 
-    # Cenário 3: next_best_question com question vazia → deve usar fallback question
-    def test_cenario_3_nbq_question_vazia_substituida(self):
-        ai = _make_ai_response(question="")
+    # Cenário 3: next_best_action com message vazia → deve usar fallback question
+    def test_cenario_3_nba_message_vazia_substituida(self):
+        ai = _make_ai_response(message="")
         resultado = self._normalizar(ai, None, {})
         self.assertEqual(resultado["next_best_question"]["question"], self._fallback_q)
 
-    # Cenário 4: next_best_question não é dict → deve usar fallback
-    def test_cenario_4_nbq_nao_dict_usa_fallback(self):
+    # Cenário 4: next_best_action não é dict → deve usar fallback
+    def test_cenario_4_nba_nao_dict_usa_fallback(self):
         ai = _make_ai_response()
-        ai["next_best_question"] = "texto invalido"
+        ai["next_best_action"] = "texto invalido"
         resultado = self._normalizar(ai, None, {})
         self.assertEqual(resultado["next_best_question"]["question"], self._fallback_q)
 
@@ -140,26 +155,28 @@ class TestNBQCenariosNegocio(unittest.TestCase):
 
     # Cenário N1: cliente sem dor clara → descoberta_dor
     def test_N1_sem_dor_descoberta(self):
-        ai = _make_ai_response(category="descoberta_dor", question="O que motivou vocês a buscar isso agora?")
+        ai = _make_ai_response(category="descoberta_dor", message="O que motivou vocês a buscar isso agora?")
         r = self._normalizar(ai)
         self.assertEqual(r["next_best_question"]["category"], "descoberta_dor")
 
     # Cenário N2: dor operacional identificada → amplificacao_dor
     def test_N2_dor_operacional_amplificacao(self):
-        ai = _make_ai_response(category="amplificacao_dor", question="Como isso afeta sua equipe no dia a dia?")
+        ai = _make_ai_response(category="amplificacao_dor", message="Como isso afeta sua equipe no dia a dia?")
         r = self._normalizar(ai)
         self.assertEqual(r["next_best_question"]["category"], "amplificacao_dor")
 
     # Cenário N3: objeção de preço → objecao
     def test_N3_objecao_preco(self):
-        ai = _make_ai_response(category="objecao", question="Quando você diz caro, está comparando com o que?")
+        ai = _make_ai_response(category="objecao", message="Quando você diz caro, está comparando com o que?")
         ai["objecao_detectada"] = {"objecao": "Está caro", "resposta_pronta": "..."}
         r = self._normalizar(ai)
         self.assertEqual(r["next_best_question"]["category"], "objecao")
 
-    # Cenário N4: urgência alta → fechamento
+    # Cenário N4: urgência alta → fechamento (confidence >= 0.8 é o que
+    # _nba_para_nbq usa para decidir urgency_level "high" — não é o
+    # score_compra, que fica só de diagnóstico/persistência aqui)
     def test_N4_urgencia_alta_fechamento(self):
-        ai = _make_ai_response(category="fechamento", urgency_level="high", question="Qual seria o melhor prazo pra começar?")
+        ai = _make_ai_response(category="fechamento", confidence=0.85, message="Qual seria o melhor prazo pra começar?")
         ai["score_compra"] = {"valor": 75, "justificativa": "Alta temperatura e score alto."}
         r = self._normalizar(ai)
         self.assertEqual(r["next_best_question"]["category"], "fechamento")
@@ -167,14 +184,14 @@ class TestNBQCenariosNegocio(unittest.TestCase):
 
     # Cenário N5: score baixo → descoberta_dor
     def test_N5_score_baixo_descoberta(self):
-        ai = _make_ai_response(category="descoberta_dor", question="Quais são os maiores desafios hoje?")
+        ai = _make_ai_response(category="descoberta_dor", message="Quais são os maiores desafios hoje?")
         ai["score_compra"] = {"valor": 20, "justificativa": "Pouco contexto."}
         r = self._normalizar(ai)
         self.assertEqual(r["next_best_question"]["category"], "descoberta_dor")
 
     # Cenário N6: score alto → pode ser fechamento
     def test_N6_score_alto_fechamento(self):
-        ai = _make_ai_response(category="fechamento", question="O que falta pra você tomar a decisão hoje?")
+        ai = _make_ai_response(category="fechamento", message="O que falta pra você tomar a decisão hoje?")
         ai["score_compra"] = {"valor": 82, "justificativa": "Alta intenção."}
         r = self._normalizar(ai)
         self.assertEqual(r["next_best_question"]["category"], "fechamento")
@@ -183,7 +200,7 @@ class TestNBQCenariosNegocio(unittest.TestCase):
     def test_N7_disc_c_pergunta_dados(self):
         ai = _make_ai_response(
             category="impacto_financeiro",
-            question="Quais dados você precisaria para validar o ROI dessa decisão?"
+            message="Quais dados você precisaria para validar o ROI dessa decisão?"
         )
         ai["perfil_disc"]["tipo"] = "C"
         r = self._normalizar(ai)
@@ -191,7 +208,7 @@ class TestNBQCenariosNegocio(unittest.TestCase):
 
     # Cenário N8: decisor ausente → autoridade
     def test_N8_sem_decisor_autoridade(self):
-        ai = _make_ai_response(category="autoridade", question="Quem mais está envolvido na decisão?")
+        ai = _make_ai_response(category="autoridade", message="Quem mais está envolvido na decisão?")
         r = self._normalizar(ai)
         self.assertEqual(r["next_best_question"]["category"], "autoridade")
 

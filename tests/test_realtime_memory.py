@@ -1,5 +1,4 @@
 import sys
-import sys
 import json
 import tempfile
 import types
@@ -12,6 +11,7 @@ from sqlmodel import create_engine
 
 from api import database
 from api import processador_tempo_real as realtime
+from agent.multiagente import orquestrador as _orquestrador_module
 
 
 class RealtimeMemoryTest(unittest.IsolatedAsyncioTestCase):
@@ -37,18 +37,18 @@ class RealtimeMemoryTest(unittest.IsolatedAsyncioTestCase):
             },
         )
 
-        fake_ai = types.ModuleType("agent.agente_tempo_real")
-        fake_ai.analisar_fragmento = AsyncMock()
+        # Texto novo curto demais -> _pode_chamar_ia recusa antes de chegar
+        # em analisar_fragmento_multi, então nem precisa mockar a IA aqui;
+        # mockado só para garantir que a chamada de IA real não dispara
+        # (assert_not_awaited abaixo é a prova disso).
         fake_sessao = types.ModuleType("agent.sessao_manager")
         fake_sessao.salvar_analise = lambda *args, **kwargs: None
 
-        with patch.dict(
-            sys.modules,
-            {
-                "agent.agente_tempo_real": fake_ai,
-                "agent.sessao_manager": fake_sessao,
-            },
-        ):
+        with patch.dict(sys.modules, {"agent.sessao_manager": fake_sessao}), \
+             patch.object(
+                _orquestrador_module, "analisar_fragmento_multi",
+                new=AsyncMock(),
+             ) as mock_analisar:
             resultado = await realtime.analyzeRealtimeMeeting(
                 transcricao_parcial="oi",
                 transcricao_nova="oi",
@@ -61,9 +61,18 @@ class RealtimeMemoryTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(resultado["analysis_reason"], "texto_novo_insuficiente")
         self.assertEqual(resultado["resumo_vivo"], "resumo salvo")
         self.assertEqual(resultado["score_compra"]["valor"], 71)
-        fake_ai.analisar_fragmento.assert_not_awaited()
+        mock_analisar.assert_not_awaited()
 
     async def test_calls_ai_and_persists_realtime_analysis(self):
+        # api/processador_tempo_real.py::analyzeRealtimeMeeting chama de
+        # verdade agent.multiagente.orquestrador.analisar_fragmento_multi
+        # (linha ~543) — NUNCA agent.agente_tempo_real (código morto,
+        # substituído pelo orquestrador multiagente, não importado por
+        # nenhum caminho ativo). O mock antigo de agent.agente_tempo_real
+        # não interceptava nada: este teste rodava a chamada de IA REAL
+        # quando executado dentro da suíte completa (achado real de
+        # auditoria, 08/09/2026 — a asserção falhava contra o texto de
+        # verdade gerado pela IA, não contra um valor determinístico).
         mock_result = {
             "recapitulacao": "resumo vivo atualizado",
             "alerta_urgente": "risco moderado",
@@ -73,18 +82,14 @@ class RealtimeMemoryTest(unittest.IsolatedAsyncioTestCase):
             "mapa_financeiro": {"faturamento_mensal": "R$ 40 mil"},
         }
 
-        fake_ai = types.ModuleType("agent.agente_tempo_real")
-        fake_ai.analisar_fragmento = AsyncMock(return_value=mock_result)
         fake_sessao = types.ModuleType("agent.sessao_manager")
         fake_sessao.salvar_analise = lambda *args, **kwargs: None
 
-        with patch.dict(
-            sys.modules,
-            {
-                "agent.agente_tempo_real": fake_ai,
-                "agent.sessao_manager": fake_sessao,
-            },
-        ):
+        with patch.dict(sys.modules, {"agent.sessao_manager": fake_sessao}), \
+             patch.object(
+                _orquestrador_module, "analisar_fragmento_multi",
+                new=AsyncMock(return_value=mock_result),
+             ) as mock_analisar:
             resultado = await realtime.analyzeRealtimeMeeting(
                 transcricao_parcial=(
                     "Cliente explicou a dor principal, o impacto no time, o processo atual, "
@@ -104,9 +109,9 @@ class RealtimeMemoryTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(resultado["resumo_vivo"], "resumo vivo atualizado")
         self.assertEqual(resultado["proxima_fala"], "Pode me confirmar se isso faz sentido?")
         self.assertEqual(resultado["mapa_financeiro"]["faturamento_mensal"], "R$ 40 mil")
-        self.assertEqual(fake_ai.analisar_fragmento.await_count, 1)
+        self.assertEqual(mock_analisar.await_count, 1)
 
-        chamada = fake_ai.analisar_fragmento.await_args.kwargs
+        chamada = mock_analisar.await_args.kwargs
         self.assertEqual(chamada["resumo_vivo"], "Resumo ainda nao disponivel")
         self.assertEqual(chamada["diagnostico_atual"], {})
 
@@ -140,8 +145,14 @@ class RealtimeMemoryTest(unittest.IsolatedAsyncioTestCase):
             },
         }
 
-        fake_ai = types.ModuleType("agent.agente_tempo_real")
-        fake_ai.analisar_fragmento = AsyncMock(return_value=mock_result)
+        # Mesmo achado do teste anterior: analisar_fragmento_multi (não
+        # agent.agente_tempo_real, código morto) é o que precisa ser
+        # mockado para o passo de análise não disparar uma chamada de IA
+        # real. Este teste passava "por sorte" antes — recap_trigger/
+        # recapitulacao_viva vêm só de agent.recapitulacao (mockado
+        # corretamente abaixo), então a chamada real ao orquestrador não
+        # mockada não quebrava a asserção, só desperdiçava tempo/custo real
+        # a cada execução da suíte.
         fake_recap = types.ModuleType("agent.recapitulacao")
         fake_recap.detectRecapTrigger = lambda texto, memoria=None, cooldown_seconds=None: {
             "triggered": True,
@@ -160,10 +171,12 @@ class RealtimeMemoryTest(unittest.IsolatedAsyncioTestCase):
         with patch.dict(
             sys.modules,
             {
-                "agent.agente_tempo_real": fake_ai,
                 "agent.recapitulacao": fake_recap,
                 "agent.sessao_manager": fake_sessao,
             },
+        ), patch.object(
+            _orquestrador_module, "analisar_fragmento_multi",
+            new=AsyncMock(return_value=mock_result),
         ):
             resultado = await realtime.analyzeRealtimeMeeting(
                 transcricao_parcial=(

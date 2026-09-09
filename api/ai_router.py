@@ -421,8 +421,10 @@ def _model(provider: Provider) -> str:
 def _safe_error(error: Exception) -> str:
     message = f"{type(error).__name__}: {error}"
     message = re.sub(r"sk-[A-Za-z0-9_\-]+", "[redacted]", message)
+    message = re.sub(r"AIza[0-9A-Za-z_\-]{35}", "[redacted]", message)  # chave Google/Gemini
     message = re.sub(r"(?i)(api[_-]?key|token|password|secret)=\S+", r"\1=[redacted]", message)
     message = re.sub(r"(?i)(authorization|bearer)\s+[A-Za-z0-9_\-\.]+", r"\1 [redacted]", message)
+    message = re.sub(r"(?i)([?&]key)=\S+", r"\1=[redacted]", message)  # ?key=... (SDK do Gemini)
     if len(message) > ERROR_MAX_LENGTH:
         message = f"{message[:ERROR_MAX_LENGTH]}..."
     return message

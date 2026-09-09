@@ -33,7 +33,7 @@ load_dotenv()
 from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect, Header, Form, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from api.ai_router import chamar_ia, chamar_ia_async, definir_provedor_preferido, rotacionar_provedor_preferido, snapshot_provedores, snapshot_metricas, status_provedores
@@ -114,14 +114,81 @@ app = FastAPI(
 
 app.add_middleware(_CorrelationMiddleware)
 
-# CORS — permite requisições da extensão Chrome (chrome-extension://)
+# CORS — restrito às origens realmente usadas (mesmas do host_permissions
+# de chrome-extension/manifest.json: produção, localhost/127.0.0.1 para dev
+# e túneis ngrok). A extensão Chrome em si (background.js/content.js/
+# popup.js) nunca chama fetch() direto — sempre via chrome.runtime.
+# sendMessage -> background.js, que é isento de CORS por ter host_permissions
+# (confirmado por grep, nenhum fetch() fora de background.js). allow_origins
+# "*" com allow_credentials=True permitia que qualquer site na internet
+# chamasse endpoints anônimos (ex.: /tempo-real, /audio-transcricao) a
+# partir do navegador de qualquer visitante.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://api.saleia.app.br",
+        "http://api.saleia.app.br",
+    ],
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?$|https://[a-zA-Z0-9-]+\.ngrok-free\.(app|dev)$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ── Rate limiting genérico por IP, em memória (mesmo padrão do circuit
+# breaker de api/ai_router.py e do bloqueio de /auth/login acima neste
+# arquivo) — para endpoints anônimos por design que não podem exigir login
+# sem quebrar uso real (extensão sem vendedor logado). ──
+_RATE_LIMIT_CHAMADAS: dict[str, list[float]] = {}
+
+
+def _client_ip(request: Request) -> str:
+    """Prioriza X-Forwarded-For (primeiro hop) quando presente — em produção
+    o Nginx pode estar na frente do uvicorn; sem essa checagem, todo cliente
+    apareceria com o IP do proxy e o limite viraria efetivamente global.
+    Não verificado se o Nginx real da VPS de fato propaga esse header
+    (config não está versionada) — fallback para request.client.host cobre
+    o caso de não propagar."""
+    fwd = request.headers.get("X-Forwarded-For")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "desconhecido"
+
+
+def _validar_magic_bytes(conteudo: bytes, extensao: str) -> None:
+    """Confere a assinatura binária real do arquivo para as extensões que
+    têm um formato binário verificável (PDF, DOCX) — sem depender de uma
+    lib nova (python-magic exigiria libmagic no SO, não testado nesta VPS).
+    TXT/MD/HTML são texto livre por natureza, sem assinatura própria para
+    checar, então continuam validados só pela extensão (como antes).
+    Levanta 415 se o conteúdo não bate com a extensão declarada — acontece
+    quando alguém renomeia um arquivo malicioso/malformado para passar pela
+    checagem de extensão antes de chegar às libs de parsing (achado M3 da
+    auditoria de segurança, 08/09/2026)."""
+    extensao = extensao.lower()
+    if extensao == "pdf":
+        if not conteudo.startswith(b"%PDF-"):
+            raise HTTPException(status_code=415, detail="Arquivo não é um PDF válido (assinatura binária não confere).")
+    elif extensao == "docx":
+        # DOCX é um ZIP (formato OOXML) — assinatura padrão de arquivo ZIP.
+        if not conteudo.startswith(b"PK\x03\x04"):
+            raise HTTPException(status_code=415, detail="Arquivo não é um DOCX válido (assinatura binária não confere).")
+
+
+def _rate_limit_por_ip(request: Request, chave: str, limite: int, janela_segundos: int) -> None:
+    """Levanta 429 se o IP do cliente exceder `limite` chamadas em
+    `janela_segundos` para o recurso `chave`."""
+    ip = _client_ip(request)
+    id_bucket = f"{chave}:{ip}"
+    agora = time.time()
+    janela = _RATE_LIMIT_CHAMADAS.setdefault(id_bucket, [])
+    corte = agora - janela_segundos
+    janela[:] = [t for t in janela if t >= corte]
+    if len(janela) >= limite:
+        raise HTTPException(status_code=429, detail="Muitas requisições. Tente novamente em instantes.")
+    janela.append(agora)
+
 
 # OpenTelemetry — chamado no nível do módulo para que o middleware
 # seja registrado antes da primeira requisição (instrument_app em
@@ -358,7 +425,10 @@ class ExportarBaseRequest(BaseModel):
 
 
 class AudioTranscricaoRequest(BaseModel):
-    audio_base64: str          # formato: "data:audio/webm;base64,XXXX"
+    # ~20MB decodificados (chunk real de 15s fica na casa de centenas de KB;
+    # a margem é generosa de propósito para não quebrar um chunk legítimo
+    # atípico, só bloquear payloads claramente abusivos).
+    audio_base64: str = Field(max_length=28_000_000)
     mime_type: Optional[str] = "audio/webm"
     meeting_id: Optional[str] = "default"
 
@@ -1031,7 +1101,7 @@ def atualizar_status_relatorio(
 ):
     """Define o status de uma reunião: open | won | lost. Marcar como 'won' dispara geração de playbook."""
     _req_auth(authorization)
-    status = (body.get("status") or "").strip().lower()
+    status = str(body.get("status") or "").strip().lower()
     if status not in ("open", "won", "lost"):
         raise HTTPException(status_code=400, detail="Status inválido. Use: open, won ou lost.")
     try:
@@ -1174,18 +1244,18 @@ def listar_clientes_endpoint(
 def criar_cliente_endpoint(body: dict, authorization: str | None = Header(default=None)):
     """Cria um perfil de cliente."""
     _req_auth(authorization)
-    nome = (body.get("nome") or "").strip()
+    nome = str(body.get("nome") or "").strip()
     if not nome:
         raise HTTPException(status_code=400, detail="Campo 'nome' é obrigatório.")
     try:
         from agent.client_intelligence import criar_cliente
         cid = criar_cliente(
             nome=nome,
-            empresa=body.get("empresa") or "",
-            email=body.get("email") or "",
-            telefone=body.get("telefone") or "",
-            disc_profile=body.get("disc_profile") or "",
-            notas=body.get("notas") or "",
+            empresa=str(body.get("empresa") or ""),
+            email=str(body.get("email") or ""),
+            telefone=str(body.get("telefone") or ""),
+            disc_profile=str(body.get("disc_profile") or ""),
+            notas=str(body.get("notas") or ""),
         )
         return {"id": cid, "nome": nome}
     except Exception as e:
@@ -1252,9 +1322,16 @@ def vincular_reuniao_endpoint(
 ):
     """Vincula uma reunião ao cliente e atualiza as estatísticas."""
     _req_auth(authorization)
-    meeting_id = (body.get("meeting_id") or "").strip()
+    meeting_id = str(body.get("meeting_id") or "").strip()
     if not meeting_id:
         raise HTTPException(status_code=400, detail="Campo 'meeting_id' é obrigatório.")
+    # Não força o formato de código do Meet (xxx-xxxx-xxx) porque meeting_id
+    # aqui também aceita IDs de outras origens (ex.: fallback do webhook
+    # Tactiq, "completa_AAAAMMDD_HHMMSS") — só bloqueia caracteres que
+    # permitiriam quebrar fora de um atributo HTML/string JS no dashboard
+    # (achado de auditoria de segurança M1, 08/09/2026).
+    if not re.match(r"^[\w.\-: ]+$", meeting_id):
+        raise HTTPException(status_code=400, detail="meeting_id contém caracteres inválidos.")
     try:
         from agent.client_intelligence import vincular_reuniao
         from datetime import datetime as _dt
@@ -1327,7 +1404,7 @@ def gerar_skill_endpoint(
 ):
     """Gera uma skill via IA a partir de um contexto (playbook, reunião ou texto livre)."""
     _req_auth(authorization)
-    contexto = (body.get("contexto") or "").strip()
+    contexto = str(body.get("contexto") or "").strip()
     if not contexto or len(contexto) < 20:
         raise HTTPException(status_code=400, detail="Campo 'contexto' deve ter pelo menos 20 caracteres.")
     playbook_id = body.get("source_playbook_id")
@@ -1595,7 +1672,7 @@ def atualizar_followup_endpoint(
         return updated
     except HTTPException:
         raise
-    except ValueError as e:
+    except (ValueError, TypeError) as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1996,6 +2073,8 @@ async def adicionar_base(
         conteudo = await arquivo.read()
         if len(conteudo) > 20 * 1024 * 1024:
             raise HTTPException(status_code=413, detail="Arquivo muito grande (máx 20 MB).")
+        ext_arquivo = arquivo.filename.rsplit(".", 1)[-1].lower() if "." in arquivo.filename else ""
+        _validar_magic_bytes(conteudo, ext_arquivo)
         nome_seguro = re.sub(r"[^A-Za-z0-9._-]+", "_", arquivo.filename)[:150]
         arquivo_path = str(PASTA_BASE_ARQUIVOS / f"{uuid.uuid4().hex}_{nome_seguro}")
         with open(arquivo_path, "wb") as f:
@@ -2142,6 +2221,7 @@ async def biblioteca_adicionar_fonte(
         raise HTTPException(status_code=413, detail="Arquivo muito grande (máx 20 MB).")
     if not conteudo:
         raise HTTPException(status_code=400, detail="Arquivo vazio.")
+    _validar_magic_bytes(conteudo, ext)
 
     import hashlib
     content_hash = hashlib.sha256(conteudo).hexdigest()
@@ -2563,14 +2643,21 @@ _TRANSCRICAO_FUNCOES = {
 
 
 @app.post("/audio-transcricao")
-async def audio_transcricao(req: AudioTranscricaoRequest):
+async def audio_transcricao(req: AudioTranscricaoRequest, request: Request):
     """
     Recebe um chunk de áudio (base64, audio/webm) da extensão Chrome e
     transcreve via um dos provedores de _TRANSCRICAO_FUNCOES (OpenAI
     Whisper, Groq, ou Whisper local self-hosted). O provedor ativo é
     controlado pela variável TRANSCRICAO_PROVEDOR no .env.
     Chamado pelo background.js a cada ~15 segundos durante a captura.
+
+    Sem autenticação obrigatória de propósito — a extensão chama isto
+    durante uma reunião mesmo quando o vendedor não está logado (uso
+    anônimo suportado, mesmo padrão de /tempo-real). Em vez de exigir
+    login, limita por IP para conter flood/exaustão financeira.
     """
+    _rate_limit_por_ip(request, "audio-transcricao", limite=40, janela_segundos=60)
+
     import base64
     import tempfile
 

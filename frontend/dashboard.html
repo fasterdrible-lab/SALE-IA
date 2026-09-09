@@ -5200,7 +5200,10 @@
   /* ─── Utilitários ─────────────────────────────────── */
   function escHtml(t) {
     if (typeof t !== 'string') return String(t ?? '');
-    return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    // Escapa também aspas simples — sem isso, um valor com ' quebra fora de
+    // atributos como onclick="fn('${escHtml(x)}')" e injeta JS arbitrário
+    // (achado real de auditoria de segurança, 08/09/2026).
+    return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   async function criarErroHttp(response) {
