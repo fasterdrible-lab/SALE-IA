@@ -1,14 +1,14 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-09 (V.1.4.71, local — **ainda nao deployada na
-VPS**; producao continua em `1.4.63` confirmada via `/health` em
-05/09/2026, ver secao "Sales Brain — Fase 7" e "Big Five + Astrologia
-opcional" abaixo e CHANGELOG.md V.1.4.67-V.1.4.71. O corpo deste
-documento nao acompanhou o CHANGELOG.md entre V.1.4.54 e V.1.4.66; a
-fonte de verdade sempre mais atualizada e o CHANGELOG e o `/health` de
-producao. Cost Intelligence Fases 1-6, Observabilidade Fase 1 e Whisper
-Local seguem concluidas e confirmadas em producao — ver CHANGELOG.md
-V.1.4.55-V.1.4.63 e CLAUDE.md).
+Atualizado em: 2026-09-10 (V.1.4.74, local — produção confirmada em
+`1.4.71`, ver "Deploy" abaixo; V.1.4.74 é o SalesEvidence, Tarefa 1.2 da
+Fase 1 do "SALE-IA V2" — ver seção "SalesEvidence — Fase 1 / Tarefa 1.2"
+abaixo e CHANGELOG.md V.1.4.74. O corpo deste documento nao acompanhou o
+CHANGELOG.md entre V.1.4.54 e V.1.4.66; a fonte de verdade sempre mais
+atualizada e o CHANGELOG e o `/health` de producao. Cost Intelligence
+Fases 1-6, Observabilidade Fase 1 e Whisper Local seguem concluidas e
+confirmadas em producao — ver CHANGELOG.md V.1.4.55-V.1.4.63 e
+CLAUDE.md).
 
 ## Ambiente
 
@@ -553,6 +553,75 @@ perguntado, nunca inventado).
 - **Pendente**: deploy na VPS (aditivo — 2 colunas nullable, sem
   migração em `MeetingMemory`); validação real com uma reunião onde o
   cliente menciona o próprio aniversário.
+
+## Fase 0 — "SALE-IA V2": baseline de confiabilidade (V.1.4.72, 09/09/2026)
+
+Usuário colou o "PROMPT MESTRE — SALE-IA V2": iniciativa de 25 fases,
+meses de trabalho (SalesEvent, Opportunity, SPIN 2.0, MEDDPICC, Sales
+Science, Seller DNA, Autonomy Policy, Clean Architecture). **Só a Fase 0
+foi executada nesta rodada** — baseline de testes + E2E de reunião
+completa, 100% aditivo, zero mudança de comportamento. Fases 1+
+(SalesEvent em diante) **não começaram** — aguardando confirmação
+explícita antes de qualquer código de domínio novo.
+
+- Baseline real (não estimado): **512 testes, 0 falhas, 1 skip
+  pré-existente**, categorizado em `docs/BASELINE_REPORT_FASE0.md` (9
+  categorias pedidas + uma 10ª "Sales Brain/Multiagente" necessária).
+- `tests/test_smoke.py` (9→14) e `tests/test_e2e_meeting_lifecycle.py`
+  (novo, 6 testes) fecham os gaps de smoke/E2E pedidos pela Tarefa
+  0.1/0.2 — detalhe completo no CHANGELOG.md (V.1.4.72).
+- **3 achados documentados, não corrigidos**: (1) 🔴 `meeting_id` sem
+  controle de ownership — qualquer um que souber o id lê a recapitulação
+  viva de outra reunião (`/recapitulacao-viva` sem auth nenhuma); (2) 🔵
+  degradação total dos 4 provedores é silenciosa (`analysis_status`
+  continua `"updated"` com fallback genérico, sem sinal de falha); (3) 🟡
+  extensão Chrome 100% sem teste automatizado. Ver
+  `docs/BASELINE_REPORT_FASE0.md` para detalhe e recomendação de cada um.
+
+## SalesEvent — Fase 1 / Tarefa 1.1 do "SALE-IA V2" (V.1.4.73, 10/09/2026)
+
+Usuário confirmou explicitamente o início da Fase 1 (modelo canônico da
+venda) do prompt mestre. **Só a Tarefa 1.1 foi executada** — criar o
+schema/validação do `SalesEvent`. Tarefa 1.2 (`SalesEvidence`) e
+qualquer fase seguinte **não começaram** — aguardando nova confirmação
+explícita.
+
+- `api/database.py::SalesEvent` (tabela `sales_events`, aditiva) + regra
+  de validação pura em `agent/sales_event_rules.py` (14 `event_type`
+  válidos, `confidence` em `[0,1]`, `evidence_quote` obrigatória quando
+  `source="conversation"`) — diferente de `AiUsageEvent`/`KnowledgeItem`
+  (escrita "melhor esforço"), `criar_sales_event()` propaga `ValueError`
+  em dado inválido, por ser dado de domínio.
+- **Decisão deliberada**: nenhuma extração automática de eventos a
+  partir de transcrição livre foi construída — o teste de integração do
+  exemplo do prompt mestre ("Achei caro" → `OBJECTION_RAISED`) chama
+  `criar_sales_event()` diretamente com os valores já classificados,
+  provando o schema/validação de ponta a ponta. Extração automática
+  (por regra determinística ou por IA) fica para tarefa futura.
+- 12 testes novos (`tests/test_sales_event.py`). Suite completa: 524
+  testes, 0 falhas, 1 skip pré-existente — sem regressão. Detalhe
+  completo no CHANGELOG.md (V.1.4.73).
+- **Pendente**: push + deploy na VPS (aditivo, 1 tabela nova via
+  `create_all()`).
+
+## SalesEvidence — Fase 1 / Tarefa 1.2 do "SALE-IA V2" (V.1.4.74, 10/09/2026)
+
+Sequência direta da Tarefa 1.1. Objetivo do prompt mestre: separar
+**interpretação** de **evidência** — nunca salvar só "cliente está
+inseguro" (hipótese solta); sempre `type=ADOPTION_RISK` +
+`quote="Tenho medo da minha equipe não usar"`.
+
+- `api/database.py::SalesEvidence` (tabela `sales_evidences`, aditiva) +
+  regra de validação pura em `agent/sales_evidence_rules.py` — `quote`
+  obrigatória e não-vazia (regra central da tarefa: hipótese sem a fala
+  que a sustenta nunca é um `SalesEvidence` válido), `type` obrigatório,
+  `confidence` em `[0,1]`.
+- 10 testes novos (`tests/test_sales_evidence.py`). Suite completa: 534
+  testes, 0 falhas, 1 skip pré-existente — sem regressão. Detalhe
+  completo no CHANGELOG.md (V.1.4.74).
+- **Pendente**: push + deploy na VPS (aditivo, 1 tabela nova via
+  `create_all()`). Fase 2 (Opportunity Memory) do roadmap não começa
+  sem nova confirmação explícita do usuário.
 
 ### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)
 - `services/embeddings/`: interface `EmbeddingProvider` (`embed`, `embed_async`, `embed_batch`, `health_check`), `OllamaEmbeddingProvider` (HTTP local via `httpx`, zero import de SDKs de LLM externos), `OpenAIEmbeddingProvider`, `factory.get_embedding_provider()` (lê `EMBEDDING_PROVIDER`, erro explícito em valor desconhecido).

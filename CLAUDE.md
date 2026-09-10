@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.71** (backend, local — ainda não deployada; produção confirmada em V.1.4.63) · extensão Chrome **V.1.4.5** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.74** (backend, local — ainda não deployada; produção confirmada em V.1.4.71) · extensão Chrome **V.1.4.5** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -546,6 +546,128 @@ call de vendas.
   astrológica...") — nunca evidência de peso igual a DISC/Big Five, e
   `sintese_comportamental.usa_astrologia` fica `false` quando não há
   dado de nascimento.
+
+## Fase 0 do "SALE-IA V2" — baseline de confiabilidade (V.1.4.72, local)
+
+Usuário colou um novo "PROMPT MESTRE — SALE-IA V2": 25 fases pra evoluir
+o SALEIA de "IA escuta → IA sugere" pra um cérebro comercial completo
+(SalesEvent, Opportunity, SPIN 2.0, MEDDPICC, Sales Science, Seller DNA,
+Autonomy Policy) — **iniciativa de meses**, com Clean Architecture e uma
+"regra de bloqueio" (não avançar com teste quebrado) explícita no
+próprio documento. **Só a Fase 0 foi executada** — baseline de testes +
+E2E de reunião completa. **Fases 1+ (SalesEvent em diante) não
+começaram** — não presuma que existe nenhum `SalesEvent`/`Opportunity`/
+domain layer no código só porque este prompt mestre foi discutido;
+confirme sempre lendo `docs/BASELINE_REPORT_FASE0.md` e o CHANGELOG antes
+de assumir progresso em qualquer fase além da 0.
+
+- Baseline real: **512 testes, 0 falhas** (`python -m unittest discover
+  tests`) — nunca reporte um número de baseline sem rodar de verdade,
+  mesmo achado já valeu a pena aqui (a doc antiga citava "8 falhas
+  pré-existentes" que já não existem mais).
+- `docs/BASELINE_REPORT_FASE0.md` tem os 3 achados documentados
+  (ownership de `meeting_id` ausente, degradação silenciosa dos 4
+  provedores, extensão Chrome sem teste) — nenhum foi corrigido nesta
+  rodada, são decisões de produto/priorização separadas.
+- `tests/test_e2e_meeting_lifecycle.py` é o padrão a seguir pra testar o
+  ciclo de vida de uma reunião: mocka só
+  `agent.multiagente.claude_fallback.chamar_ia_async` (os 5 agentes do
+  orquestrador) e `agent.recapitulacao.chamar_ia_async` (recapitulação
+  viva, caminho de IA separado) — nunca a lógica de persistência real.
+  `api.database.engine` trocado por SQLite em memória
+  (`StaticPool`+`check_same_thread=False`, mesmo padrão de
+  `tests/test_admin_costs_endpoints.py`).
+- **Achado útil pra escrever testes de `/tempo-real` no futuro**: existe
+  um gate de "texto novo mínimo" antes de qualquer chamada de IA
+  (`api/processador_tempo_real.py::_pode_chamar_ia`, 120 chars OU 18
+  palavras no fragmento novo, env `SALEIA_REALTIME_MIN_NEW_CHARS`/
+  `_MIN_NEW_WORDS`) — um fragmento de teste curto demais retorna
+  `analysis_status: "skipped"` sem nunca chamar a IA, silenciosamente.
+  Sempre usar falas realistas (parágrafo, não frase curta) em testes que
+  esperam `analysis_status: "updated"`.
+
+## SalesEvent — início da Fase 1 do "PROMPT MESTRE — SALE-IA V2" (V.1.4.73)
+
+Roadmap **diferente** do `PROMPT MESTRE — EVOLUÇÃO DA SALEIA.txt` (10
+fases, seções acima) — este é o `# PROMPT MESTRE — SALE-IA V2-03_09_26.txt`
+(25 fases, arquivo solto na raiz do repo), que evolui o SALEIA de "IA
+escuta → IA sugere" para um cérebro comercial completo (SalesEvent,
+Opportunity, SPIN 2.0, MEDDPICC, Sales Science, Seller DNA, Autonomy
+Policy). Fase 0 (baseline, V.1.4.72) documentou que Fase 1+ não
+começaria sem confirmação explícita do usuário — **confirmada nesta
+versão**. Escopo desta rodada: **só a Tarefa 1.1** (criar o `SalesEvent`)
+— Tarefa 1.2 (`SalesEvidence`) e qualquer fase seguinte não começaram.
+
+- **`api/database.py::SalesEvent`** (tabela `sales_events`, aditiva):
+  schema literal do prompt mestre — `meeting_id`, `opportunity_id`
+  (sem FK; `Opportunity` só nasce na Fase 2, ainda não implementada),
+  `client_id`, `seller_id`, `event_type`, `timestamp`, `speaker`,
+  `evidence_quote`, `source`, `confidence`, `metadata`, `created_at`.
+- **`agent/sales_event_rules.py`** (novo, função pura — mesmo padrão de
+  `propensao_rules.py`/`signo_solar_rules.py`, zero IA/DB):
+  `SALES_EVENT_TYPES` (as 14 categorias mínimas, `PAIN_DETECTED` a
+  `DEAL_LOST`) e `validar_sales_event()`.
+- **SalesEvent é dado de domínio, não telemetria — decisão deliberada**:
+  diferente de `AiUsageEvent`/`KnowledgeItem` (escrita "melhor esforço",
+  nunca lança), `api/database.py::criar_sales_event()` propaga
+  `ValueError` do chamador em 3 casos: `event_type` fora das 14
+  categorias, `confidence` fora de `[0, 1]`, ou `evidence_quote` ausente
+  quando `source="conversation"` — regra explícita do prompt mestre
+  ("nenhum evento pode existir sem evidência quando sua origem é uma
+  conversa"). Nada é persistido quando a validação falha.
+- **Sem endpoint HTTP** — a Tarefa 1.1 pede "criar o SalesEvent", não
+  expô-lo via API; só `criar_sales_event()`/`obter_sales_event()`/
+  `listar_sales_events()` em `api/database.py`.
+- **Escopo do teste de integração, decisão deliberada**: o exemplo do
+  prompt mestre (transcrição "Achei caro." → `OBJECTION_RAISED`,
+  `category=PRICE`, `evidence="Achei caro"`) é reproduzido chamando
+  `criar_sales_event()` diretamente com esses valores já classificados
+  — prova o schema/validação de ponta a ponta via persistência real.
+  **Nenhuma extração automática de eventos a partir de transcrição
+  livre foi construída** — não está no enunciado da Tarefa 1.1 (que é
+  só "criar o SalesEvent"), exigiria uma classificação nova (regra
+  determinística ou IA) fora do escopo desta rodada, e fica para tarefa
+  futura do roadmap.
+- 12 testes novos (`tests/test_sales_event.py`). Suite completa: 524
+  testes (512 da Fase 0 + 12 novos), 0 falhas, 1 skip pré-existente —
+  sem regressão.
+- **Pendente**: push + deploy na VPS (aditivo — 1 tabela nova, criada
+  automaticamente via `create_all()` no startup, sem `.env`/flag novos).
+  **Tarefa 1.2 (`SalesEvidence`) e Fase 2+ do roadmap não começam sem
+  nova confirmação explícita do usuário.**
+
+## SalesEvidence — Tarefa 1.2 da Fase 1 do "PROMPT MESTRE — SALE-IA V2" (V.1.4.74)
+
+Sequência direta do `SalesEvent` acima — usuário confirmou avançar para
+a Tarefa 1.2. Objetivo do prompt mestre: separar **interpretação** de
+**evidência**. Nunca salvar só "cliente está inseguro" (hipótese solta,
+sem lastro); sempre `type=ADOPTION_RISK` + `quote="Tenho medo da minha
+equipe não usar"` (hipótese apontando para a fala real que a sustenta).
+
+- **`api/database.py::SalesEvidence`** (tabela `sales_evidences`,
+  aditiva): schema literal do prompt mestre — `id`, `meeting_id`,
+  `type`, `quote`, `speaker`, `timestamp`, `confidence`, `source`,
+  `created_at`. Sem FK para `SalesEvent` de propósito — mesma
+  disciplina de escopo da Tarefa 1.1 (só o schema pedido).
+- **`agent/sales_evidence_rules.py`** (novo, função pura — mesmo padrão
+  de `sales_event_rules.py`): `validar_sales_evidence()` levanta
+  `ValueError` em `type` vazio, `quote` vazia/ausente, ou `confidence`
+  fora de `[0, 1]`.
+- **A regra central da tarefa** ("hipóteses geradas por IA sempre
+  apontem para ao menos uma evidência") é imposta no schema/validação
+  tornando `quote` obrigatória e não-vazia — uma hipótese sem a fala que
+  a sustenta nunca vira um `SalesEvidence` válido. `criar_sales_evidence()`
+  propaga o `ValueError`, mesma convenção "dado de domínio" da Tarefa
+  1.1 (nunca falha silenciosa como `AiUsageEvent`/`KnowledgeItem`).
+- **Sem endpoint HTTP** — mesma decisão da Tarefa 1.1, a tarefa pede
+  "criar o SalesEvidence", não expô-lo via API.
+- 10 testes novos (`tests/test_sales_evidence.py`), incluindo o teste
+  literal do exemplo do prompt mestre. Suite completa: 534 testes (524
+  da Tarefa 1.1 + 10 novos), 0 falhas, 1 skip pré-existente — sem
+  regressão.
+- **Pendente**: push + deploy na VPS (aditivo — 1 tabela nova via
+  `create_all()`). **Fase 2 (Opportunity Memory) do roadmap não começa
+  sem nova confirmação explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

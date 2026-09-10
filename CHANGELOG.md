@@ -3,6 +3,186 @@
 
 ---
 
+## V.1.4.74 — SalesEvidence: Tarefa 1.2 da Fase 1 do "PROMPT MESTRE — SALE-IA V2"
+> Data: 10/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Sequência direta da Tarefa 1.1 (SalesEvent, V.1.4.73) — usuário confirmou
+avançar para a Tarefa 1.2. Objetivo do prompt mestre: separar
+**interpretação** de **evidência**. Nunca salvar só "cliente está
+inseguro" (uma hipótese solta, sem lastro); sempre `type=ADOPTION_RISK` +
+`quote="Tenho medo da minha equipe não usar"` (hipótese apontando para a
+fala real que a sustenta).
+
+### TAREFA 1.2 — SalesEvidence
+- `api/database.py::SalesEvidence` (SQLModel, tabela `sales_evidences`):
+  schema literal do prompt mestre (`id`, `meeting_id`, `type`, `quote`,
+  `speaker`, `timestamp`, `confidence`, `source`, `created_at`). Sem FK
+  para `SalesEvent` de propósito — mesma disciplina de escopo da Tarefa
+  1.1 (só o schema pedido, sem inventar relacionamento não especificado).
+- `agent/sales_evidence_rules.py` (novo, função pura, mesmo padrão de
+  `sales_event_rules.py`): `validar_sales_evidence()` levanta
+  `ValueError` em 3 casos — `type` vazio, `quote` vazia/ausente,
+  `confidence` fora de `[0, 1]`.
+- **A regra central da tarefa** ("hipóteses geradas por IA sempre
+  apontem para ao menos uma evidência") é imposta tornando `quote`
+  obrigatória e não-vazia no schema/validação — uma hipótese sem a fala
+  que a sustenta nunca vira um `SalesEvidence` válido.
+- `api/database.py`: `criar_sales_evidence()` (propaga `ValueError`,
+  mesma convenção "dado de domínio" de `criar_sales_event`),
+  `obter_sales_evidence()`, `listar_sales_evidences()` (filtros por
+  `meeting_id`/`type`). Sem endpoint HTTP novo (não pedido pela tarefa).
+- 10 testes novos em `tests/test_sales_evidence.py` (5 unitários de
+  `validar_sales_evidence` + 5 de persistência via SQLite em memória),
+  incluindo o teste literal do exemplo do prompt mestre
+  (`ADOPTION_RISK` / "Tenho medo da minha equipe não usar").
+- Suite completa: **534 testes** (524 da Tarefa 1.1 + 10 novos), **0
+  falhas**, 1 skip pré-existente (mesmo de sempre) — sem regressão.
+- **Pendente**: push + deploy na VPS (aditivo — 1 tabela nova, criada
+  automaticamente no startup via `create_all()`, sem `.env`/flag novos).
+  Fase 2 (Opportunity Memory) do roadmap não começa sem nova confirmação
+  explícita do usuário.
+
+---
+
+## V.1.4.73 — SalesEvent: início da Fase 1 do "PROMPT MESTRE — SALE-IA V2"
+> Data: 10/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Fase 0 (baseline de confiabilidade, V.1.4.72) fechou dizendo que a Fase 1
+(Tarefa 1.1 — SalesEvent) era o próximo passo natural do roadmap de 25
+fases, mas que não deveria começar sem confirmação explícita do usuário,
+dado o tamanho da mudança arquitetural envolvida. Usuário confirmou
+explicitamente o início da Fase 1 nesta sessão. Escopo desta versão: só
+a **Tarefa 1.1** (criar o schema/validação do `SalesEvent`) — a Tarefa
+1.2 (`SalesEvidence`) e qualquer fase seguinte não foram iniciadas.
+
+### TAREFA 1.1 — SalesEvent
+- `api/database.py::SalesEvent` (SQLModel, tabela `sales_events`): todo o
+  schema do prompt mestre (`meeting_id`, `opportunity_id`, `client_id`,
+  `seller_id`, `event_type`, `timestamp`, `speaker`, `evidence_quote`,
+  `source`, `confidence`, `metadata`, `created_at`). `opportunity_id`
+  fica sem FK de propósito — `Opportunity` só nasce na Fase 2
+  (Opportunity Memory, ainda não implementada); a coluna já existe agora
+  para não exigir migração quando a Fase 2 chegar.
+- `agent/sales_event_rules.py` (novo, função pura, mesmo padrão de
+  `propensao_rules.py`/`signo_solar_rules.py`): `SALES_EVENT_TYPES` (as
+  14 categorias mínimas do prompt mestre — `PAIN_DETECTED` a
+  `DEAL_LOST`) e `validar_sales_event()`, que levanta `ValueError` em 3
+  casos: `event_type` fora das 14 categorias, `confidence` fora de
+  `[0, 1]`, e evidência ausente quando `source="conversation"` (regra
+  explícita do prompt mestre: "Nenhum evento pode existir sem evidência
+  quando sua origem é uma conversa").
+- **Decisão deliberada — SalesEvent é dado de domínio, não telemetria**:
+  diferente de `AiUsageEvent`/`KnowledgeItem` (escrita "melhor esforço",
+  nunca lança, retorna `None` em erro), `criar_sales_event()` propaga
+  `ValueError` do chamador — entrada inválida deve falhar alto e cedo,
+  nunca ser silenciosamente descartada ou corrigida, exatamente como os
+  testes unitários do prompt mestre exigem ("evento sem evidência...
+  deve falhar", "confidence fora de 0-1 deve falhar").
+- `api/database.py`: `criar_sales_event()`, `obter_sales_event()`,
+  `listar_sales_events()` (filtros por `meeting_id`/`event_type`) — só
+  as funções de persistência necessárias para os testes desta tarefa;
+  nenhum endpoint HTTP novo (não pedido pela Tarefa 1.1, que é só
+  "criar o SalesEvent", não expô-lo via API).
+- **Escopo do teste de integração, decisão deliberada**: o exemplo do
+  prompt mestre (transcrição "Achei caro." → `OBJECTION_RAISED`,
+  `category=PRICE`, `evidence="Achei caro"`) é reproduzido chamando
+  `criar_sales_event()` diretamente com esses valores — prova que o
+  schema e a validação suportam esse cenário de ponta a ponta via
+  persistência real. **Não foi construída extração automática de
+  eventos a partir de transcrição livre** — isso não está no enunciado
+  da Tarefa 1.1 (só "criar o SalesEvent"), envolveria uma nova
+  classificação (por regra determinística ou por IA) fora do escopo
+  desta rodada, e fica para uma tarefa futura do roadmap.
+- 12 testes novos em `tests/test_sales_event.py` (7 unitários de
+  `validar_sales_event` + 5 de persistência via SQLite em memória,
+  mesmo padrão de `tests/test_ai_usage_events.py`), incluindo o teste
+  literal do exemplo de integração do prompt mestre.
+- Suite completa: **524 testes** (512 da baseline + 12 novos), **0
+  falhas**, 1 skip pré-existente (mesmo de sempre) — sem regressão.
+- **Pendente**: push + deploy na VPS (aditivo — 1 tabela nova, criada
+  automaticamente no startup via `create_all()`, sem `.env`/flag novos).
+  Tarefa 1.2 (`SalesEvidence`) e Fase 2+ do roadmap não começam sem nova
+  confirmação explícita do usuário.
+
+---
+
+## V.1.4.72 — Fase 0 do "SALE-IA V2": baseline de confiabilidade
+> Data: 09/09/2026 | Local + a deployar (sem mudança de comportamento — só testes/docs)
+
+### CONTEXTO
+Usuário colou o "PROMPT MESTRE — SALE-IA V2": iniciativa de 25 fases pra
+evoluir o SALEIA de "IA escuta → IA sugere" para um cérebro comercial
+completo (SalesEvent, Opportunity, SPIN 2.0, MEDDPICC, Sales Science,
+Seller DNA, Autonomy Policy) — meses de trabalho, com Clean Architecture
+e regra de bloqueio (não avançar com teste quebrado). Esta versão cobre
+**só a Fase 0** (Tarefas 0.1/0.2): baseline de testes + E2E de reunião
+completa, antes de qualquer código de domínio novo. 100% aditivo — zero
+mudança de comportamento da aplicação.
+
+### BASELINE (TAREFA 0.1)
+- Medido de verdade (não estimado de doc antiga):
+  `python -m unittest discover tests` = **512 testes, 0 falhas, 1 skip
+  pré-existente, ~800s**. Relatório completo em
+  `docs/BASELINE_REPORT_FASE0.md`, categorizado nas 9 áreas pedidas pelo
+  prompt mestre + uma 10ª ("Sales Brain/Multiagente") que a investigação
+  mostrou ser necessária (~14 arquivos, 28% da suíte, não cabiam nas 9
+  originais).
+- `tests/test_smoke.py`: 9 → 14 testes. Gaps fechados via `TestClient`
+  real (não só as funções internas, que já tinham cobertura própria):
+  `POST /auth/login` (caminho de erro), `POST /iniciar-sessao`,
+  Biblioteca/Knowledge Compiler (upload + extração end-to-end),
+  `GET /busca-semantica` (RAG).
+
+### E2E DE REUNIÃO COMPLETA (TAREFA 0.2)
+`tests/test_e2e_meeting_lifecycle.py` (novo, 6 testes): `/iniciar-sessao`
+→ 3 ciclos de `/tempo-real` (transcrição realista, incluindo uma objeção
+de preço) → confirma `MeetingMemory` acumulando corretamente
+(`score_history`/`key_moments`/`events` crescem por ciclo, transcrição
+sem duplicar cada fala) → `/recapitulacao-viva` lendo a memória real da
+reunião (não uma chamada desconectada) → isolamento entre duas reuniões
+diferentes → 2 testes de degradação (todos os provedores falhando; JSON
+inválido de 1 provedor com fallthrough pro próximo).
+
+### ACHADOS (não corrigidos nesta rodada — documentados para decisão futura)
+- **🔴 Alta — sem ownership de `meeting_id`**: `MeetingMemory` não tem
+  coluna `usuario_id`; `POST /recapitulacao-viva` não exige autenticação
+  nenhuma; nenhum endpoint verifica se o `meeting_id` pertence ao usuário
+  autenticado. Qualquer pessoa que souber/adivinhar um `meeting_id`
+  consegue ler a recapitulação viva daquela reunião. Documentado
+  deliberadamente via teste que falha *quando* alguém corrigir isso
+  (`test_ACHADO_recapitulacao_viva_sem_auth_nem_ownership`), não escondido
+  atrás de `skip`/`xfail`.
+- **🔵 Observação — degradação total dos 4 provedores é silenciosa**: cada
+  um dos 5 agentes (`Coach`/`DISC`/`Finance`/`Closer`/`BigFive`) falha
+  isoladamente dentro de `analisar_fragmento_multi`
+  (`agent/multiagente/orquestrador.py`, capturado por
+  `_safe()`/`asyncio.gather(return_exceptions=True)`) — a exceção nunca
+  propaga até `api/processador_tempo_real.py`, então `analysis_status`
+  fica `"updated"` (fallbacks genéricos) mesmo com os 4 provedores
+  centrais fora do ar. O sistema não quebra (correto), mas não há sinal
+  visível de que a IA falhou — lacuna de observabilidade, não bug.
+- **🟡 Média — extensão Chrome 100% sem teste**: zero Jest/Mocha/
+  Playwright no repo. Criar harness de teste JS do zero é tooling
+  desproporcional ao resto da Fase 0 (100% Python) — registrado como
+  dívida técnica, não resolvido agora.
+
+### VERSÃO
+- Backend: `1.4.71` → `1.4.72` (`/health`, `/monitor/metricas` — só
+  tracking de versão, nenhum código de produção mudou).
+
+### O QUE FALTA
+- Fases 1+ do prompt mestre (SalesEvent em diante) **ainda não
+  começaram** — aguardando confirmação explícita do usuário antes de
+  qualquer código de domínio novo, dado o tamanho da mudança
+  arquitetural envolvida (Clean Architecture, camadas domain/
+  application/infrastructure).
+- Os 3 achados documentados acima seguem sem correção — cada um é uma
+  decisão de produto/priorização separada.
+
+---
+
 ## V.1.4.71 — Big Five + Astrologia opcional: entender por que o cliente respondeu daquela forma
 > Data: 09/09/2026 | Local + a deployar
 

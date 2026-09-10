@@ -610,6 +610,42 @@ Usuario colou um spec de 60 tarefas pra um modulo de autoconhecimento do vendedo
 - **Fora de escopo deliberado**: questionario de autoavaliacao do vendedor, mapa natal/efemerides, exibicao em tempo real na extensao Chrome, motor de compatibilidade entre pessoas.
 - **Pendente**: deploy na VPS (aditivo — 2 colunas nullable em `client_profiles`, sem migracao em `MeetingMemory`); validar em producao com uma reuniao real onde o cliente menciona o proprio aniversario.
 
+## Concluido (Fase 0 do "SALE-IA V2" — baseline de confiabilidade)
+
+Usuario colou o "PROMPT MESTRE — SALE-IA V2" (25 fases, meses de trabalho: SalesEvent, Opportunity, SPIN 2.0, MEDDPICC, Sales Science, Seller DNA, Autonomy Policy). Esta rodada cobre so a Fase 0 (Tarefas 0.1/0.2) — baseline de testes + E2E de reuniao completa, 100% aditivo, zero mudanca de comportamento da aplicacao. Fases 1+ (SalesEvent em diante) ainda NAO comecaram.
+
+- [x] Baseline real medido (nao estimado de doc antiga): `python -m unittest discover tests` = 512 testes, 0 falhas, 1 skip pre-existente, ~800s. Relatorio completo em `docs/BASELINE_REPORT_FASE0.md` (10 categorias — as 9 pedidas pelo prompt mestre + uma 10a "Sales Brain/Multiagente" que a investigacao mostrou ser necessaria).
+- [x] `tests/test_smoke.py` estendido (9 -> 14 testes): `/auth/login`, `POST /iniciar-sessao`, Biblioteca (upload+extracao via TestClient real, nao so as funcoes internas), `/busca-semantica` (RAG via TestClient).
+- [x] `tests/test_e2e_meeting_lifecycle.py` (novo, 6 testes): reuniao completa (iniciar-sessao -> 3 ciclos de /tempo-real com objecao de preco -> MeetingMemory acumulando corretamente, sem duplicar transcricao -> /recapitulacao-viva lendo a memoria real) + isolamento entre 2 reunioes + 2 testes de degradacao (todos os provedores falhando, JSON invalido de 1 provedor).
+- [x] **Achado de seguranca real (documentado, nao corrigido)**: `MeetingMemory` nao tem `usuario_id`, `/recapitulacao-viva` nao exige auth nenhuma — qualquer pessoa que souber um `meeting_id` consegue ler a recapitulacao viva de outra reuniao. Teste `test_ACHADO_recapitulacao_viva_sem_auth_nem_ownership` documenta o comportamento atual de proposito (falha quando alguem corrigir, nao esconde atras de skip/xfail).
+- [x] **Achado real sobre degradacao**: quando os 4 provedores centrais falham, o sistema NAO retorna erro — cada agente falha isolado dentro do orquestrador (`_safe()`/`asyncio.gather`), resultado final vem com `analysis_status: "updated"` e fallbacks genericos, sem nenhum sinal visivel de falha. Nao e bug (o sistema nao quebra), e lacuna de observabilidade — registrado para decisao de produto futura.
+- [x] **Achado registrado, nao resolvido**: extensao Chrome (`chrome-extension/*.js`) continua 100% sem teste automatizado — criar Jest do zero seria tooling desproporcional ao resto da Fase 0 (so Python). Fica como divida tecnica.
+- **Fora de escopo desta rodada**: qualquer codigo de dominio (SalesEvent, Opportunity, SPIN 2.0, MEDDPICC, etc.), decisao de Clean Architecture (nao ha codigo de dominio ainda pra decidir onde morar), correcao dos achados acima.
+- **Proximo passo, se o usuario confirmar**: Fase 1 (Tarefa 1.1 — SalesEvent) e a proxima na ordem definida pelo prompt mestre — nao comecar sem essa confirmacao explicita, dado o tamanho da mudanca arquitetural envolvida.
+
+## Concluido (V.1.4.73 — SalesEvent, Tarefa 1.1 da Fase 1 do "PROMPT MESTRE — SALE-IA V2")
+
+Usuario confirmou explicitamente o inicio da Fase 1. Escopo desta rodada: so a Tarefa 1.1 (criar o schema/validacao do SalesEvent) — Tarefa 1.2 (SalesEvidence) nao comecou.
+
+- [x] `api/database.py::SalesEvent` (SQLModel, tabela `sales_events`) — schema completo do prompt mestre (meeting_id, opportunity_id sem FK ainda/client_id/seller_id/event_type/timestamp/speaker/evidence_quote/source/confidence/metadata/created_at).
+- [x] `agent/sales_event_rules.py` (novo, funcao pura, mesmo padrao de propensao_rules.py/signo_solar_rules.py): `SALES_EVENT_TYPES` (14 categorias) + `validar_sales_event()` (ValueError em event_type invalido, confidence fora de [0,1], evidencia ausente quando source="conversation").
+- [x] `criar_sales_event()`/`obter_sales_event()`/`listar_sales_events()` em `api/database.py` — SalesEvent e dado de dominio (decisao deliberada: propaga ValueError, diferente do padrao "melhor esforco" de AiUsageEvent/KnowledgeItem). Sem endpoint HTTP novo (fora do enunciado da Tarefa 1.1).
+- [x] Decisao deliberada: teste de integracao reproduz o exemplo do prompt mestre ("Achei caro" -> OBJECTION_RAISED/category=PRICE) chamando `criar_sales_event()` direto com esses valores — sem construir extracao automatica de eventos a partir de transcricao livre (fora do enunciado da Tarefa 1.1, fica para tarefa futura).
+- [x] 12 testes novos (`tests/test_sales_event.py`). Suite completa: 524 testes (512 + 12), 0 falhas, 1 skip pre-existente — sem regressao.
+- [x] Versao: `1.4.72` -> `1.4.73`.
+- **Pendente**: push + deploy na VPS (aditivo, 1 tabela nova via create_all()). **Tarefa 1.2 (SalesEvidence) e qualquer fase seguinte nao comecam sem nova confirmacao explicita do usuario.**
+
+## Concluido (V.1.4.74 — SalesEvidence, Tarefa 1.2 da Fase 1 do "PROMPT MESTRE — SALE-IA V2")
+
+Sequencia direta da Tarefa 1.1. Objetivo: separar interpretacao de evidencia — nunca salvar so "cliente esta inseguro", sempre type=ADOPTION_RISK + quote="Tenho medo da minha equipe nao usar".
+
+- [x] `api/database.py::SalesEvidence` (SQLModel, tabela `sales_evidences`) — schema literal do prompt mestre (id/meeting_id/type/quote/speaker/timestamp/confidence/source/created_at), sem FK para SalesEvent de proposito.
+- [x] `agent/sales_evidence_rules.py` (novo, funcao pura): `validar_sales_evidence()` — ValueError em type vazio, quote vazia/ausente, confidence fora de [0,1]. Regra central da tarefa: quote obrigatoria e nao-vazia (hipotese sem evidencia nunca persiste).
+- [x] `criar_sales_evidence()`/`obter_sales_evidence()`/`listar_sales_evidences()` em `api/database.py` — mesma convencao "dado de dominio" da Tarefa 1.1, sem endpoint HTTP novo.
+- [x] 10 testes novos (`tests/test_sales_evidence.py`), incluindo o exemplo literal do prompt mestre. Suite completa: 534 testes (524 + 10), 0 falhas, 1 skip pre-existente — sem regressao.
+- [x] Versao: `1.4.73` -> `1.4.74`.
+- **Pendente**: push + deploy na VPS (aditivo, 1 tabela nova via create_all()). **Fase 2 (Opportunity Memory) do roadmap nao comeca sem nova confirmacao explicita do usuario.**
+
 ## Pendente
 
 - [ ] **Debito tecnico (achado 05/09/2026, fora de escopo)**: migrar `google.generativeai` (totalmente descontinuado pelo Google) para `google.genai`, e `claude-sonnet-4-20250514` (EOL 15/06/2026) para um modelo Anthropic atual.

@@ -291,6 +291,71 @@ class KnowledgeItem(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
 
 
+class SalesEvent(SQLModel, table=True):
+    """Evento estruturado do modelo canônico da venda ("PROMPT MESTRE —
+    SALE-IA V2", Fase 1 / Tarefa 1.1) — toda informação comercial
+    relevante extraída de uma reunião (ou registrada manualmente) vira um
+    SalesEvent, em vez de ficar só dentro do texto livre do relatório.
+
+    opportunity_id fica solto (sem FK) de propósito: `Opportunity` só
+    nasce na Fase 2 (Opportunity Memory) do mesmo roadmap, ainda não
+    implementada — a coluna já existe aqui para não exigir migração
+    quando a Fase 2 chegar.
+
+    Validação (event_type/confidence/evidence_quote) mora em
+    `agent/sales_event_rules.py::validar_sales_event`, aplicada por
+    `criar_sales_event()` abaixo — diferente de AiUsageEvent/KnowledgeItem
+    (escrita "melhor esforço"), SalesEvent é dado de domínio: entrada
+    inválida levanta ValueError, nunca é descartada silenciosamente.
+    """
+
+    __tablename__ = "sales_events"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    meeting_id: str = Field(sa_column=Column(String(200), index=True, nullable=False))
+    opportunity_id: Optional[int] = Field(default=None, sa_column=Column(Integer, index=True))
+    client_id: Optional[str] = Field(default=None, sa_column=Column(String(36), index=True))
+    seller_id: Optional[str] = Field(default=None, sa_column=Column(String(36), index=True))
+    event_type: str = Field(sa_column=Column(String(40), index=True, nullable=False))
+    timestamp: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+    speaker: Optional[str] = Field(default=None, sa_column=Column(String(20)))
+    evidence_quote: Optional[str] = Field(default=None, sa_column=Column(Text))
+    source: str = Field(default="conversation", sa_column=Column(String(20), nullable=False))
+    confidence: float = Field(default=1.0, sa_column=Column(Float, nullable=False))
+    metadata_json: Optional[str] = Field(default=None, sa_column=Column(Text))
+    created_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+
+
+class SalesEvidence(SQLModel, table=True):
+    """Evidência bruta que sustenta uma interpretação/hipótese ("PROMPT
+    MESTRE — SALE-IA V2", Fase 1 / Tarefa 1.2) — separa interpretação de
+    evidência: `type` é o rótulo da hipótese (ex.: "ADOPTION_RISK"),
+    `quote` é a fala real do cliente/vendedor que a sustenta. Nunca salvar
+    só a interpretação ("cliente está inseguro") sem a fala que a gerou.
+
+    Schema literal do prompt mestre (id/type/quote/speaker/timestamp/
+    meeting_id/confidence/source) — sem FK para SalesEvent de propósito,
+    mesma disciplina de escopo da Tarefa 1.1 (só o schema pedido).
+
+    Validação (`quote` nunca vazia, `confidence` em [0,1]) mora em
+    `agent/sales_evidence_rules.py::validar_sales_evidence`, aplicada por
+    `criar_sales_evidence()` abaixo — mesma convenção da Tarefa 1.1:
+    dado de domínio, entrada inválida levanta ValueError.
+    """
+
+    __tablename__ = "sales_evidences"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    meeting_id: str = Field(sa_column=Column(String(200), index=True, nullable=False))
+    type: str = Field(sa_column=Column(String(60), index=True, nullable=False))
+    quote: str = Field(sa_column=Column(Text, nullable=False))
+    speaker: Optional[str] = Field(default=None, sa_column=Column(String(20)))
+    timestamp: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+    confidence: float = Field(default=1.0, sa_column=Column(Float, nullable=False))
+    source: str = Field(default="conversation", sa_column=Column(String(20), nullable=False))
+    created_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+
+
 # ─────────────────────────────────────────────
 # ENGINE — MySQL ou SQLite
 # ─────────────────────────────────────────────
@@ -2163,3 +2228,164 @@ def buscar_conhecimento_compilado_similar(query: str, top_k: int = 2, similarity
             for item in selecionados
         ]
         return "CONHECIMENTO COMERCIAL RELEVANTE (Biblioteca de Inteligência):\n" + "\n".join(blocos)
+
+
+def _sales_event_to_dict(row: "SalesEvent") -> dict:
+    return {
+        "id": row.id,
+        "meeting_id": row.meeting_id,
+        "opportunity_id": row.opportunity_id,
+        "client_id": row.client_id,
+        "seller_id": row.seller_id,
+        "event_type": row.event_type,
+        "timestamp": row.timestamp.isoformat() if row.timestamp else None,
+        "speaker": row.speaker,
+        "evidence_quote": row.evidence_quote,
+        "source": row.source,
+        "confidence": row.confidence,
+        "metadata": json.loads(row.metadata_json) if row.metadata_json else {},
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
+def criar_sales_event(
+    *,
+    meeting_id: str,
+    event_type: str,
+    source: str = "conversation",
+    confidence: float = 1.0,
+    evidence_quote: Optional[str] = None,
+    opportunity_id: Optional[int] = None,
+    client_id: Optional[str] = None,
+    seller_id: Optional[str] = None,
+    speaker: Optional[str] = None,
+    timestamp: Optional[datetime] = None,
+    metadata: Optional[dict] = None,
+) -> dict:
+    """Cria e persiste um SalesEvent (Fase 1 / Tarefa 1.1 do "PROMPT
+    MESTRE — SALE-IA V2"). Valida via agent/sales_event_rules antes de
+    tocar no banco — ValueError propaga para o chamador (dado de domínio,
+    nunca falha silenciosa como AiUsageEvent/KnowledgeItem)."""
+    from agent.sales_event_rules import validar_sales_event
+
+    dados = {
+        "meeting_id": meeting_id,
+        "event_type": event_type,
+        "source": source,
+        "confidence": confidence,
+        "evidence_quote": evidence_quote,
+    }
+    validar_sales_event(dados)
+
+    with Session(engine) as session:
+        row = SalesEvent(
+            meeting_id=meeting_id,
+            event_type=event_type,
+            source=source,
+            confidence=confidence,
+            evidence_quote=evidence_quote,
+            opportunity_id=opportunity_id,
+            client_id=client_id,
+            seller_id=seller_id,
+            speaker=speaker,
+            timestamp=timestamp or datetime.now(),
+            metadata_json=json.dumps(metadata, ensure_ascii=False) if metadata else None,
+        )
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _sales_event_to_dict(row)
+
+
+def obter_sales_event(event_id: int) -> Optional[dict]:
+    with Session(engine) as session:
+        row = session.get(SalesEvent, event_id)
+        return _sales_event_to_dict(row) if row else None
+
+
+def listar_sales_events(
+    meeting_id: Optional[str] = None,
+    event_type: Optional[str] = None,
+    limit: int = 200,
+) -> List[dict]:
+    with Session(engine) as session:
+        stmt = select(SalesEvent)
+        if meeting_id:
+            stmt = stmt.where(SalesEvent.meeting_id == meeting_id)
+        if event_type:
+            stmt = stmt.where(SalesEvent.event_type == event_type)
+        stmt = stmt.order_by(SalesEvent.timestamp.asc()).limit(limit)
+        rows = session.exec(stmt).all()
+        return [_sales_event_to_dict(r) for r in rows]
+
+
+def _sales_evidence_to_dict(row: "SalesEvidence") -> dict:
+    return {
+        "id": row.id,
+        "meeting_id": row.meeting_id,
+        "type": row.type,
+        "quote": row.quote,
+        "speaker": row.speaker,
+        "timestamp": row.timestamp.isoformat() if row.timestamp else None,
+        "confidence": row.confidence,
+        "source": row.source,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
+def criar_sales_evidence(
+    *,
+    meeting_id: str,
+    type: str,
+    quote: str,
+    source: str = "conversation",
+    confidence: float = 1.0,
+    speaker: Optional[str] = None,
+    timestamp: Optional[datetime] = None,
+) -> dict:
+    """Cria e persiste um SalesEvidence (Fase 1 / Tarefa 1.2 do "PROMPT
+    MESTRE — SALE-IA V2"). Valida via agent/sales_evidence_rules antes de
+    tocar no banco — ValueError propaga para o chamador: uma hipótese
+    sem a fala que a sustenta nunca é persistida (mesma convenção de
+    criar_sales_event, Tarefa 1.1)."""
+    from agent.sales_evidence_rules import validar_sales_evidence
+
+    dados = {"meeting_id": meeting_id, "type": type, "quote": quote, "confidence": confidence}
+    validar_sales_evidence(dados)
+
+    with Session(engine) as session:
+        row = SalesEvidence(
+            meeting_id=meeting_id,
+            type=type,
+            quote=quote,
+            source=source,
+            confidence=confidence,
+            speaker=speaker,
+            timestamp=timestamp or datetime.now(),
+        )
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _sales_evidence_to_dict(row)
+
+
+def obter_sales_evidence(evidence_id: int) -> Optional[dict]:
+    with Session(engine) as session:
+        row = session.get(SalesEvidence, evidence_id)
+        return _sales_evidence_to_dict(row) if row else None
+
+
+def listar_sales_evidences(
+    meeting_id: Optional[str] = None,
+    type: Optional[str] = None,
+    limit: int = 200,
+) -> List[dict]:
+    with Session(engine) as session:
+        stmt = select(SalesEvidence)
+        if meeting_id:
+            stmt = stmt.where(SalesEvidence.meeting_id == meeting_id)
+        if type:
+            stmt = stmt.where(SalesEvidence.type == type)
+        stmt = stmt.order_by(SalesEvidence.timestamp.asc()).limit(limit)
+        rows = session.exec(stmt).all()
+        return [_sales_evidence_to_dict(r) for r in rows]
