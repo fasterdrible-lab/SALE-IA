@@ -656,7 +656,9 @@ Usuario confirmou avancar para a Fase 2 (Tarefa 2.1) e depois para a Tarefa 2.2,
 - [x] Tarefa 2.2 — `api/database.py::OpportunityGraphEdge` (grafo novo e deliberadamente separado do `agent/knowledge_graph.py` ja existente do Sales Brain) + `agent/opportunity_graph_rules.py` (9 NODE_TYPES, `evidence` sempre obrigatoria). `criar_aresta_opportunity_graph()`/`listar_arestas_opportunity()`. 15 testes novos (`tests/test_opportunity_graph.py`), incluindo o exemplo literal "dor -> causa -> impacto".
 - [x] Suite completa: 571 testes (556 + 15), 0 falhas, 1 skip pre-existente — sem regressao.
 - [x] Versao: `1.4.74` -> `1.4.75`.
-- **Pendente**: push + deploy na VPS. `opportunity_id` novo em `MeetingMemory` (tabela ja existente) exige `ALTER TABLE` manual na VPS — `create_all()` nao migra colunas em tabelas existentes (mesmo padrao do fix MEDIUMTEXT da V.1.4.54). **Fase 3 (SPIN 2.0) do roadmap nao comeca sem nova confirmacao explicita do usuario.**
+- [x] Push para o GitHub (commit `451beae`).
+- [x] **Deploy confirmado na VPS (10/09/2026, ~20h13 UTC)**: `reunioes_ativas: 0` (sem reuniao ativa desta vez) — `git pull` (fast-forward `6b9a0ab` -> `451beae`) + `pip install`/`pip check` limpos. `ALTER TABLE meeting_memory ADD COLUMN opportunity_id INTEGER` + `CREATE INDEX` aplicados via script idempotente (checou coluna ausente antes de alterar). `systemctl restart saleia` — `active`, journal sem erros. Pos-restart: `/health` = `versao 1.4.75`, `status online`, `reunioes_ativas 0`, 4 provedores de IA `ok`; `/dashboard` e `/health` publicos responderam `200`.
+- **Fase 3 (SPIN 2.0) do roadmap nao comeca sem nova confirmacao explicita do usuario.**
 
 ## Pendente
 

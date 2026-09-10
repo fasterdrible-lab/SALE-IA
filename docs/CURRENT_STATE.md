@@ -1,7 +1,7 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-10 (V.1.4.75, local — produção confirmada em
-`1.4.74`, ver "Deploy" abaixo; V.1.4.75 é o Opportunity Memory +
+Atualizado em: 2026-09-10 (V.1.4.75, local + GitHub + **VPS confirmada
+em produção**, ver "Deploy" abaixo; V.1.4.75 é o Opportunity Memory +
 Opportunity Graph, Fase 2 completa (Tarefas 2.1+2.2) do "SALE-IA V2" —
 ver seção "Opportunity Memory + Opportunity Graph — Fase 2" abaixo e
 CHANGELOG.md V.1.4.75. O corpo deste documento nao acompanhou o
@@ -653,13 +653,16 @@ as duas concluídas nesta rodada.
 - 37 testes novos (22 + 15). Suite completa: 571 testes, 0 falhas, 1
   skip pré-existente — sem regressão. Detalhe completo no CHANGELOG.md
   (V.1.4.75).
-- **Pendente**: push + deploy na VPS. `opportunities`/
-  `opportunity_memories`/`opportunity_graph_edges` são tabelas novas
-  (aditivas via `create_all()`), mas a coluna `opportunity_id` em
-  `MeetingMemory` (tabela já existente) **exige `ALTER TABLE` manual
-  na VPS** — mesmo problema já documentado no fix `MEDIUMTEXT` da
-  V.1.4.54. Fase 3 (SPIN 2.0) do roadmap não começa sem nova
-  confirmação explícita do usuário.
+- **Push + deploy confirmados (10/09/2026)**: commit `451beae` no
+  GitHub. Na VPS, `reunioes_ativas: 0` (sem reunião ativa desta vez) —
+  `git pull`/`pip install` limpos, `ALTER TABLE meeting_memory ADD
+  COLUMN opportunity_id INTEGER` + índice aplicados via script
+  idempotente (checou a coluna antes de alterar), `systemctl restart
+  saleia` executado na sequência. Pós-restart: `/health` = `versao
+  1.4.75`, `status online`, 4 provedores de IA `ok`; `/dashboard` e
+  `/health` públicos responderam `200`.
+- Fase 3 (SPIN 2.0) do roadmap não começa sem nova confirmação
+  explícita do usuário.
 
 ### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)
 - `services/embeddings/`: interface `EmbeddingProvider` (`embed`, `embed_async`, `embed_batch`, `health_check`), `OllamaEmbeddingProvider` (HTTP local via `httpx`, zero import de SDKs de LLM externos), `OpenAIEmbeddingProvider`, `factory.get_embedding_provider()` (lê `EMBEDDING_PROVIDER`, erro explícito em valor desconhecido).
