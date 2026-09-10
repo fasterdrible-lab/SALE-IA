@@ -1,9 +1,10 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-10 (V.1.4.74, local + GitHub + **VPS confirmada em
-produção**, ver "Deploy" abaixo; V.1.4.74 é o SalesEvidence, Tarefa 1.2
-da Fase 1 do "SALE-IA V2" — ver seção "SalesEvidence — Fase 1 / Tarefa
-1.2" abaixo e CHANGELOG.md V.1.4.74. O corpo deste documento nao acompanhou o
+Atualizado em: 2026-09-10 (V.1.4.75, local — produção confirmada em
+`1.4.74`, ver "Deploy" abaixo; V.1.4.75 é o Opportunity Memory +
+Opportunity Graph, Fase 2 completa (Tarefas 2.1+2.2) do "SALE-IA V2" —
+ver seção "Opportunity Memory + Opportunity Graph — Fase 2" abaixo e
+CHANGELOG.md V.1.4.75. O corpo deste documento nao acompanhou o
 CHANGELOG.md entre V.1.4.54 e V.1.4.66; a fonte de verdade sempre mais
 atualizada e o CHANGELOG e o `/health` de producao. Cost Intelligence
 Fases 1-6, Observabilidade Fase 1 e Whisper Local seguem concluidas e
@@ -628,6 +629,37 @@ inseguro" (hipótese solta); sempre `type=ADOPTION_RISK` +
   `/dashboard` e `/health` públicos responderam `200`.
 - Fase 2 (Opportunity Memory) do roadmap não começa sem nova confirmação
   explícita do usuário.
+
+## Opportunity Memory + Opportunity Graph — Fase 2 completa do "SALE-IA V2" (V.1.4.75, 10/09/2026)
+
+Usuário confirmou a Fase 2 (Tarefa 2.1) e, em seguida, a Tarefa 2.2 —
+as duas concluídas nesta rodada.
+
+- **Tarefa 2.1**: `api/database.py::Opportunity`/`OpportunityMemory` —
+  entidade superior a `MeetingMemory` (que ganhou coluna
+  `opportunity_id`, nullable, aditiva). As 13 categorias do prompt
+  mestre são listas JSON **append-only** de insights — regra central
+  em `agent/opportunity_memory_rules.py::adicionar_insight()`: nunca
+  sobrescreve/remove uma entrada anterior; quando o mesmo `campo`
+  recebe um valor diferente entre reuniões, a entrada nova aponta
+  `contradiz` para a anterior, e ambas ficam visíveis.
+- **Tarefa 2.2**: `api/database.py::OpportunityGraphEdge` — grafo novo
+  e deliberadamente separado do `agent/knowledge_graph.py` já
+  existente (Sales Brain Fase 7.2, entidades de CRUD, sem evidência
+  por aresta); este relaciona nós `CLIENT`/`PAIN`/`IMPACT`/`GOAL`/
+  `OBJECTION`/`STAKEHOLDER`/`COMPETITOR`/`DECISION`/`NEXT_STEP` dentro
+  de uma oportunidade, com `source`/`evidence`/`confidence`/
+  `timestamp` obrigatórios por aresta (`evidence` nunca vazia).
+- 37 testes novos (22 + 15). Suite completa: 571 testes, 0 falhas, 1
+  skip pré-existente — sem regressão. Detalhe completo no CHANGELOG.md
+  (V.1.4.75).
+- **Pendente**: push + deploy na VPS. `opportunities`/
+  `opportunity_memories`/`opportunity_graph_edges` são tabelas novas
+  (aditivas via `create_all()`), mas a coluna `opportunity_id` em
+  `MeetingMemory` (tabela já existente) **exige `ALTER TABLE` manual
+  na VPS** — mesmo problema já documentado no fix `MEDIUMTEXT` da
+  V.1.4.54. Fase 3 (SPIN 2.0) do roadmap não começa sem nova
+  confirmação explícita do usuário.
 
 ### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)
 - `services/embeddings/`: interface `EmbeddingProvider` (`embed`, `embed_async`, `embed_batch`, `health_check`), `OllamaEmbeddingProvider` (HTTP local via `httpx`, zero import de SDKs de LLM externos), `OpenAIEmbeddingProvider`, `factory.get_embedding_provider()` (lê `EMBEDDING_PROVIDER`, erro explícito em valor desconhecido).

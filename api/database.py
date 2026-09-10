@@ -95,6 +95,7 @@ class MeetingMemory(SQLModel, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     meeting_id: str = Field(sa_column=Column(String(200), unique=True, index=True, nullable=False))
+    opportunity_id: Optional[int] = Field(default=None, sa_column=Column(Integer, index=True))
     transcript_full: str = Field(default="", sa_column=Column(Text, nullable=False))
     transcript_buffer: str = Field(default="", sa_column=Column(Text, nullable=False))
     accumulated_summary: str = Field(default="", sa_column=Column(Text, nullable=False))
@@ -353,6 +354,115 @@ class SalesEvidence(SQLModel, table=True):
     timestamp: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
     confidence: float = Field(default=1.0, sa_column=Column(Float, nullable=False))
     source: str = Field(default="conversation", sa_column=Column(String(20), nullable=False))
+    created_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+
+
+class Opportunity(SQLModel, table=True):
+    """Oportunidade comercial ("PROMPT MESTRE — SALE-IA V2", Fase 2 /
+    Tarefa 2.1) — entidade superior a `MeetingMemory`: uma oportunidade
+    pode ter várias reuniões (via `MeetingMemory.opportunity_id`, ver
+    acima), e-mails, follow-ups e propostas, todas contribuindo
+    conhecimento para a mesma `OpportunityMemory` abaixo.
+
+    Schema literal do prompt mestre. `stage` fica livre (string, sem
+    enum) — o prompt mestre não define um vocabulário fechado de
+    estágios de pipeline aqui (diferente do `conversation_stage` SPIN já
+    existente em `processador_tempo_real.py`, que é por-reunião, não
+    por-oportunidade); inventar uma taxonomia não pedida seria escopo
+    fora da Tarefa 2.1. `status` é validado (`open`/`won`/`lost`) em
+    `agent/opportunity_memory_rules.py`.
+    """
+
+    __tablename__ = "opportunities"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    client_id: str = Field(sa_column=Column(String(36), index=True, nullable=False))
+    seller_id: str = Field(sa_column=Column(String(36), index=True, nullable=False))
+    created_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+    updated_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+    stage: str = Field(default="", sa_column=Column(String(60), nullable=False))
+    status: str = Field(default="open", sa_column=Column(String(20), index=True, nullable=False))
+    estimated_value: Optional[float] = Field(default=None, sa_column=Column(Float))
+    won_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    lost_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    loss_reason: Optional[str] = Field(default=None, sa_column=Column(String(500)))
+
+
+class OpportunityMemory(SQLModel, table=True):
+    """Conhecimento agregado de uma Opportunity ao longo de várias
+    reuniões ("PROMPT MESTRE — SALE-IA V2", Fase 2 / Tarefa 2.1) — 1
+    registro por `opportunity_id` (1:1, mesmo padrão de `MeetingMemory`
+    por `meeting_id`).
+
+    Cada uma das 13 categorias do prompt mestre (`pain_points` a
+    `unknowns`) é uma lista JSON **append-only** de "insights"
+    (`{id, meeting_id, campo, valor, evidence, confidence, timestamp,
+    contradiz}` — ver `agent/opportunity_memory_rules.py::
+    adicionar_insight`). Nunca sobrescreve nem remove uma entrada
+    anterior — regra explícita do prompt mestre ("informações históricas
+    não desaparecem; contradições são registradas e não silenciosamente
+    sobrescritas"): quando um novo valor para o mesmo `campo` diverge do
+    valor mais recente já registrado, a entrada nova aponta `contradiz`
+    para a entrada anterior, e AMBAS permanecem na lista.
+    """
+
+    __tablename__ = "opportunity_memories"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    opportunity_id: int = Field(sa_column=Column(Integer, unique=True, index=True, nullable=False))
+    pain_points_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    business_impact_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    goals_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    objections_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    competitors_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    decision_process_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    stakeholders_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    champion_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    economic_buyer_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    metrics_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    next_steps_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    risks_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    unknowns_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    created_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+    updated_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+
+
+class OpportunityGraphEdge(SQLModel, table=True):
+    """Aresta do Opportunity Graph ("PROMPT MESTRE — SALE-IA V2", Fase 2
+    / Tarefa 2.2) — relaciona nós do tipo CLIENT/PAIN/IMPACT/GOAL/
+    OBJECTION/STAKEHOLDER/COMPETITOR/DECISION/NEXT_STEP dentro de uma
+    mesma Opportunity.
+
+    Diferente do `agent/knowledge_graph.py::graph_edges` já existente no
+    projeto (Sales Brain Fase 7.2) — aquele conecta entidades de CRUD já
+    persistidas (cliente/reunião/memória/playbook/skill) por
+    `relacao`+`created_at`, sem evidência nem confiança por aresta, e é
+    raw-pymysql (não testável com SQLite). Este é um grafo diferente,
+    escopado por `opportunity_id`: relaciona **insights qualitativos**
+    já registrados em `OpportunityMemory` (Tarefa 2.1) — os nós PAIN/
+    IMPACT/GOAL/... referenciam o `id` do insight dentro da categoria
+    correspondente (`from_id`/`to_id` como string), nunca duplicando o
+    dado real. Só o nó CLIENT referencia `client_id` diretamente.
+
+    Schema literal do prompt mestre para a aresta (`source`, `evidence`,
+    `confidence`, `timestamp`) — `evidence` nunca vazia, mesma regra de
+    `SalesEvidence` (Tarefa 1.2): "sem perder a origem". Validação em
+    `agent/opportunity_graph_rules.py::validar_aresta`.
+    """
+
+    __tablename__ = "opportunity_graph_edges"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    opportunity_id: int = Field(sa_column=Column(Integer, index=True, nullable=False))
+    from_type: str = Field(sa_column=Column(String(20), index=True, nullable=False))
+    from_id: str = Field(sa_column=Column(String(100), index=True, nullable=False))
+    to_type: str = Field(sa_column=Column(String(20), index=True, nullable=False))
+    to_id: str = Field(sa_column=Column(String(100), index=True, nullable=False))
+    relation: str = Field(sa_column=Column(String(50), nullable=False))
+    source: str = Field(default="conversation", sa_column=Column(String(20), nullable=False))
+    evidence: str = Field(sa_column=Column(Text, nullable=False))
+    confidence: float = Field(default=1.0, sa_column=Column(Float, nullable=False))
+    timestamp: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
     created_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
 
 
@@ -2389,3 +2499,319 @@ def listar_sales_evidences(
         stmt = stmt.order_by(SalesEvidence.timestamp.asc()).limit(limit)
         rows = session.exec(stmt).all()
         return [_sales_evidence_to_dict(r) for r in rows]
+
+
+def _opportunity_to_dict(row: "Opportunity") -> dict:
+    return {
+        "id": row.id,
+        "client_id": row.client_id,
+        "seller_id": row.seller_id,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+        "stage": row.stage,
+        "status": row.status,
+        "estimated_value": row.estimated_value,
+        "won_at": row.won_at.isoformat() if row.won_at else None,
+        "lost_at": row.lost_at.isoformat() if row.lost_at else None,
+        "loss_reason": row.loss_reason,
+    }
+
+
+def criar_opportunity(
+    *,
+    client_id: str,
+    seller_id: str,
+    stage: str = "",
+    estimated_value: Optional[float] = None,
+) -> dict:
+    """Cria uma Opportunity (Fase 2 / Tarefa 2.1 do "PROMPT MESTRE —
+    SALE-IA V2"). `status` nasce sempre "open" — mudar para won/lost é
+    responsabilidade de `atualizar_status_opportunity()`."""
+    with Session(engine) as session:
+        row = Opportunity(
+            client_id=client_id,
+            seller_id=seller_id,
+            stage=stage,
+            status="open",
+            estimated_value=estimated_value,
+        )
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _opportunity_to_dict(row)
+
+
+def obter_opportunity(opportunity_id: int) -> Optional[dict]:
+    with Session(engine) as session:
+        row = session.get(Opportunity, opportunity_id)
+        return _opportunity_to_dict(row) if row else None
+
+
+def listar_opportunities(
+    client_id: Optional[str] = None,
+    seller_id: Optional[str] = None,
+    status: Optional[str] = None,
+    limit: int = 200,
+) -> List[dict]:
+    with Session(engine) as session:
+        stmt = select(Opportunity)
+        if client_id:
+            stmt = stmt.where(Opportunity.client_id == client_id)
+        if seller_id:
+            stmt = stmt.where(Opportunity.seller_id == seller_id)
+        if status:
+            stmt = stmt.where(Opportunity.status == status)
+        stmt = stmt.order_by(Opportunity.created_at.desc()).limit(limit)
+        rows = session.exec(stmt).all()
+        return [_opportunity_to_dict(r) for r in rows]
+
+
+def atualizar_status_opportunity(
+    opportunity_id: int,
+    status: str,
+    loss_reason: Optional[str] = None,
+) -> Optional[dict]:
+    """Atualiza o status (open/won/lost) — grava won_at/lost_at
+    automaticamente na primeira vez que o status muda para won/lost
+    (nunca sobrescreve um won_at/lost_at já gravado, mesmo que o status
+    seja setado de novo)."""
+    from agent.opportunity_memory_rules import validar_status
+
+    validar_status(status)
+
+    with Session(engine) as session:
+        row = session.get(Opportunity, opportunity_id)
+        if not row:
+            return None
+        row.status = status
+        if status == "won" and row.won_at is None:
+            row.won_at = datetime.now()
+        if status == "lost" and row.lost_at is None:
+            row.lost_at = datetime.now()
+            row.loss_reason = loss_reason
+        row.updated_at = datetime.now()
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _opportunity_to_dict(row)
+
+
+def vincular_meeting_opportunity(meeting_id: str, opportunity_id: int) -> bool:
+    """Associa uma MeetingMemory já existente a uma Opportunity —
+    MeetingMemory continua isolada (transcrição/diagnóstico/eventos
+    próprios), só ganha a referência de qual oportunidade ela alimenta."""
+    with Session(engine) as session:
+        row = session.exec(select(MeetingMemory).where(MeetingMemory.meeting_id == meeting_id)).first()
+        if not row:
+            return False
+        row.opportunity_id = opportunity_id
+        row.updated_at = datetime.now()
+        session.add(row)
+        session.commit()
+        return True
+
+
+def listar_meetings_da_opportunity(opportunity_id: int) -> List[dict]:
+    with Session(engine) as session:
+        stmt = (
+            select(MeetingMemory)
+            .where(MeetingMemory.opportunity_id == opportunity_id)
+            .order_by(MeetingMemory.created_at.asc())
+        )
+        rows = session.exec(stmt).all()
+        return [
+            {
+                "meeting_id": r.meeting_id,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+                "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+            }
+            for r in rows
+        ]
+
+
+_OPPORTUNITY_MEMORY_CATEGORY_TO_COLUMN = {
+    "pain_points": "pain_points_json",
+    "business_impact": "business_impact_json",
+    "goals": "goals_json",
+    "objections": "objections_json",
+    "competitors": "competitors_json",
+    "decision_process": "decision_process_json",
+    "stakeholders": "stakeholders_json",
+    "champion": "champion_json",
+    "economic_buyer": "economic_buyer_json",
+    "metrics": "metrics_json",
+    "next_steps": "next_steps_json",
+    "risks": "risks_json",
+    "unknowns": "unknowns_json",
+}
+
+
+def _opportunity_memory_to_dict(row: "OpportunityMemory") -> dict:
+    return {
+        "id": row.id,
+        "opportunity_id": row.opportunity_id,
+        **{
+            categoria: json.loads(getattr(row, coluna))
+            for categoria, coluna in _OPPORTUNITY_MEMORY_CATEGORY_TO_COLUMN.items()
+        },
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+    }
+
+
+def obter_opportunity_memory(opportunity_id: int, criar_se_ausente: bool = True) -> Optional[dict]:
+    """Retorna a OpportunityMemory da oportunidade, criando uma vazia
+    (1:1, mesmo padrão de MeetingMemory por meeting_id) se ainda não
+    existir e criar_se_ausente=True."""
+    with Session(engine) as session:
+        row = session.exec(
+            select(OpportunityMemory).where(OpportunityMemory.opportunity_id == opportunity_id)
+        ).first()
+        if not row:
+            if not criar_se_ausente:
+                return None
+            row = OpportunityMemory(opportunity_id=opportunity_id)
+            session.add(row)
+            session.commit()
+            session.refresh(row)
+        return _opportunity_memory_to_dict(row)
+
+
+def registrar_conhecimento_opportunity(
+    opportunity_id: int,
+    categoria: str,
+    *,
+    meeting_id: str,
+    valor,
+    campo: Optional[str] = None,
+    evidence: Optional[str] = None,
+    confidence: float = 1.0,
+) -> dict:
+    """Adiciona um insight a uma categoria da OpportunityMemory (Fase 2 /
+    Tarefa 2.1). Dado de domínio — ValueError propaga em categoria
+    desconhecida ou confidence/meeting_id inválidos (mesma convenção de
+    criar_sales_event/criar_sales_evidence). Nunca sobrescreve/remove um
+    insight anterior — ver agent/opportunity_memory_rules.py::
+    adicionar_insight.
+
+    Retorna {"insights": [...lista completa da categoria...],
+    "contradicao": {...} ou None}."""
+    from agent.opportunity_memory_rules import adicionar_insight
+
+    if categoria not in _OPPORTUNITY_MEMORY_CATEGORY_TO_COLUMN:
+        raise ValueError(
+            f"categoria inválida: {categoria!r} (esperado um de {sorted(_OPPORTUNITY_MEMORY_CATEGORY_TO_COLUMN)})"
+        )
+    coluna = _OPPORTUNITY_MEMORY_CATEGORY_TO_COLUMN[categoria]
+
+    with Session(engine) as session:
+        row = session.exec(
+            select(OpportunityMemory).where(OpportunityMemory.opportunity_id == opportunity_id)
+        ).first()
+        if not row:
+            row = OpportunityMemory(opportunity_id=opportunity_id)
+            session.add(row)
+            session.commit()
+            session.refresh(row)
+
+        insights_existentes = json.loads(getattr(row, coluna))
+        nova_lista, contradicao = adicionar_insight(
+            insights_existentes,
+            meeting_id=meeting_id,
+            valor=valor,
+            campo=campo,
+            evidence=evidence,
+            confidence=confidence,
+        )
+
+        setattr(row, coluna, json.dumps(nova_lista, ensure_ascii=False))
+        row.updated_at = datetime.now()
+        session.add(row)
+        session.commit()
+
+        return {"insights": nova_lista, "contradicao": contradicao}
+
+
+def _opportunity_graph_edge_to_dict(row: "OpportunityGraphEdge") -> dict:
+    return {
+        "id": row.id,
+        "opportunity_id": row.opportunity_id,
+        "from_type": row.from_type,
+        "from_id": row.from_id,
+        "to_type": row.to_type,
+        "to_id": row.to_id,
+        "relation": row.relation,
+        "source": row.source,
+        "evidence": row.evidence,
+        "confidence": row.confidence,
+        "timestamp": row.timestamp.isoformat() if row.timestamp else None,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
+def criar_aresta_opportunity_graph(
+    opportunity_id: int,
+    *,
+    from_type: str,
+    from_id,
+    to_type: str,
+    to_id,
+    relation: str,
+    evidence: str,
+    source: str = "conversation",
+    confidence: float = 1.0,
+    timestamp: Optional[datetime] = None,
+) -> dict:
+    """Cria uma aresta do Opportunity Graph (Fase 2 / Tarefa 2.2 do
+    "PROMPT MESTRE — SALE-IA V2"). Valida via agent/opportunity_graph_rules
+    antes de tocar no banco — ValueError propaga para o chamador (mesma
+    convenção de dado de domínio da Tarefa 1.1/1.2/2.1). `from_id`/`to_id`
+    de nós PAIN/IMPACT/GOAL/... são o `id` do insight correspondente em
+    `OpportunityMemory` (ver `registrar_conhecimento_opportunity`), nunca
+    um dado duplicado."""
+    from agent.opportunity_graph_rules import validar_aresta
+
+    dados = {
+        "from_type": from_type, "from_id": from_id, "to_type": to_type, "to_id": to_id,
+        "relation": relation, "evidence": evidence, "confidence": confidence,
+    }
+    validar_aresta(dados)
+
+    with Session(engine) as session:
+        row = OpportunityGraphEdge(
+            opportunity_id=opportunity_id,
+            from_type=from_type,
+            from_id=str(from_id),
+            to_type=to_type,
+            to_id=str(to_id),
+            relation=relation,
+            source=source,
+            evidence=evidence,
+            confidence=confidence,
+            timestamp=timestamp or datetime.now(),
+        )
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _opportunity_graph_edge_to_dict(row)
+
+
+def listar_arestas_opportunity(
+    opportunity_id: int,
+    node_type: Optional[str] = None,
+    node_id: Optional[str] = None,
+) -> List[dict]:
+    """Lista as arestas de uma Opportunity — opcionalmente filtradas por
+    um nó especifico (`node_type`+`node_id`), em qualquer direção
+    (from ou to), mesmo padrão de agent/knowledge_graph.py::buscar_conexoes."""
+    with Session(engine) as session:
+        stmt = select(OpportunityGraphEdge).where(OpportunityGraphEdge.opportunity_id == opportunity_id)
+        if node_type and node_id is not None:
+            node_id = str(node_id)
+            stmt = stmt.where(
+                ((OpportunityGraphEdge.from_type == node_type) & (OpportunityGraphEdge.from_id == node_id))
+                | ((OpportunityGraphEdge.to_type == node_type) & (OpportunityGraphEdge.to_id == node_id))
+            )
+        stmt = stmt.order_by(OpportunityGraphEdge.created_at.asc())
+        rows = session.exec(stmt).all()
+        return [_opportunity_graph_edge_to_dict(r) for r in rows]

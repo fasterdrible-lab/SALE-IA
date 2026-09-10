@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.74** (backend, local — ainda não deployada; produção confirmada em V.1.4.71) · extensão Chrome **V.1.4.5** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.75** (backend, local — ainda não deployada; produção confirmada em V.1.4.74) · extensão Chrome **V.1.4.5** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -668,6 +668,87 @@ equipe não usar"` (hipótese apontando para a fala real que a sustenta).
 - **Pendente**: push + deploy na VPS (aditivo — 1 tabela nova via
   `create_all()`). **Fase 2 (Opportunity Memory) do roadmap não começa
   sem nova confirmação explícita do usuário.**
+
+## Opportunity Memory + Opportunity Graph — Fase 2 completa do "PROMPT MESTRE — SALE-IA V2" (V.1.4.75)
+
+Usuário confirmou avançar para a Fase 2 (Tarefa 2.1) e, em seguida,
+para a Tarefa 2.2 — as duas concluídas nesta rodada.
+
+### Tarefa 2.1 — Opportunity + OpportunityMemory
+- **`api/database.py::Opportunity`** (tabela `opportunities`): schema
+  literal do prompt mestre — `client_id`, `seller_id`, `stage` (string
+  livre, sem enum — o prompt mestre não define vocabulário fechado de
+  pipeline aqui, diferente do `conversation_stage` SPIN já existente
+  por-reunião), `status` (`open`/`won`/`lost`, validado),
+  `estimated_value`, `won_at`/`lost_at`/`loss_reason`.
+- **`api/database.py::OpportunityMemory`** (tabela
+  `opportunity_memories`, 1:1 com `opportunity_id`): as 13 categorias
+  do prompt mestre (`pain_points` a `unknowns`), cada uma uma lista
+  JSON **append-only** de insights (`{id, meeting_id, campo, valor,
+  evidence, confidence, timestamp, contradiz}`).
+- **Regra central — "informações históricas não desaparecem;
+  contradições são registradas e não silenciosamente sobrescritas"**:
+  `agent/opportunity_memory_rules.py::adicionar_insight()` nunca
+  remove/edita uma entrada existente. Quando um novo valor para o
+  mesmo `campo` (aspecto opcional dentro da categoria, ex.:
+  `"orcamento_mensal"` dentro de `metrics`) diverge do valor mais
+  recente já registrado, a entrada nova aponta `contradiz` para o `id`
+  da entrada anterior — ambas ficam na lista, nada é apagado.
+- **`MeetingMemory` ganha coluna `opportunity_id`** (nullable,
+  aditiva) — liga reuniões a uma oportunidade sem tocar em nenhum
+  campo existente; `MeetingMemory` continua isolada (transcrição/
+  diagnóstico/eventos próprios nunca se misturam entre reuniões).
+- `api/database.py`: CRUD completo (`criar_opportunity`,
+  `obter_opportunity`, `listar_opportunities`,
+  `atualizar_status_opportunity` — grava `won_at`/`lost_at` só na
+  primeira transição, nunca sobrescreve —, `vincular_meeting_opportunity`,
+  `listar_meetings_da_opportunity`, `obter_opportunity_memory`,
+  `registrar_conhecimento_opportunity` — dado de domínio, propaga
+  `ValueError` em categoria inválida, mesma convenção da Fase 1). Sem
+  endpoint HTTP novo (não pedido pela Tarefa 2.1).
+- 22 testes novos (`tests/test_opportunity_memory.py`), incluindo o
+  teste literal do prompt mestre (oportunidade com 3 reuniões,
+  confirma isolamento + agregação + contradição sem perda de dado).
+
+### Tarefa 2.2 — Opportunity Graph
+- **`api/database.py::OpportunityGraphEdge`** (tabela
+  `opportunity_graph_edges`): relaciona nós `CLIENT`/`PAIN`/`IMPACT`/
+  `GOAL`/`OBJECTION`/`STAKEHOLDER`/`COMPETITOR`/`DECISION`/`NEXT_STEP`
+  dentro de uma `opportunity_id`. Nós `PAIN`/`IMPACT`/... referenciam
+  o `id` do insight já registrado em `OpportunityMemory` (Tarefa 2.1)
+  — nunca duplica dado; só `CLIENT` referencia `client_id` direto.
+- **Decisão deliberada — grafo novo, separado do
+  `agent/knowledge_graph.py` já existente** (Sales Brain Fase 7.2,
+  V.1.4.69): aquele conecta entidades de CRUD (cliente/reunião/
+  memória/playbook/skill) por `relacao`+`created_at`, sem evidência
+  nem confiança por aresta, e é raw-pymysql (não testável com
+  SQLite). Este é um grafo qualitativo diferente, escopado por
+  oportunidade, com `source`/`evidence`/`confidence`/`timestamp`
+  obrigatórios por aresta — schema literal da Tarefa 2.2.
+- **`evidence` sempre obrigatória** (`agent/opportunity_graph_rules.py::
+  validar_aresta()`) — regra central do prompt mestre ("cada relação
+  deve conter source/evidence/confidence/timestamp... sem perder a
+  origem"), mesma disciplina de `SalesEvidence`/Tarefa 1.2.
+- `api/database.py`: `criar_aresta_opportunity_graph()` (propaga
+  `ValueError`), `listar_arestas_opportunity()` (filtro opcional por
+  nó específico, qualquer direção). Sem endpoint HTTP novo.
+- 15 testes novos (`tests/test_opportunity_graph.py`), incluindo o
+  exemplo literal do prompt mestre: reunião 1 identifica
+  `dor=leads esquecidos`, reunião 2 identifica `impacto=R$20.000/mês`,
+  o grafo relaciona `PAIN → causa → IMPACT` sem perder a origem de
+  nenhum dos dois insights.
+
+### Comum às duas tarefas
+- Suite completa: **571 testes** (556 da Fase 1 + 37 novos), **0
+  falhas**, 1 skip pré-existente — sem regressão.
+- **Pendente**: push + deploy na VPS. `opportunities`/
+  `opportunity_memories`/`opportunity_graph_edges` são tabelas novas
+  (aditivas via `create_all()`), mas a coluna `opportunity_id` em
+  `MeetingMemory` (tabela já existente) **exige `ALTER TABLE
+  meeting_memory ADD COLUMN opportunity_id INTEGER` manual na VPS** —
+  `create_all()` não migra colunas em tabelas já existentes (mesmo
+  problema do fix `MEDIUMTEXT` da V.1.4.54). **Fase 3 (SPIN 2.0) do
+  roadmap não começa sem nova confirmação explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

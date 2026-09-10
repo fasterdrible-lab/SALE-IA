@@ -648,6 +648,16 @@ Sequencia direta da Tarefa 1.1. Objetivo: separar interpretacao de evidencia —
 - [x] **Deploy confirmado na VPS (10/09/2026, ~19h05 UTC)**: `reunioes_ativas: 1` bloqueou o restart por ~55min (reuniao real em andamento) — `git pull` (fast-forward `615864e` -> `6b9a0ab`) + `pip install`/`pip check` feitos antes, sem risco (so atualiza arquivos em disco). Assim que `reunioes_ativas` chegou a `0`, `systemctl restart saleia` executado — `active`, sem erros/tracebacks no journal. Pos-restart: `/health` local = `versao 1.4.74`, `status online`, `reunioes_ativas 0`; `/dashboard` e `/health` publicos (`api.saleia.app.br`) responderam `200`.
 - **Fase 2 (Opportunity Memory) do roadmap nao comeca sem nova confirmacao explicita do usuario.**
 
+## Concluido (V.1.4.75 — Opportunity Memory + Opportunity Graph, Fase 2 completa do "PROMPT MESTRE — SALE-IA V2")
+
+Usuario confirmou avancar para a Fase 2 (Tarefa 2.1) e depois para a Tarefa 2.2, sem esperar o resultado da suite intermediaria. As duas tarefas ficaram prontas.
+
+- [x] Tarefa 2.1 — `api/database.py::Opportunity`/`OpportunityMemory` (13 categorias, listas JSON append-only de insights) + `agent/opportunity_memory_rules.py` (`adicionar_insight()` — nunca sobrescreve, registra contradicao quando o mesmo campo recebe valor diferente). `MeetingMemory` ganha coluna `opportunity_id` (nullable, aditiva). CRUD completo em `api/database.py` (criar/obter/listar Opportunity, atualizar status, vincular/listar meetings, registrar/obter conhecimento). 22 testes novos (`tests/test_opportunity_memory.py`), incluindo o teste literal de "oportunidade com 3 reunioes".
+- [x] Tarefa 2.2 — `api/database.py::OpportunityGraphEdge` (grafo novo e deliberadamente separado do `agent/knowledge_graph.py` ja existente do Sales Brain) + `agent/opportunity_graph_rules.py` (9 NODE_TYPES, `evidence` sempre obrigatoria). `criar_aresta_opportunity_graph()`/`listar_arestas_opportunity()`. 15 testes novos (`tests/test_opportunity_graph.py`), incluindo o exemplo literal "dor -> causa -> impacto".
+- [x] Suite completa: 571 testes (556 + 15), 0 falhas, 1 skip pre-existente — sem regressao.
+- [x] Versao: `1.4.74` -> `1.4.75`.
+- **Pendente**: push + deploy na VPS. `opportunity_id` novo em `MeetingMemory` (tabela ja existente) exige `ALTER TABLE` manual na VPS — `create_all()` nao migra colunas em tabelas existentes (mesmo padrao do fix MEDIUMTEXT da V.1.4.54). **Fase 3 (SPIN 2.0) do roadmap nao comeca sem nova confirmacao explicita do usuario.**
+
 ## Pendente
 
 - [ ] **Debito tecnico (achado 05/09/2026, fora de escopo)**: migrar `google.generativeai` (totalmente descontinuado pelo Google) para `google.genai`, e `claude-sonnet-4-20250514` (EOL 15/06/2026) para um modelo Anthropic atual.
