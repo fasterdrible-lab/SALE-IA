@@ -644,7 +644,9 @@ Sequencia direta da Tarefa 1.1. Objetivo: separar interpretacao de evidencia —
 - [x] `criar_sales_evidence()`/`obter_sales_evidence()`/`listar_sales_evidences()` em `api/database.py` — mesma convencao "dado de dominio" da Tarefa 1.1, sem endpoint HTTP novo.
 - [x] 10 testes novos (`tests/test_sales_evidence.py`), incluindo o exemplo literal do prompt mestre. Suite completa: 534 testes (524 + 10), 0 falhas, 1 skip pre-existente — sem regressao.
 - [x] Versao: `1.4.73` -> `1.4.74`.
-- **Pendente**: push + deploy na VPS (aditivo, 1 tabela nova via create_all()). **Fase 2 (Opportunity Memory) do roadmap nao comeca sem nova confirmacao explicita do usuario.**
+- [x] Push para o GitHub (commit `6b9a0ab`, bundlando Fase 0 + Tarefa 1.1 + Tarefa 1.2).
+- [x] **Deploy confirmado na VPS (10/09/2026, ~19h05 UTC)**: `reunioes_ativas: 1` bloqueou o restart por ~55min (reuniao real em andamento) — `git pull` (fast-forward `615864e` -> `6b9a0ab`) + `pip install`/`pip check` feitos antes, sem risco (so atualiza arquivos em disco). Assim que `reunioes_ativas` chegou a `0`, `systemctl restart saleia` executado — `active`, sem erros/tracebacks no journal. Pos-restart: `/health` local = `versao 1.4.74`, `status online`, `reunioes_ativas 0`; `/dashboard` e `/health` publicos (`api.saleia.app.br`) responderam `200`.
+- **Fase 2 (Opportunity Memory) do roadmap nao comeca sem nova confirmacao explicita do usuario.**
 
 ## Pendente
 

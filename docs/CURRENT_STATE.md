@@ -1,9 +1,9 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-10 (V.1.4.74, local — produção confirmada em
-`1.4.71`, ver "Deploy" abaixo; V.1.4.74 é o SalesEvidence, Tarefa 1.2 da
-Fase 1 do "SALE-IA V2" — ver seção "SalesEvidence — Fase 1 / Tarefa 1.2"
-abaixo e CHANGELOG.md V.1.4.74. O corpo deste documento nao acompanhou o
+Atualizado em: 2026-09-10 (V.1.4.74, local + GitHub + **VPS confirmada em
+produção**, ver "Deploy" abaixo; V.1.4.74 é o SalesEvidence, Tarefa 1.2
+da Fase 1 do "SALE-IA V2" — ver seção "SalesEvidence — Fase 1 / Tarefa
+1.2" abaixo e CHANGELOG.md V.1.4.74. O corpo deste documento nao acompanhou o
 CHANGELOG.md entre V.1.4.54 e V.1.4.66; a fonte de verdade sempre mais
 atualizada e o CHANGELOG e o `/health` de producao. Cost Intelligence
 Fases 1-6, Observabilidade Fase 1 e Whisper Local seguem concluidas e
@@ -619,9 +619,15 @@ inseguro" (hipótese solta); sempre `type=ADOPTION_RISK` +
 - 10 testes novos (`tests/test_sales_evidence.py`). Suite completa: 534
   testes, 0 falhas, 1 skip pré-existente — sem regressão. Detalhe
   completo no CHANGELOG.md (V.1.4.74).
-- **Pendente**: push + deploy na VPS (aditivo, 1 tabela nova via
-  `create_all()`). Fase 2 (Opportunity Memory) do roadmap não começa
-  sem nova confirmação explícita do usuário.
+- **Push + deploy confirmados (10/09/2026)**: commit `6b9a0ab` no
+  GitHub. Na VPS, `reunioes_ativas: 1` (reunião real em andamento)
+  bloqueou o restart por ~55min — `git pull`/`pip install` feitos antes
+  com segurança (só arquivos em disco); `systemctl restart saleia`
+  executado assim que `reunioes_ativas` chegou a `0`. Pós-restart:
+  `/health` = `versao 1.4.74`, `status online`, sem erros no journal;
+  `/dashboard` e `/health` públicos responderam `200`.
+- Fase 2 (Opportunity Memory) do roadmap não começa sem nova confirmação
+  explícita do usuário.
 
 ### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)
 - `services/embeddings/`: interface `EmbeddingProvider` (`embed`, `embed_async`, `embed_batch`, `health_check`), `OllamaEmbeddingProvider` (HTTP local via `httpx`, zero import de SDKs de LLM externos), `OpenAIEmbeddingProvider`, `factory.get_embedding_provider()` (lê `EMBEDDING_PROVIDER`, erro explícito em valor desconhecido).
