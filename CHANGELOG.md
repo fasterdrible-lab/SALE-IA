@@ -3,6 +3,597 @@
 
 ---
 
+## V.1.4.84 — SalesReasoningEngine (só contrato): Tarefa 7.1, início da Fase 7 do "PROMPT MESTRE — SALE-IA V2"
+> Data: 11/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Sequência da Fase 6 (Objection Intelligence, V.1.4.82-1.4.83) —
+usuário confirmou avançar para a Fase 7 (Sales Reasoning Engine): "o
+cérebro central" que consolida os motores das Fases 1-6 (SPINState,
+MEDDPICCState, BuyerMotivation, Objections, BehavioralSignals) junto de
+MeetingMemory/OpportunityMemory/OpportunityGraph/RAGContext/
+SellerContext/HistoricalPatterns num único raciocínio.
+
+**Antes de implementar, pergunta direta ao usuário sobre escopo**:
+diferente de todas as Fases 1-6 (regras determinísticas puras, zero
+IA), o próprio prompt mestre exige validação **semântica** pro Golden
+Dataset de 50+ cenários da Tarefa 7.1 ("o teste não deve depender de
+igualdade literal de frase; validar semântica e regra comercial") — só
+faz sentido com raciocínio real via IA, um salto de escopo/custo real
+que merecia confirmação explícita antes de começar (nunca assumido
+implicitamente, mesmo padrão de decisão usado nas Fases 4/5 do Cost
+Intelligence, V.1.4.60-1.4.61). **Usuário escolheu**: só o contrato de
+entrada/saída nesta rodada, sem nenhuma chamada de IA e sem o Golden
+Dataset — o motor de raciocínio real fica para quando o usuário decidir
+avançar.
+
+### TAREFA 7.1 — SalesReasoningEngine (contrato)
+- `agent/sales_reasoning_engine.py` (novo — nome de arquivo foge
+  deliberadamente do padrão `*_rules.py` das Fases 1-6, já que o
+  prompt mestre chama isso literalmente de "novo serviço:
+  SalesReasoningEngine", não mais uma função de regra isolada):
+  `SALES_REASONING_INPUT_CAMPOS` — os 11 campos literais de entrada
+  (`meeting_memory`, `opportunity_memory`, `opportunity_graph`,
+  `spin_state`, `meddpicc_state`, `buyer_motivation`, `objections`,
+  `behavioral_signals`, `rag_context`, `seller_context`,
+  `historical_patterns`) e `SALES_REASONING_OUTPUT_CAMPOS` — os 10
+  campos literais de saída (`current_state`, `hypotheses`, `evidence`,
+  `missing_information`, `recommended_framework`, `next_best_action`,
+  `next_best_question`, `avoid`, `reason`, `confidence`).
+- **`construir_input_vazio()`/`validar_input_raciocinio(entrada)`**:
+  todos os 11 campos de entrada são opcionais — numa reunião real, nem
+  todos existem ainda em qualquer ponto da conversa (ex.:
+  `meddpicc_state` pode não ter nenhum item `CONFIRMED` na abertura da
+  call). A validação só barra chave desconhecida/erro de digitação,
+  nunca exige preenchimento de nenhum campo específico.
+- **`montar_saida_raciocinio(...)`/`validar_output_raciocinio(saida)`**:
+  `current_state`/`recommended_framework`/`next_best_action`/`reason`
+  obrigatórios e não-vazios; `hypotheses`/`evidence`/`missing_
+  information`/`avoid` sempre lista (default `[]` via `montar_saida_
+  raciocinio()`, nunca `None`/ausente); `next_best_question` é o único
+  campo de texto opcional (`None` permitido — nem toda recomendação é
+  uma pergunta, ex.: quando a ação já é "enviar contrato");
+  `confidence` validada em `[0,1]`.
+- **Exemplo literal do prompt mestre reproduzido**: `current_state`
+  "cliente reconhece dor, mas impacto econômico ainda não está claro"
+  → `recommended_framework=SPIN_IMPLICATION` → `next_best_action=
+  "aprofundar impacto"` → `next_best_question="Quanto esse problema
+  afeta a operação por mês?"` → `avoid=["não apresentar preço ainda"]`
+  → `confidence=0.86`.
+- 14 testes novos (`tests/test_sales_reasoning_engine.py`), incluindo o
+  exemplo acima e validação de cada regra de tipo/obrigatoriedade dos
+  contratos de entrada e saída.
+- **Decisão deliberada de escopo (a mais explícita desta rodada)**:
+  nenhuma lógica de raciocínio real foi construída — não existe função
+  que receba o bundle de 11 inputs e produza a saída de 10 campos; o
+  módulo só valida os contratos. Sem chamada de IA, sem Golden Dataset,
+  sem integração com `agent/multiagente/orquestrador.py`/
+  `api/processador_tempo_real.py`, sem persistência nova e sem endpoint
+  HTTP.
+- Versão: `1.4.83` → `1.4.84` (`api/main.py::/health` e
+  `/monitor/metricas`).
+
+### PENDENTE
+- Push + deploy na VPS (aditivo — sem tabela/coluna nova, módulo puro
+  em memória, zero custo de IA nesta rodada).
+- **O motor de raciocínio real (nova chamada de IA/agente) e o Golden
+  Dataset de 50+ cenários da própria Tarefa 7.1, além de qualquer fase
+  seguinte do "PROMPT MESTRE — SALE-IA V2", não começam sem nova
+  confirmação explícita do usuário.**
+
+---
+
+## V.1.4.83 — Negotiation Engine: Tarefa 6.2, fecha a Fase 6 (Objection Intelligence) do "PROMPT MESTRE — SALE-IA V2"
+> Data: 11/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Sequência direta da Tarefa 6.1 (Taxonomia de Objeções, V.1.4.82) —
+usuário confirmou avançar para a Tarefa 6.2. Fecha a Fase 6 (Objection
+Intelligence) completa do "PROMPT MESTRE — SALE-IA V2".
+
+### TAREFA 6.2 — Negotiation Engine
+- `agent/negotiation_rules.py` (novo, função pura, mesmo padrão de
+  `agent/objection_rules.py`/`behavioral_signal_rules.py` — sem IA, sem
+  banco): `NEGOTIATION_TIPOS` — as 7 estratégias consultivas literais
+  do prompt mestre (`LABEL`, `MIRROR`, `CALIBRATED_QUESTION`,
+  `SUMMARIZE`, `CLARIFY`, `VALUE_REFRAME`, `RISK_REDUCTION`), inspiradas
+  em negociação consultiva/tática. Divididas em `ESTRATEGIAS_
+  INVESTIGATIVAS` (`LABEL`, `MIRROR`, `CALIBRATED_QUESTION`, `CLARIFY`)
+  e `ESTRATEGIAS_POS_INVESTIGACAO` (`SUMMARIZE`, `VALUE_REFRAME`,
+  `RISK_REDUCTION`) — a união cobre a taxonomia inteira, sem
+  sobreposição.
+- **Regra explícita do prompt mestre — "nunca permitir: ameaça,
+  mentira, escassez falsa, manipulação, informações inventadas" —
+  garantida por construção, não por instrução**: o vocabulário é
+  fechado nas 7 estratégias consultivas; nenhuma tática manipulativa
+  (desconto arbitrário, ameaça, urgência falsa) é sequer representável
+  — não existe campo de texto livre em lugar nenhum da API pública.
+  Cada estratégia tem uma descrição canônica sóbria e fixa
+  (`DESCRICOES_ESTRATEGIAS`), nunca texto gerado por chamador/IA.
+  `GuardaContraTaticasManipulativasTest` confirma via grep que nenhuma
+  das 7 descrições menciona essas táticas — mesmo padrão de guarda
+  arquitetural já usado em `agent/behavioral_signal_rules.py` (Fase 5)
+  e `agent/signo_solar_rules.py` (V.1.4.71).
+- **Teste específico do prompt mestre reproduzido literalmente**:
+  cliente diz "Está caro." → resultado proibido "Posso dar 20% agora."
+  → resultado esperado: estratégia de investigação.
+  `recomendar_estrategia(objection_spoken, root_cause_hypothesis=None,
+  estrategia_desejada=None)` reaproveita `agent.objection_rules.
+  precisa_investigar()` (Tarefa 6.1, mesmo espírito de
+  `agent.deal_risk_rules.calcular_riscos()` reaproveitando o estado
+  MEDDPICC da Tarefa 4.1): enquanto a objeção não foi investigada
+  (`precisa_investigar=True`), só estratégias de `ESTRATEGIAS_
+  INVESTIGATIVAS` são permitidas — sem `estrategia_desejada` explícita,
+  o motor recomenda `CALIBRATED_QUESTION` por padrão; com
+  `estrategia_desejada` fora desse subconjunto (inclusive
+  `VALUE_REFRAME`, o caminho mais próximo de "oferecer algo" nesse
+  vocabulário), o motor **recusa** (`ValueError`) — mesmo se um
+  chamador ou uma futura camada de IA tentar pular a investigação.
+  Depois que a objeção foi de fato investigada (evidência própria,
+  categoria diferente do spoken, confidence suficiente), o motor libera
+  `ESTRATEGIAS_POS_INVESTIGACAO`, com `VALUE_REFRAME` como default.
+- 13 testes novos (`tests/test_negotiation_rules.py`), incluindo o
+  exemplo literal "Está caro." (proibido e o fluxo correto), a
+  checagem de que `GIVE_DISCOUNT`/`DISCOUNT` não existem na taxonomia,
+  e a guarda contra táticas manipulativas nas descrições.
+- **Decisão deliberada de escopo**: sem integração com
+  `agent/multiagente/orquestrador.py`/`api/processador_tempo_real.py`
+  ainda, sem persistência nova e sem endpoint HTTP — mesma disciplina
+  de "schema/regra primeiro, integração é decisão de produto separada"
+  das Fases 1-6.
+- Versão: `1.4.82` → `1.4.83` (`api/main.py::/health` e
+  `/monitor/metricas`).
+
+### PENDENTE
+- Push + deploy na VPS (aditivo — sem tabela/coluna nova, módulo puro
+  em memória, mesmo risco zero de deploy das tarefas anteriores das
+  Fases 3-6).
+- **Fase 7 (Sales Reasoning Engine) e qualquer tarefa seguinte do
+  "PROMPT MESTRE — SALE-IA V2" não começam sem nova confirmação
+  explícita do usuário.**
+
+---
+
+## V.1.4.82 — Taxonomia de Objeções: Tarefa 6.1, início da Fase 6 (Objection Intelligence) do "PROMPT MESTRE — SALE-IA V2"
+> Data: 11/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Sequência da Fase 5 (Motivação e Comportamento, V.1.4.80-1.4.81) —
+usuário confirmou avançar para a Fase 6 (Objection Intelligence). Esta
+rodada cobre só a **Tarefa 6.1** (Taxonomia de objeções) — a Tarefa 6.2
+(Negotiation Engine) não começou, mesmo padrão de confirmar tarefa por
+tarefa já usado nas Fases 1-5.
+
+### TAREFA 6.1 — Taxonomia de objeções
+- `agent/objection_rules.py` (novo, função pura, mesmo padrão de
+  `agent/behavioral_signal_rules.py`/`meddpicc_rules.py` — sem IA, sem
+  banco): `OBJECTION_TIPOS` — as 13 categorias literais do prompt
+  mestre (`PRICE`, `VALUE`, `BUDGET`, `TIMING`, `TRUST`, `ADOPTION`,
+  `COMPETITOR`, `AUTHORITY`, `PRIORITY`, `IMPLEMENTATION`, `LEGAL`,
+  `PROCUREMENT`, `SECURITY`) — vocabulário fechado só para
+  `objection_spoken` (o que o cliente literalmente falou).
+- **`objection_spoken` e `root_cause_hypothesis` são sempre campos
+  separados, nunca fundidos automaticamente** — regra central do
+  prompt mestre. `root_cause_hypothesis.hypothesis` usa vocabulário
+  livre (o próprio exemplo do prompt mestre usa `ADOPTION_RISK`, que
+  nem está nas 13 categorias de `objection_spoken`) — só exige
+  `confidence` em `[0,1]` e `evidence_quote` própria.
+- **Regra de teste explícita do prompt mestre — "'Está caro.' não pode
+  resultar automaticamente em root_cause = PRICE, confidence 100%;
+  sistema deve primeiro recomendar investigação" — imposta
+  estruturalmente**: `precisa_investigar(objection_spoken, root_cause_
+  hypothesis=None)` retorna `True` sempre que (a) nenhuma hipótese foi
+  levantada ainda, (b) `confidence < LIMIAR_CONFIANCA_MINIMA_ROOT_
+  CAUSE` (`0.7`, decisão desta rodada — o prompt mestre não define o
+  número exato, só a regra "não pode ser 100% automático"), ou (c) a
+  hipótese apenas repete a categoria falada (`hypothesis ==
+  objection_spoken["category"]`) reaproveitando a MESMA `evidence_
+  quote` do spoken — o padrão exato de "espelhamento sem investigação
+  real" que o exemplo do prompt mestre proíbe.
+- `registrar_objecao(objection_spoken, root_cause_hypothesis=None)`:
+  monta o registro completo (`{"objection_spoken", "root_cause_
+  hypothesis", "precisa_investigar"}`), sempre com os dois campos
+  visivelmente separados — nunca um campo único fundido.
+- **Os 2 exemplos literais do prompt mestre reproduzidos**: o proibido
+  (`spoken=PRICE`/"Está caro."/hipótese idêntica `PRICE`/confidence
+  `1.0`/mesma evidência → `precisa_investigar=True`) e o bom
+  (`spoken=PRICE`, `root=ADOPTION_RISK` com evidência própria de
+  investigação → `precisa_investigar=False`).
+- 16 testes novos (`tests/test_objection_rules.py`), incluindo os 2
+  exemplos acima, validação de taxonomia/confidence/evidência e a
+  checagem de que `root_cause_hypothesis` aceita vocabulário fora da
+  taxonomia fechada de `objection_spoken`.
+- **Decisão deliberada de escopo**: extração automática de objeções a
+  partir de transcrição livre via IA (classificar "está caro" como
+  `PRICE`) **não foi construída** — não está no enunciado da Tarefa 6.1
+  ("criar a taxonomia", não o extrator), fica para tarefa futura. Sem
+  integração com `agent/multiagente/orquestrador.py`/
+  `api/processador_tempo_real.py`, sem persistência nova e sem endpoint
+  HTTP — mesma disciplina das Fases 1-5.
+- Versão: `1.4.81` → `1.4.82` (`api/main.py::/health` e
+  `/monitor/metricas`).
+
+### PENDENTE
+- Push + deploy na VPS (aditivo — sem tabela/coluna nova, módulo puro
+  em memória, mesmo risco zero de deploy das tarefas anteriores das
+  Fases 3-5).
+- **Tarefa 6.2 (Negotiation Engine) e qualquer fase seguinte do
+  "PROMPT MESTRE — SALE-IA V2" não começam sem nova confirmação
+  explícita do usuário.**
+
+---
+
+## V.1.4.81 — Behavioral Signal Engine: Tarefa 5.2, fecha a Fase 5 (Motivação e Comportamento) do "PROMPT MESTRE — SALE-IA V2"
+> Data: 11/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Sequência direta da Tarefa 5.1 (Buyer Motivation Engine, V.1.4.80) —
+usuário confirmou avançar para a Tarefa 5.2. Fecha a Fase 5 (Motivação
+e Comportamento) completa do "PROMPT MESTRE — SALE-IA V2".
+
+### TAREFA 5.2 — Behavioral Signal Engine
+- `agent/behavioral_signal_rules.py` (novo, função pura, mesmo padrão
+  de `agent/buyer_motivation_rules.py` — sem IA, sem banco):
+  `BEHAVIORAL_SIGNAL_TIPOS` — os 6 sinais comportamentais observáveis
+  literais do prompt mestre (`LOSS_AVERSION`, `STATUS_QUO_BIAS`,
+  `SOCIAL_PROOF_REQUEST`, `AUTHORITY_REQUEST`, `PRICE_ANCHOR`,
+  `RISK_AVERSION`).
+- **Regra explícita do prompt mestre — "implementar somente sinais
+  observáveis"** e **"cada sinal precisa apresentar trecho da conversa
+  que o sustenta"**: `validar_sinais_comportamentais(sinais)` recusa
+  (`ValueError`) qualquer sinal fora da taxonomia ou sem
+  `evidence_quote` real (obrigatória e não-vazia) — mesma disciplina de
+  evidência de `SalesEvent`/SPIN/MEDDPICC/Buyer Motivation (Fases 1, 3,
+  4 e 5.1).
+- **`detectar_sinais(sinais_observados)`**: valida e enriquece cada
+  sinal com uma descrição canônica sóbria e fixa do tipo
+  (`DESCRICOES_SINAIS`) — nunca um texto livre gerado por chamador/IA.
+  Garante por construção a regra "evitar alegações como 'o cérebro
+  reptiliano foi ativado'": todas as 6 descrições falam de
+  comportamento OBSERVÁVEL (ex.: "cliente enfatiza o que pode perder
+  mais do que o que pode ganhar" para `LOSS_AVERSION`), nunca de
+  mecanismo neurológico/evolutivo especulativo.
+  `GuardaContraAlegacoesPseudocientificasTest` confirma isso via grep
+  nas descrições (termos proibidos: "cérebro reptiliano", "instinto
+  animal", "neurociência", "amígdala", etc.) — mesmo padrão de guarda
+  arquitetural já usado em `agent/signo_solar_rules.py` (V.1.4.71) e
+  `agent/buyer_motivation_rules.py` (V.1.4.80).
+- **`contagem_por_sinal(sinais_observados)`**: contagem de ocorrências
+  por tipo de sinal — útil pra saber quais vieses mais apareceram numa
+  reunião.
+- 15 testes novos (`tests/test_behavioral_signal_rules.py`), incluindo
+  a regra de evidência obrigatória, a descrição canônica por tipo e a
+  guarda contra linguagem pseudocientífica.
+- **Decisão deliberada de escopo**: extração automática de sinais a
+  partir de transcrição livre via IA (interpretar "o concorrente X
+  cobra metade disso" e classificar como `PRICE_ANCHOR`) **não foi
+  construída** — não está no enunciado da Tarefa 5.2 ("criar o motor",
+  não o extrator), fica para tarefa futura. Sem integração com
+  `agent/multiagente/orquestrador.py`/`api/processador_tempo_real.py`,
+  sem persistência nova e sem endpoint HTTP — mesma disciplina das
+  Fases 1-5.
+- Versão: `1.4.80` → `1.4.81` (`api/main.py::/health` e
+  `/monitor/metricas`).
+
+### PENDENTE
+- Push + deploy na VPS (aditivo — sem tabela/coluna nova, módulo puro
+  em memória, mesmo risco zero de deploy das tarefas anteriores das
+  Fases 3-5).
+- **Fase 6 (Objection Intelligence) e qualquer tarefa seguinte do
+  "PROMPT MESTRE — SALE-IA V2" não começam sem nova confirmação
+  explícita do usuário.**
+
+---
+
+## V.1.4.80 — Buyer Motivation Engine: Tarefa 5.1, início da Fase 5 (Motivação e Comportamento) do "PROMPT MESTRE — SALE-IA V2"
+> Data: 11/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Sequência da Fase 4 (MEDDPICC, V.1.4.78-1.4.79) — usuário confirmou
+avançar para a Fase 5 (Motivação e Comportamento). Esta rodada cobre só
+a **Tarefa 5.1** (Buyer Motivation Engine) — a Tarefa 5.2 (Behavioral
+Signal Engine) não começou, mesmo padrão de confirmar tarefa por tarefa
+já usado nas Fases 1-4.
+
+### TAREFA 5.1 — Buyer Motivation Engine
+- `agent/buyer_motivation_rules.py` (novo, função pura, mesmo padrão de
+  `agent/meddpicc_rules.py`/`sales_event_rules.py` — sem IA, sem banco):
+  `MOTIVATION_TIPOS` — taxonomia controlada com os 12 motivadores
+  literais do prompt mestre (`GROWTH`, `SECURITY`, `CONTROL`, `STATUS`,
+  `CONVENIENCE`, `SPEED`, `COST_REDUCTION`, `REVENUE_GAIN`,
+  `RISK_REDUCTION`, `PRODUCTIVITY`, `RECOGNITION`, `SIMPLICITY`) — não é
+  texto livre, uma hipótese só é válida se `motivation` for um destes.
+- `validar_hipoteses_motivacao(hipoteses)`: cada hipótese
+  (`{"motivation", "confidence", "evidence"}`) validada — `motivation`
+  na taxonomia, `confidence` em `[0,1]`, `evidence` precisa ser uma
+  lista não-vazia com pelo menos 1 quote real (mesma disciplina de
+  evidência de `SalesEvent`/`SalesEvidence`/SPIN/MEDDPICC — Fases 1, 3
+  e 4).
+- `motivacao_dominante(hipoteses)`: valida e retorna a hipótese de maior
+  `confidence` — leitura corrente da motivação predominante do
+  comprador, ou `None` se a lista estiver vazia. Empate mantém a ordem
+  de chegada.
+- **Regra explícita do prompt mestre — "DISC nunca deverá ser tratado
+  como motivação" — garantida por construção, não só por convenção de
+  código**: o módulo não importa nem lê nenhum campo relacionado a
+  DISC. `tests/test_buyer_motivation_rules.py::GuardaArquiteturalTest`
+  confirma isso via grep no arquivo-fonte (procurando `disc_agent`,
+  `perfil_disc`, literais `"disc"`/`'disc'`) — mesmo padrão de
+  `agent/signo_solar_rules.py` usado pra garantir que astrologia nunca
+  contamina DISC/Big Five (V.1.4.71).
+- **Teste do prompt mestre reproduzido literalmente** ("testar diálogos
+  onde DISC permanece igual; motivação muda; sistema deve diferenciar
+  corretamente"): simula 3 turnos de diálogo com um DISC externo
+  constante (`"D"`, dado opaco a este módulo) e hipóteses de motivação
+  diferentes por turno (`SPEED` → `CONTROL` → `STATUS`) — confirma que
+  `motivacao_dominante()` reflete a motivação real de cada turno, nunca
+  herda o valor do turno anterior nem se acopla ao DISC constante.
+- 14 testes novos (`tests/test_buyer_motivation_rules.py`), incluindo
+  validação de taxonomia/confidence/evidência, o teste do prompt mestre
+  acima e a guarda arquitetural.
+- **Decisão deliberada de escopo**: extração automática de hipóteses de
+  motivação a partir de transcrição livre via IA (interpretar "quero
+  ser a primeira empresa do setor a usar isso" e classificar como
+  `STATUS`) **não foi construída** — não está no enunciado da Tarefa
+  5.1 ("criar taxonomia controlada", não o extrator), fica para tarefa
+  futura. Sem integração com `agent/multiagente/orquestrador.py`/
+  `api/processador_tempo_real.py`, sem persistência nova e sem endpoint
+  HTTP — mesma disciplina das Fases 1-4.
+- Versão: `1.4.79` → `1.4.80` (`api/main.py::/health` e
+  `/monitor/metricas`).
+
+### PENDENTE
+- Push + deploy na VPS (aditivo — sem tabela/coluna nova, módulo puro
+  em memória, mesmo risco zero de deploy das tarefas anteriores das
+  Fases 3/4).
+- **Tarefa 5.2 (Behavioral Signal Engine) e qualquer fase seguinte do
+  "PROMPT MESTRE — SALE-IA V2" não começam sem nova confirmação
+  explícita do usuário.**
+
+---
+
+## V.1.4.79 — Deal Risk Engine: Tarefa 4.2, fecha a Fase 4 (MEDDPICC) do "PROMPT MESTRE — SALE-IA V2"
+> Data: 11/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Sequência direta da Tarefa 4.1 (Opportunity Qualification Engine,
+V.1.4.78) — usuário confirmou avançar para a Tarefa 4.2. Fecha a Fase 4
+(MEDDPICC) completa do "PROMPT MESTRE — SALE-IA V2".
+
+### TAREFA 4.2 — Deal Risk Engine
+- `agent/deal_risk_rules.py` (novo, função pura, mesmo padrão de
+  `agent/meddpicc_rules.py`/`spin_coverage_rules.py`/`question_gap_
+  rules.py` — sem IA, sem banco): `calcular_riscos(estado_meddpicc=
+  None, tem_proximo_passo=True, total_objecoes_preco=0,
+  competidor_em_vantagem=False, dias_desde_ultima_atividade=0, ...)`
+  devolve a lista de códigos de risco detectados — subconjunto de
+  `DEAL_RISK_TIPOS`, os 7 exemplos literais do prompt mestre
+  (`NO_ECONOMIC_BUYER`, `NO_CHAMPION`, `NO_NEXT_STEP`, `NO_METRICS`,
+  `HIGH_PRICE_RESISTANCE`, `COMPETITOR_ADVANTAGE`,
+  `STALE_OPPORTUNITY`), sempre na mesma ordem fixa.
+- **Regra explícita do prompt mestre — "não usar LLM para calcular
+  regras simples"**: todos os 7 riscos são checagens determinísticas
+  puras (comparação de status/contagem/dias), zero chamada de IA nesta
+  camada.
+- **`NO_ECONOMIC_BUYER`/`NO_CHAMPION`/`NO_METRICS` derivam direto do
+  `estado_meddpicc`** (saída de `meddpicc_rules.calcular_qualificacao_
+  meddpicc()`, Tarefa 4.1) — item não `CONFIRMED` dispara o risco
+  correspondente. Os outros 4 riscos recebem sinal explícito do
+  chamador (booleano/contagem/dias) — **de onde vem cada sinal em
+  produção real** (ex.: `total_objecoes_preco` contado a partir de
+  `SalesEvent.event_type == "PRICE_DISCUSSION"`, `tem_proximo_passo` a
+  partir de `OpportunityMemory.next_steps`) **fica para uma tarefa de
+  integração futura**, fora do enunciado da Tarefa 4.2.
+- **`COMPETITOR_ADVANTAGE` é sinal explícito, deliberadamente não deriva
+  do item `competition` do MEDDPICC** — aquele item só indica se o
+  cenário competitivo foi *mapeado* (CONFIRMED/PARTIAL/UNKNOWN), nunca
+  *quem está na frente*; misturar os dois inflaria falso-positivo toda
+  vez que a competição fosse simplesmente conhecida, mesmo sem
+  desvantagem real.
+- **Limiares** (`LIMIAR_OBJECOES_PRECO_PADRAO=3`, `LIMIAR_DIAS_STALE_
+  PADRAO=21`) — decisão desta rodada, o prompt mestre não define os
+  números exatos, só pede "riscos determinísticos sempre que possível".
+  Sobrescrevíveis por chamada, mesmo padrão de `STAGE_PRIORIDADE_
+  PADRAO`/`NIVEL_MINIMO_AVANCADA` das tarefas anteriores.
+- **Exemplo literal do prompt mestre reproduzido**: oportunidade com dor
+  forte (`identify_pain CONFIRMED`) + sem decisor (`economic_buyer`
+  continua `UNKNOWN`) + sem próxima reunião (`tem_proximo_passo=False`)
+  gera pelo menos `NO_ECONOMIC_BUYER` e `NO_NEXT_STEP`.
+- 13 testes novos (`tests/test_deal_risk_rules.py`), incluindo o
+  exemplo acima, o caso "oportunidade saudável" (zero riscos) e a
+  checagem de que a lista sempre sai na ordem fixa de `DEAL_RISK_TIPOS`.
+- **Decisão deliberada de escopo**: sem integração com
+  `agent/multiagente/orquestrador.py`/`api/processador_tempo_real.py`
+  ainda, sem persistência nova e sem endpoint HTTP — mesma disciplina
+  de "schema/regra primeiro, integração é decisão de produto separada"
+  das Fases 1-4.
+- Versão: `1.4.78` → `1.4.79` (`api/main.py::/health` e
+  `/monitor/metricas`).
+
+### PENDENTE
+- Push + deploy na VPS (aditivo — sem tabela/coluna nova, módulo puro
+  em memória, mesmo risco zero de deploy das tarefas anteriores da
+  Fase 3/4).
+- **Fase 5 (Motivação e Comportamento) e qualquer tarefa seguinte do
+  "PROMPT MESTRE — SALE-IA V2" não começam sem nova confirmação
+  explícita do usuário.**
+
+---
+
+## V.1.4.78 — Opportunity Qualification Engine (MEDDPICC): Tarefa 4.1, início da Fase 4 do "PROMPT MESTRE — SALE-IA V2"
+> Data: 11/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Sequência da Fase 3 (SPIN 2.0, V.1.4.76-1.4.77) — usuário confirmou
+avançar para a Fase 4 (MEDDPICC). Esta rodada cobre só a **Tarefa 4.1**
+(Opportunity Qualification Engine) — a Tarefa 4.2 (Deal Risk, regras
+determinísticas de risco) não começou, mesmo padrão de confirmar tarefa
+por tarefa já usado nas Fases 1-3.
+
+### TAREFA 4.1 — Opportunity Qualification Engine
+- `agent/meddpicc_rules.py` (novo, função pura, mesmo padrão de
+  `agent/spin_coverage_rules.py`/`question_gap_rules.py` — sem IA, sem
+  banco): `calcular_qualificacao_meddpicc(fatos_conhecidos)` computa o
+  estado dos 8 itens MEDDPICC (`metrics`, `economic_buyer`,
+  `decision_criteria`, `decision_process`, `paper_process`,
+  `identify_pain`, `champion`, `competition` — ordem literal do prompt
+  mestre) a partir de fatos já estruturados e evidenciados
+  (`{"item", "status", "confidence", "evidence_quote"}`). Cada item
+  resulta em `{"status", "confidence", "evidence": [...]}`.
+- **Agregação quando há múltiplos fatos sobre o mesmo item** (decisão
+  desta rodada, mesmo espírito de "informação não desaparece" já usado
+  em `opportunity_memory_rules.py`, Fase 2): `status` nunca regride (usa
+  o mais avançado já visto, `UNKNOWN → PARTIAL → CONFIRMED`),
+  `confidence` usa o maior valor já visto, `evidence` acumula todas as
+  quotes na ordem recebida — nunca descarta.
+- **Regra de evidência estendida por decisão deliberada**: o prompt
+  mestre não repete a frase "não invente informação faltante" na Tarefa
+  4.1 (só na Tarefa 3.1, SPIN), mas o schema pedido — status/confidence/
+  evidence[] por item — só faz sentido com a mesma disciplina de
+  `SalesEvent`/`SalesEvidence`/SPIN (Fases 1 e 3):
+  `calcular_qualificacao_meddpicc()` recusa (`ValueError`) qualquer item
+  que tente sair de `UNKNOWN` sem `evidence_quote`.
+- **`resumo_qualificacao(estado)`**: contagem de itens por status +
+  `nivel` geral (`fraca`/`intermediaria`/`avancada`), derivado da
+  contagem de itens `CONFIRMED` entre os 8 (`>=6`=avancada,
+  `>=3`=intermediaria — decisão desta rodada; o prompt mestre não define
+  o número exato de itens confirmados por nível, só pede os 3 cenários
+  de teste).
+- **`itens_pendentes(estado)`**: itens ainda não `CONFIRMED` (inclui
+  `PARTIAL` e `UNKNOWN`), na ordem literal do prompt mestre.
+- **Os 3 cenários de teste pedidos pelo prompt mestre**, com resultado
+  esperado definido antes da execução: oportunidade mal qualificada (1
+  item `PARTIAL`, resto `UNKNOWN` → `nivel: fraca`), intermediária (3
+  `CONFIRMED` + 2 `PARTIAL` + 3 `UNKNOWN` → `nivel: intermediaria`) e
+  enterprise avançada (8/8 itens `CONFIRMED` → `nivel: avancada`).
+- 14 testes novos (`tests/test_meddpicc_rules.py`), incluindo os 3
+  cenários acima e a checagem de que `status`/`confidence`/`evidence`
+  agregam corretamente com múltiplos fatos sobre o mesmo item.
+- **Decisão deliberada de escopo**: sem integração com
+  `agent/multiagente/orquestrador.py`/`api/processador_tempo_real.py`
+  ainda, sem persistência nova (nenhuma tabela `MeddpiccState` em
+  `api/database.py`) e sem endpoint HTTP — mesma disciplina de "schema/
+  regra primeiro, integração é decisão de produto separada" das Fases
+  1-3.
+- Versão: `1.4.77` → `1.4.78` (`api/main.py::/health` e
+  `/monitor/metricas`).
+
+### PENDENTE
+- Push + deploy na VPS (aditivo — sem tabela/coluna nova, módulo puro
+  em memória, mesmo risco zero de deploy das Tarefas 3.1/3.2).
+- **Tarefa 4.2 (Deal Risk) e qualquer fase seguinte do "PROMPT MESTRE —
+  SALE-IA V2" não começam sem nova confirmação explícita do usuário.**
+
+---
+
+## V.1.4.77 — Question Gap Engine: Tarefa 3.2 da Fase 3 do "PROMPT MESTRE — SALE-IA V2"
+> Data: 11/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Sequência direta da Tarefa 3.1 (SPIN Coverage Engine, V.1.4.76) —
+usuário confirmou avançar para a Tarefa 3.2. Objetivo do prompt mestre:
+"descobrir qual pergunta ainda precisa ser feita", priorizando os gaps
+já identificados pelo `SPINState` da Tarefa 3.1.
+
+### TAREFA 3.2 — Question Gap Engine
+- `agent/question_gap_rules.py` (novo, função pura, mesmo padrão de
+  `agent/spin_coverage_rules.py` — sem IA, sem banco):
+  `calcular_gaps_priorizados(cobertura, prioridade_por_stage=None)`
+  recebe a cobertura já calculada por `calcular_cobertura_spin()`
+  (Tarefa 3.1) e devolve a lista de gaps (`missing`) com `{"stage",
+  "campo", "priority", "pergunta"}`, ordenada por prioridade
+  (`critical` > `high` > `medium` > `low`, o vocabulário exato do
+  prompt mestre) e, dentro da mesma prioridade, pela ordem SPIN.
+- `proximo_gap(gaps_priorizados)` — primeiro item da lista já
+  priorizada, ou `None` se não houver nenhum — resposta direta a "qual
+  pergunta ainda precisa ser feita".
+- **Pergunta sempre reaproveitada de `SPIN_PERGUNTAS_PADRAO`** (Tarefa
+  3.1), nunca reinventada — garante por construção a regra de teste do
+  prompt mestre ("pergunta recomendada precisa estar relacionada ao gap
+  detectado"), já que o campo do gap indexa diretamente o dicionário de
+  perguntas existente. Bate **exatamente** com o exemplo literal do
+  prompt mestre (`missing: economic impact` / `financial_impact` →
+  `"Quanto esse problema custa atualmente?"`).
+- **`STAGE_PRIORIDADE_PADRAO`** — decisão desta rodada: o prompt mestre
+  define o vocabulário de prioridades (`critical/high/medium/low`) mas
+  não a regra de atribuição. Mapeamento default por estágio SPIN:
+  `implication=critical` (expõe o custo/urgência do problema — gap mais
+  crítico de não perguntar), `need_payoff=high` (sustenta o valor da
+  solução), `problem=medium`, `situation=low` (fundação). Sobrescrevível
+  por chamada (`prioridade_por_stage=`), mesmo padrão de `checklist=` em
+  `calcular_cobertura_spin()` — não é vocabulário fechado do domínio.
+  `ValueError` em `stage`/`priority` inválidos na sobrescrita.
+- 10 testes novos (`tests/test_question_gap_rules.py`), incluindo o
+  exemplo literal do prompt mestre e a checagem de que a lista de gaps
+  sai sempre em ordem não-decrescente de prioridade.
+- **Decisão deliberada de escopo**: sem integração com
+  `agent/multiagente/orquestrador.py`/`api/processador_tempo_real.py`
+  ainda — mesma disciplina das Fases 1-3 (schema/regra primeiro,
+  integração é decisão de produto separada). Sem endpoint HTTP novo
+  (fora do enunciado da Tarefa 3.2).
+- Versão: `1.4.76` → `1.4.77` (`api/main.py::/health` e
+  `/monitor/metricas`).
+
+### PENDENTE
+- Push + deploy na VPS (aditivo — sem tabela/coluna nova, módulo puro
+  em memória, mesmo risco zero de deploy da Tarefa 3.1).
+- **Fase 4 (MEDDPICC) e qualquer tarefa seguinte do "PROMPT MESTRE —
+  SALE-IA V2" não começam sem nova confirmação explícita do usuário.**
+
+---
+
+## V.1.4.76 — SPIN Coverage Engine: Tarefa 3.1, início da Fase 3 do "PROMPT MESTRE — SALE-IA V2"
+> Data: 10/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Sequência da Fase 2 (Opportunity Memory/Graph, V.1.4.75) — usuário
+confirmou avançar para a Fase 3 (SPIN 2.0). Esta rodada cobre só a
+**Tarefa 3.1** (SPIN Coverage Engine) — a Tarefa 3.2 (Question Gap
+Engine, com prioridades critical/high/medium/low) não começou, dado o
+padrão estabelecido nas Fases 1-2 de confirmar tarefa por tarefa.
+
+### TAREFA 3.1 — SPIN Coverage Engine
+- `agent/spin_coverage_rules.py` (novo, função pura, mesmo padrão de
+  `agent/sales_event_rules.py`/`opportunity_memory_rules.py` — sem IA,
+  sem banco): `calcular_cobertura_spin(fatos_conhecidos, checklist=None)`
+  computa `known[]`/`missing[]` por estágio SPIN (`situation`/
+  `problem`/`implication`/`need_payoff`) a partir de fatos JÁ
+  estruturados e evidenciados.
+- **Regra do prompt mestre — "não permitir que a IA invente informação
+  faltante"** — imposta recusando (`ValueError`) qualquer fato sem
+  `evidence_quote`: nenhum "known" pode existir sem lastro real na
+  conversa, mesma disciplina de `SalesEvent`/`SalesEvidence` (Fase 1).
+- `SPIN_CHECKLIST_PADRAO`: vocabulário default por estágio, inferido do
+  exemplo literal do prompt mestre (`situation`: team_size/crm_tool;
+  `problem`: main_pain; `implication`: financial_impact/
+  conversion_impact; `need_payoff`: solution_value) — sobrescrevível
+  por chamada via parâmetro `checklist`, não é vocabulário fechado.
+- `estagio_atual()` — primeiro estágio SPIN (em ordem) ainda com
+  pendência. `sugerir_proxima_pergunta()` — usa
+  `SPIN_PERGUNTAS_PADRAO`, com fallback genérico pra campos fora do
+  dict; bate **exatamente** com o exemplo literal do prompt mestre
+  (`financial_impact` → `"Quanto esse problema custa atualmente?"`).
+- **Decisão deliberada de escopo**: extração automática de fatos a
+  partir de transcrição livre via IA (interpretar "nosso follow-up é
+  lento" e classificar como `problem.main_pain`) **não foi
+  construída** — não está no enunciado da Tarefa 3.1 ("criar cobertura
+  real" a partir de fatos já estruturados), fica para tarefa futura.
+  Sem integração com `orquestrador.py` ainda — mesma disciplina das
+  Fases 1-2 (schema/regra primeiro, integração é decisão separada).
+- 13 testes novos (`tests/test_spin_coverage_rules.py`), incluindo o
+  exemplo literal do prompt mestre reproduzido exatamente (Situation
+  com equipe+CRM conhecidos, Problem com follow-up lento conhecido,
+  Implication e Need Payoff totalmente faltantes, pergunta sugerida
+  idêntica ao exemplo).
+- Suite completa: **584 testes** (571 da Fase 2 + 13 novos), **0
+  falhas**, 1 skip pré-existente — sem regressão.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — módulo
+  puro em memória, nenhuma mudança de schema). **Tarefa 3.2 (Question
+  Gap Engine) e qualquer fase seguinte não começam sem nova
+  confirmação explícita do usuário.**
+
+---
+
 ## V.1.4.75 — Opportunity Memory + Opportunity Graph: Fase 2 completa do "PROMPT MESTRE — SALE-IA V2"
 > Data: 10/09/2026 | Local, aguardando push/deploy
 

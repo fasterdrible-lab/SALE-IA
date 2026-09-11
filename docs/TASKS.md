@@ -660,6 +660,113 @@ Usuario confirmou avancar para a Fase 2 (Tarefa 2.1) e depois para a Tarefa 2.2,
 - [x] **Deploy confirmado na VPS (10/09/2026, ~20h13 UTC)**: `reunioes_ativas: 0` (sem reuniao ativa desta vez) — `git pull` (fast-forward `6b9a0ab` -> `451beae`) + `pip install`/`pip check` limpos. `ALTER TABLE meeting_memory ADD COLUMN opportunity_id INTEGER` + `CREATE INDEX` aplicados via script idempotente (checou coluna ausente antes de alterar). `systemctl restart saleia` — `active`, journal sem erros. Pos-restart: `/health` = `versao 1.4.75`, `status online`, `reunioes_ativas 0`, 4 provedores de IA `ok`; `/dashboard` e `/health` publicos responderam `200`.
 - **Fase 3 (SPIN 2.0) do roadmap nao comeca sem nova confirmacao explicita do usuario.**
 
+## Concluido (V.1.4.76 — SPIN Coverage Engine, Tarefa 3.1, inicio da Fase 3 do "PROMPT MESTRE — SALE-IA V2")
+
+Usuario confirmou avancar pra Fase 3. Escopo desta rodada: so a Tarefa 3.1 (motor de cobertura) — Tarefa 3.2 (Question Gap Engine, prioridades critical/high/medium/low) nao comecou.
+
+- [x] `agent/spin_coverage_rules.py` (novo, funcao pura, sem IA/banco): `calcular_cobertura_spin()` computa known[]/missing[] por estagio SPIN (situation/problem/implication/need_payoff) a partir de fatos ja estruturados e evidenciados. Regra "nao inventar informacao faltante" imposta recusando (ValueError) fato sem evidence_quote.
+- [x] `SPIN_CHECKLIST_PADRAO` (vocabulario default inferido do exemplo literal do prompt mestre, sobrescrevivel por chamada) + `estagio_atual()` + `sugerir_proxima_pergunta()` (bate exatamente com o exemplo do prompt mestre: "Quanto esse problema custa atualmente?").
+- [x] Decisao deliberada: extracao automatica de fatos a partir de transcricao livre via IA nao foi construida (fora do enunciado da Tarefa 3.1). Sem integracao com orquestrador.py ainda.
+- [x] 13 testes novos (`tests/test_spin_coverage_rules.py`), incluindo o exemplo literal do prompt mestre reproduzido exatamente. Suite completa: 584 testes (571 + 13), 0 falhas, 1 skip pre-existente — sem regressao.
+- [x] Versao: `1.4.75` -> `1.4.76`.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — modulo puro em memoria). **Tarefa 3.2 (Question Gap Engine) e qualquer fase seguinte nao comecam sem nova confirmacao explicita do usuario.**
+
+## Concluido (V.1.4.77 — Question Gap Engine, Tarefa 3.2 da Fase 3 do "PROMPT MESTRE — SALE-IA V2")
+
+Usuario confirmou avancar para a Tarefa 3.2. Constroi sobre o SPINState (known[]/missing[] por estagio) da Tarefa 3.1.
+
+- [x] `agent/question_gap_rules.py` (novo, funcao pura, sem IA/banco): `calcular_gaps_priorizados(cobertura, prioridade_por_stage=None)` recebe a cobertura ja calculada por `calcular_cobertura_spin()` (Tarefa 3.1) e devolve os gaps (`missing`) com `{stage, campo, priority, pergunta}`, ordenados por prioridade (critical > high > medium > low, as 4 do prompt mestre) e, dentro da mesma prioridade, pela ordem SPIN. `proximo_gap()` retorna o primeiro gap (ou None).
+- [x] Pergunta recomendada sempre reaproveitada de `SPIN_PERGUNTAS_PADRAO` (Tarefa 3.1), nunca reinventada — garante por construcao a regra de teste do prompt mestre ("pergunta recomendada precisa estar relacionada ao gap detectado"). Reproduz o exemplo literal: gap `financial_impact` -> "Quanto esse problema custa atualmente?".
+- [x] `STAGE_PRIORIDADE_PADRAO` (decisao desta rodada, prompt mestre so define o vocabulario de prioridades, nao a regra de atribuicao): `implication=critical`, `need_payoff=high`, `problem=medium`, `situation=low` — sobrescrevivel por chamada, mesmo padrao de `checklist=` da Tarefa 3.1.
+- [x] 10 testes novos (`tests/test_question_gap_rules.py`), incluindo o exemplo literal do prompt mestre. Suite completa sem regressao.
+- [x] Versao: `1.4.76` -> `1.4.77`.
+- [x] Decisao deliberada: sem integracao com `orquestrador.py`/`processador_tempo_real.py` ainda; sem endpoint HTTP novo — mesma disciplina das Fases 1-3.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — modulo puro em memoria). **Fase 4 (MEDDPICC) e qualquer tarefa seguinte nao comecam sem nova confirmacao explicita do usuario.**
+
+## Concluido (V.1.4.78 — Opportunity Qualification Engine, Tarefa 4.1, inicio da Fase 4 do "PROMPT MESTRE — SALE-IA V2")
+
+Usuario confirmou avancar para a Fase 4 (MEDDPICC). Escopo desta rodada: so a Tarefa 4.1 (motor de qualificacao) — Tarefa 4.2 (Deal Risk) nao comecou.
+
+- [x] `agent/meddpicc_rules.py` (novo, funcao pura, mesmo padrao de `spin_coverage_rules.py`/`question_gap_rules.py`, sem IA/banco): `calcular_qualificacao_meddpicc(fatos_conhecidos)` computa o estado dos 8 itens MEDDPICC (metrics/economic_buyer/decision_criteria/decision_process/paper_process/identify_pain/champion/competition) — cada um `{status, confidence, evidence[]}` — a partir de fatos ja estruturados e evidenciados. Agregacao quando ha multiplos fatos sobre o mesmo item: status nunca regride (UNKNOWN -> PARTIAL -> CONFIRMED), confidence usa o maior valor ja visto, evidence acumula todas as quotes.
+- [x] Regra de evidencia estendida por decisao deliberada (prompt mestre nao repete a frase pra Tarefa 4.1, mas o schema pedido so faz sentido com a mesma disciplina de SalesEvent/SPIN): item nao pode sair de UNKNOWN sem evidence_quote.
+- [x] `resumo_qualificacao(estado)` — nivel geral (fraca/intermediaria/avancada) por contagem de itens CONFIRMED (limiares >=6/>=3, decisao desta rodada). `itens_pendentes(estado)` — itens ainda nao CONFIRMED.
+- [x] 14 testes novos (`tests/test_meddpicc_rules.py`), incluindo os 3 cenarios pedidos pelo prompt mestre (oportunidade mal qualificada, intermediaria, enterprise avancada) com resultado esperado definido antes da execucao. Suite completa sem regressao.
+- [x] Versao: `1.4.77` -> `1.4.78`.
+- [x] Decisao deliberada: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem tabela nova, sem endpoint HTTP — mesma disciplina das Fases 1-3.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — modulo puro em memoria). **Tarefa 4.2 (Deal Risk) e qualquer fase seguinte nao comecam sem nova confirmacao explicita do usuario.**
+
+## Concluido (V.1.4.79 — Deal Risk Engine, Tarefa 4.2, fecha a Fase 4 do "PROMPT MESTRE — SALE-IA V2")
+
+Usuario confirmou avancar para a Tarefa 4.2. Constroi sobre o estado MEDDPICC da Tarefa 4.1 — fecha a Fase 4 completa.
+
+- [x] `agent/deal_risk_rules.py` (novo, funcao pura, mesmo padrao de `meddpicc_rules.py`/`spin_coverage_rules.py`/`question_gap_rules.py`, sem IA/banco — regra explicita do prompt mestre "nao usar LLM para calcular regras simples"): `calcular_riscos()` devolve os riscos detectados (subconjunto de `DEAL_RISK_TIPOS`, sempre na mesma ordem fixa), os 7 exemplos literais: NO_ECONOMIC_BUYER, NO_CHAMPION, NO_NEXT_STEP, NO_METRICS, HIGH_PRICE_RESISTANCE, COMPETITOR_ADVANTAGE, STALE_OPPORTUNITY.
+- [x] NO_ECONOMIC_BUYER/NO_CHAMPION/NO_METRICS derivam direto do `estado_meddpicc` (Tarefa 4.1) — item nao CONFIRMED dispara o risco. Os outros 4 recebem sinal explicito do chamador (booleano/contagem/dias) — de onde vem cada sinal em producao real e integracao futura, fora do escopo desta tarefa.
+- [x] COMPETITOR_ADVANTAGE e sinal explicito, nao deriva do item `competition` do MEDDPICC (aquele so indica se o cenario competitivo foi mapeado, nao quem esta na frente).
+- [x] Limiares (LIMIAR_OBJECOES_PRECO_PADRAO=3, LIMIAR_DIAS_STALE_PADRAO=21) — decisao desta rodada, sobrescreviveis por chamada.
+- [x] 13 testes novos (`tests/test_deal_risk_rules.py`), incluindo o exemplo literal do prompt mestre (dor forte + sem decisor + sem proxima reuniao -> pelo menos NO_ECONOMIC_BUYER e NO_NEXT_STEP). Suite completa sem regressao.
+- [x] Versao: `1.4.78` -> `1.4.79`.
+- [x] Decisao deliberada: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem tabela nova, sem endpoint HTTP — mesma disciplina das Fases 1-4.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — modulo puro em memoria). **Fase 5 (Motivacao e Comportamento) e qualquer tarefa seguinte nao comecam sem nova confirmacao explicita do usuario.**
+
+## Concluido (V.1.4.80 — Buyer Motivation Engine, Tarefa 5.1, inicio da Fase 5 do "PROMPT MESTRE — SALE-IA V2")
+
+Usuario confirmou avancar para a Fase 5 (Motivacao e Comportamento). Escopo desta rodada: so a Tarefa 5.1 (motor de motivacao) — Tarefa 5.2 (Behavioral Signal Engine) nao comecou.
+
+- [x] `agent/buyer_motivation_rules.py` (novo, funcao pura, mesmo padrao de `meddpicc_rules.py`/`sales_event_rules.py`, sem IA/banco): `MOTIVATION_TIPOS` (12 motivadores literais do prompt mestre: GROWTH, SECURITY, CONTROL, STATUS, CONVENIENCE, SPEED, COST_REDUCTION, REVENUE_GAIN, RISK_REDUCTION, PRODUCTIVITY, RECOGNITION, SIMPLICITY) — taxonomia controlada. `validar_hipoteses_motivacao(hipoteses)` valida cada `{motivation, confidence, evidence[]}` (evidencia obrigatoria e nao-vazia). `motivacao_dominante(hipoteses)` retorna a de maior confidence, ou None.
+- [x] Regra "DISC nunca deve ser tratado como motivacao" garantida por construcao (nao so por convencao): modulo nao importa/le nada relacionado a DISC — `tests/test_buyer_motivation_rules.py::GuardaArquiteturalTest` confirma via grep, mesmo padrao de `signo_solar_rules.py`.
+- [x] Teste do prompt mestre reproduzido: 3 turnos com DISC externo constante ("D"), motivacao mudando turno a turno — sistema diferencia corretamente.
+- [x] 14 testes novos (`tests/test_buyer_motivation_rules.py`). Suite completa sem regressao.
+- [x] Versao: `1.4.79` -> `1.4.80`.
+- [x] Decisao deliberada: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem tabela nova, sem endpoint HTTP — mesma disciplina das Fases 1-4.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — modulo puro em memoria). **Tarefa 5.2 (Behavioral Signal Engine) e qualquer fase seguinte nao comecam sem nova confirmacao explicita do usuario.**
+
+## Concluido (V.1.4.81 — Behavioral Signal Engine, Tarefa 5.2, fecha a Fase 5 do "PROMPT MESTRE — SALE-IA V2")
+
+Usuario confirmou avancar para a Tarefa 5.2. Fecha a Fase 5 (Motivacao e Comportamento) completa.
+
+- [x] `agent/behavioral_signal_rules.py` (novo, funcao pura, mesmo padrao de `buyer_motivation_rules.py`, sem IA/banco): `BEHAVIORAL_SIGNAL_TIPOS` (6 sinais literais do prompt mestre: LOSS_AVERSION, STATUS_QUO_BIAS, SOCIAL_PROOF_REQUEST, AUTHORITY_REQUEST, PRICE_ANCHOR, RISK_AVERSION). `validar_sinais_comportamentais(sinais)` exige `evidence_quote` por sinal (regra literal: "cada sinal precisa apresentar trecho da conversa que o sustenta").
+- [x] `detectar_sinais(sinais_observados)` valida e enriquece cada sinal com descricao canonica sobria do tipo (`DESCRICOES_SINAIS`, nunca texto livre) — garante por construcao a regra "evitar alegacoes como 'o cerebro reptiliano foi ativado'". `contagem_por_sinal(sinais_observados)` — contagem por tipo.
+- [x] 15 testes novos (`tests/test_behavioral_signal_rules.py`), incluindo guarda contra linguagem pseudocientifica nas descricoes. Suite completa sem regressao.
+- [x] Versao: `1.4.80` -> `1.4.81`.
+- [x] Decisao deliberada: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem tabela nova, sem endpoint HTTP — mesma disciplina das Fases 1-5.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — modulo puro em memoria). **Fase 6 (Objection Intelligence) e qualquer tarefa seguinte nao comecam sem nova confirmacao explicita do usuario.**
+
+## Concluido (V.1.4.82 — Taxonomia de Objecoes, Tarefa 6.1, inicio da Fase 6 do "PROMPT MESTRE — SALE-IA V2")
+
+Usuario confirmou avancar para a Fase 6 (Objection Intelligence). Escopo desta rodada: so a Tarefa 6.1 (taxonomia + separacao spoken/root cause) — Tarefa 6.2 (Negotiation Engine) nao comecou.
+
+- [x] `agent/objection_rules.py` (novo, funcao pura, mesmo padrao de `behavioral_signal_rules.py`/`meddpicc_rules.py`, sem IA/banco): `OBJECTION_TIPOS` (13 categorias literais do prompt mestre: PRICE, VALUE, BUDGET, TIMING, TRUST, ADOPTION, COMPETITOR, AUTHORITY, PRIORITY, IMPLEMENTATION, LEGAL, PROCUREMENT, SECURITY) — vocabulario fechado so pra `objection_spoken`.
+- [x] `objection_spoken` e `root_cause_hypothesis` sempre campos separados, nunca fundidos — `root_cause_hypothesis.hypothesis` usa vocabulario livre (exemplo do prompt mestre: ADOPTION_RISK, que nem esta nas 13 categorias de spoken).
+- [x] `precisa_investigar(objection_spoken, root_cause_hypothesis=None)` — regra central "'Esta caro.' nao pode virar root_cause=PRICE, confidence 100% automaticamente; sistema deve primeiro recomendar investigacao" imposta estruturalmente: True quando nao ha hipotese ainda, quando confidence < 0.7 (LIMIAR_CONFIANCA_MINIMA_ROOT_CAUSE), ou quando a hipotese so repete categoria+evidencia identicas ao spoken.
+- [x] `registrar_objecao(objection_spoken, root_cause_hypothesis=None)` — monta o registro completo `{objection_spoken, root_cause_hypothesis, precisa_investigar}`.
+- [x] 16 testes novos (`tests/test_objection_rules.py`), incluindo os 2 exemplos literais do prompt mestre (proibido: PRICE/"Esta caro."/100%/mesma evidencia -> precisa_investigar=True; bom: spoken=PRICE, root=ADOPTION_RISK com evidencia propria -> precisa_investigar=False). Suite completa sem regressao.
+- [x] Versao: `1.4.81` -> `1.4.82`.
+- [x] Decisao deliberada: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem tabela nova, sem endpoint HTTP — mesma disciplina das Fases 1-5.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — modulo puro em memoria). **Tarefa 6.2 (Negotiation Engine) e qualquer fase seguinte nao comecam sem nova confirmacao explicita do usuario.**
+
+## Concluido (V.1.4.83 — Negotiation Engine, Tarefa 6.2, fecha a Fase 6 do "PROMPT MESTRE — SALE-IA V2")
+
+Usuario confirmou avancar para a Tarefa 6.2. Fecha a Fase 6 (Objection Intelligence) completa — constroi sobre `objection_rules.precisa_investigar()` da Tarefa 6.1.
+
+- [x] `agent/negotiation_rules.py` (novo, funcao pura, mesmo padrao de `objection_rules.py`/`behavioral_signal_rules.py`, sem IA/banco): `NEGOTIATION_TIPOS` (7 estrategias consultivas literais do prompt mestre: LABEL, MIRROR, CALIBRATED_QUESTION, SUMMARIZE, CLARIFY, VALUE_REFRAME, RISK_REDUCTION), divididas em `ESTRATEGIAS_INVESTIGATIVAS` (4) e `ESTRATEGIAS_POS_INVESTIGACAO` (3) — uniao cobre a taxonomia inteira, sem sobreposicao.
+- [x] "Nunca permitir ameaca/mentira/escassez falsa/manipulacao/informacao inventada" garantido por construcao: vocabulario fechado nas 7 estrategias, sem campo de texto livre na API publica. Guarda de teste confirma via grep que nenhuma descricao canonica menciona essas taticas.
+- [x] Teste especifico do prompt mestre reproduzido literalmente: cliente diz "Esta caro." -> resultado proibido "Posso dar 20% agora." -> resultado esperado: estrategia de investigacao. `recomendar_estrategia()` reaproveita `precisa_investigar()` (Tarefa 6.1) — enquanto a objecao nao foi investigada, so estrategias investigativas sao permitidas; tentar forcar `VALUE_REFRAME` (ou qualquer pos-investigacao) antes disso levanta ValueError.
+- [x] 13 testes novos (`tests/test_negotiation_rules.py`). Suite completa sem regressao.
+- [x] Versao: `1.4.82` -> `1.4.83`.
+- [x] Decisao deliberada: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem tabela nova, sem endpoint HTTP — mesma disciplina das Fases 1-6.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — modulo puro em memoria). **Fase 7 (Sales Reasoning Engine) e qualquer tarefa seguinte nao comecam sem nova confirmacao explicita do usuario.**
+
+## Concluido (V.1.4.84 — SalesReasoningEngine, Tarefa 7.1, inicio da Fase 7 do "PROMPT MESTRE — SALE-IA V2", so contrato)
+
+Usuario confirmou avancar para a Fase 7. Antes de implementar, pergunta direta sobre escopo (diferente das Fases 1-6 deterministicas, o prompt mestre pede validacao semantica via Golden Dataset de 50+ cenarios, o que exige IA real) — usuario escolheu: so o contrato de entrada/saida nesta rodada, sem IA.
+
+- [x] `agent/sales_reasoning_engine.py` (novo, nome foge do padrao `*_rules.py` de proposito — prompt mestre chama de "novo servico"): `SALES_REASONING_INPUT_CAMPOS` (11 campos literais: meeting_memory, opportunity_memory, opportunity_graph, spin_state, meddpicc_state, buyer_motivation, objections, behavioral_signals, rag_context, seller_context, historical_patterns) e `SALES_REASONING_OUTPUT_CAMPOS` (10 campos literais: current_state, hypotheses, evidence, missing_information, recommended_framework, next_best_action, next_best_question, avoid, reason, confidence).
+- [x] `construir_input_vazio()`/`validar_input_raciocinio(entrada)` — todos os 11 campos de entrada opcionais, validacao so barra chave desconhecida.
+- [x] `montar_saida_raciocinio(...)`/`validar_output_raciocinio(saida)` — current_state/recommended_framework/next_best_action/reason obrigatorios; hypotheses/evidence/missing_information/avoid sempre lista (default []); next_best_question e o unico texto opcional (None permitido); confidence em [0,1].
+- [x] 14 testes novos (`tests/test_sales_reasoning_engine.py`), incluindo o exemplo literal de saida do prompt mestre (SPIN_IMPLICATION, confidence 0.86). Suite completa sem regressao.
+- [x] Versao: `1.4.83` -> `1.4.84`.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova, zero custo de IA). **O motor de raciocinio real (chamada de IA) e o Golden Dataset de 50+ cenarios da propria Tarefa 7.1, alem de qualquer fase seguinte, nao comecam sem nova confirmacao explicita do usuario.**
+
 ## Pendente
 
 - [ ] **Debito tecnico (achado 05/09/2026, fora de escopo)**: migrar `google.generativeai` (totalmente descontinuado pelo Google) para `google.genai`, e `claude-sonnet-4-20250514` (EOL 15/06/2026) para um modelo Anthropic atual.

@@ -1,10 +1,11 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-10 (V.1.4.75, local + GitHub + **VPS confirmada
-em produção**, ver "Deploy" abaixo; V.1.4.75 é o Opportunity Memory +
-Opportunity Graph, Fase 2 completa (Tarefas 2.1+2.2) do "SALE-IA V2" —
-ver seção "Opportunity Memory + Opportunity Graph — Fase 2" abaixo e
-CHANGELOG.md V.1.4.75. O corpo deste documento nao acompanhou o
+Atualizado em: 2026-09-11 (V.1.4.84, local — produção confirmada em
+`1.4.75`, ver "Deploy" abaixo; V.1.4.84 é o CONTRATO (sem IA ainda) do
+SalesReasoningEngine, Tarefa 7.1 (início da Fase 7) do "SALE-IA V2" —
+ver seção "SalesReasoningEngine — Fase 7 / Tarefa 7.1" abaixo e
+CHANGELOG.md V.1.4.84.
+O corpo deste documento nao acompanhou o
 CHANGELOG.md entre V.1.4.54 e V.1.4.66; a fonte de verdade sempre mais
 atualizada e o CHANGELOG e o `/health` de producao. Cost Intelligence
 Fases 1-6, Observabilidade Fase 1 e Whisper Local seguem concluidas e
@@ -663,6 +664,236 @@ as duas concluídas nesta rodada.
   `/health` públicos responderam `200`.
 - Fase 3 (SPIN 2.0) do roadmap não começa sem nova confirmação
   explícita do usuário.
+
+## SPIN Coverage Engine — Fase 3 / Tarefa 3.1 do "SALE-IA V2" (V.1.4.76, 10/09/2026)
+
+Usuário confirmou avançar para a Fase 3. Só a Tarefa 3.1 (motor de
+cobertura) foi feita — Tarefa 3.2 (Question Gap Engine, prioridades
+critical/high/medium/low) não começou.
+
+- `agent/spin_coverage_rules.py` (novo, função pura, sem IA/banco):
+  `calcular_cobertura_spin()` computa `known[]`/`missing[]` por
+  estágio SPIN (`situation`/`problem`/`implication`/`need_payoff`) a
+  partir de fatos já estruturados e evidenciados — recusa
+  (`ValueError`) qualquer fato sem `evidence_quote` (regra do prompt
+  mestre: "não permitir que a IA invente informação faltante").
+- `estagio_atual()` + `sugerir_proxima_pergunta()` — reproduz
+  exatamente o exemplo literal do prompt mestre (pergunta sugerida
+  para `financial_impact` = `"Quanto esse problema custa
+  atualmente?"`).
+- **Decisão deliberada**: extração automática de fatos a partir de
+  transcrição livre via IA não foi construída (fora do enunciado da
+  Tarefa 3.1); sem integração com `orquestrador.py` ainda.
+- 13 testes novos. Suite completa: 584 testes, 0 falhas, 1 skip
+  pré-existente — sem regressão. Detalhe completo no CHANGELOG.md
+  (V.1.4.76).
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova). Tarefa
+  3.2 e qualquer fase seguinte não começam sem nova confirmação
+  explícita do usuário.
+
+## Question Gap Engine — Fase 3 / Tarefa 3.2 do "SALE-IA V2" (V.1.4.77, 11/09/2026)
+
+Usuário confirmou avançar para a Tarefa 3.2. Constrói sobre o
+`SPINState` da Tarefa 3.1 — Fase 4 (MEDDPICC) não começou.
+
+- `agent/question_gap_rules.py` (novo, função pura, sem IA/banco):
+  `calcular_gaps_priorizados(cobertura, prioridade_por_stage=None)`
+  recebe a cobertura da Tarefa 3.1 e devolve os gaps (`missing`) com
+  `{"stage", "campo", "priority", "pergunta"}`, ordenados por
+  prioridade (`critical` > `high` > `medium` > `low`).
+  `proximo_gap()` retorna o primeiro (ou `None`).
+- Pergunta sempre reaproveitada de `SPIN_PERGUNTAS_PADRAO` (Tarefa
+  3.1) — reproduz o exemplo literal do prompt mestre (`financial_
+  impact` → `"Quanto esse problema custa atualmente?"`).
+- **Decisão desta rodada** (prompt mestre não define a regra de
+  atribuição, só o vocabulário de prioridades): `STAGE_PRIORIDADE_
+  PADRAO` marca `implication=critical`, `need_payoff=high`,
+  `problem=medium`, `situation=low` — sobrescrevível por chamada.
+- 10 testes novos. Suite completa: 594 testes (584 + 10), 0 falhas, 1
+  skip pré-existente — sem regressão. Detalhe completo no CHANGELOG.md
+  (V.1.4.77).
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova). Fase 4
+  (MEDDPICC) e qualquer tarefa seguinte não começam sem nova
+  confirmação explícita do usuário.
+
+## Opportunity Qualification Engine — Fase 4 / Tarefa 4.1 do "SALE-IA V2" (V.1.4.78, 11/09/2026)
+
+Usuário confirmou avançar para a Fase 4 (MEDDPICC). Só a Tarefa 4.1
+(motor de qualificação) foi feita — Tarefa 4.2 (Deal Risk) não começou.
+
+- `agent/meddpicc_rules.py` (novo, função pura, sem IA/banco):
+  `calcular_qualificacao_meddpicc()` computa o estado dos 8 itens
+  MEDDPICC (`metrics`/`economic_buyer`/`decision_criteria`/`decision_
+  process`/`paper_process`/`identify_pain`/`champion`/`competition`) —
+  cada um `{status, confidence, evidence[]}` — a partir de fatos já
+  estruturados e evidenciados. Recusa (`ValueError`) item saindo de
+  `UNKNOWN` sem `evidence_quote` (regra estendida por decisão desta
+  rodada, mesma disciplina de SalesEvent/SPIN).
+- `resumo_qualificacao()` — nível geral (`fraca`/`intermediaria`/
+  `avancada`) por contagem de itens `CONFIRMED` (limiares `>=6`/`>=3`,
+  decisão desta rodada). `itens_pendentes()` — itens ainda não
+  `CONFIRMED`.
+- 14 testes novos, incluindo os 3 cenários pedidos pelo prompt mestre
+  (mal qualificada/intermediária/enterprise avançada) com resultado
+  esperado definido antes da execução. Suite completa: 608 testes
+  (594 + 14), 0 falhas, 1 skip pré-existente — sem regressão. Detalhe
+  completo no CHANGELOG.md (V.1.4.78).
+- **Decisão deliberada**: sem integração com `orquestrador.py`, sem
+  tabela nova, sem endpoint HTTP — mesma disciplina das Fases 1-3.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova). Tarefa
+  4.2 (Deal Risk) e qualquer fase seguinte não começam sem nova
+  confirmação explícita do usuário.
+
+## Deal Risk Engine — Fase 4 / Tarefa 4.2 do "SALE-IA V2" (V.1.4.79, 11/09/2026)
+
+Usuário confirmou avançar para a Tarefa 4.2 — fecha a Fase 4 (MEDDPICC)
+completa. Constrói sobre o estado MEDDPICC da Tarefa 4.1.
+
+- `agent/deal_risk_rules.py` (novo, função pura, sem IA/banco — "não
+  usar LLM para calcular regras simples"): `calcular_riscos()` devolve
+  os riscos detectados (subconjunto de `DEAL_RISK_TIPOS`, os 7 exemplos
+  literais do prompt mestre: `NO_ECONOMIC_BUYER`, `NO_CHAMPION`,
+  `NO_NEXT_STEP`, `NO_METRICS`, `HIGH_PRICE_RESISTANCE`,
+  `COMPETITOR_ADVANTAGE`, `STALE_OPPORTUNITY`).
+- `NO_ECONOMIC_BUYER`/`NO_CHAMPION`/`NO_METRICS` derivam do estado
+  MEDDPICC (Tarefa 4.1); os outros 4 recebem sinal explícito do
+  chamador (de onde vem cada sinal em produção real é integração
+  futura). `COMPETITOR_ADVANTAGE` é sinal explícito, não deriva do item
+  `competition` do MEDDPICC (aquele só indica se o cenário competitivo
+  foi mapeado, não quem está na frente).
+- Limiares (`LIMIAR_OBJECOES_PRECO_PADRAO=3`, `LIMIAR_DIAS_STALE_
+  PADRAO=21`) — decisão desta rodada, sobrescrevíveis por chamada.
+- 13 testes novos, incluindo o exemplo literal do prompt mestre (dor
+  forte + sem decisor + sem próxima reunião → pelo menos
+  `NO_ECONOMIC_BUYER`/`NO_NEXT_STEP`). Suite completa: 621 testes
+  (608 + 13), 0 falhas, 1 skip pré-existente — sem regressão. Detalhe
+  completo no CHANGELOG.md (V.1.4.79).
+- **Decisão deliberada**: sem integração com `orquestrador.py`, sem
+  tabela nova, sem endpoint HTTP — mesma disciplina das Fases 1-4.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova). Fase 5
+  (Motivação e Comportamento) e qualquer tarefa seguinte não começam
+  sem nova confirmação explícita do usuário.
+
+## Buyer Motivation Engine — Fase 5 / Tarefa 5.1 do "SALE-IA V2" (V.1.4.80, 11/09/2026)
+
+Usuário confirmou avançar para a Fase 5. Só a Tarefa 5.1 (motor de
+motivação) foi feita — Tarefa 5.2 (Behavioral Signal Engine) não
+começou.
+
+- `agent/buyer_motivation_rules.py` (novo, função pura, sem IA/banco):
+  `MOTIVATION_TIPOS` (12 motivadores literais do prompt mestre),
+  `validar_hipoteses_motivacao()` (cada hipótese `{motivation,
+  confidence, evidence[]}`, evidência obrigatória) e
+  `motivacao_dominante()` (hipótese de maior confidence, ou `None`).
+- **DISC nunca é motivação — garantido por construção**: módulo não
+  importa/lê nada relacionado a DISC, confirmado por teste de guarda
+  arquitetural (grep). Teste do prompt mestre reproduzido: DISC externo
+  constante em 3 turnos, motivação mudando turno a turno.
+- 14 testes novos. Suite completa: 635 testes (621 + 14), 0 falhas, 1
+  skip pré-existente — sem regressão. Detalhe completo no CHANGELOG.md
+  (V.1.4.80).
+- **Decisão deliberada**: sem integração com `orquestrador.py`, sem
+  tabela nova, sem endpoint HTTP — mesma disciplina das Fases 1-4.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova). Tarefa
+  5.2 (Behavioral Signal Engine) e qualquer fase seguinte não começam
+  sem nova confirmação explícita do usuário.
+
+## Behavioral Signal Engine — Fase 5 / Tarefa 5.2 do "SALE-IA V2" (V.1.4.81, 11/09/2026)
+
+Usuário confirmou avançar para a Tarefa 5.2 — fecha a Fase 5 completa.
+
+- `agent/behavioral_signal_rules.py` (novo, função pura, sem IA/banco):
+  `BEHAVIORAL_SIGNAL_TIPOS` (6 sinais literais do prompt mestre:
+  LOSS_AVERSION/STATUS_QUO_BIAS/SOCIAL_PROOF_REQUEST/AUTHORITY_REQUEST/
+  PRICE_ANCHOR/RISK_AVERSION). `validar_sinais_comportamentais()` exige
+  `evidence_quote` por sinal. `detectar_sinais()` enriquece cada sinal
+  com descrição canônica sóbria (nunca texto livre — evita alegação
+  pseudocientífica tipo "cérebro reptiliano"). `contagem_por_sinal()`.
+- 15 testes novos, incluindo guarda contra linguagem pseudocientífica
+  nas descrições. Suite completa: 650 testes (635 + 15), 0 falhas, 1
+  skip pré-existente — sem regressão. Detalhe completo no CHANGELOG.md
+  (V.1.4.81).
+- **Decisão deliberada**: sem integração com `orquestrador.py`, sem
+  tabela nova, sem endpoint HTTP — mesma disciplina das Fases 1-5.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova). Fase 6
+  (Objection Intelligence) e qualquer tarefa seguinte não começam sem
+  nova confirmação explícita do usuário.
+
+## Taxonomia de Objeções — Fase 6 / Tarefa 6.1 do "SALE-IA V2" (V.1.4.82, 11/09/2026)
+
+Usuário confirmou avançar para a Fase 6. Só a Tarefa 6.1 (taxonomia +
+separação spoken/root cause) foi feita — Tarefa 6.2 (Negotiation
+Engine) não começou.
+
+- `agent/objection_rules.py` (novo, função pura, sem IA/banco):
+  `OBJECTION_TIPOS` (13 categorias literais do prompt mestre) para
+  `objection_spoken`; `root_cause_hypothesis` usa vocabulário livre
+  (ex.: `ADOPTION_RISK`), sempre com `confidence`/`evidence_quote`
+  próprios — os dois campos nunca são fundidos.
+- `precisa_investigar()` — regra central: "'Está caro.' não pode virar
+  root_cause=PRICE @ 100% automaticamente" imposta estruturalmente
+  (sem hipótese, confidence baixa, ou hipótese que só espelha a
+  categoria+evidência do spoken → sempre recomenda investigação).
+  `registrar_objecao()` monta o registro completo.
+- 16 testes novos, incluindo os 2 exemplos literais do prompt mestre
+  (proibido e o "bom", spoken=PRICE/root=ADOPTION_RISK). Suite completa:
+  666 testes (650 + 16), 0 falhas, 1 skip pré-existente — sem
+  regressão. Detalhe completo no CHANGELOG.md (V.1.4.82).
+- **Decisão deliberada**: sem integração com `orquestrador.py`, sem
+  tabela nova, sem endpoint HTTP — mesma disciplina das Fases 1-5.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova). Tarefa
+  6.2 (Negotiation Engine) e qualquer fase seguinte não começam sem
+  nova confirmação explícita do usuário.
+
+## Negotiation Engine — Fase 6 / Tarefa 6.2 do "SALE-IA V2" (V.1.4.83, 11/09/2026)
+
+Usuário confirmou avançar para a Tarefa 6.2 — fecha a Fase 6 completa.
+Constrói sobre `objection_rules.precisa_investigar()` da Tarefa 6.1.
+
+- `agent/negotiation_rules.py` (novo, função pura, sem IA/banco):
+  `NEGOTIATION_TIPOS` (7 estratégias consultivas literais do prompt
+  mestre: LABEL/MIRROR/CALIBRATED_QUESTION/SUMMARIZE/CLARIFY/
+  VALUE_REFRAME/RISK_REDUCTION), divididas em investigativas (4) e
+  pós-investigação (3). `recomendar_estrategia()` reaproveita
+  `precisa_investigar()` — enquanto a objeção não foi investigada, só
+  estratégias investigativas são permitidas.
+- "Nunca permitir ameaça/mentira/escassez falsa/manipulação/informação
+  inventada" garantido por construção: vocabulário fechado, sem campo
+  de texto livre. Teste literal do prompt mestre reproduzido: "Está
+  caro." → nunca "posso dar 20% agora" → sempre estratégia de
+  investigação.
+- 13 testes novos, incluindo guarda contra táticas manipulativas nas
+  descrições. Suite completa: 679 testes (666 + 13), 0 falhas, 1 skip
+  pré-existente — sem regressão. Detalhe completo no CHANGELOG.md
+  (V.1.4.83).
+- **Decisão deliberada**: sem integração com `orquestrador.py`, sem
+  tabela nova, sem endpoint HTTP — mesma disciplina das Fases 1-6.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova). Fase 7
+  (Sales Reasoning Engine) e qualquer tarefa seguinte não começam sem
+  nova confirmação explícita do usuário.
+
+## SalesReasoningEngine — Fase 7 / Tarefa 7.1 do "SALE-IA V2" (V.1.4.84, 11/09/2026, só contrato)
+
+Usuário confirmou avançar para a Fase 7. Antes de implementar, pergunta
+direta ao usuário sobre escopo (diferente das Fases 1-6 puramente
+determinísticas, o prompt mestre pede validação semântica via Golden
+Dataset de 50+ cenários — só faz sentido com IA real) — usuário
+escolheu: **só o contrato de entrada/saída nesta rodada, sem IA**.
+
+- `agent/sales_reasoning_engine.py` (novo): `SALES_REASONING_INPUT_
+  CAMPOS` (11 campos literais de entrada) e `SALES_REASONING_OUTPUT_
+  CAMPOS` (10 campos literais de saída). `construir_input_vazio()`/
+  `validar_input_raciocinio()` — todos os 11 inputs opcionais.
+  `montar_saida_raciocinio()`/`validar_output_raciocinio()` — valida
+  tipos/obrigatoriedade dos 10 campos de saída.
+- 14 testes novos, incluindo o exemplo literal de saída do prompt
+  mestre (SPIN_IMPLICATION, confidence 0.86). Suite completa: 693
+  testes (679 + 14), 0 falhas, 1 skip pré-existente — sem regressão.
+  Detalhe completo no CHANGELOG.md (V.1.4.84).
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova, zero
+  custo de IA). O motor de raciocínio real (chamada de IA) e o Golden
+  Dataset de 50+ cenários, além de qualquer fase seguinte, não começam
+  sem nova confirmação explícita do usuário.
 
 ### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)
 - `services/embeddings/`: interface `EmbeddingProvider` (`embed`, `embed_async`, `embed_batch`, `health_check`), `OllamaEmbeddingProvider` (HTTP local via `httpx`, zero import de SDKs de LLM externos), `OpenAIEmbeddingProvider`, `factory.get_embedding_provider()` (lê `EMBEDDING_PROVIDER`, erro explícito em valor desconhecido).
