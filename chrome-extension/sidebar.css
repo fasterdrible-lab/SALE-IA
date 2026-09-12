@@ -38,6 +38,11 @@
   color: #F0F0F0;
   flex-shrink: 0;
   border-bottom: 1px solid rgba(212,175,55,0.18);
+  cursor: move;
+}
+
+#saleia-header.saleia-arrastando {
+  cursor: grabbing;
 }
 
 #saleia-toggle-btn {
@@ -52,6 +57,21 @@
 }
 
 #saleia-toggle-btn:hover {
+  color: #D4AF37;
+}
+
+#saleia-pip-btn {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+#saleia-pip-btn:hover {
   color: #D4AF37;
 }
 

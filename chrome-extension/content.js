@@ -67,6 +67,7 @@
     recapitulacaoVivaUsada: false,
     contador: CONFIG.intervaloAnalise,
     sidebarMinimizada: false,
+    sidebarDestacada: false,
     timerContador: null,
     timerEnvio: null,
     backendOnline: true,
@@ -285,6 +286,136 @@
     });
   }
 
+  // Permite arrastar a sidebar pela barra de título (#saleia-header) para
+  // qualquer posição da tela. Posição é salva em chrome.storage.local e
+  // restaurada nas próximas reuniões.
+  function ativarArrastarSidebar(sidebar) {
+    var header = document.getElementById('saleia-header');
+    if (!header) return;
+    var arrastando = false;
+    var offsetX = 0;
+    var offsetY = 0;
+
+    function aplicarPosicao(left, top) {
+      var maxLeft = Math.max(window.innerWidth - sidebar.offsetWidth, 0);
+      var maxTop = Math.max(window.innerHeight - 40, 0);
+      left = Math.min(Math.max(left, 0), maxLeft);
+      top = Math.min(Math.max(top, 0), maxTop);
+      sidebar.style.left = left + 'px';
+      sidebar.style.right = 'auto';
+      sidebar.style.top = top + 'px';
+    }
+
+    chrome.storage.local.get(['saleiaSidebarPos'], function (result) {
+      var pos = result.saleiaSidebarPos;
+      if (pos && typeof pos.left === 'number' && typeof pos.top === 'number') {
+        aplicarPosicao(pos.left, pos.top);
+      }
+    });
+
+    header.addEventListener('mousedown', function (e) {
+      if (estado.sidebarDestacada) return;
+      if (e.target && e.target.closest('button')) return;
+      arrastando = true;
+      var rect = sidebar.getBoundingClientRect();
+      offsetX = e.clientX - rect.left;
+      offsetY = e.clientY - rect.top;
+      header.classList.add('saleia-arrastando');
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', function (e) {
+      if (!arrastando) return;
+      aplicarPosicao(e.clientX - offsetX, e.clientY - offsetY);
+    });
+
+    document.addEventListener('mouseup', function () {
+      if (!arrastando) return;
+      arrastando = false;
+      header.classList.remove('saleia-arrastando');
+      var rect = sidebar.getBoundingClientRect();
+      chrome.storage.local.set({ saleiaSidebarPos: { left: rect.left, top: rect.top } });
+    });
+  }
+
+  // Destaca a sidebar numa janela flutuante real do SO (Document Picture-in-
+  // Picture) — pode ser movida pra fora da janela do Meet, inclusive pra
+  // outro monitor. Requer Chrome 116+; em navegadores sem suporte, avisa.
+  var _pipWindow = null;
+  function ativarPictureInPicture(sidebar) {
+    var pipBtn = document.getElementById('saleia-pip-btn');
+    if (!pipBtn) return;
+
+    pipBtn.addEventListener('click', async function () {
+      if (_pipWindow) {
+        _pipWindow.close();
+        return;
+      }
+      if (!('documentPictureInPicture' in window)) {
+        alert('Seu Chrome não suporta janela flutuante (precisa do Chrome 116 ou mais recente).');
+        return;
+      }
+      var larguraOriginal = sidebar.style.width;
+      try {
+        _pipWindow = await window.documentPictureInPicture.requestWindow({
+          width: 300,
+          height: 560,
+        });
+      } catch (e) {
+        _pipWindow = null; // usuário cancelou o prompt, ou navegador bloqueou
+        return;
+      }
+
+      // A janela PiP nasce com um document em branco, sem nenhum CSS.
+      // Um <link href="chrome-extension://..."> inserido nesse document
+      // não carregou (o document da PiP não fica reconhecido como
+      // meet.google.com pra fins de web_accessible_resources) — busca o
+      // texto do sidebar.css via fetch (executado no contexto do content
+      // script, que sempre pode ler os próprios arquivos da extensão) e
+      // injeta como <style> inline, que não depende de nenhuma política
+      // de carregamento de recurso externo.
+      _pipWindow.document.documentElement.style.height = '100%';
+      _pipWindow.document.body.style.height = '100%';
+      _pipWindow.document.body.style.margin = '0';
+      _pipWindow.document.body.style.background = '#000';
+      _pipWindow.document.body.style.overflow = 'hidden';
+      fetch(chrome.runtime.getURL('sidebar.css'))
+        .then(function (resposta) { return resposta.text(); })
+        .then(function (css) {
+          var style = document.createElement('style');
+          style.textContent = css;
+          _pipWindow.document.head.appendChild(style);
+        })
+        .catch(function () { /* pior caso: janela PiP fica sem estilo, mas funcional */ });
+
+      // Reencaixa a sidebar pra ocupar 100% da janela flutuante
+      estado.sidebarDestacada = true;
+      sidebar.style.position = 'static';
+      sidebar.style.width = '100%';
+      sidebar.style.height = '100%';
+      sidebar.style.maxHeight = 'none';
+      sidebar.style.borderRadius = '0';
+      pipBtn.textContent = '↩';
+      pipBtn.title = 'Voltar sidebar pro Meet';
+      _pipWindow.document.body.appendChild(sidebar);
+
+      // Quando a janela flutuante é fechada (pelo usuário ou pelo botão ↩),
+      // a sidebar volta pro Meet no lugar/tamanho de sempre.
+      _pipWindow.addEventListener('pagehide', function () {
+        estado.sidebarDestacada = false;
+        sidebar.style.position = 'fixed';
+        sidebar.style.width = larguraOriginal || (estado.sidebarMinimizada ? '44px' : '280px');
+        sidebar.style.height = '';
+        sidebar.style.maxHeight = 'calc(100vh - 80px)';
+        sidebar.style.borderRadius = '8px 0 0 8px';
+        pipBtn.textContent = '🗗';
+        pipBtn.title = 'Destacar em janela flutuante';
+        document.body.appendChild(sidebar);
+        _pipWindow = null;
+      }, { once: true });
+    });
+  }
+
   function criarSidebar() {
     const sidebar = document.createElement('div');
     sidebar.id = 'saleia-sidebar';
@@ -292,6 +423,7 @@
       <div id="saleia-header">
         <button id="saleia-toggle-btn" title="Minimizar/Expandir">≡</button>
         <span>🤖 SALEIA AO VIVO</span>
+        <button id="saleia-pip-btn" title="Destacar em janela flutuante">🗗</button>
       </div>
       <div id="saleia-body">
         <div id="saleia-status"><span class="saleia-dot"></span> Conectando...</div>
@@ -397,6 +529,8 @@
       </div>
     `;
     document.body.appendChild(sidebar);
+    ativarArrastarSidebar(sidebar);
+    ativarPictureInPicture(sidebar);
     document.getElementById('saleia-toggle-btn').addEventListener('click', function () {
       estado.sidebarMinimizada = !estado.sidebarMinimizada;
       const body = document.getElementById('saleia-body');

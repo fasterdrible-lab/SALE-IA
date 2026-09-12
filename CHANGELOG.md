@@ -3,6 +3,125 @@
 
 ---
 
+## Extensão Chrome V.1.4.14 — fix: faixa branca sobrando embaixo da sidebar na janela PiP
+> Data: 11/09/2026 | Local, aguardando reinstalação manual da extensão
+
+O CSS da V.1.4.13 (fetch + `<style>` inline) funcionou — tema escuro
+aplicado. Sobrou uma faixa branca embaixo, com barra de rolagem
+horizontal indesejada: `sidebar.style.height = '100%'` não tinha efeito
+porque `html`/`body` da janela PiP não tinham altura explícita (`height:
+100%` só funciona em cadeia — precisa que todo ancestral também tenha
+altura definida, senão resolve pro tamanho do conteúdo, não da janela).
+
+- `_pipWindow.document.documentElement.style.height = '100%'` e
+  `.body.style.height = '100%'` — agora a cadeia inteira tem altura
+  explícita, então a sidebar (`height: 100%`) preenche a janela de
+  verdade.
+- `body.style.background = '#000'` — cobre qualquer pixel residual entre
+  a borda da sidebar e a da janela com a mesma cor do tema, em vez do
+  branco padrão do navegador.
+- `body.style.overflow = 'hidden'` — a barra de rolagem horizontal
+  aparecendo era do `body` da janela PiP, não do `#saleia-body` interno
+  (que já tem seu próprio scroll vertical controlado); esconder o
+  overflow do body elimina a barra de rolagem duplicada/indevida.
+- **Ainda não confirmado com teste real** — pendente o usuário testar de
+  novo após reinstalar esta versão.
+
+## Extensão Chrome V.1.4.13 — fix: `<link>` também não carregava CSS na janela PiP
+> Data: 11/09/2026 | Local, aguardando reinstalação manual da extensão
+
+Usuário testou a V.1.4.12 (`<link href="chrome-extension://.../sidebar.css">`
+inserido direto no `head` da janela PiP) e a janela continuou 100% sem
+estilo — mesmo resultado da V.1.4.11. Suspeita: o document da janela PiP
+não é reconhecido como `https://meet.google.com/*` pra fins do
+`web_accessible_resources` do manifest, então o `<link>` é bloqueado
+silenciosamente (sem erro visível na tela, só o CSS nunca chega).
+
+- Troca definitiva por `fetch(chrome.runtime.getURL('sidebar.css')).then(r
+  => r.text())` — o fetch roda no contexto do próprio content script (não
+  no documento da janela PiP), que sempre tem acesso de leitura aos
+  arquivos da sua própria extensão independente de
+  `web_accessible_resources`. O texto do CSS é injetado como `<style>`
+  inline em `_pipWindow.document.head` — não depende de nenhuma política
+  de carregamento de recurso externo do document de destino.
+- `web_accessible_resources` (`sidebar.css`) mantido no manifest como
+  rede de segurança, mas não é mais o caminho principal.
+- **Ainda não confirmado com teste real** — pendente o usuário testar a
+  janela PiP de novo após reinstalar esta versão.
+
+## Extensão Chrome V.1.4.12 — fix: janela PiP sem estilo nenhum
+> Data: 11/09/2026 | Local, aguardando reinstalação manual da extensão
+
+Achado no primeiro teste real da V.1.4.11: a janela flutuante abria em
+branco puro (fundo branco, botões default do navegador) — a tentativa de
+clonar `document.styleSheets` (cssRules → `<style>` inline, com fallback
+pra `<link>`) simplesmente não pegava nada; o CSS que o `content_scripts`
+injeta no Meet não fica legível/copiável dali. Trocado por algo mais
+direto: `<link href="chrome.runtime.getURL('sidebar.css')">` direto no
+`head` da janela PiP — já estava em `web_accessible_resources` desde a
+V.1.4.11, só a lógica de cópia estava errada.
+
+## Extensão Chrome V.1.4.11 — destacar sidebar em janela flutuante (Document Picture-in-Picture)
+> Data: 11/09/2026 | Local, aguardando reinstalação manual da extensão
+
+Sequência do arraste (V.1.4.10) — usuário perguntou se dava pra manter a
+sidebar "fora da tela do Meet, como se fosse uma janela do Windows".
+Resposta técnica: um elemento `position: fixed` de content script nunca
+sai do viewport da aba (não dá pra jogar em outro monitor); pra isso de
+verdade, apresentadas 2 rotas — **Document Picture-in-Picture** (janela
+flutuante nativa do Chrome, sempre visível por cima, reaproveita o mesmo
+DOM/JS) ou uma janela popup separada via `chrome.windows.create`
+(mais robusta, mas exige reescrever a sidebar como página HTML própria +
+canal de mensagens `chrome.runtime` com o content script). **Usuário
+escolheu Document Picture-in-Picture** (menor mudança, contida em
+`content.js`).
+
+- **`content.js::ativarPictureInPicture()`** (nova): botão 🗗 no header
+  (`#saleia-pip-btn`) chama `window.documentPictureInPicture.
+  requestWindow({width, height})` — cria uma janela real do SO, que o
+  usuário arrasta livremente pela tela (inclusive pra outro monitor),
+  fora dos limites da janela do Chrome/Meet.
+- **Estilos copiados manualmente pro documento da janela PiP**: ela nasce
+  em branco (sem `sidebar.css`) — percorre `document.styleSheets` e clona
+  `cssRules` como `<style>` inline; fallback pra `<link>` (por isso
+  `sidebar.css` entrou em `web_accessible_resources` no manifest) se a
+  leitura de `cssRules` falhar.
+- **A MESMA `sidebar` (nó DOM) é movida pra dentro da janela PiP**, não
+  uma cópia — todos os listeners/estado (`estado.transcricao`, timers,
+  WebSocket/heartbeat) continuam funcionando sem nenhuma duplicação de
+  lógica. Ao fechar a janela PiP (evento `pagehide`, botão ↩ ou o X
+  nativo do Chrome), a sidebar volta pro Meet no tamanho/posição de
+  sempre (`estado.sidebarDestacada` volta a `false`).
+- **Arraste (V.1.4.10) desativado enquanto destacada**
+  (`estado.sidebarDestacada`) — dentro da janela PiP o próprio Chrome já
+  fornece a barra de título nativa pra mover/fechar; o `mousedown` do
+  header customizado agora também ignora clique em qualquer botão
+  (`e.target.closest('button')`), não só o de minimizar.
+- **Requer Chrome 116+** — em navegador sem suporte,
+  `'documentPictureInPicture' in window` é `false` e mostra um alerta
+  claro em vez de falhar silenciosamente.
+- **Fecha junto com a aba do Meet** (limitação da API, não bug) — ao
+  contrário de uma janela popup separada, a PiP está sempre atrelada ao
+  documento que a abriu.
+
+## Extensão Chrome V.1.4.10 — sidebar arrastável
+> Data: 11/09/2026 | Local, aguardando reinstalação manual da extensão
+
+Pedido do usuário: poder mover a sidebar (`#saleia-sidebar`) pra qualquer
+posição da tela do Meet, em vez de ficar fixa no canto direito.
+
+- `chrome-extension/content.js::ativarArrastarSidebar()` (nova): arraste
+  pela barra de título (`#saleia-header`), exceto quando o clique é no
+  botão de minimizar/expandir (`#saleia-toggle-btn`) — este continua
+  funcionando normalmente. Ao soltar, a posição (`left`/`top` em px) é
+  salva em `chrome.storage.local` (`saleiaSidebarPos`) e restaurada
+  automaticamente na próxima reunião.
+- Posição é sempre clampada dentro da viewport (`aplicarPosicao()`) —
+  nunca deixa a sidebar sair completamente da tela.
+- `sidebar.css`: `#saleia-header` ganha `cursor: move` (`grabbing`
+  durante o arraste) — o botão de minimizar mantém `cursor: pointer`
+  por regra CSS mais específica.
+
 ## V.1.4.84 — SalesReasoningEngine (só contrato): Tarefa 7.1, início da Fase 7 do "PROMPT MESTRE — SALE-IA V2"
 > Data: 11/09/2026 | Local, aguardando push/deploy
 
