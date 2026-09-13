@@ -1,0 +1,242 @@
+# SalesReasoningEngine — cenarios SPIN (SPIN_SITUATION/PROBLEM/IMPLICATION/NEED_PAYOFF)
+#
+# Golden Dataset da Fase 7 / Tarefa 7.1 do "PROMPT MESTRE — SALE-IA V2"
+# (evals/providers/sales_reasoning_provider.py chama
+# agent.sales_reasoning_engine.raciocinar_async diretamente, mesmo
+# principio do coach_provider.py/finance_provider.py). Cada cenario
+# fornece o "context" (vira MeetingMemory.contexto_cenario, ver
+# provider) + os campos estruturados ja calculados pelas Fases 1-6 que
+# o motor recebe como entrada real — nunca transcricao crua.
+#
+# Assertions usam llm-rubric (grading por LLM) porque a saida da IA e
+# nao-deterministica por natureza (mesmo padrao de
+# datasets/coach/next_best_action.yaml) — validam framework esperado +
+# acoes aceitaveis + acoes proibidas, nunca igualdade literal de frase
+# (regra explicita do prompt mestre para este Golden Dataset).
+
+- description: "Abertura total, nenhum dado estruturado ainda — deve mapear situacao, nao assumir dor"
+  vars:
+    context: "Primeiros 2 minutos da call. Vendedor e cliente ainda nao se apresentaram direito."
+    spin_state:
+      situation: { known: [], missing: ["team_size", "crm_tool"] }
+      problem: { known: [], missing: ["main_pain"] }
+      implication: { known: [], missing: [] }
+      need_payoff: { known: [], missing: [] }
+    meddpicc_state:
+      economic_buyer: { status: "UNKNOWN", confidence: 0.0, evidence: [] }
+      identify_pain: { status: "UNKNOWN", confidence: 0.0, evidence: [] }
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser SPIN_SITUATION. next_best_action/
+        next_best_question deve buscar entender o contexto do cliente
+        (tamanho de equipe, ferramentas atuais, como funciona hoje) —
+        NUNCA deve presumir uma dor especifica que nao foi mencionada,
+        nem pular para preco/proposta.
+
+- description: "Situacao ja mapeada (equipe e ferramenta conhecidas), dor ainda nao verbalizada — deve investigar problema"
+  vars:
+    context: "Cliente ja contou que tem equipe de 12 vendedores e usa uma planilha para acompanhar oportunidades."
+    spin_state:
+      situation: { known: ["team_size", "crm_tool"], missing: [] }
+      problem: { known: [], missing: ["main_pain"] }
+      implication: { known: [], missing: [] }
+      need_payoff: { known: [], missing: [] }
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser SPIN_PROBLEM (situacao ja
+        mapeada, falta identificar a dor). next_best_question deve
+        perguntar sobre dificuldades/problemas no processo atual —
+        NUNCA deve pular direto para impacto financeiro ou apresentar
+        solucao antes de a dor ser verbalizada.
+
+- description: "Dor mencionada de forma vaga ('as vezes trava') — deve aprofundar o problema, nao pular pra implicacao"
+  vars:
+    context: "Cliente disse: 'de vez em quando a gente perde alguns leads no meio do caminho, mas nao e sempre'."
+    spin_state:
+      situation: { known: ["team_size", "crm_tool"], missing: [] }
+      problem: { known: ["main_pain"], missing: [] }
+      implication: { known: [], missing: ["financial_impact", "conversion_impact"] }
+      need_payoff: { known: [], missing: [] }
+    meddpicc_state:
+      identify_pain: { status: "PARTIAL", confidence: 0.4, evidence: ["as vezes a gente perde alguns leads no meio do caminho"] }
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework pode ser SPIN_PROBLEM (aprofundar a dor
+        ainda vaga) ou SPIN_IMPLICATION (comecar a explorar impacto) —
+        ambos aceitaveis dado que a dor ja foi minimamente verbalizada.
+        NUNCA deve tratar a dor como grave/urgente sem evidencia
+        (confidence de identify_pain ainda e so PARTIAL) nem pular para
+        apresentar solucao ou preco.
+
+- description: "Dor confirmada, impacto economico ainda nao mapeado — exemplo literal do prompt mestre"
+  vars:
+    context: "Cliente confirmou claramente que perde leads todo mes por falta de acompanhamento, mas nunca falou em numero ou R$ de impacto."
+    spin_state:
+      situation: { known: ["team_size", "crm_tool"], missing: [] }
+      problem: { known: ["main_pain"], missing: [] }
+      implication: { known: [], missing: ["financial_impact", "conversion_impact"] }
+      need_payoff: { known: [], missing: [] }
+    meddpicc_state:
+      identify_pain: { status: "CONFIRMED", confidence: 0.9, evidence: ["a gente perde leads todo mes por falta de acompanhamento"] }
+      metrics: { status: "UNKNOWN", confidence: 0.0, evidence: [] }
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser SPIN_IMPLICATION. next_best_action/
+        next_best_question deve buscar quantificar o impacto financeiro
+        ou operacional da dor ja confirmada (ex.: quanto isso custa por
+        mes, quantos leads sao perdidos). avoid deve incluir NAO
+        apresentar preco/proposta nesta etapa.
+
+- description: "Impacto parcialmente estimado, precisa de numero fechado antes do need-payoff"
+  vars:
+    context: "Cliente estimou 'talvez umas 10 vendas por mes' perdidas, mas nao converteu isso em valor (R$) nem confirmou o numero."
+    spin_state:
+      situation: { known: ["team_size", "crm_tool"], missing: [] }
+      problem: { known: ["main_pain"], missing: [] }
+      implication: { known: ["conversion_impact"], missing: ["financial_impact"] }
+      need_payoff: { known: [], missing: ["solution_value"] }
+    meddpicc_state:
+      metrics: { status: "PARTIAL", confidence: 0.5, evidence: ["talvez umas 10 vendas por mes"] }
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser SPIN_IMPLICATION (ainda falta o
+        impacto financeiro concreto, so ha estimativa de volume).
+        next_best_question deve buscar transformar as 10 vendas
+        perdidas em valor financeiro (ticket medio, R$/mes) — NUNCA
+        deve assumir que o impacto ja esta quantificado nem avancar
+        para a pergunta de valor da solucao antes disso.
+
+- description: "Impacto financeiro confirmado, need-payoff ainda nao explorado"
+  vars:
+    context: "Cliente confirmou que perde aproximadamente R$20.000 por mes com leads esquecidos."
+    spin_state:
+      situation: { known: ["team_size", "crm_tool"], missing: [] }
+      problem: { known: ["main_pain"], missing: [] }
+      implication: { known: ["financial_impact", "conversion_impact"], missing: [] }
+      need_payoff: { known: [], missing: ["solution_value"] }
+    meddpicc_state:
+      metrics: { status: "CONFIRMED", confidence: 0.85, evidence: ["a gente perde uns R$20.000 por mes com isso"] }
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser SPIN_NEED_PAYOFF. next_best_question
+        deve perguntar o que significaria para o cliente resolver esse
+        problema (valor de resolver, nao caracteristica do produto) —
+        NUNCA deve o vendedor afirmar o valor no lugar do cliente, e
+        avoid deve incluir nao apresentar preco antes do cliente
+        verbalizar o valor.
+
+- description: "Cliente ja comecou a verbalizar o valor sozinho — reforcar, nao repetir pergunta de impacto"
+  vars:
+    context: "Cliente disse espontaneamente: 'se a gente resolvesse isso, acho que dava pra fechar mais uns 15% de vendas por mes, seria enorme pra gente'."
+    spin_state:
+      situation: { known: ["team_size", "crm_tool"], missing: [] }
+      problem: { known: ["main_pain"], missing: [] }
+      implication: { known: ["financial_impact", "conversion_impact"], missing: [] }
+      need_payoff: { known: ["solution_value"], missing: [] }
+    meddpicc_state:
+      metrics: { status: "CONFIRMED", confidence: 0.85, evidence: ["a gente perde uns R$20.000 por mes com isso"] }
+      identify_pain: { status: "CONFIRMED", confidence: 0.9, evidence: [] }
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        O cliente ja verbalizou o valor da solucao por conta propria
+        (15% mais vendas). recommended_framework deve reconhecer isso —
+        SPIN_NEED_PAYOFF (reforcar/confirmar o valor ja dito) ou
+        MEDDPICC_QUALIFICATION (avancar para quem decide, ja que a dor e
+        o valor estao maduros) sao aceitaveis. NUNCA deve ignorar o que
+        o cliente ja disse e repetir a mesma pergunta de impacto.
+
+- description: "Segmento historicamente revela dor devagar — nao apressar implicacao so por urgencia do vendedor"
+  vars:
+    context: "Primeira reuniao com um cliente do setor juridico. Cliente foi cordial mas ainda respondeu de forma generica sobre o dia a dia."
+    spin_state:
+      situation: { known: ["team_size"], missing: ["crm_tool"] }
+      problem: { known: [], missing: ["main_pain"] }
+    historical_patterns:
+      padrao: "Clientes do setor juridico neste pipeline levam em media 2-3 reunioes para verbalizar dores concretas — respostas genéricas na primeira call sao normais, nao sinal de desinteresse."
+    seller_context:
+      observacao: "Vendedor tem tendencia a acelerar demais quando o cliente parece receptivo."
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser SPIN_SITUATION ou SPIN_PROBLEM
+        (ainda faltam dados basicos, e o padrao historico do segmento
+        reforca ir com calma). NUNCA deve recomendar pular para
+        implicacao, negociacao ou fechamento nesta reuniao — avoid
+        idealmente menciona nao forcar ritmo alem do que o cliente deu
+        sinal de estar pronto.
+
+- description: "RAG traz comparativo de concorrente mas nenhuma dor foi identificada — nao pular etapas"
+  vars:
+    context: "Cliente perguntou de forma casual como a SALEIA se compara a outro produto que ele conhece, mas ainda nao contou nenhum problema real."
+    spin_state:
+      situation: { known: ["crm_tool"], missing: ["team_size"] }
+      problem: { known: [], missing: ["main_pain"] }
+    rag_context:
+      - tipo: "comparativo_concorrente"
+        conteudo: "Tabela comparativa SALEIA vs concorrente X, focada em recursos de IA em tempo real."
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve continuar SPIN_SITUATION ou
+        SPIN_PROBLEM — a pergunta do cliente sobre concorrente nao
+        substitui identificar uma dor real. next_best_action NUNCA deve
+        usar o material de RAG para "vender" a diferenciacao antes de
+        entender o problema do cliente; pode reconhecer a pergunta
+        brevemente, mas o foco recomendado precisa voltar a descoberta.
+
+- description: "Motivacao de compra identificada (GROWTH) mas sem nenhum dado SPIN — nao presumir dor a partir da motivacao"
+  vars:
+    context: "Cliente mencionou que a empresa esta em fase de expansao acelerada, mas nao falou de nenhum problema especifico ainda."
+    spin_state:
+      situation: { known: [], missing: ["team_size", "crm_tool"] }
+      problem: { known: [], missing: ["main_pain"] }
+    buyer_motivation:
+      motivation: "GROWTH"
+      confidence: 0.6
+      evidence: ["estamos numa fase de expansao bem acelerada agora"]
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser SPIN_SITUATION (motivacao de
+        crescimento identificada, mas nenhum dado de situacao/problema
+        ainda). next_best_question deve conectar a fase de expansao a
+        perguntas de contexto/processo atual — NUNCA deve presumir qual
+        e a dor do cliente so porque a motivacao geral e crescimento.
+
+- description: "Sinal de resistencia a mudanca durante a descoberta — continuar mapeando o problema com cuidado"
+  vars:
+    context: "Ao ser perguntado sobre o processo atual, cliente respondeu meio na defensiva: 'olha, a gente ja usa esse processo ha anos e funciona bem pra gente'."
+    spin_state:
+      situation: { known: ["team_size", "crm_tool"], missing: [] }
+      problem: { known: [], missing: ["main_pain"] }
+    behavioral_signals:
+      - signal: "STATUS_QUO_BIAS"
+        evidence_quote: "a gente ja usa esse processo ha anos e funciona bem pra gente"
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser SPIN_PROBLEM (continuar
+        descoberta, com cuidado). next_best_action deve reconhecer a
+        resistencia sem confrontar diretamente, buscando uma abertura
+        genuina (ex.: perguntar o que ja funciona bem e o que poderia
+        ser ainda melhor) — NUNCA deve pressionar o cliente a admitir um
+        problema que ele acabou de minimizar, nem avancar para
+        negociacao/fechamento nesta etapa.

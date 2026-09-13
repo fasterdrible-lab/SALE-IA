@@ -767,6 +767,19 @@ Usuario confirmou avancar para a Fase 7. Antes de implementar, pergunta direta s
 - [x] Versao: `1.4.83` -> `1.4.84`.
 - **Pendente**: push + deploy na VPS (sem tabela/coluna nova, zero custo de IA). **O motor de raciocinio real (chamada de IA) e o Golden Dataset de 50+ cenarios da propria Tarefa 7.1, alem de qualquer fase seguinte, nao comecam sem nova confirmacao explicita do usuario.**
 
+## Concluido (V.1.4.85 — SalesReasoningEngine motor real + Golden Dataset, fecha a Tarefa 7.1 da Fase 7 do "PROMPT MESTRE — SALE-IA V2")
+
+Usuario confirmou avancar para o motor real — a parte que a V.1.4.84 deixou pendente por decisao deliberada de escopo.
+
+- [x] `agent/sales_reasoning_engine.py::raciocinar_async()` (novo): sintetiza os 11 inputs do contrato numa recomendacao via IA, mesmo caminho de producao dos 5 agentes de `agent/multiagente/` (`chamar_ia_com_fallback_claude`). Resposta da IA validada contra o contrato de saida ja existente (`montar_saida_raciocinio()`) — dado de dominio, propaga ValueError em resposta malformada.
+- [x] `agent/prompt_templates/sales_reasoning_engine.txt` (novo) + `SALES_REASONING_FRAMEWORKS` (vocabulario fechado de 9 frameworks: 4 estagios SPIN + MEDDPICC_QUALIFICATION/OBJECTION_INVESTIGATION/NEGOTIATION/RISK_MITIGATION/CLOSING). Regra herdada da Fase 6.1: objecao com `precisa_investigar=true` bloqueia NEGOTIATION/CLOSING ate OBJECTION_INVESTIGATION acontecer primeiro.
+- [x] `api/ai_features.py::SALES_REASONING_RACIOCINIO` (nova feature de custo).
+- [x] Decisao deliberada: **nao integrado a `orquestrador.py`/`processador_tempo_real.py` ainda** — decisao de produto separada.
+- [x] 7 testes novos (`RaciocinarAsyncTest`, mock de `chamar_ia_com_fallback_claude`). Suite completa: 700 testes, 0 falhas, 1 skip pre-existente — sem regressao.
+- [x] Golden Dataset — 57 cenarios (minimo pedido: 50) em `evals/datasets/sales_reasoning/` (8 arquivos por categoria) + `evals/providers/sales_reasoning_provider.py` + `evals/promptfooconfig.sales_reasoning.yaml`, mesmo harness Promptfoo do Coach/Finance. Validacao sempre via `llm-rubric` (semantica, nunca igualdade literal de frase — regra explicita do prompt mestre pra este dataset). Inclui o exemplo PROIBIDO literal ("Esta caro." -> "Posso dar 20% agora."). **Nunca executado nesta rodada** (custa dinheiro real por cenario, mesma disciplina do resto da suite).
+- [x] Versao: `1.4.84` -> `1.4.85`.
+- **Pendente**: push + deploy na VPS (aditivo, zero custo de IA em repouso). Rodar o Golden Dataset de verdade (`npm run eval:sales_reasoning`). **Integrar `raciocinar_async()` ao orquestrador e a Fase 8 (Resultado da Venda) nao comecam sem nova confirmacao explicita do usuario.**
+
 ## Pendente
 
 - [ ] **Debito tecnico (achado 05/09/2026, fora de escopo)**: migrar `google.generativeai` (totalmente descontinuado pelo Google) para `google.genai`, e `claude-sonnet-4-20250514` (EOL 15/06/2026) para um modelo Anthropic atual.

@@ -10,25 +10,43 @@ raciocínio: estado atual, hipóteses, evidência, informação faltante,
 framework recomendado, próxima melhor ação/pergunta, o que evitar,
 motivo e confiança.
 
-**Escopo desta rodada, decisão explícita do usuário**: só o CONTRATO —
-schema/validação de entrada e saída — sem nenhuma chamada de IA. As
-Fases 1-6 inteiras evitaram IA deliberadamente (regras determinísticas
-sobre fatos já estruturados); esta tarefa é estruturalmente diferente —
-o próprio prompt mestre pede um Golden Dataset de 50+ cenários
-validados SEMANTICAMENTE ("o teste não deve depender de igualdade
-literal de frase"), o que só faz sentido para um motor com raciocínio
-real via IA. Construir esse motor de verdade (novo prompt/agente) e o
-Golden Dataset ficam para uma tarefa futura, quando o usuário decidir —
-mesma disciplina de "schema primeiro, decisão de produto depois" já
-usada em todas as Fases anteriores, só que aplicada aqui a uma decisão
-de escopo maior (não uma inferência simples).
+**Contrato (rodada anterior)**: schema/validação de entrada e saída —
+`construir_input_vazio()`/`validar_input_raciocinio()`/
+`montar_saida_raciocinio()`/`validar_output_raciocinio()` abaixo.
+
+**Motor real (esta rodada, confirmado explicitamente pelo usuário)**:
+`raciocinar_async()` — diferente das Fases 1-6 (regras determinísticas
+sobre fatos já estruturados), este é o primeiro motor do roadmap que
+precisa de raciocínio real via IA: sintetizar os 11 inputs (todos já
+calculados por módulos determinísticos ou por memória persistida) numa
+única recomendação coerente é, por natureza, um julgamento qualitativo,
+não uma fórmula. Usa o mesmo caminho de produção dos 5 agentes de
+`agent/multiagente/` (`chamar_ia_com_fallback_claude` — 4 provedores
+centrais com fallback pra conta Claude pessoal do vendedor em caso de
+esgotamento), prompt em `agent/prompt_templates/
+sales_reasoning_engine.txt`. **Não integrado a `orquestrador.py`/
+`processador_tempo_real.py` ainda** — mesma disciplina de "construir a
+peça, decisão de plugar em produção é separada" já usada em todas as
+Fases 1-6.
+
+Golden Dataset de 50+ cenários (pedido explícito do prompt mestre,
+validado semanticamente via `llm-rubric`, não por igualdade literal de
+frase) vive em `evals/datasets/sales_reasoning/` — mesmo harness
+Promptfoo do Coach/Finance (Fase 2), criado mas **nunca rodado nesta
+rodada** (custa dinheiro real por cenário, mesma disciplina de
+`evals/promptfooconfig.yaml`).
 
 Nome do arquivo/módulo deliberadamente foge do padrão `*_rules.py` das
 Fases 1-6 — o prompt mestre chama isso literalmente de "novo serviço:
 SalesReasoningEngine", não mais uma função de regra isolada.
 """
 
+import json
+from pathlib import Path
 from typing import Optional
+
+from agent.multiagente.claude_fallback import chamar_ia_com_fallback_claude
+from api import ai_features
 
 # Os 11 inputs literais do prompt mestre — o contrato de ENTRADA do
 # SalesReasoningEngine. Cada um é o output de uma peça já construída
@@ -76,6 +94,34 @@ _CAMPOS_LISTA = ("hypotheses", "evidence", "missing_information", "avoid")
 
 # Campos de texto obrigatórios (não podem ser vazios/None).
 _CAMPOS_TEXTO_OBRIGATORIOS = ("current_state", "recommended_framework", "next_best_action", "reason")
+
+# Vocabulário fechado de `recommended_framework` — mesma disciplina das
+# Fases 1-6 (taxonomias fechadas, nunca texto livre inventado pela IA
+# por chamada). Cobre os frameworks já construídos no roadmap: os 4
+# estágios SPIN (Fase 3), qualificação MEDDPICC (Fase 4), investigação
+# de objeção antes de negociar (Fase 6.1), as 7 estratégias de
+# negociação consultiva sob um rótulo único (Fase 6.2 — o motor escolhe
+# a estratégia específica dentro de `next_best_action`, não aqui),
+# mitigação de risco (Deal Risk, Fase 4.2) e fechamento.
+SALES_REASONING_FRAMEWORKS = (
+    "SPIN_SITUATION",
+    "SPIN_PROBLEM",
+    "SPIN_IMPLICATION",
+    "SPIN_NEED_PAYOFF",
+    "MEDDPICC_QUALIFICATION",
+    "OBJECTION_INVESTIGATION",
+    "NEGOTIATION",
+    "RISK_MITIGATION",
+    "CLOSING",
+)
+
+_PROMPT_PATH = Path(__file__).parent / "prompt_templates" / "sales_reasoning_engine.txt"
+
+_SYSTEM_PROMPT = (
+    "Você é o SalesReasoningEngine, o cérebro central de raciocínio comercial "
+    "do co-piloto de vendas SALEIA. Responda SEMPRE em JSON válido, sem texto "
+    "antes ou depois."
+)
 
 
 def construir_input_vazio() -> dict:
@@ -155,3 +201,52 @@ def validar_output_raciocinio(saida: dict) -> None:
         raise ValueError(f"confidence inválida: {confidence!r} (esperado float entre 0 e 1)")
     if not (0.0 <= confidence_valor <= 1.0):
         raise ValueError(f"confidence fora do intervalo [0, 1]: {confidence_valor!r}")
+
+
+async def raciocinar_async(
+    entrada: dict,
+    usuario_id: Optional[str] = None,
+    meeting_id: Optional[str] = None,
+) -> dict:
+    """Motor real do SalesReasoningEngine: sintetiza os 11 inputs (Fases
+    1-6 + memória/grafo/RAG/contexto do vendedor/padrões históricos) numa
+    única recomendação via IA.
+
+    `entrada` pode vir parcialmente preenchida (campos ausentes viram
+    `None`, mesma semântica de `construir_input_vazio()`) — nenhum dos
+    11 campos é obrigatório. Levanta `ValueError` se `entrada` tiver
+    chave desconhecida (`validar_input_raciocinio`) ou se a resposta da
+    IA não bater com o contrato de saída (`montar_saida_raciocinio`) —
+    dado de domínio, mesma convenção de `SalesEvent`/`SalesEvidence`
+    (Fases 1-6): nunca falha silenciosa como `AiUsageEvent`.
+    """
+    validar_input_raciocinio(entrada)
+    bundle = {**construir_input_vazio(), **entrada}
+
+    template = _PROMPT_PATH.read_text(encoding="utf-8")
+    prompt = template
+    for campo in SALES_REASONING_INPUT_CAMPOS:
+        valor = bundle[campo]
+        serializado = json.dumps(valor, ensure_ascii=False) if valor is not None else "null"
+        prompt = prompt.replace("{" + campo + "}", serializado)
+
+    resposta = await chamar_ia_com_fallback_claude(
+        _SYSTEM_PROMPT,
+        prompt,
+        usuario_id,
+        feature=ai_features.SALES_REASONING_RACIOCINIO,
+        meeting_id=meeting_id,
+    )
+
+    return montar_saida_raciocinio(
+        current_state=resposta.get("current_state"),
+        recommended_framework=resposta.get("recommended_framework"),
+        next_best_action=resposta.get("next_best_action"),
+        reason=resposta.get("reason"),
+        confidence=resposta.get("confidence"),
+        hypotheses=resposta.get("hypotheses"),
+        evidence=resposta.get("evidence"),
+        missing_information=resposta.get("missing_information"),
+        next_best_question=resposta.get("next_best_question"),
+        avoid=resposta.get("avoid"),
+    )

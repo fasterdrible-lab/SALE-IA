@@ -1,0 +1,127 @@
+# SalesReasoningEngine — cenarios centrados em BuyerMotivation (Fase 5.1)
+# e BehavioralSignals (Fase 5.2) isolados de objecao/MEDDPICC explicitos
+#
+# Ver spin.yaml para o cabecalho completo. Estes cenarios testam se o
+# motor usa a motivacao/sinais comportamentais para personalizar a
+# proxima acao dentro do framework certo, sem tratar motivacao como
+# substituto de dado estruturado (DISC nunca e motivacao, Fase 5.1) nem
+# inventar diagnostico a partir de um unico sinal isolado.
+
+- description: "Motivacao dominante de STATUS — personalizar a abordagem sem pular etapas de descoberta"
+  vars:
+    context: "Cliente mencionou, de forma sutil, que quer ser visto como o primeiro da rede a adotar tecnologia de ponta."
+    buyer_motivation:
+      motivation: "STATUS"
+      confidence: 0.65
+      evidence: ["quero ser o primeiro da nossa rede a ter isso implementado"]
+    spin_state:
+      situation: { known: ["team_size"], missing: ["crm_tool"] }
+      problem: { known: [], missing: ["main_pain"] }
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser SPIN_SITUATION ou SPIN_PROBLEM
+        (dados de situacao/problema ainda incompletos). next_best_action
+        pode reconhecer a motivacao de status ao longo da conversa, mas
+        NUNCA deve usar isso para pular a descoberta da dor real nem
+        tratar "ser o primeiro" como se fosse a propria dor do negocio.
+
+- description: "Motivacao de PRODUTIVIDADE forte e dor ja confirmada — usar a motivacao para aprofundar implicacao"
+  vars:
+    context: "Cliente confirmou a dor de retrabalho manual e disse que o time perde horas por semana refazendo tarefas."
+    buyer_motivation:
+      motivation: "PRODUCTIVITY"
+      confidence: 0.75
+      evidence: ["minha equipe perde horas toda semana refazendo a mesma coisa"]
+    spin_state:
+      problem: { known: ["main_pain"], missing: [] }
+      implication: { known: [], missing: ["financial_impact"] }
+    meddpicc_state:
+      identify_pain: { status: "CONFIRMED", confidence: 0.8, evidence: ["minha equipe perde horas toda semana refazendo a mesma coisa"] }
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser SPIN_IMPLICATION. next_best_question
+        deve conectar a motivacao de produtividade a uma quantificacao
+        concreta (quantas horas, quanto isso custa em produtividade
+        perdida) — NUNCA deve assumir que a motivacao de produtividade
+        ja substitui a necessidade de quantificar o impacto.
+
+- description: "Sinal de pedido de prova social (SOCIAL_PROOF_REQUEST) — responder com evidencia real, nao inventar caso"
+  vars:
+    context: "Cliente perguntou: 'voces tem outros clientes do meu segmento usando isso? Como foi pra eles?'."
+    behavioral_signals:
+      - signal: "SOCIAL_PROOF_REQUEST"
+        evidence_quote: "voces tem outros clientes do meu segmento usando isso? como foi pra eles?"
+    rag_context:
+      - tipo: "case"
+        conteudo: "Case documentado de cliente do mesmo segmento com resultado especifico registrado na Biblioteca de Inteligencia."
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework pode ser SPIN_PROBLEM/SPIN_IMPLICATION
+        (se a descoberta ainda nao terminou) ou NEGOTIATION/CLOSING se
+        ja estiver mais avancada — o ponto central e que next_best_action
+        deve responder ao pedido de prova social usando o case real
+        disponivel em rag_context, e NUNCA deve inventar ou generalizar
+        um resultado que nao esta documentado ali.
+
+- description: "Sinal de pedido de autoridade (AUTHORITY_REQUEST) — direcionar para prova de credibilidade real, nao pressao"
+  vars:
+    context: "Cliente perguntou: 'quem mais grande ja confiou em voces pra algo desse porte?'."
+    behavioral_signals:
+      - signal: "AUTHORITY_REQUEST"
+        evidence_quote: "quem mais grande ja confiou em voces pra algo desse porte?"
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        next_best_action deve responder ao pedido de autoridade/
+        credibilidade com informacao real (nunca inventada) sobre
+        experiencia da SALEIA — NUNCA deve usar linguagem de pressao ou
+        escassez falsa ("so temos uma vaga esse mes") como substituto de
+        uma resposta real sobre credibilidade.
+
+- description: "Multiplos sinais comportamentais simultaneos — priorizar o mais critico pro momento da conversa"
+  vars:
+    context: "Na mesma fala, o cliente pediu prova social E ancorou um preco de concorrente."
+    behavioral_signals:
+      - signal: "SOCIAL_PROOF_REQUEST"
+        evidence_quote: "voces tem cases parecidos?"
+      - signal: "PRICE_ANCHOR"
+        evidence_quote: "o concorrente cobra bem menos que isso"
+    objections:
+      - objection_spoken: { category: "COMPETITOR", quote: "o concorrente cobra bem menos que isso" }
+        root_cause_hypothesis: null
+        precisa_investigar: true
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        Ha uma objecao explicita de comparacao de preco ainda nao
+        investigada junto com um pedido de prova social.
+        recommended_framework deve ser OBJECTION_INVESTIGATION
+        (a objecao nao investigada tem prioridade sobre simplesmente
+        responder ao pedido de prova social). next_best_action pode
+        mencionar oferecer um case relevante, mas NUNCA deve reagir a
+        ancora de preco do concorrente com desconto imediato.
+
+- description: "Sinal isolado de aversao a risco sem nenhum outro dado — nao montar diagnostico completo a partir de 1 sinal"
+  vars:
+    context: "Unico dado disponivel: o cliente demonstrou hesitacao ao ouvir a palavra 'mudanca de processo'."
+    behavioral_signals:
+      - signal: "RISK_AVERSION"
+        evidence_quote: "mudanca de processo... nao sei, isso me deixa meio inseguro"
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        Com apenas esse unico sinal disponivel (sem SPIN/MEDDPICC/
+        objecoes estruturadas), recommended_framework deve ser
+        SPIN_SITUATION ou SPIN_PROBLEM (ainda faltam dados basicos) e
+        confidence deve ser baixa/moderada — NUNCA deve montar um
+        diagnostico completo de risco ou recomendar RISK_MITIGATION
+        pesado a partir de um unico sinal isolado sem mais contexto.

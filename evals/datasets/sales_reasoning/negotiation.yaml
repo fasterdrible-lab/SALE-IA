@@ -1,0 +1,124 @@
+# SalesReasoningEngine — cenarios NEGOTIATION
+#
+# Ver spin.yaml para o cabecalho completo. Estes cenarios cobrem
+# situacoes onde a objecao ja foi investigada (Fase 6.1) e o motor deve
+# recomendar uma estrategia de negociacao consultiva (Fase 6.2 —
+# LABEL/MIRROR/CALIBRATED_QUESTION/SUMMARIZE/CLARIFY/VALUE_REFRAME/
+# RISK_REDUCTION), nunca tatica manipulativa (ameaca, desconto
+# arbitrario, escassez falsa).
+
+- description: "Causa raiz de adocao ja investigada — negociar em torno do risco real, nao do preco"
+  vars:
+    context: "O vendedor ja confirmou que o medo do cliente e a equipe nao adotar a ferramenta, nao o preco em si."
+    objections:
+      - objection_spoken: { category: "PRICE", quote: "Esta caro." }
+        root_cause_hypothesis: { hypothesis: "ADOPTION_RISK", confidence: 0.85, evidence_quote: "tenho medo da minha equipe nao usar isso no dia a dia" }
+        precisa_investigar: false
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser NEGOTIATION (ou RISK_MITIGATION,
+        ambos aceitaveis dado que o risco e de adocao). next_best_action
+        deve endereçar o medo de adocao (onboarding, suporte, plano de
+        rollout gradual) — NUNCA deve oferecer desconto como resposta,
+        ja que o problema real nao e preco.
+
+- description: "Preco ja investigado, causa raiz e orcamento apertado de verdade — reforçar valor, nao descontar de primeira"
+  vars:
+    context: "Investigacao confirmou que o orcamento do cliente esta mesmo apertado este trimestre, com evidencia especifica do proprio cliente."
+    objections:
+      - objection_spoken: { category: "BUDGET", quote: "nosso orcamento esta bem apertado este trimestre" }
+        root_cause_hypothesis: { hypothesis: "BUDGET_CONSTRAINT", confidence: 0.8, evidence_quote: "o orcamento de TI foi cortado esse trimestre todo" }
+        precisa_investigar: false
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser NEGOTIATION. next_best_action
+        deve usar reposicionamento de valor/ROI (VALUE_REFRAME) ou
+        explorar alternativas de escopo/prazo de pagamento — NUNCA deve
+        conceder um desconto arbitrario como primeira resposta sem
+        antes reforcar o valor/retorno esperado.
+
+- description: "Cliente pressiona por concessao apos investigacao concluida — resistir a desconto arbitrario"
+  vars:
+    context: "Depois de toda a investigacao concluida, cliente disse diretamente: 'entao me da um desconto que a gente fecha agora'."
+    objections:
+      - objection_spoken: { category: "PRICE", quote: "me da um desconto que a gente fecha agora" }
+        root_cause_hypothesis: { hypothesis: "PRICE", confidence: 0.7, evidence_quote: "a gente tem um teto de investimento nesse tipo de ferramenta" }
+        precisa_investigar: false
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser NEGOTIATION. next_best_action
+        deve usar uma pergunta calibrada (ex.: entender o que
+        justificaria o investimento pro cliente, ou o que aconteceria
+        se nao resolvessem o problema) em vez de ceder imediatamente —
+        avoid deve mencionar nao dar desconto sem alguma
+        contrapartida/justificativa clara.
+
+- description: "Multiplas objecoes ja resolvidas — resumir acordos antes de seguir, nao pular direto pra proximo passo"
+  vars:
+    context: "Ao longo da reuniao, o cliente teve 3 preocupacoes (preco, seguranca, integracao) e todas ja foram endereçadas uma a uma."
+    objections:
+      - objection_spoken: { category: "PRICE", quote: "Esta caro." }
+        root_cause_hypothesis: { hypothesis: "ADOPTION_RISK", confidence: 0.8, evidence_quote: "medo da equipe nao usar" }
+        precisa_investigar: false
+      - objection_spoken: { category: "SECURITY", quote: "como funciona a seguranca?" }
+        root_cause_hypothesis: { hypothesis: "SECURITY_CONCERN", confidence: 0.75, evidence_quote: "ja tivemos vazamento de dados antes" }
+        precisa_investigar: false
+      - objection_spoken: { category: "IMPLEMENTATION", quote: "quanto tempo demora pra implementar?" }
+        root_cause_hypothesis: { hypothesis: "IMPLEMENTATION_TIMELINE", confidence: 0.7, evidence_quote: "nao podemos ficar parados durante a transicao" }
+        precisa_investigar: false
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser NEGOTIATION. next_best_action
+        deve resumir/confirmar (SUMMARIZE) os pontos ja acordados antes
+        de avancar, garantindo alinhamento — NUNCA deve pular direto
+        para fechamento sem recapitular o que foi resolvido, e NUNCA
+        deve reabrir objecoes ja investigadas do zero.
+
+- description: "Cliente joga uma ancora de preco de concorrente — nao simplesmente igualar/superar a oferta"
+  vars:
+    context: "Cliente disse: 'o concorrente X me ofereceu um preco bem menor que o de voces'."
+    behavioral_signals:
+      - signal: "PRICE_ANCHOR"
+        evidence_quote: "o concorrente X me ofereceu um preco bem menor que o de voces"
+    objections:
+      - objection_spoken: { category: "COMPETITOR", quote: "o concorrente X me ofereceu um preco bem menor" }
+        root_cause_hypothesis: { hypothesis: "PRICE_COMPARISON", confidence: 0.6, evidence_quote: "o concorrente X me ofereceu um preco bem menor que o de voces" }
+        precisa_investigar: false
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser NEGOTIATION. next_best_action
+        deve usar uma pergunta calibrada/espelhamento para entender o
+        que exatamente esta incluso na oferta do concorrente antes de
+        reagir — NUNCA deve simplesmente prometer igualar ou superar o
+        preco do concorrente sem entender o que esta sendo comparado.
+
+- description: "Sinal de aversao a perda ao considerar trocar de fornecedor — negociar reduzindo risco da troca, nao com desconto"
+  vars:
+    context: "Cliente disse: 'a gente ja investiu tanto na ferramenta atual, tenho medo de trocar e perder tudo isso'."
+    behavioral_signals:
+      - signal: "LOSS_AVERSION"
+        evidence_quote: "ja investi tanto na ferramenta atual, tenho medo de trocar e perder tudo isso"
+    objections:
+      - objection_spoken: { category: "ADOPTION", quote: "tenho medo de trocar e perder tudo que ja construimos la" }
+        root_cause_hypothesis: { hypothesis: "SWITCHING_RISK", confidence: 0.75, evidence_quote: "ja investi tanto na ferramenta atual, tenho medo de trocar e perder tudo isso" }
+        precisa_investigar: false
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser NEGOTIATION ou RISK_MITIGATION
+        (ambos aceitaveis). next_best_action deve reduzir o risco
+        percebido da troca (ex.: plano de migracao gradual, garantias,
+        suporte dedicado na transicao) — NUNCA deve tratar isso como
+        objecao de preco nem oferecer desconto, ja que a causa real e
+        aversao a perda do que ja foi construido.

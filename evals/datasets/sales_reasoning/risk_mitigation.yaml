@@ -1,0 +1,122 @@
+# SalesReasoningEngine — cenarios RISK_MITIGATION
+#
+# Ver spin.yaml para o cabecalho completo. Estes cenarios cobrem os 7
+# riscos deterministicos da Fase 4.2 (agent/deal_risk_rules.py) sendo
+# sinalizados e o motor precisando decidir mitigar antes de avancar
+# (em vez de seguir direto para negociacao/fechamento ignorando o
+# risco).
+
+- description: "Risco NO_ECONOMIC_BUYER sinalizado com deal avancando para fechamento — mitigar antes de fechar"
+  vars:
+    context: "Cliente disse 'vamos fechar', mas em nenhum momento ficou claro quem realmente aprova o orcamento."
+    meddpicc_state:
+      economic_buyer: { status: "UNKNOWN", confidence: 0.0, evidence: [] }
+      champion: { status: "CONFIRMED", confidence: 0.8, evidence: [] }
+    opportunity_memory:
+      sinais_fechamento: ["cliente disse 'vamos fechar' apos a demo"]
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser RISK_MITIGATION ou
+        MEDDPICC_QUALIFICATION (ambos aceitaveis — o risco central e
+        NO_ECONOMIC_BUYER). next_best_action deve buscar confirmar quem
+        aprova o orcamento antes de tratar isso como fechamento
+        garantido — NUNCA deve avancar direto para CLOSING/enviar
+        contrato sem esse dado.
+
+- description: "Sem proximo passo definido e oportunidade parada ha semanas — reengajar com acao concreta"
+  vars:
+    context: "A ultima interacao registrada com esse cliente foi ha 25 dias, sem nenhum proximo passo agendado desde entao."
+    opportunity_memory:
+      unknowns: ["nenhum proximo passo agendado desde a ultima call"]
+    historical_patterns:
+      padrao: "Oportunidades sem contato por mais de 21 dias neste pipeline tem taxa de perda bem mais alta."
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser RISK_MITIGATION.
+        next_best_action deve propor reengajar o cliente com um proximo
+        passo concreto e com prazo definido — NUNCA deve tratar o
+        silencio prolongado como normal/sem risco, dado o padrao
+        historico de oportunidades paradas.
+
+- description: "Concorrente em vantagem explicita — investigar e reforcar diferencial, nao ignorar o risco"
+  vars:
+    context: "Cliente comentou abertamente que o concorrente ja apresentou uma proposta mais completa em alguns pontos especificos."
+    opportunity_memory:
+      competitors: ["concorrente ja apresentou proposta com integracao nativa que a gente ainda nao tem"]
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser RISK_MITIGATION (risco
+        COMPETITOR_ADVANTAGE). next_best_action deve buscar entender
+        exatamente onde o concorrente esta na frente e reposicionar o
+        diferencial real da SALEIA nesses pontos — NUNCA deve ignorar a
+        desvantagem competitiva mencionada nem menosprezar o
+        concorrente sem argumento concreto.
+
+- description: "Resistencia forte de preco (multiplas objecoes) — mitigar reforcando valor antes de seguir"
+  vars:
+    context: "O cliente ja levantou a questao de preco pela terceira vez na mesma reuniao, de formas diferentes."
+    objections:
+      - objection_spoken: { category: "PRICE", quote: "ainda acho caro" }
+        root_cause_hypothesis: null
+        precisa_investigar: true
+      - objection_spoken: { category: "PRICE", quote: "nao sei se vale o investimento" }
+        root_cause_hypothesis: null
+        precisa_investigar: true
+      - objection_spoken: { category: "BUDGET", quote: "nosso orcamento e limitado" }
+        root_cause_hypothesis: null
+        precisa_investigar: true
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser RISK_MITIGATION ou
+        OBJECTION_INVESTIGATION (ambos aceitaveis, dado que ha 3
+        objecoes de preco/orcamento repetidas sem nenhuma investigada
+        ainda). next_best_action deve investigar a causa raiz comum por
+        tras da resistencia repetida de preco antes de qualquer
+        proposta nova — NUNCA deve simplesmente repetir o mesmo
+        argumento de valor pela terceira vez sem mudar de abordagem.
+
+- description: "Champion original saiu da empresa — risco de perder o patrocinador interno"
+  vars:
+    context: "O contato que vinha defendendo a compra internamente (gerente de vendas) saiu da empresa recentemente, segundo o novo interlocutor."
+    opportunity_memory:
+      unknowns: ["o gerente de vendas que apoiava o projeto saiu da empresa mes passado"]
+    meddpicc_state:
+      champion: { status: "UNKNOWN", confidence: 0.0, evidence: ["o gerente que apoiava saiu da empresa"] }
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser RISK_MITIGATION (perda do
+        champion original e um risco critico). next_best_action deve
+        buscar identificar/re-conquistar um novo patrocinador interno
+        para o projeto — NUNCA deve tratar essa mudanca como um detalhe
+        menor ou seguir o processo como se o champion original ainda
+        estivesse ativo.
+
+- description: "Objecao juridica/seguranca sem resolucao com prazo apertado — mitigar antes que trave o fechamento"
+  vars:
+    context: "Faltam 5 dias para o prazo que o proprio cliente deu para decidir, mas a area juridica dele ainda nao aprovou os termos de seguranca de dados."
+    objections:
+      - objection_spoken: { category: "SECURITY", quote: "nosso juridico ainda esta analisando os termos de seguranca" }
+        root_cause_hypothesis: null
+        precisa_investigar: true
+    opportunity_memory:
+      timeline: ["cliente deu prazo de decisao em 5 dias"]
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser RISK_MITIGATION.
+        next_best_action deve agir proativamente para desbloquear a
+        analise juridica/seguranca antes do prazo (ex.: envolver o
+        time tecnico certo, oferecer documentacao de seguranca) —
+        NUNCA deve simplesmente esperar passivamente ou pressionar o
+        cliente a "acelerar o juridico" sem oferecer ajuda concreta.

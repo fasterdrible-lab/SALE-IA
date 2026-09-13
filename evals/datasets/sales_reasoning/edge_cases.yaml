@@ -1,0 +1,118 @@
+# SalesReasoningEngine — cenarios de borda / sinais conflitantes
+#
+# Ver spin.yaml para o cabecalho completo. Estes cenarios testam como o
+# motor reconcilia entradas conflitantes ou incomuns entre si — algo que
+# nenhuma das Fases 1-6 isoladas precisa resolver sozinha, ja que cada
+# uma olha so a propria fatia do problema.
+
+- description: "Motivacao de velocidade (SPEED) em conflito com sinal de resistencia a mudanca — nao ignorar a resistencia"
+  vars:
+    context: "Cliente diz que precisa decidir rapido por pressao interna, mas ao mesmo tempo demonstra desconforto toda vez que o assunto de trocar de ferramenta surge."
+    buyer_motivation:
+      motivation: "SPEED"
+      confidence: 0.7
+      evidence: ["a gente precisa decidir isso rapido, tem pressao la de cima"]
+    behavioral_signals:
+      - signal: "STATUS_QUO_BIAS"
+        evidence_quote: "mas trocar de ferramenta sempre da um trabalho enorme, nao sei"
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        Ha um conflito real entre a motivacao de velocidade e a
+        resistencia a mudanca demonstrada. recommended_framework deve
+        reconhecer essa tensao — RISK_MITIGATION ou SPIN_IMPLICATION
+        (endereçando a resistencia antes de acelerar) sao aceitaveis.
+        NUNCA deve simplesmente acelerar o processo so por causa da
+        motivacao de velocidade, ignorando o sinal de resistencia.
+
+- description: "Padrao historico do segmento pede cautela, mas contexto do vendedor sugere pressa excessiva — recomendar ritmo mais lento"
+  vars:
+    context: "Primeira reuniao. O vendedor ja tentou avancar para proposta comercial, mas o cliente so deu respostas superficiais ate agora."
+    historical_patterns:
+      padrao: "Clientes deste segmento levam em media 3 reunioes antes de aceitar receber uma proposta formal; propostas enviadas antes disso historicamente tem taxa de resposta muito baixa."
+    seller_context:
+      observacao: "Vendedor tende a pular etapas quando sente pressao de meta no fim do mes."
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser SPIN_SITUATION ou SPIN_PROBLEM
+        (ainda faltam dados reais, apesar da pressa do vendedor).
+        next_best_action NUNCA deve recomendar enviar proposta ou
+        avancar para CLOSING nesta reuniao — o padrao historico do
+        segmento e a falta de dados concretos pesam contra acelerar.
+
+- description: "Dor e impacto ja conectados no grafo da oportunidade, falta so explorar o valor de resolver"
+  vars:
+    context: "O grafo da oportunidade ja registra a conexao entre a dor de leads esquecidos e o impacto de R$20.000/mes, com evidencia de duas reunioes diferentes."
+    opportunity_graph:
+      - from_type: "PAIN"
+        from_id: 1
+        to_type: "IMPACT"
+        to_id: 2
+        relacao: "causa"
+        evidence: "reuniao 1: 'a gente perde leads esquecidos toda semana'; reuniao 2: 'isso da uns R$20.000 por mes'"
+    spin_state:
+      implication: { known: ["financial_impact", "conversion_impact"], missing: [] }
+      need_payoff: { known: [], missing: ["solution_value"] }
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser SPIN_NEED_PAYOFF — a conexao
+        dor->impacto ja esta bem estabelecida no grafo (duas reunioes de
+        evidencia), falta so explorar o que resolver isso significaria
+        pro cliente. NUNCA deve voltar a pedir o impacto financeiro que
+        ja esta confirmado no grafo.
+
+- description: "Case do RAG relevante para a objecao, mas economic buyer nao identificado — nao liderar so com o case"
+  vars:
+    context: "O cliente levantou uma duvida tecnica que bate exatamente com um case de sucesso disponivel na Biblioteca de Inteligencia, mas ainda nao ficou claro quem decide a compra."
+    rag_context:
+      - tipo: "case"
+        conteudo: "Case de cliente do mesmo setor que resolveu duvida tecnica identica usando a integracao X, com resultado documentado."
+    meddpicc_state:
+      economic_buyer: { status: "UNKNOWN", confidence: 0.0, evidence: [] }
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser MEDDPICC_QUALIFICATION (o
+        economic_buyer segue desconhecido, o que e a lacuna mais
+        critica agora) — pode mencionar o uso do case do RAG como parte
+        do next_best_action, mas next_best_action NAO deve se apoiar
+        so no case tecnico sem tambem buscar identificar quem decide a
+        compra.
+
+- description: "Entrada completamente vazia — descoberta generica com confianca baixa"
+  vars:
+    context: null
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        Com absolutamente nenhum dado estruturado disponivel,
+        recommended_framework deve ser SPIN_SITUATION, next_best_question
+        deve ser uma pergunta de abertura/descoberta generica e
+        confidence deve ser baixa (claramente abaixo de 0.5) — NUNCA
+        deve inventar hipoteses, evidencias ou afirmar algo especifico
+        sobre o cliente que nao foi informado.
+
+- description: "Desconto ja concedido sem aprovacao formal, cliente pede ainda mais — mitigar risco interno, nao ceder de novo"
+  vars:
+    context: "O proprio vendedor ja ofereceu 15% de desconto numa reuniao anterior sem passar por aprovacao formal, e agora o cliente esta pedindo mais 10%."
+    opportunity_memory:
+      pricing_terms: ["vendedor ja ofereceu 15% de desconto sem aprovacao formal na reuniao anterior"]
+    seller_context:
+      observacao: "Vendedor tem historico de oferecer desconto sem consultar a gestao antes."
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser RISK_MITIGATION.
+        next_best_action deve tratar o desconto ja concedido como um
+        risco interno a ser regularizado (buscar aprovacao formal) — e
+        NUNCA deve recomendar conceder o desconto adicional pedido pelo
+        cliente sem aprovacao. avoid deve mencionar explicitamente nao
+        oferecer nenhum desconto adicional sem aprovacao da gestao.

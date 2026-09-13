@@ -1,10 +1,12 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-11 (V.1.4.84, local — produção confirmada em
-`1.4.75`, ver "Deploy" abaixo; V.1.4.84 é o CONTRATO (sem IA ainda) do
-SalesReasoningEngine, Tarefa 7.1 (início da Fase 7) do "SALE-IA V2" —
-ver seção "SalesReasoningEngine — Fase 7 / Tarefa 7.1" abaixo e
-CHANGELOG.md V.1.4.84.
+Atualizado em: 2026-09-13 (V.1.4.85, local — produção confirmada em
+`1.4.75`, ver "Deploy" abaixo; V.1.4.85 fecha a Tarefa 7.1 (Fase 7) do
+"SALE-IA V2" com o MOTOR REAL do SalesReasoningEngine (`raciocinar_async()`,
+IA de verdade) + Golden Dataset de 57 cenários (harness Promptfoo criado,
+nunca rodado) — ver seção "SalesReasoningEngine — Fase 7 / Tarefa 7.1"
+abaixo e CHANGELOG.md V.1.4.85. Não integrado a `orquestrador.py`/tempo
+real ainda (decisão de produto separada).
 O corpo deste documento nao acompanhou o
 CHANGELOG.md entre V.1.4.54 e V.1.4.66; a fonte de verdade sempre mais
 atualizada e o CHANGELOG e o `/health` de producao. Cost Intelligence
@@ -872,28 +874,50 @@ Constrói sobre `objection_rules.precisa_investigar()` da Tarefa 6.1.
   (Sales Reasoning Engine) e qualquer tarefa seguinte não começam sem
   nova confirmação explícita do usuário.
 
-## SalesReasoningEngine — Fase 7 / Tarefa 7.1 do "SALE-IA V2" (V.1.4.84, 11/09/2026, só contrato)
+## SalesReasoningEngine — Fase 7 / Tarefa 7.1 do "SALE-IA V2" (V.1.4.85, 13/09/2026, motor real + Golden Dataset)
 
-Usuário confirmou avançar para a Fase 7. Antes de implementar, pergunta
-direta ao usuário sobre escopo (diferente das Fases 1-6 puramente
-determinísticas, o prompt mestre pede validação semântica via Golden
-Dataset de 50+ cenários — só faz sentido com IA real) — usuário
-escolheu: **só o contrato de entrada/saída nesta rodada, sem IA**.
+Sequência de V.1.4.84 (contrato). Usuário confirmou explicitamente
+avançar para o motor real — a parte que ficou pendente por decisão
+deliberada de escopo na rodada anterior.
 
-- `agent/sales_reasoning_engine.py` (novo): `SALES_REASONING_INPUT_
-  CAMPOS` (11 campos literais de entrada) e `SALES_REASONING_OUTPUT_
-  CAMPOS` (10 campos literais de saída). `construir_input_vazio()`/
-  `validar_input_raciocinio()` — todos os 11 inputs opcionais.
-  `montar_saida_raciocinio()`/`validar_output_raciocinio()` — valida
-  tipos/obrigatoriedade dos 10 campos de saída.
-- 14 testes novos, incluindo o exemplo literal de saída do prompt
-  mestre (SPIN_IMPLICATION, confidence 0.86). Suite completa: 693
-  testes (679 + 14), 0 falhas, 1 skip pré-existente — sem regressão.
-  Detalhe completo no CHANGELOG.md (V.1.4.84).
-- **Pendente**: push + deploy na VPS (sem tabela/coluna nova, zero
-  custo de IA). O motor de raciocínio real (chamada de IA) e o Golden
-  Dataset de 50+ cenários, além de qualquer fase seguinte, não começam
-  sem nova confirmação explícita do usuário.
+- `agent/sales_reasoning_engine.py` — contrato (V.1.4.84, inalterado) +
+  **`raciocinar_async()`** (novo): sintetiza os 11 inputs numa
+  recomendação via IA, usando o mesmo caminho de produção dos 5 agentes
+  de `agent/multiagente/` (`chamar_ia_com_fallback_claude`). Resposta
+  da IA validada contra o contrato de saída já existente
+  (`montar_saida_raciocinio()`); entrada parcial nunca levanta, chave
+  desconhecida sempre levanta (mesmo contrato da V.1.4.84).
+  `SALES_REASONING_FRAMEWORKS` (novo) — vocabulário fechado de 9
+  valores para `recommended_framework` (4 estágios SPIN +
+  `MEDDPICC_QUALIFICATION`/`OBJECTION_INVESTIGATION`/`NEGOTIATION`/
+  `RISK_MITIGATION`/`CLOSING`).
+- `agent/prompt_templates/sales_reasoning_engine.txt` (novo) — regra
+  central herdada da Fase 6.1: objeção com `precisa_investigar=true`
+  bloqueia `NEGOTIATION`/`CLOSING` até `OBJECTION_INVESTIGATION`
+  acontecer primeiro.
+- `api/ai_features.py::SALES_REASONING_RACIOCINIO` (nova feature de
+  custo).
+- **Não integrado a `orquestrador.py`/`processador_tempo_real.py`
+  ainda** — decisão de produto separada (mudaria custo/latência do
+  ciclo de tempo real), não tomada nesta rodada.
+- 7 testes novos (`RaciocinarAsyncTest`, mock de
+  `chamar_ia_com_fallback_claude`). Suite completa: **700 testes, 0
+  falhas, 1 skip pré-existente** — sem regressão.
+- **Golden Dataset — 57 cenários** (mínimo pedido: 50) em
+  `evals/datasets/sales_reasoning/` + `evals/providers/
+  sales_reasoning_provider.py` + `evals/promptfooconfig.
+  sales_reasoning.yaml` — mesmo harness Promptfoo do Coach/Finance
+  (Fase 2), validação sempre via `llm-rubric` (semântica, nunca
+  igualdade literal — regra explícita do prompt mestre). Inclui o
+  exemplo PROIBIDO literal ("Está caro." → "Posso dar 20% agora.").
+  **Nunca executado** — custa dinheiro real por cenário, mesma
+  disciplina do resto da suíte (decisão de rodar é separada da decisão
+  de construir).
+- Detalhe completo no CHANGELOG.md (V.1.4.85).
+- **Pendente**: push + deploy na VPS (aditivo, zero custo de IA em
+  repouso). Rodar o Golden Dataset de verdade. **Integrar ao
+  orquestrador e qualquer fase seguinte (Fase 8 — Resultado da Venda)
+  não começam sem nova confirmação explícita do usuário.**
 
 ### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)
 - `services/embeddings/`: interface `EmbeddingProvider` (`embed`, `embed_async`, `embed_batch`, `health_check`), `OllamaEmbeddingProvider` (HTTP local via `httpx`, zero import de SDKs de LLM externos), `OpenAIEmbeddingProvider`, `factory.get_embedding_provider()` (lê `EMBEDDING_PROVIDER`, erro explícito em valor desconhecido).

@@ -14,6 +14,8 @@ REALTIME_BIGFIVE = "realtime.bigfive"
 REALTIME_RECAP_VIVA = "realtime.recap_viva"
 REALTIME_CLAUDE_ACCOUNT_FALLBACK = "realtime.claude_account_fallback"
 
+SALES_REASONING_RACIOCINIO = "sales_reasoning.raciocinio"
+
 REPORT_DIAGNOSTICO_FINANCEIRO = "report.diagnostico_financeiro"
 REPORT_PERFIL_DISC = "report.perfil_disc"
 REPORT_RECAPITULACAO = "report.recapitulacao"

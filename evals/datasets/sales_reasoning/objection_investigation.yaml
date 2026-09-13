@@ -1,0 +1,161 @@
+# SalesReasoningEngine — cenarios OBJECTION_INVESTIGATION
+#
+# Ver spin.yaml para o cabecalho completo. Estes cenarios exercitam a
+# regra central herdada da Fase 6.1 (agent/objection_rules.py): uma
+# objecao nunca pode virar negociacao/desconto automaticamente sem
+# investigar a causa raiz primeiro — inclui o exemplo literal PROIBIDO
+# do prompt mestre ("Esta caro." -> desconto direto).
+
+- description: "PROIBIDO — 'Esta caro.' sem hipotese ainda nao pode virar desconto (exemplo literal do prompt mestre)"
+  vars:
+    context: "Cliente disse: 'Esta caro.' logo depois de ver o valor da proposta, sem mais nenhum detalhe."
+    objections:
+      - objection_spoken: { category: "PRICE", quote: "Esta caro." }
+        root_cause_hypothesis: null
+        precisa_investigar: true
+  assert:
+    - type: is-json
+    - type: not-contains
+      value: "20%"
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser OBJECTION_INVESTIGATION.
+        next_best_action/next_best_question deve buscar entender o que
+        esta por tras de "esta caro" (comparando com o que, falta de
+        orcamento, falta de valor percebido, etc) — o resultado
+        PROIBIDO explicito e qualquer forma de "posso dar 20% agora"
+        ou qualquer desconto imediato. avoid deve mencionar
+        explicitamente nao oferecer desconto/condicao especial ainda.
+
+- description: "Hipotese de causa raiz ja investigada com evidencia propria — pode seguir alem da investigacao"
+  vars:
+    context: "Na reuniao anterior o vendedor ja investigou a fala 'esta caro' do cliente e descobriu, com uma fala especifica do cliente, que o medo real e a equipe nao adotar a ferramenta."
+    objections:
+      - objection_spoken: { category: "PRICE", quote: "Esta caro." }
+        root_cause_hypothesis: { hypothesis: "ADOPTION_RISK", confidence: 0.85, evidence_quote: "tenho medo da minha equipe nao usar isso no dia a dia" }
+        precisa_investigar: false
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        A objecao ja foi investigada (precisa_investigar=false, causa
+        raiz real e medo de adocao pela equipe, com evidencia propria).
+        recommended_framework NAO precisa mais ser OBJECTION_INVESTIGATION
+        — NEGOTIATION ou RISK_MITIGATION endereçando o risco de adocao
+        (ex.: onboarding, treinamento, suporte) sao aceitaveis. NUNCA
+        deve tratar isso como se ainda fosse so uma objecao de preco nao
+        investigada, nem oferecer desconto como resposta ao medo de
+        adocao (problema errado sendo resolvido).
+
+- description: "Objecao de timing sem hipotese — investigar se e prioridade real ou desculpa"
+  vars:
+    context: "Cliente disse: 'agora nao e um bom momento, talvez no proximo trimestre'."
+    objections:
+      - objection_spoken: { category: "TIMING", quote: "agora nao e um bom momento, talvez no proximo trimestre" }
+        root_cause_hypothesis: null
+        precisa_investigar: true
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser OBJECTION_INVESTIGATION.
+        next_best_question deve investigar o que especificamente torna
+        agora um mau momento (prioridade concorrente, orcamento fechado,
+        falta de urgencia real) — NUNCA deve aceitar "proximo trimestre"
+        passivamente sem entender a causa, nem insistir em fechar agora
+        mesmo assim.
+
+- description: "Objecao de confianca ('nao confio que vai funcionar') — investigar a preocupacao especifica"
+  vars:
+    context: "Cliente disse: 'nao sei, ja tentei outras ferramentas parecidas e nao deu certo, nao confio muito que essa vai funcionar pra gente'."
+    objections:
+      - objection_spoken: { category: "TRUST", quote: "ja tentei outras ferramentas parecidas e nao deu certo" }
+        root_cause_hypothesis: null
+        precisa_investigar: true
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser OBJECTION_INVESTIGATION.
+        next_best_question deve investigar o que especificamente deu
+        errado nas tentativas anteriores do cliente — NUNCA deve
+        responder com case de sucesso generico ou prova social sem
+        antes entender a experiencia negativa especifica do cliente.
+
+- description: "Hipotese mascarada (mesma categoria, mesma evidencia do spoken) — mirroring, ainda precisa investigar"
+  vars:
+    context: "O vendedor registrou uma 'hipotese' que apenas repete a fala do cliente, sem investigacao real."
+    objections:
+      - objection_spoken: { category: "PRICE", quote: "Esta caro pra gente agora." }
+        root_cause_hypothesis: { hypothesis: "PRICE", confidence: 0.95, evidence_quote: "Esta caro pra gente agora." }
+        precisa_investigar: true
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        Mesmo com confidence alta (0.95), a hipotese apenas espelha a
+        fala original sem investigacao real (mesma categoria, mesma
+        evidencia) — precisa_investigar continua true.
+        recommended_framework deve ser OBJECTION_INVESTIGATION.
+        next_best_action NUNCA deve tratar essa "hipotese" espelhada
+        como causa raiz de verdade, nem oferecer desconto/condicao
+        especial com base nela.
+
+- description: "Objecao de orcamento combinada com metrics ainda nao confirmado — investigar restricao real"
+  vars:
+    context: "Cliente disse: 'nao temos orcamento pra isso agora', mas nunca chegou a confirmar nenhum numero de impacto financeiro do problema."
+    objections:
+      - objection_spoken: { category: "BUDGET", quote: "nao temos orcamento pra isso agora" }
+        root_cause_hypothesis: null
+        precisa_investigar: true
+    meddpicc_state:
+      metrics: { status: "UNKNOWN", confidence: 0.0, evidence: [] }
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser OBJECTION_INVESTIGATION (ou
+        MEDDPICC_QUALIFICATION, dado que metrics tambem esta UNKNOWN —
+        ambos aceitaveis). next_best_question deve investigar se a
+        restricao de orcamento e real/definitiva ou se falta o cliente
+        enxergar o impacto financeiro do problema — NUNCA deve desistir
+        da oportunidade nem oferecer desconto automatico so por ouvir
+        "sem orcamento".
+
+- description: "Objecao de concorrente sem hipotese — investigar o que motiva a comparacao"
+  vars:
+    context: "Cliente disse: 'a gente ja usa uma ferramenta parecida, nao sei se vale a pena trocar'."
+    objections:
+      - objection_spoken: { category: "COMPETITOR", quote: "a gente ja usa uma ferramenta parecida, nao sei se vale a pena trocar" }
+        root_cause_hypothesis: null
+        precisa_investigar: true
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser OBJECTION_INVESTIGATION.
+        next_best_question deve investigar o que falta na ferramenta
+        atual do cliente ou o que motivaria uma troca — NUNCA deve
+        atacar a ferramenta concorrente sem saber qual e nem o que o
+        cliente valoriza nela.
+
+- description: "Duas objecoes na lista: uma ja investigada, outra nova — priorizar a nao investigada"
+  vars:
+    context: "O cliente levantou duas preocupacoes na reuniao: uma sobre preco (ja investigada anteriormente) e uma nova sobre seguranca dos dados."
+    objections:
+      - objection_spoken: { category: "PRICE", quote: "Esta caro." }
+        root_cause_hypothesis: { hypothesis: "ADOPTION_RISK", confidence: 0.8, evidence_quote: "tenho medo da equipe nao usar" }
+        precisa_investigar: false
+      - objection_spoken: { category: "SECURITY", quote: "como voces garantem a seguranca dos nossos dados?" }
+        root_cause_hypothesis: null
+        precisa_investigar: true
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        Ha duas objecoes: a de preco ja foi investigada (precisa_investigar
+        false), a de seguranca e nova (precisa_investigar true).
+        recommended_framework deve ser OBJECTION_INVESTIGATION, focado na
+        objecao de SEGURANCA (a que ainda precisa de investigacao) —
+        NUNCA deve voltar a tratar a objecao de preco como se ainda
+        estivesse pendente, nem ignorar a nova objecao de seguranca.

@@ -11,19 +11,30 @@ arquitetura existente, nao criar sistemas paralelos duplicados".
 
 ```
 evals/
-├── promptfooconfig.yaml           # Coach Agent (principal)
-├── promptfooconfig.finance.yaml   # Finance Agent
-├── promptfooconfig.redteam.yaml   # Red teaming (TAREFA 2.8)
-├── providers/                     # Pontes Python -> agentes reais
+├── promptfooconfig.yaml                    # Coach Agent (principal)
+├── promptfooconfig.finance.yaml            # Finance Agent
+├── promptfooconfig.redteam.yaml            # Red teaming (TAREFA 2.8)
+├── promptfooconfig.sales_reasoning.yaml    # SalesReasoningEngine (Fase 7 / Tarefa 7.1)
+├── providers/                     # Pontes Python -> agentes/motores reais
 │   ├── coach_provider.py
-│   └── finance_provider.py
+│   ├── finance_provider.py
+│   └── sales_reasoning_provider.py
 ├── datasets/
 │   ├── coach/
 │   │   ├── objections_real.yaml     # 34 objecoes REAIS anonimizadas (TAREFA 2.2/2.3)
 │   │   ├── objections_fit_gap.yaml  # 2 casos sinteticos so pra categoria FIT (sem exemplo real)
 │   │   └── next_best_action.yaml    # Cenarios de NBA (TAREFA 2.4)
-│   └── finance/
-│       └── price_objections.yaml    # Objecoes financeiras aprofundadas
+│   ├── finance/
+│   │   └── price_objections.yaml    # Objecoes financeiras aprofundadas
+│   └── sales_reasoning/             # Golden Dataset da Fase 7 (52 cenarios, ver secao propria)
+│       ├── spin.yaml
+│       ├── meddpicc_qualification.yaml
+│       ├── objection_investigation.yaml
+│       ├── negotiation.yaml
+│       ├── risk_mitigation.yaml
+│       ├── closing.yaml
+│       ├── buyer_motivation_and_behavior.yaml
+│       └── edge_cases.yaml
 ├── scenarios/
 │   └── red_team.yaml              # Injection/role override/exfiltration
 ├── prompts/                        # Reservado para variantes (coach_v2.txt
@@ -185,6 +196,55 @@ sinteticos removidos = 41 no total), custo real **US$ 0,0093**.
   induzido, pressao de fechamento).
 - [x] TAREFA 2.9 — `.github/workflows/llm-evals.yml` na raiz do repo.
 - [x] TAREFA 2.10 — este README cobre os criterios de aceite.
+
+## SalesReasoningEngine — Golden Dataset da Fase 7 (criado, nunca rodado)
+
+`promptfooconfig.sales_reasoning.yaml` avalia o motor real de
+`agent.sales_reasoning_engine.raciocinar_async` (Fase 7 / Tarefa 7.1 do
+"PROMPT MESTRE — SALE-IA V2", diferente do "PROMPT MESTRE — EVOLUÇÃO DA
+SALEIA.txt" que criou o resto desta suite Fase 2) via
+`providers/sales_reasoning_provider.py`, mesmo principio dos providers
+de Coach/Finance — chama o codigo real, nenhuma logica de raciocinio
+duplicada aqui.
+
+- **52 cenarios** em `datasets/sales_reasoning/` (minimo pedido pelo
+  prompt mestre: 50) — sinteticos, escritos para exercitar as regras de
+  decisao entre os 9 frameworks do vocabulario fechado (`SPIN_SITUATION`
+  a `CLOSING`, ver `agent/sales_reasoning_engine.py::
+  SALES_REASONING_FRAMEWORKS`), incluindo o exemplo PROIBIDO literal do
+  prompt mestre (`"Está caro." -> "Posso dar 20% agora."`, em
+  `objection_investigation.yaml`).
+- **Cada cenario tem `context` (narrativa) + os campos estruturados já
+  calculados pelas Fases 1-6 que o cenário simula** (`spin_state`,
+  `meddpicc_state`, `objections`, `behavioral_signals`,
+  `buyer_motivation`, `opportunity_memory`, `opportunity_graph`,
+  `rag_context`, `historical_patterns`, `seller_context`) — nunca
+  transcrição crua, mesma disciplina do motor real (ele só sintetiza
+  dado já estruturado, não reprocessa fala livre).
+- **Validação sempre semântica (`llm-rubric`)**, nunca por igualdade
+  literal de frase — regra explícita do próprio prompt mestre pra este
+  Golden Dataset especificamente (diferente de `next_best_action.yaml`,
+  que também usa `llm-rubric` mas por escolha de estilo, não por
+  exigência do documento). Cada rubric descreve o `expected_framework`
+  esperado junto das `acceptable_actions`/`forbidden_actions` do
+  cenário, tudo em texto único — mesmo formato de
+  `datasets/coach/next_best_action.yaml`.
+- **Nunca rodado nesta rodada** — harness criado e revisado
+  estaticamente (`node --check` nos providers, YAML validado), mas
+  `npx promptfoo eval -c evals/promptfooconfig.sales_reasoning.yaml`
+  não foi executado: 52 casos x custo real por chamada é uma decisão de
+  custo que precisa de confirmação explícita antes de rodar, mesma
+  disciplina de todo o resto desta suite (ver "Custa dinheiro real"
+  acima). Quando rodar, resultado esperado vai para
+  `evals/results/sales_reasoning_latest.json`.
+- **Não usa embedding/mock nenhum dos módulos determinísticos das Fases
+  1-6** — os campos `spin_state`/`meddpicc_state`/etc. de cada cenário
+  são escritos manualmente no formato que `spin_coverage_rules.py`/
+  `meddpicc_rules.py`/`objection_rules.py`/`behavioral_signal_rules.py`
+  realmente produzem, mas não chamam essas funções — o dataset testa só
+  o SalesReasoningEngine, não a cadeia inteira de principio a fim
+  (fica para quando o motor for integrado a `orquestrador.py`, decisão
+  de produto ainda não tomada).
 
 ## Pendencias explicitas (nao inventadas, decisao de produto/acesso)
 

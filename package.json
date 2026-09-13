@@ -7,7 +7,8 @@
     "eval:coach": "promptfoo eval -c evals/promptfooconfig.yaml",
     "eval:finance": "promptfoo eval -c evals/promptfooconfig.finance.yaml",
     "eval:redteam": "promptfoo eval -c evals/promptfooconfig.redteam.yaml",
-    "eval:all": "npm run eval:coach && npm run eval:finance && npm run eval:redteam",
+    "eval:sales_reasoning": "promptfoo eval -c evals/promptfooconfig.sales_reasoning.yaml",
+    "eval:all": "npm run eval:coach && npm run eval:finance && npm run eval:redteam && npm run eval:sales_reasoning",
     "eval:view": "promptfoo view"
   },
   "devDependencies": {

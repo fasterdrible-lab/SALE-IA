@@ -1,0 +1,162 @@
+# SalesReasoningEngine — cenarios MEDDPICC_QUALIFICATION
+#
+# Ver spin.yaml para o cabecalho completo de contexto do Golden Dataset
+# (Fase 7 / Tarefa 7.1 do "PROMPT MESTRE — SALE-IA V2"). Estes cenarios
+# testam quando o motor deve priorizar qualificar um item MEDDPICC (Fase
+# 4.1) em vez de avancar SPIN ou tratar objecao/fechamento.
+
+- description: "Interesse forte mas metrics e economic_buyer ainda UNKNOWN — qualificar antes de aprofundar"
+  vars:
+    context: "Cliente demonstrou bastante interesse e ja fez varias perguntas sobre funcionalidades, mas nunca falou de numeros nem de quem mais decide."
+    spin_state:
+      situation: { known: ["team_size", "crm_tool"], missing: [] }
+      problem: { known: ["main_pain"], missing: [] }
+      implication: { known: ["financial_impact"], missing: [] }
+      need_payoff: { known: ["solution_value"], missing: [] }
+    meddpicc_state:
+      metrics: { status: "UNKNOWN", confidence: 0.0, evidence: [] }
+      economic_buyer: { status: "UNKNOWN", confidence: 0.0, evidence: [] }
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser MEDDPICC_QUALIFICATION (SPIN ja
+        avancado ate need-payoff, mas metrics e economic_buyer seguem
+        UNKNOWN). next_best_question deve buscar metricas concretas
+        e/ou quem mais participa da decisao — NUNCA deve tratar o
+        interesse demonstrado como sinal de fechamento.
+
+- description: "Decision_criteria desconhecido enquanto o resto avancou — foco no criterio de decisao"
+  vars:
+    context: "Cliente ja confirmou dor, impacto e ate falou do orcamento aproximado, mas nunca disse o que pesa na decisao final dele (preco, suporte, integracao, etc)."
+    meddpicc_state:
+      metrics: { status: "CONFIRMED", confidence: 0.8, evidence: [] }
+      identify_pain: { status: "CONFIRMED", confidence: 0.85, evidence: [] }
+      decision_criteria: { status: "UNKNOWN", confidence: 0.0, evidence: [] }
+      economic_buyer: { status: "PARTIAL", confidence: 0.4, evidence: ["eu decido junto com meu socio"] }
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser MEDDPICC_QUALIFICATION.
+        next_best_question deve perguntar diretamente o que mais pesa
+        na decisao do cliente (criterios de escolha) — NUNCA deve supor
+        que preco e o unico criterio nem avancar para proposta/fechamento
+        sem isso mapeado.
+
+- description: "Paper process confirmado mas decision process desconhecido, com urgencia mencionada"
+  vars:
+    context: "Cliente ja disse que o processo de compra formal (contrato, juridico) e simples na empresa dele, mas nao explicou quem aprova antes disso nem quantas etapas internas existem."
+    meddpicc_state:
+      paper_process: { status: "CONFIRMED", confidence: 0.7, evidence: ["nosso juridico e rapido, isso nao e problema"] }
+      decision_process: { status: "UNKNOWN", confidence: 0.0, evidence: [] }
+    buyer_motivation:
+      motivation: "SPEED"
+      confidence: 0.6
+      evidence: ["a gente precisa resolver isso rapido"]
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser MEDDPICC_QUALIFICATION.
+        next_best_question deve mapear o processo de decisao interno
+        (quem aprova, quantas etapas) antes de assumir que a velocidade
+        desejada pelo cliente (SPEED) sera possivel — avoid deve incluir
+        nao prometer prazo de fechamento sem saber o processo real.
+
+- description: "Multiplos stakeholders no grafo da oportunidade, mas champion ainda nao identificado"
+  vars:
+    context: "Reuniao com o gerente de operacoes. Ele mencionou que a diretora comercial tambem participa das decisoes de ferramenta, mas nao ficou claro quem realmente defenderia a compra internamente."
+    meddpicc_state:
+      champion: { status: "UNKNOWN", confidence: 0.0, evidence: [] }
+      economic_buyer: { status: "PARTIAL", confidence: 0.4, evidence: ["a diretora comercial tambem participa dessas decisoes"] }
+    opportunity_graph:
+      - from_type: "STAKEHOLDER"
+        from_id: 1
+        to_type: "STAKEHOLDER"
+        to_id: 2
+        relacao: "reporta_para"
+        evidence: "a diretora comercial tambem participa dessas decisoes"
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser MEDDPICC_QUALIFICATION.
+        next_best_action/next_best_question deve buscar identificar
+        quem, entre os stakeholders ja mencionados, defenderia a compra
+        internamente (champion) — NUNCA deve presumir que o contato
+        atual e automaticamente o champion so por estar na call.
+
+- description: "Objecao de procurement levantada — qualificar paper_process, nao so responder a objecao na superficie"
+  vars:
+    context: "Cliente perguntou como funciona o processo de compra/contrato da SALEIA, mencionando que o setor de compras deles costuma ser burocratico."
+    meddpicc_state:
+      paper_process: { status: "UNKNOWN", confidence: 0.0, evidence: [] }
+    objections:
+      - objection_spoken: { category: "PROCUREMENT", quote: "nosso setor de compras costuma ser bem burocratico" }
+        root_cause_hypothesis: null
+        precisa_investigar: true
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser MEDDPICC_QUALIFICATION ou
+        OBJECTION_INVESTIGATION (ambos aceitaveis, pois a objecao de
+        procurement e essencialmente sobre o proprio paper_process).
+        next_best_question deve investigar como funciona o processo de
+        compras do cliente em detalhe — NUNCA deve minimizar a
+        preocupacao dizendo apenas "nosso processo e simples" sem
+        entender o processo do lado do cliente.
+
+- description: "Motivacao de reducao de risco identificada, economic buyer so parcialmente confirmado"
+  vars:
+    context: "Cliente disse que quer muito reduzir o risco de erro manual, mas quando perguntado sobre orcamento respondeu de forma evasiva sobre quem aprova o gasto."
+    buyer_motivation:
+      motivation: "RISK_REDUCTION"
+      confidence: 0.7
+      evidence: ["quero muito reduzir esse risco de erro manual"]
+    meddpicc_state:
+      economic_buyer: { status: "PARTIAL", confidence: 0.3, evidence: [] }
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser MEDDPICC_QUALIFICATION.
+        next_best_question deve confirmar especificamente quem aprova o
+        investimento (economic buyer) — NUNCA deve deixar essa lacuna
+        de lado so porque a motivacao de reducao de risco parece forte.
+
+- description: "Prazo de decisao proximo, decision_criteria ainda desconhecido — urgente qualificar"
+  vars:
+    context: "Cliente mencionou que a empresa quer decidir sobre a ferramenta ate o fim do mes, mas nunca explicou o que vai pesar na escolha entre as opcoes que estao avaliando."
+    opportunity_memory:
+      timeline: ["cliente quer decidir ate o fim do mes"]
+    meddpicc_state:
+      decision_criteria: { status: "UNKNOWN", confidence: 0.0, evidence: [] }
+      decision_process: { status: "PARTIAL", confidence: 0.4, evidence: ["queremos decidir ate o fim do mes"] }
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser MEDDPICC_QUALIFICATION (a data
+        limite aumenta a urgencia de saber o criterio de decisao antes
+        que seja tarde demais). next_best_question deve perguntar
+        diretamente o que vai pesar na escolha entre as opcoes
+        avaliadas — NUNCA deve so acompanhar passivamente o prazo sem
+        agir para mapear o criterio.
+
+- description: "Concorrente mencionado de forma parcial — aprofundar cenario competitivo antes de negociar"
+  vars:
+    context: "Cliente comentou de passagem que 'esta vendo mais uma opcao tambem', sem dar detalhes de qual ou por que."
+    meddpicc_state:
+      competition: { status: "PARTIAL", confidence: 0.3, evidence: ["a gente esta vendo mais uma opcao tambem"] }
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser MEDDPICC_QUALIFICATION.
+        next_best_question deve buscar entender melhor o cenario
+        competitivo (qual concorrente, o que esta sendo comparado) —
+        NUNCA deve comecar a atacar um concorrente especifico sem saber
+        qual e, nem oferecer condicao especial so por suspeitar de
+        concorrencia.

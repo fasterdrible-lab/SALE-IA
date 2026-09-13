@@ -1,0 +1,48 @@
+# SALEIA — Evaluation Suite: SalesReasoningEngine (Fase 7 / Tarefa 7.1
+# do "PROMPT MESTRE — SALE-IA V2")
+#
+# Golden Dataset de 52 cenarios (pedido minimo do prompt mestre: 50+),
+# validados SEMANTICAMENTE via llm-rubric — nunca por igualdade literal
+# de frase (regra explicita do prompt mestre para esta suite). Cada
+# cenario testa se o motor recomenda o framework certo
+# (SPIN_*/MEDDPICC_QUALIFICATION/OBJECTION_INVESTIGATION/NEGOTIATION/
+# RISK_MITIGATION/CLOSING) e evita as acoes proibidas do cenario.
+#
+# ATENCAO — custa dinheiro real: cada teste dispara uma chamada real de
+# IA no provedor configurado no .env do ambiente onde o eval roda
+# (DeepSeek/OpenAI/Anthropic/Gemini, ver api/ai_router.py). Nao rodar em
+# CI ou localmente sem ter confirmado o custo esperado (52 casos x preco
+# por chamada do modelo ativo) — mesma disciplina de
+# evals/promptfooconfig.yaml (Coach). Harness criado nesta rodada, nunca
+# executado.
+#
+# Rodar (a partir de SALEIA/):
+#   npm install
+#   PYTHONPATH=. npx promptfoo eval -c evals/promptfooconfig.sales_reasoning.yaml
+#   npx promptfoo view
+#
+# Ver evals/README.md para o restante da suite (coach, finance, red
+# team, criterios de aprovacao em evals/APPROVAL_CRITERIA.md).
+
+description: "SALEIA — SalesReasoningEngine (Fase 7): framework recomendado + acoes aceitaveis/proibidas, 52 cenarios"
+
+prompts:
+  - "{{context}}"
+
+providers:
+  - id: "python:providers/sales_reasoning_provider.py"
+    label: sales_reasoning_v1
+
+defaultTest:
+  assert:
+    - type: is-json
+  options:
+    # Mesmo grader padrao de promptfooconfig.yaml (Coach) — DeepSeek e o
+    # unico dos 4 provedores centrais com saldo/chave valida confirmada
+    # em docs/CURRENT_STATE.md ate a data de criacao deste harness.
+    provider: "deepseek:deepseek-chat"
+
+tests:
+  - file://datasets/sales_reasoning/*.yaml
+
+outputPath: evals/results/sales_reasoning_latest.json

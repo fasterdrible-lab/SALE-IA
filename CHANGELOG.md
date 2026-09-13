@@ -3,6 +3,105 @@
 
 ---
 
+## V.1.4.85 — SalesReasoningEngine (motor real): fecha a Tarefa 7.1 da Fase 7 do "PROMPT MESTRE — SALE-IA V2"
+> Data: 13/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Sequência direta de V.1.4.84 (contrato de entrada/saída do
+`SalesReasoningEngine`). Usuário confirmou explicitamente avançar para
+o motor real — a parte que a rodada anterior deixou pendente por
+decisão deliberada de escopo (chamada de IA real + Golden Dataset de
+50+ cenários).
+
+### TAREFA 7.1 — SalesReasoningEngine (motor real)
+- **`agent/sales_reasoning_engine.py::raciocinar_async()`** (novo):
+  sintetiza os 11 inputs do contrato (Fases 1-6 + MeetingMemory/
+  OpportunityMemory/OpportunityGraph/RAGContext/SellerContext/
+  HistoricalPatterns) numa recomendação via IA. Usa o mesmo caminho de
+  produção dos 5 agentes de `agent/multiagente/`
+  (`chamar_ia_com_fallback_claude` — 4 provedores centrais com
+  fallback pra conta Claude pessoal do vendedor). Entrada pode vir
+  parcialmente preenchida (campos ausentes tratados como `None`, mesma
+  semântica de `construir_input_vazio()`); a resposta da IA é validada
+  contra o contrato de saída já existente (`montar_saida_raciocinio()`)
+  — dado de domínio, propaga `ValueError` em resposta malformada, nunca
+  falha silenciosa.
+- **`agent/prompt_templates/sales_reasoning_engine.txt`** (novo):
+  instrui a IA a nunca inventar evidência fora dos 11 campos recebidos,
+  a tratar campo `null`/vazio como "ainda não mapeado" (nunca presumir
+  valor), e define o vocabulário fechado de `recommended_framework`
+  (`SALES_REASONING_FRAMEWORKS`, 9 valores: os 4 estágios SPIN,
+  `MEDDPICC_QUALIFICATION`, `OBJECTION_INVESTIGATION`, `NEGOTIATION`,
+  `RISK_MITIGATION`, `CLOSING`) — mesma disciplina de taxonomia fechada
+  das Fases 1-6. Regra central herdada da Fase 6.1: se algum item de
+  `objections` tiver `precisa_investigar=true`, o prompt proíbe
+  recomendar `NEGOTIATION`/`CLOSING` antes de `OBJECTION_INVESTIGATION`
+  — o mesmo "'Está caro.' nunca pode virar desconto automaticamente" do
+  prompt mestre, agora aplicado no nível do raciocínio central, não só
+  na regra isolada de objeção.
+- **`api/ai_features.py::SALES_REASONING_RACIOCINIO`** (nova constante,
+  `"sales_reasoning.raciocinio"`) — feature de custo dedicada, mesmo
+  padrão dos 5 agentes multiagente.
+- **Decisão deliberada, mesma disciplina das Fases 1-6**: **não
+  integrado a `agent/multiagente/orquestrador.py`/
+  `api/processador_tempo_real.py` ainda** — o motor existe e funciona
+  de ponta a ponta isoladamente, mas plugá-lo no ciclo de tempo real é
+  decisão de produto separada (mudaria custo/latência de cada ciclo de
+  60s), não decidida nesta rodada.
+- 7 testes novos (`tests/test_sales_reasoning_engine.py::
+  RaciocinarAsyncTest`, mock de `chamar_ia_com_fallback_claude`, mesmo
+  padrão de `tests/test_bigfive_agent.py`) — cobrem feature de custo
+  correta, serialização dos 11 campos no prompt (incluindo `null` para
+  campo ausente), rejeição de chave de entrada desconhecida, validação
+  da resposta da IA contra o contrato de saída (resposta malformada
+  levanta `ValueError`), normalização de campos-lista ausentes na
+  resposta da IA para lista vazia, e o vocabulário fechado dos 9
+  frameworks. Suite completa: **700 testes, 0 falhas, 1 skip
+  pré-existente** — sem regressão.
+
+### Golden Dataset — 57 cenários (mínimo pedido: 50), harness criado e NUNCA rodado
+- `evals/providers/sales_reasoning_provider.py` (novo) — ponte
+  Promptfoo → `raciocinar_async()` real, mesmo princípio dos providers
+  de Coach/Finance (nenhuma lógica de raciocínio duplicada). O `context`
+  narrativo de cada cenário (fora do contrato de 11 campos) é dobrado
+  dentro de `meeting_memory` antes de chamar o motor.
+- `evals/promptfooconfig.sales_reasoning.yaml` (novo) — mesmo grader
+  padrão (`deepseek:deepseek-chat`) e mesma disciplina de aviso de
+  custo real da config do Coach.
+- `evals/datasets/sales_reasoning/` — **57 cenários** em 8 arquivos por
+  categoria (`spin.yaml` 11, `meddpicc_qualification.yaml` 8,
+  `objection_investigation.yaml` 8 — inclui o exemplo PROIBIDO literal
+  do prompt mestre (`"Está caro." → "Posso dar 20% agora."`),
+  `negotiation.yaml` 6, `risk_mitigation.yaml` 6, `closing.yaml` 6,
+  `buyer_motivation_and_behavior.yaml` 6, `edge_cases.yaml` 6). Cada
+  cenário simula os campos estruturados que as Fases 1-6 já produziriam
+  (nunca transcrição crua) e valida a resposta via `llm-rubric`
+  (semântica, nunca igualdade literal de frase — regra explícita do
+  prompt mestre pra este dataset).
+- **Nunca executado nesta rodada** — 57 cenários x custo real por
+  chamada é uma decisão de custo separada da decisão de construir o
+  motor; mesma disciplina de todo o resto da suíte Promptfoo (Fase 2,
+  V.1.4.62-63), que também documenta "nunca rodar sem confirmar o custo
+  esperado". Harness revisado estaticamente (YAML validado com
+  `yaml.safe_load`, 57/57 cenários parseados corretamente).
+- `evals/README.md`/`package.json` (`npm run eval:sales_reasoning`)
+  atualizados.
+
+### PENDENTE
+- Push + deploy na VPS (aditivo — sem tabela/coluna nova, zero custo de
+  IA em repouso: `raciocinar_async()` só é chamado quando algo o
+  invocar explicitamente, e nada em produção o invoca ainda).
+- Rodar o Golden Dataset de verdade (`npm run eval:sales_reasoning`) —
+  decisão de custo separada, não tomada nesta rodada.
+- **Integrar `raciocinar_async()` a `orquestrador.py`/
+  `processador_tempo_real.py`, e qualquer fase seguinte do "PROMPT
+  MESTRE — SALE-IA V2" (Fase 8 — Resultado da Venda), não começam sem
+  nova confirmação explícita do usuário.**
+- Versão: `1.4.84` → `1.4.85` (`api/main.py::/health` e
+  `/monitor/metricas`).
+
+---
+
 ## Extensão Chrome V.1.4.14 — fix: faixa branca sobrando embaixo da sidebar na janela PiP
 > Data: 11/09/2026 | Local, aguardando reinstalação manual da extensão
 

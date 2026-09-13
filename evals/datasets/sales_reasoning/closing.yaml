@@ -1,0 +1,120 @@
+# SalesReasoningEngine — cenarios CLOSING
+#
+# Ver spin.yaml para o cabecalho completo. Estes cenarios testam quando
+# o motor deve, de fato, recomendar fechamento — sempre com evidencia
+# real de maturidade (MEDDPICC avancado, sinal de fechamento explicito),
+# nunca por proatividade do vendedor sozinha.
+
+- description: "MEDDPICC avancado e cliente pergunta como comecar — fechamento genuino"
+  vars:
+    context: "Cliente perguntou diretamente: 'entao, como a gente comeca?'."
+    meddpicc_state:
+      metrics: { status: "CONFIRMED", confidence: 0.9, evidence: [] }
+      economic_buyer: { status: "CONFIRMED", confidence: 0.9, evidence: [] }
+      decision_criteria: { status: "CONFIRMED", confidence: 0.8, evidence: [] }
+      decision_process: { status: "CONFIRMED", confidence: 0.8, evidence: [] }
+      paper_process: { status: "CONFIRMED", confidence: 0.8, evidence: [] }
+      identify_pain: { status: "CONFIRMED", confidence: 0.9, evidence: [] }
+      champion: { status: "CONFIRMED", confidence: 0.85, evidence: [] }
+      competition: { status: "CONFIRMED", confidence: 0.7, evidence: [] }
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser CLOSING. next_best_action deve
+        propor um proximo passo concreto e acionavel (ex.: enviar
+        contrato/proposta formal, agendar assinatura) — NUNCA deve
+        voltar a fazer perguntas basicas de descoberta que ja foram
+        respondidas.
+
+- description: "Proximo passo ja combinado, cliente so precisa confirmar formalmente"
+  vars:
+    context: "Ja ficou combinado na reuniao anterior que fechariam essa semana; hoje o cliente so confirmou verbalmente que segue de pe."
+    opportunity_memory:
+      timeline: ["combinado fechar essa semana", "cliente confirmou verbalmente hoje que segue de pe"]
+    meddpicc_state:
+      economic_buyer: { status: "CONFIRMED", confidence: 0.9, evidence: [] }
+      champion: { status: "CONFIRMED", confidence: 0.9, evidence: [] }
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser CLOSING. next_best_action deve
+        avancar para a formalizacao (contrato, assinatura, definicao de
+        data de inicio) — NUNCA deve reabrir negociacao ou introduzir
+        novas perguntas sem necessidade, dado que o acordo ja foi
+        confirmado.
+
+- description: "Oportunidade avancada, cliente pede a proposta — avancar respeitando o ritmo combinado"
+  vars:
+    context: "Cliente disse: 'manda a proposta formal que a gente analisa internamente'."
+    buyer_motivation:
+      motivation: "GROWTH"
+      confidence: 0.8
+      evidence: ["queremos crescer rapido esse ano"]
+    meddpicc_state:
+      economic_buyer: { status: "CONFIRMED", confidence: 0.8, evidence: [] }
+      decision_criteria: { status: "CONFIRMED", confidence: 0.75, evidence: [] }
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser CLOSING. next_best_action deve
+        ser enviar a proposta formal conforme pedido pelo cliente —
+        avoid deve mencionar nao pressionar por uma resposta mais rapida
+        do que o cliente pediu ("analisa internamente" e um ritmo a
+        respeitar).
+
+- description: "Falta so a assinatura final apos aprovacao juridica — fechar respeitando o processo formal"
+  vars:
+    context: "Cliente confirmou que o juridico ja aprovou os termos e falta so a assinatura do contrato pelo diretor."
+    meddpicc_state:
+      paper_process: { status: "CONFIRMED", confidence: 0.9, evidence: ["nosso juridico ja aprovou os termos"] }
+      economic_buyer: { status: "CONFIRMED", confidence: 0.85, evidence: [] }
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser CLOSING. next_best_action deve
+        facilitar a assinatura final (ex.: enviar o contrato pronto,
+        confirmar prazo com o diretor) — avoid deve mencionar nao pular
+        ou tentar contornar a etapa formal de aprovacao/assinatura que o
+        proprio cliente descreveu.
+
+- description: "Champion e economic buyer confirmados, cliente anuncia data de fechamento — preparar contrato sem reabrir pontos acordados"
+  vars:
+    context: "Cliente disse: 'vamos fechar semana que vem, ja alinhei com a diretoria'."
+    meddpicc_state:
+      champion: { status: "CONFIRMED", confidence: 0.9, evidence: [] }
+      economic_buyer: { status: "CONFIRMED", confidence: 0.9, evidence: ["ja alinhei com a diretoria"] }
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser CLOSING. next_best_action deve
+        preparar e enviar o contrato para a data combinada — avoid deve
+        incluir explicitamente nao reabrir pontos ja negociados/
+        acordados e nao atrasar o processo desnecessariamente.
+
+- description: "Objecao central ja totalmente investigada e resolvida, MEDDPICC avancado — pronto para fechar de verdade"
+  vars:
+    context: "A unica objecao relevante da oportunidade (adocao pela equipe) ja foi investigada e resolvida com um plano de onboarding acordado."
+    objections:
+      - objection_spoken: { category: "ADOPTION", quote: "tenho medo da equipe nao usar" }
+        root_cause_hypothesis: { hypothesis: "ADOPTION_RISK", confidence: 0.85, evidence_quote: "tenho medo da equipe nao usar" }
+        precisa_investigar: false
+    meddpicc_state:
+      champion: { status: "CONFIRMED", confidence: 0.85, evidence: [] }
+      economic_buyer: { status: "CONFIRMED", confidence: 0.85, evidence: [] }
+      metrics: { status: "CONFIRMED", confidence: 0.8, evidence: [] }
+    opportunity_memory:
+      unknowns: []
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: >
+        recommended_framework deve ser CLOSING (a unica objecao
+        relevante ja foi investigada e resolvida, MEDDPICC avancado).
+        next_best_action deve avancar para fechamento formal — NUNCA
+        deve voltar a tratar a objecao de adocao como pendente, ja que
+        ela foi genuinamente resolvida.
