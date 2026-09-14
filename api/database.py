@@ -478,6 +478,43 @@ class OpportunityGraphEdge(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
 
 
+class RecommendationEvent(SQLModel, table=True):
+    """Recomendação mostrada ao vendedor ("PROMPT MESTRE — SALE-IA V2",
+    Fase 10 / Tarefa 10.1) — schema literal do prompt mestre. Base para
+    a Tarefa 10.2 (detectar se o vendedor usou a recomendação — estados
+    USED/PARTIALLY_USED/IGNORED/UNKNOWN, não construída nesta rodada) e
+    10.3 (efetividade real: recomendação → uso → reação → avanço de
+    estágio → resultado da oportunidade, também não construída).
+
+    `opportunity_id` fica solto (sem FK), mesmo padrão de `SalesEvent`
+    (Fase 1) — uma recomendação pode acontecer antes da oportunidade
+    estar formalmente vinculada à reunião. `used_at`/`seller_action`
+    nascem sempre `None`; só `registrar_uso_recommendation_event()`
+    (abaixo) os preenche, e nunca sobrescreve um valor já gravado —
+    mesmo padrão de `won_at`/`lost_at` em `Opportunity` (Fase 2/8).
+
+    Dado de domínio: validação em
+    `agent/recommendation_rules.py::validar_recommendation_event`,
+    `criar_recommendation_event()` propaga `ValueError` em dado
+    inválido, nunca falha silenciosamente como `AiUsageEvent`/
+    `KnowledgeItem`.
+    """
+
+    __tablename__ = "recommendation_events"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    meeting_id: str = Field(sa_column=Column(String(200), index=True, nullable=False))
+    opportunity_id: Optional[int] = Field(default=None, sa_column=Column(Integer, index=True))
+    strategy: str = Field(sa_column=Column(String(120), nullable=False))
+    recommendation: str = Field(sa_column=Column(Text, nullable=False))
+    reason: str = Field(sa_column=Column(Text, nullable=False))
+    shown_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+    used_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    seller_action: Optional[str] = Field(default=None, sa_column=Column(Text))
+    outcome_window: Optional[str] = Field(default=None, sa_column=Column(String(60)))
+    created_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+
+
 # ─────────────────────────────────────────────
 # ENGINE — MySQL ou SQLite
 # ─────────────────────────────────────────────
@@ -2858,3 +2895,108 @@ def listar_arestas_opportunity(
         stmt = stmt.order_by(OpportunityGraphEdge.created_at.asc())
         rows = session.exec(stmt).all()
         return [_opportunity_graph_edge_to_dict(r) for r in rows]
+
+
+def _recommendation_event_to_dict(row: "RecommendationEvent") -> dict:
+    return {
+        "id": row.id,
+        "meeting_id": row.meeting_id,
+        "opportunity_id": row.opportunity_id,
+        "strategy": row.strategy,
+        "recommendation": row.recommendation,
+        "reason": row.reason,
+        "shown_at": row.shown_at.isoformat() if row.shown_at else None,
+        "used_at": row.used_at.isoformat() if row.used_at else None,
+        "seller_action": row.seller_action,
+        "outcome_window": row.outcome_window,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
+def criar_recommendation_event(
+    *,
+    meeting_id: str,
+    strategy: str,
+    recommendation: str,
+    reason: str,
+    opportunity_id: Optional[int] = None,
+    outcome_window: Optional[str] = None,
+    shown_at: Optional[datetime] = None,
+) -> dict:
+    """Cria e persiste um RecommendationEvent (Fase 10 / Tarefa 10.1 do
+    "PROMPT MESTRE — SALE-IA V2"). Valida via
+    agent/recommendation_rules antes de tocar no banco — ValueError
+    propaga para o chamador (dado de domínio, mesma disciplina de
+    `criar_sales_event()`/`criar_sales_evidence()`, Fase 1)."""
+    from agent.recommendation_rules import validar_recommendation_event
+
+    dados = {
+        "meeting_id": meeting_id,
+        "strategy": strategy,
+        "recommendation": recommendation,
+        "reason": reason,
+    }
+    validar_recommendation_event(dados)
+
+    with Session(engine) as session:
+        row = RecommendationEvent(
+            meeting_id=meeting_id,
+            opportunity_id=opportunity_id,
+            strategy=strategy,
+            recommendation=recommendation,
+            reason=reason,
+            outcome_window=outcome_window,
+            shown_at=shown_at or datetime.now(),
+        )
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _recommendation_event_to_dict(row)
+
+
+def obter_recommendation_event(event_id: int) -> Optional[dict]:
+    with Session(engine) as session:
+        row = session.get(RecommendationEvent, event_id)
+        return _recommendation_event_to_dict(row) if row else None
+
+
+def listar_recommendation_events(
+    meeting_id: Optional[str] = None,
+    opportunity_id: Optional[int] = None,
+    limit: int = 200,
+) -> List[dict]:
+    with Session(engine) as session:
+        stmt = select(RecommendationEvent)
+        if meeting_id:
+            stmt = stmt.where(RecommendationEvent.meeting_id == meeting_id)
+        if opportunity_id is not None:
+            stmt = stmt.where(RecommendationEvent.opportunity_id == opportunity_id)
+        stmt = stmt.order_by(RecommendationEvent.shown_at.asc()).limit(limit)
+        rows = session.exec(stmt).all()
+        return [_recommendation_event_to_dict(r) for r in rows]
+
+
+def registrar_uso_recommendation_event(
+    event_id: int,
+    seller_action: str,
+    used_at: Optional[datetime] = None,
+) -> Optional[dict]:
+    """Grava `seller_action`/`used_at` numa recomendação já existente —
+    persistência mecânica, não decide USED/PARTIALLY_USED/IGNORED
+    (essa classificação é a Tarefa 10.2, não construída nesta rodada).
+    Nunca sobrescreve um `used_at` já gravado, mesmo padrão de
+    `won_at`/`lost_at` em `Opportunity` (Fase 2/8)."""
+    if not seller_action:
+        raise ValueError("seller_action é obrigatório")
+
+    with Session(engine) as session:
+        row = session.get(RecommendationEvent, event_id)
+        if not row:
+            return None
+        if row.used_at is None:
+            row.used_at = used_at or datetime.now()
+            row.seller_action = seller_action
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _recommendation_event_to_dict(row)

@@ -1,14 +1,13 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-14 (V.1.4.90, local + GitHub + **VPS confirmada
-em produção**, ver "Deploy" abaixo; V.1.4.90 fecha a Tarefa 9.3 e a
-Fase 9 ("Seasonality Engine") completa
-do "SALE-IA V2" — Sazonalidade Contextual
-(`agent/contextual_seasonality_rules.py`: combina período temporal +
-dimensão de negócio, schema de saída literal do prompt mestre —
-sample_size/baseline/observed/difference/confidence/period) — ver
-seção "Sazonalidade Contextual — Fase 9 / Tarefa 9.3" abaixo e
-CHANGELOG.md V.1.4.90. Sem endpoint HTTP novo, sem integração com
+Atualizado em: 2026-09-14 (V.1.4.91, local — produção confirmada em
+`1.4.90`, ver "Deploy" abaixo; V.1.4.91 é a Tarefa 10.1 (início da
+Fase 10, "Strategy Effectiveness") do "SALE-IA V2" — criação do
+`RecommendationEvent` (`api/database.py` + `agent/
+recommendation_rules.py`: registra toda recomendação mostrada ao
+vendedor, base para detectar uso e medir efetividade real depois) —
+ver seção "RecommendationEvent — Fase 10 / Tarefa 10.1" abaixo e
+CHANGELOG.md V.1.4.91. Sem endpoint HTTP novo, sem integração com
 `orquestrador.py`.
 O corpo deste documento nao acompanhou o
 CHANGELOG.md entre V.1.4.54 e V.1.4.66; a fonte de verdade sempre mais
@@ -1096,8 +1095,36 @@ completa.
   arquivos em disco, aditivo, sem tabela/coluna nova nas 4 versões);
   `systemctl restart saleia` executado assim que `reunioes_ativas`
   voltou a `0`. Pós-restart: `/health` = `versao 1.4.90`, `status
-  online`, journal sem erros. **Fase 10 (Strategy Effectiveness) não
-  começa sem nova confirmação explícita do usuário.**
+  online`, journal sem erros.
+
+## RecommendationEvent — Fase 10 / Tarefa 10.1 do "SALE-IA V2" (V.1.4.91, 14/09/2026)
+
+Usuário confirmou avançar para a Fase 10 (Strategy Effectiveness). Só
+a Tarefa 10.1 (criar o `RecommendationEvent`) foi feita — Tarefas 10.2
+(detectar uso) e 10.3 (efetividade) não começaram.
+
+- `api/database.py::RecommendationEvent` (tabela
+  `recommendation_events`, aditiva): schema literal do prompt mestre —
+  `meeting_id`, `opportunity_id` (sem FK), `strategy`, `recommendation`,
+  `reason`, `shown_at`, `used_at`, `seller_action`, `outcome_window`.
+- `agent/recommendation_rules.py` (novo, função pura, sem IA/banco):
+  `validar_recommendation_event()` exige `meeting_id`/`strategy`/
+  `recommendation`/`reason` não vazios.
+- RecommendationEvent é dado de domínio — `criar_recommendation_event()`
+  propaga `ValueError` em dado inválido, mesma disciplina de
+  `SalesEvent`/`SalesEvidence` (Fase 1).
+- `registrar_uso_recommendation_event(id, seller_action, used_at=None)`
+  — persistência mecânica, não decide USED/PARTIALLY_USED/IGNORED
+  (Tarefa 10.2); nunca sobrescreve `used_at` já gravado.
+- **Decisão deliberada**: sem vocabulário fechado para `strategy`, sem
+  endpoint HTTP.
+- 12 testes novos. Suite completa: 804 testes, 0 falhas, 1 skip
+  pré-existente — sem regressão. Detalhe completo no CHANGELOG.md
+  (V.1.4.91).
+- **Pendente**: push + deploy na VPS (aditivo — 1 tabela nova via
+  `create_all()`). **Tarefa 10.2 (Detectar se o vendedor utilizou a
+  recomendação) não começa sem nova confirmação explícita do
+  usuário.**
 
 ### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)
 - `services/embeddings/`: interface `EmbeddingProvider` (`embed`, `embed_async`, `embed_batch`, `health_check`), `OllamaEmbeddingProvider` (HTTP local via `httpx`, zero import de SDKs de LLM externos), `OpenAIEmbeddingProvider`, `factory.get_embedding_provider()` (lê `EMBEDDING_PROVIDER`, erro explícito em valor desconhecido).

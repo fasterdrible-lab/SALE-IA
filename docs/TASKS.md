@@ -855,7 +855,20 @@ Usuario confirmou avancar para a Tarefa 9.3, fechando a Fase 9 (Seasonality Engi
 - [x] Versao: `1.4.89` -> `1.4.90`.
 - [x] Push para o GitHub (commit `8c8490e`, 4 commits juntos: V.1.4.87 -> V.1.4.90).
 - [x] **Deploy confirmado na VPS (14/09/2026)**: `reunioes_ativas: 1` (reuniao real em andamento) bloqueou o restart por um tempo curto — `git pull`/`pip install`/`pip check` feitos antes com seguranca (so arquivos em disco, aditivo, sem tabela/coluna nova em nenhuma das 4 versoes); `systemctl restart saleia` executado assim que `reunioes_ativas` voltou a `0`. Pos-restart: `/health` = `versao 1.4.90`, `status online`, journal sem erros.
-- **Pendente**: **Fase 10 (Strategy Effectiveness) e qualquer fase seguinte nao comecam sem nova confirmacao explicita do usuario.**
+- **Pendente**: nada — Tarefa 10.1 (abaixo) e a proxima.
+
+## Concluido (V.1.4.91 — RecommendationEvent, Tarefa 10.1, inicio da Fase 10 do "PROMPT MESTRE — SALE-IA V2")
+
+Usuario confirmou avancar para a Fase 10 (Strategy Effectiveness). Escopo desta rodada: so a Tarefa 10.1 (criar o RecommendationEvent) — Tarefas 10.2 (detectar se o vendedor usou, estados USED/PARTIALLY_USED/IGNORED/UNKNOWN) e 10.3 (Recommendation Effectiveness) nao comecaram.
+
+- [x] `api/database.py::RecommendationEvent` (tabela `recommendation_events`, aditiva): schema literal do prompt mestre — meeting_id, opportunity_id (sem FK, mesmo padrao de SalesEvent Fase 1), strategy, recommendation, reason, shown_at, used_at, seller_action, outcome_window.
+- [x] `agent/recommendation_rules.py` (novo, funcao pura, sem IA/banco, mesmo padrao de `sales_event_rules.py`/`sales_evidence_rules.py`): `validar_recommendation_event()` exige meeting_id/strategy/recommendation/reason nao vazios.
+- [x] RecommendationEvent e dado de dominio, nao telemetria — `criar_recommendation_event()` propaga ValueError em dado invalido, mesma disciplina de SalesEvent/SalesEvidence.
+- [x] `registrar_uso_recommendation_event(id, seller_action, used_at=None)` — persistencia mecanica de seller_action/used_at, nao decide USED/PARTIALLY_USED/IGNORED (Tarefa 10.2); nunca sobrescreve used_at ja gravado, mesmo padrao de won_at/lost_at (Fase 2/8).
+- [x] Decisao deliberada: sem vocabulario fechado pra strategy (prompt mestre nao define taxonomia aqui), sem endpoint HTTP (mesma decisao das Tarefas 1.1/1.2/2.1).
+- [x] 12 testes novos (`tests/test_recommendation_event.py`), incluindo a regra "nunca sobrescreve used_at" e validacao de cada campo obrigatorio. Suite completa: 804 testes (792 + 12), 0 falhas, 1 skip pre-existente — sem regressao.
+- [x] Versao: `1.4.90` -> `1.4.91`.
+- **Pendente**: push + deploy na VPS (aditivo — 1 tabela nova via `create_all()`). **Tarefa 10.2 (Detectar se o vendedor utilizou a recomendacao) nao comeca sem nova confirmacao explicita do usuario.**
 
 ## Pendente
 

@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.90** (backend, local + GitHub + **VPS confirmada em produção**) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.91** (backend, local — ainda não deployada; produção confirmada em V.1.4.90) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -1504,8 +1504,50 @@ período temporal com uma dimensão de contexto de negócio.
   versões); `systemctl restart saleia` executado assim que
   `reunioes_ativas` voltou a `0`. Pós-restart: `/health` = `versao
   1.4.90`, `status online`, journal sem erros.
-- **Pendente**: **Fase 10 (Strategy Effectiveness) e qualquer fase
-  seguinte do "PROMPT MESTRE — SALE-IA V2" não começam sem nova
+## RecommendationEvent — Fase 10 / Tarefa 10.1 do "PROMPT MESTRE — SALE-IA V2" (V.1.4.91)
+
+Usuário confirmou avançar para a Fase 10 (Strategy Effectiveness).
+Escopo desta rodada: só a Tarefa 10.1 (criar o `RecommendationEvent`)
+— Tarefa 10.2 (detectar se o vendedor usou, estados USED/
+PARTIALLY_USED/IGNORED/UNKNOWN) e 10.3 (Recommendation Effectiveness,
+comparação recomendação → uso → reação → avanço de estágio →
+resultado) não começaram.
+
+- **`api/database.py::RecommendationEvent`** (tabela
+  `recommendation_events`, aditiva): schema literal do prompt mestre —
+  `meeting_id`, `opportunity_id` (sem FK, mesmo padrão de `SalesEvent`
+  Fase 1 — a recomendação pode acontecer antes da oportunidade estar
+  formalmente vinculada), `strategy`, `recommendation`, `reason`,
+  `shown_at`, `used_at`, `seller_action`, `outcome_window`.
+- **`agent/recommendation_rules.py`** (novo, função pura — mesmo
+  padrão de `sales_event_rules.py`/`sales_evidence_rules.py`, zero IA/
+  DB): `validar_recommendation_event()` exige `meeting_id`/`strategy`/
+  `recommendation`/`reason` não vazios — sem recomendação registrada
+  não há como medir efetividade nenhuma depois, cada campo exigido é
+  literalmente necessário pras Tarefas 10.2/10.3.
+- **RecommendationEvent é dado de domínio, não telemetria — decisão
+  deliberada, mesma disciplina de `SalesEvent`/`SalesEvidence`**:
+  `criar_recommendation_event()` propaga `ValueError` em dado inválido,
+  nunca falha silenciosa como `AiUsageEvent`/`KnowledgeItem`.
+- **`registrar_uso_recommendation_event(id, seller_action, used_at=None)`**:
+  persistência mecânica de `seller_action`/`used_at` — **não decide**
+  USED/PARTIALLY_USED/IGNORED (essa classificação é a Tarefa 10.2, não
+  construída nesta rodada); nunca sobrescreve um `used_at` já gravado,
+  mesmo padrão de `won_at`/`lost_at` em `Opportunity` (Fase 2/8).
+- **Sem vocabulário fechado para `strategy`** — decisão deliberada: o
+  prompt mestre não define uma taxonomia fechada aqui (diferente de
+  `event_type` do `SalesEvent`, Fase 1), só aceita string livre — não
+  inventar taxonomia não pedida.
+- **Sem endpoint HTTP** — mesma decisão das Tarefas 1.1/1.2/2.1, a
+  tarefa pede "criar o RecommendationEvent", não expô-lo via API.
+- 12 testes novos (`tests/test_recommendation_event.py`), incluindo a
+  regra "nunca sobrescreve `used_at`" e validação de cada campo
+  obrigatório. Suite completa: **804 testes** (792 da Fase 9 + 12
+  novos), **0 falhas**, 1 skip pré-existente — sem regressão.
+- Versão: `1.4.90` → `1.4.91`.
+- **Pendente**: push + deploy na VPS (aditivo — 1 tabela nova via
+  `create_all()`, sem coluna nova em tabela existente). **Tarefa 10.2
+  (Detectar se o vendedor utilizou a recomendação) não começa sem nova
   confirmação explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)

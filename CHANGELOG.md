@@ -3,6 +3,65 @@
 
 ---
 
+## V.1.4.91 — RecommendationEvent: Tarefa 10.1 da Fase 10 do "PROMPT MESTRE — SALE-IA V2"
+> Data: 14/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Usuário confirmou avançar para a Fase 10 (Strategy Effectiveness).
+Escopo desta rodada: só a Tarefa 10.1 (criar o `RecommendationEvent`)
+— Tarefa 10.2 (detectar se o vendedor usou a recomendação, estados
+USED/PARTIALLY_USED/IGNORED/UNKNOWN) e Tarefa 10.3 (Recommendation
+Effectiveness: recomendação → uso → reação → avanço de estágio →
+resultado) não começaram.
+
+### TAREFA 10.1 — Registrar recomendações
+- **`api/database.py::RecommendationEvent`** (tabela
+  `recommendation_events`, aditiva): schema literal do prompt mestre —
+  `meeting_id`, `opportunity_id` (sem FK, mesmo padrão de `SalesEvent`
+  Fase 1 — a recomendação pode acontecer antes da oportunidade estar
+  formalmente vinculada à reunião), `strategy`, `recommendation`,
+  `reason`, `shown_at`, `used_at`, `seller_action`, `outcome_window`.
+- **`agent/recommendation_rules.py`** (novo, função pura — mesmo
+  padrão de `sales_event_rules.py`/`sales_evidence_rules.py`, zero
+  IA/DB): `validar_recommendation_event()` exige `meeting_id`/
+  `strategy`/`recommendation`/`reason` não vazios — sem recomendação
+  registrada não há como medir efetividade nenhuma depois, cada campo
+  exigido é literalmente necessário pras Tarefas 10.2/10.3
+  funcionarem.
+- **RecommendationEvent é dado de domínio, não telemetria — decisão
+  deliberada, mesma disciplina de `SalesEvent`/`SalesEvidence` (Fase
+  1)**: `criar_recommendation_event()` propaga `ValueError` em dado
+  inválido, nunca falha silenciosamente como `AiUsageEvent`/
+  `KnowledgeItem`.
+- **`registrar_uso_recommendation_event(id, seller_action,
+  used_at=None)`**: persistência mecânica de `seller_action`/
+  `used_at` — **não decide** USED/PARTIALLY_USED/IGNORED (essa
+  classificação é a Tarefa 10.2, não construída nesta rodada); nunca
+  sobrescreve um `used_at` já gravado, mesmo padrão de `won_at`/
+  `lost_at` em `Opportunity` (Fase 2/8).
+- **Sem vocabulário fechado para `strategy`** — decisão deliberada: o
+  prompt mestre não define uma taxonomia fechada aqui (diferente de
+  `event_type` do `SalesEvent`, Fase 1), só aceita string livre — não
+  inventar taxonomia não pedida.
+- **Sem endpoint HTTP** — mesma decisão das Tarefas 1.1/1.2/2.1: a
+  tarefa pede "criar o RecommendationEvent", não expô-lo via API.
+- 12 testes novos (`tests/test_recommendation_event.py`), incluindo a
+  regra "nunca sobrescreve `used_at`", validação de cada campo
+  obrigatório, e o achado de que `opportunity_id`/`outcome_window` são
+  opcionais (schema literal não os marca como obrigatórios). Suite
+  completa: **804 testes** (792 da Fase 9 + 12 novos), **0 falhas**, 1
+  skip pré-existente — sem regressão.
+- Versão: `1.4.90` → `1.4.91` (`api/main.py::/health` e
+  `/monitor/metricas`).
+
+### PENDENTE
+- Push + deploy na VPS (aditivo — 1 tabela nova via `create_all()`,
+  sem coluna nova em tabela existente).
+- **Tarefa 10.2 (Detectar se o vendedor utilizou a recomendação) não
+  começa sem nova confirmação explícita do usuário.**
+
+---
+
 ## V.1.4.90 — Sazonalidade Contextual: fecha a Tarefa 9.3 e a Fase 9 do "PROMPT MESTRE — SALE-IA V2"
 > Data: 14/09/2026 | Local + GitHub + **VPS confirmada em produção**
 
