@@ -1,8 +1,8 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-14 (V.1.4.90, local — produção confirmada em
-`1.4.86`, ver "Deploy" abaixo — V.1.4.87/88/89/90 ainda não deployados;
-V.1.4.90 fecha a Tarefa 9.3 e a Fase 9 ("Seasonality Engine") completa
+Atualizado em: 2026-09-14 (V.1.4.90, local + GitHub + **VPS confirmada
+em produção**, ver "Deploy" abaixo; V.1.4.90 fecha a Tarefa 9.3 e a
+Fase 9 ("Seasonality Engine") completa
 do "SALE-IA V2" — Sazonalidade Contextual
 (`agent/contextual_seasonality_rules.py`: combina período temporal +
 dimensão de negócio, schema de saída literal do prompt mestre —
@@ -1001,8 +1001,8 @@ completa.
 - 24 testes novos. Suite completa: 749 testes, 0 falhas, 1 skip
   pré-existente — sem regressão. Detalhe completo no CHANGELOG.md
   (V.1.4.87).
-- **Pendente**: push + deploy na VPS (aditivo — módulo puro em
-  memória; segue junto do V.1.4.88 abaixo).
+- **Push + deploy confirmados (14/09/2026)** junto com V.1.4.88/89/90
+  — ver detalhe no fim da seção V.1.4.90 abaixo.
 
 ## Data Warehouse comercial mínimo — Fase 9 / Tarefa 9.1 do "SALE-IA V2" (V.1.4.88, 14/09/2026)
 
@@ -1033,8 +1033,8 @@ Tarefa 9.1 (Data Warehouse comercial mínimo) foi feita — Tarefas 9.2
 - 19 testes novos. Suite completa: 768 testes, 0 falhas, 1 skip
   pré-existente — sem regressão. Detalhe completo no CHANGELOG.md
   (V.1.4.88).
-- **Pendente**: push + deploy na VPS (aditivo — módulo puro em
-  memória; segue junto do V.1.4.89 abaixo).
+- **Push + deploy confirmados (14/09/2026)** junto com V.1.4.87/89/90
+  — ver detalhe no fim da seção V.1.4.90 abaixo.
 
 ## Sazonalidade Temporal — Fase 9 / Tarefa 9.2 do "SALE-IA V2" (V.1.4.89, 14/09/2026)
 
@@ -1061,8 +1061,8 @@ começou.
 - 12 testes novos. Suite completa: 780 testes, 0 falhas, 1 skip
   pré-existente — sem regressão. Detalhe completo no CHANGELOG.md
   (V.1.4.89).
-- **Pendente**: push + deploy na VPS (aditivo — módulo puro em
-  memória; segue junto do V.1.4.90 abaixo).
+- **Push + deploy confirmados (14/09/2026)** junto com V.1.4.87/88/90
+  — ver detalhe no fim da seção V.1.4.90 abaixo.
 
 ## Sazonalidade Contextual — Fase 9 / Tarefa 9.3 do "SALE-IA V2" (V.1.4.90, 14/09/2026, fecha a Fase 9)
 
@@ -1089,10 +1089,15 @@ completa.
   CHANGELOG.md (V.1.4.90).
 - **Decisão deliberada**: sem integração com `orquestrador.py`, sem
   endpoint HTTP.
-- **Pendente**: push + deploy na VPS (aditivo — módulo puro em
-  memória; V.1.4.87/88/89 também seguem pendentes, todos podem ir
-  juntos). **Fase 10 (Strategy Effectiveness) não começa sem nova
-  confirmação explícita do usuário.**
+- **Push + deploy confirmados (14/09/2026)**: commit `8c8490e` no
+  GitHub (4 commits, V.1.4.87→90, empurrados juntos). Na VPS,
+  `reunioes_ativas: 1` bloqueou o restart por um tempo curto — `git
+  pull`/`pip install`/`pip check` feitos antes com segurança (só
+  arquivos em disco, aditivo, sem tabela/coluna nova nas 4 versões);
+  `systemctl restart saleia` executado assim que `reunioes_ativas`
+  voltou a `0`. Pós-restart: `/health` = `versao 1.4.90`, `status
+  online`, journal sem erros. **Fase 10 (Strategy Effectiveness) não
+  começa sem nova confirmação explícita do usuário.**
 
 ### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)
 - `services/embeddings/`: interface `EmbeddingProvider` (`embed`, `embed_async`, `embed_batch`, `health_check`), `OllamaEmbeddingProvider` (HTTP local via `httpx`, zero import de SDKs de LLM externos), `OpenAIEmbeddingProvider`, `factory.get_embedding_provider()` (lê `EMBEDDING_PROVIDER`, erro explícito em valor desconhecido).

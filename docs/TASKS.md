@@ -810,7 +810,7 @@ Usuario confirmou avancar para a Tarefa 8.2, fechando a Fase 8 (Resultado da Ven
 - [x] Decisao deliberada: sem integracao com `Opportunity`/`orquestrador.py`, sem endpoint HTTP — motor estatistico generico, nao a extracao de cada uma das 15 variaveis reais.
 - [x] 24 testes novos (`tests/test_win_loss_rules.py`), incluindo os 6 testes estatisticos pedidos literalmente pela Tarefa 8.2 (amostra insuficiente, outliers, divisao por segmento, ausencia de dados, Simpson's paradox, intervalos de confianca). Suite completa: 749 testes (725 + 24), 0 falhas, 1 skip pre-existente — sem regressao.
 - [x] Versao: `1.4.86` -> `1.4.87`.
-- **Pendente**: push + deploy na VPS (aditivo — modulo puro em memoria, sem tabela/coluna nova; segue junto do V.1.4.88 abaixo).
+- [x] **Push + deploy confirmados (14/09/2026)** junto com V.1.4.88/89/90 — ver detalhe no bloco V.1.4.90 abaixo.
 
 ## Concluido (V.1.4.88 — Data Warehouse comercial minimo, Tarefa 9.1, inicio da Fase 9 do "PROMPT MESTRE — SALE-IA V2")
 
@@ -824,7 +824,7 @@ Usuario confirmou avancar para a Fase 9 (Seasonality Engine). Escopo desta rodad
 - [x] Decisao deliberada: sem endpoint HTTP, sem integracao com `orquestrador.py`/scheduler.
 - [x] 19 testes novos (`tests/test_data_warehouse_rules.py`), incluindo verificacao de que as 16 dimensoes literais do prompt mestre estao todas presentes em cada linha gerada. Suite completa: 768 testes (749 + 19), 0 falhas, 1 skip pre-existente — sem regressao.
 - [x] Versao: `1.4.87` -> `1.4.88`.
-- **Pendente**: push + deploy na VPS (aditivo — modulo puro em memoria, sem tabela/coluna nova; segue junto do V.1.4.89 abaixo).
+- [x] **Push + deploy confirmados (14/09/2026)** junto com V.1.4.87/89/90 — ver detalhe no bloco V.1.4.90 abaixo.
 
 ## Concluido (V.1.4.89 — Sazonalidade Temporal, Tarefa 9.2 da Fase 9 do "PROMPT MESTRE — SALE-IA V2")
 
@@ -839,7 +839,7 @@ Usuario confirmou avancar para a Tarefa 9.2. Constroi sobre o dataset analitico 
 - [x] Decisao deliberada: sem integracao com `orquestrador.py`, sem endpoint HTTP. Segmento/produto/origem fica pra Tarefa 9.3.
 - [x] 12 testes novos (`tests/test_seasonality_rules.py`). Suite completa: 780 testes (768 + 12), 0 falhas, 1 skip pre-existente — sem regressao.
 - [x] Versao: `1.4.88` -> `1.4.89`.
-- **Pendente**: push + deploy na VPS (aditivo — modulo puro em memoria; segue junto do V.1.4.90 abaixo).
+- [x] **Push + deploy confirmados (14/09/2026)** junto com V.1.4.87/88/90 — ver detalhe no bloco V.1.4.90 abaixo.
 
 ## Concluido (V.1.4.90 — Sazonalidade Contextual, Tarefa 9.3, fecha a Fase 9 do "PROMPT MESTRE — SALE-IA V2")
 
@@ -853,7 +853,9 @@ Usuario confirmou avancar para a Tarefa 9.3, fechando a Fase 9 (Seasonality Engi
 - [x] 12 testes novos (`tests/test_contextual_seasonality_rules.py`), incluindo o exemplo adaptado do prompt mestre (Q4 x SaaS com +30pp detectado, outras 7 combinacoes nao), verificacao dos 6 campos literais, ordenacao por magnitude, e 2 datasets sem sinal real (taxa identica; aleatorio com seed fixa random.Random(7), tolerando no maximo 2 falsos-positivos em 12 combinacoes). Suite completa: 792 testes (780 + 12), 0 falhas, 1 skip pre-existente — sem regressao.
 - [x] Decisao deliberada: sem integracao com `orquestrador.py`, sem endpoint HTTP.
 - [x] Versao: `1.4.89` -> `1.4.90`.
-- **Pendente**: push + deploy na VPS (aditivo — modulo puro em memoria; V.1.4.87/88/89 tambem seguem pendentes, todos podem ir juntos). **Fase 10 (Strategy Effectiveness) e qualquer fase seguinte nao comecam sem nova confirmacao explicita do usuario.**
+- [x] Push para o GitHub (commit `8c8490e`, 4 commits juntos: V.1.4.87 -> V.1.4.90).
+- [x] **Deploy confirmado na VPS (14/09/2026)**: `reunioes_ativas: 1` (reuniao real em andamento) bloqueou o restart por um tempo curto — `git pull`/`pip install`/`pip check` feitos antes com seguranca (so arquivos em disco, aditivo, sem tabela/coluna nova em nenhuma das 4 versoes); `systemctl restart saleia` executado assim que `reunioes_ativas` voltou a `0`. Pos-restart: `/health` = `versao 1.4.90`, `status online`, journal sem erros.
+- **Pendente**: **Fase 10 (Strategy Effectiveness) e qualquer fase seguinte nao comecam sem nova confirmacao explicita do usuario.**
 
 ## Pendente
 

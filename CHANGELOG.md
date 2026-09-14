@@ -4,7 +4,7 @@
 ---
 
 ## V.1.4.90 — Sazonalidade Contextual: fecha a Tarefa 9.3 e a Fase 9 do "PROMPT MESTRE — SALE-IA V2"
-> Data: 14/09/2026 | Local, aguardando push/deploy
+> Data: 14/09/2026 | Local + GitHub + **VPS confirmada em produção**
 
 ### CONTEXTO
 Sequência direta de V.1.4.89 (Sazonalidade Temporal, Tarefa 9.2).
@@ -61,10 +61,17 @@ Usuário confirmou avançar para a Tarefa 9.3, fechando a Fase 9
 - Versão: `1.4.89` → `1.4.90` (`api/main.py::/health` e
   `/monitor/metricas`).
 
+### DEPLOY NA VPS — confirmado (14/09/2026)
+Commit `8c8490e` empurrado ao GitHub (4 commits juntos: V.1.4.87 →
+V.1.4.90). Na VPS, `reunioes_ativas: 1` (reunião real em andamento)
+bloqueou o restart por um tempo curto — `git pull`/`pip install`/`pip
+check` feitos antes com segurança (só arquivos em disco, aditivo, sem
+tabela/coluna nova em nenhuma das 4 versões); `systemctl restart
+saleia` executado assim que `reunioes_ativas` voltou a `0`.
+Pós-restart: `/health` = `versao 1.4.90`, `status online`, journal sem
+erros.
+
 ### PENDENTE
-- Push + deploy na VPS (aditivo — módulo puro em memória, sem
-  tabela/coluna nova; V.1.4.87/88/89 também seguem pendentes de
-  deploy, todos podem ir juntos).
 - **Fase 10 (Strategy Effectiveness) e qualquer fase seguinte do
   "PROMPT MESTRE — SALE-IA V2" não começam sem nova confirmação
   explícita do usuário.**
@@ -72,7 +79,7 @@ Usuário confirmou avançar para a Tarefa 9.3, fechando a Fase 9
 ---
 
 ## V.1.4.89 — Sazonalidade Temporal: Tarefa 9.2 da Fase 9 do "PROMPT MESTRE — SALE-IA V2"
-> Data: 14/09/2026 | Local, aguardando push/deploy
+> Data: 14/09/2026 | Local + GitHub + **VPS confirmada em produção** (deploy junto com V.1.4.90)
 
 ### CONTEXTO
 Sequência direta de V.1.4.88 (Data Warehouse comercial mínimo, Tarefa
@@ -135,17 +142,16 @@ duplicá-las. Tarefa 9.3 (Sazonalidade contextual) não começou.
 - Versão: `1.4.88` → `1.4.89` (`api/main.py::/health` e
   `/monitor/metricas`).
 
-### PENDENTE
-- Push + deploy na VPS (aditivo — módulo puro em memória, sem
-  tabela/coluna nova; V.1.4.87 e V.1.4.88 também seguem pendentes de
-  deploy, os três podem ir juntos).
-- **Tarefa 9.3 (Sazonalidade contextual) não começa sem nova
-  confirmação explícita do usuário.**
+### PENDENTE (na época) — resolvido
+- ~~Push + deploy na VPS~~ — **confirmado em 14/09/2026 junto com
+  V.1.4.87/88/90**, ver detalhe na seção V.1.4.90 acima.
+- Tarefa 9.3 (Sazonalidade contextual) — **feita em seguida, ver
+  V.1.4.90 acima**.
 
 ---
 
 ## V.1.4.88 — Data Warehouse comercial mínimo: Tarefa 9.1 da Fase 9 do "PROMPT MESTRE — SALE-IA V2"
-> Data: 14/09/2026 | Local, aguardando push/deploy
+> Data: 14/09/2026 | Local + GitHub + **VPS confirmada em produção** (deploy junto com V.1.4.90)
 
 ### CONTEXTO
 Sequência direta de V.1.4.87 (Win/Loss Intelligence, fecha a Fase 8).
@@ -204,17 +210,16 @@ começaram.
 - Versão: `1.4.87` → `1.4.88` (`api/main.py::/health` e
   `/monitor/metricas`).
 
-### PENDENTE
-- Push + deploy na VPS (aditivo — módulo puro em memória, sem
-  tabela/coluna nova; V.1.4.87 também segue pendente de deploy, os
-  dois podem ir juntos).
-- **Tarefa 9.2 (Sazonalidade temporal) não começa sem nova confirmação
-  explícita do usuário.**
+### PENDENTE (na época) — resolvido
+- ~~Push + deploy na VPS~~ — **confirmado em 14/09/2026 junto com
+  V.1.4.87/89/90**, ver detalhe na seção V.1.4.90 acima.
+- Tarefa 9.2 (Sazonalidade temporal) — **feita em seguida, ver
+  V.1.4.89 acima**.
 
 ---
 
 ## V.1.4.87 — Win/Loss Intelligence: fecha a Tarefa 8.2 e a Fase 8 do "PROMPT MESTRE — SALE-IA V2"
-> Data: 14/09/2026 | Local, aguardando push/deploy
+> Data: 14/09/2026 | Local + GitHub + **VPS confirmada em produção** (deploy junto com V.1.4.90)
 
 ### CONTEXTO
 Sequência direta de V.1.4.86 (Outcome Tracking, Tarefa 8.1). Usuário
@@ -282,12 +287,11 @@ Venda) completa.
 - Versão: `1.4.86` → `1.4.87` (`api/main.py::/health` e
   `/monitor/metricas`).
 
-### PENDENTE
-- Push + deploy na VPS (aditivo — módulo puro em memória, sem
-  tabela/coluna nova).
-- **Fase 9 (Seasonality Engine) e qualquer fase seguinte do "PROMPT
-  MESTRE — SALE-IA V2" não começam sem nova confirmação explícita do
-  usuário.**
+### PENDENTE (na época) — resolvido
+- ~~Push + deploy na VPS~~ — **confirmado em 14/09/2026 junto com
+  V.1.4.88/89/90**, ver detalhe na seção V.1.4.90 acima.
+- Fase 9 (Seasonality Engine) — **feita em seguida, ver V.1.4.88/89/90
+  acima**.
 
 ---
 

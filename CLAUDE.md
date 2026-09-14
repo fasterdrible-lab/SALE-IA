@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.90** (backend, local — ainda não deployada; produção confirmada em V.1.4.86) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.90** (backend, local + GitHub + **VPS confirmada em produção**) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -1332,9 +1332,8 @@ Usuário confirmou avançar para a Tarefa 8.2, fechando a Fase 8
   testes** (725 da Tarefa 8.1 + 24 novos), **0 falhas**, 1 skip
   pré-existente — sem regressão.
 - Versão: `1.4.86` → `1.4.87`.
-- **Pendente**: push + deploy na VPS (aditivo — módulo puro em memória,
-  sem tabela/coluna nova; junto do V.1.4.88 abaixo, ainda não
-  deployado).
+- **Push + deploy confirmados (14/09/2026)** junto com V.1.4.88/89/90
+  — ver detalhe no fim da seção V.1.4.90 abaixo.
 
 ## Data Warehouse comercial mínimo — Fase 9 / Tarefa 9.1 do "PROMPT MESTRE — SALE-IA V2" (V.1.4.88)
 
@@ -1384,9 +1383,8 @@ começaram.
   completa: **768 testes** (749 da Tarefa 8.2 + 19 novos), **0
   falhas**, 1 skip pré-existente — sem regressão.
 - Versão: `1.4.87` → `1.4.88`.
-- **Pendente**: push + deploy na VPS (aditivo — módulo puro em memória,
-  sem tabela/coluna nova; junto do V.1.4.87/V.1.4.89, todos ainda não
-  deployados).
+- **Push + deploy confirmados (14/09/2026)** junto com V.1.4.87/89/90
+  — ver detalhe no fim da seção V.1.4.90 abaixo.
 
 ## Sazonalidade Temporal — Fase 9 / Tarefa 9.2 do "PROMPT MESTRE — SALE-IA V2" (V.1.4.89)
 
@@ -1446,9 +1444,8 @@ contextual) não começou.
   **780 testes** (768 da Tarefa 9.1 + 12 novos), **0 falhas**, 1 skip
   pré-existente — sem regressão.
 - Versão: `1.4.88` → `1.4.89`.
-- **Pendente**: push + deploy na VPS (aditivo — módulo puro em
-  memória; V.1.4.87/V.1.4.88/V.1.4.90 também seguem pendentes, todos
-  podem ir juntos).
+- **Push + deploy confirmados (14/09/2026)** junto com V.1.4.87/88/90
+  — ver detalhe no fim da seção V.1.4.90 abaixo.
 
 ## Sazonalidade Contextual — Fase 9 / Tarefa 9.3 do "PROMPT MESTRE — SALE-IA V2" (V.1.4.90, fecha a Fase 9)
 
@@ -1499,11 +1496,17 @@ período temporal com uma dimensão de contexto de negócio.
 - **Decisão deliberada**: sem integração com `orquestrador.py`, sem
   endpoint HTTP — mesma disciplina das Fases 1-9.
 - Versão: `1.4.89` → `1.4.90`.
-- **Pendente**: push + deploy na VPS (aditivo — módulo puro em
-  memória; V.1.4.87/88/89 também seguem pendentes, todos podem ir
-  juntos). **Fase 10 (Strategy Effectiveness) e qualquer fase seguinte
-  do "PROMPT MESTRE — SALE-IA V2" não começam sem nova confirmação
-  explícita do usuário.**
+- **Push + deploy confirmados (14/09/2026)**: commit `8c8490e` no
+  GitHub (4 commits, V.1.4.87→90, empurrados juntos). Na VPS,
+  `reunioes_ativas: 1` bloqueou o restart por um tempo curto — `git
+  pull`/`pip install`/`pip check` feitos antes com segurança (só
+  arquivos em disco, aditivo, sem tabela/coluna nova em nenhuma das 4
+  versões); `systemctl restart saleia` executado assim que
+  `reunioes_ativas` voltou a `0`. Pós-restart: `/health` = `versao
+  1.4.90`, `status online`, journal sem erros.
+- **Pendente**: **Fase 10 (Strategy Effectiveness) e qualquer fase
+  seguinte do "PROMPT MESTRE — SALE-IA V2" não começam sem nova
+  confirmação explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 
