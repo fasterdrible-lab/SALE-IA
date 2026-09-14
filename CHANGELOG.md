@@ -4,7 +4,7 @@
 ---
 
 ## V.1.4.86 — Outcome Tracking: Tarefa 8.1 da Fase 8 do "PROMPT MESTRE — SALE-IA V2"
-> Data: 14/09/2026 | Local, aguardando push/deploy
+> Data: 14/09/2026 | Local + GitHub + **VPS confirmada em produção**
 
 ### CONTEXTO
 Usuário confirmou avançar para a Fase 8 (Resultado da Venda). Escopo
@@ -74,12 +74,21 @@ começou.
   integração com `orquestrador.py`/`processador_tempo_real.py`.
 - Versão: `1.4.85` → `1.4.86`.
 
+### DEPLOY NA VPS — confirmado (14/09/2026)
+Commit `12aa93a` empurrado ao GitHub. Na VPS, `reunioes_ativas: 0`
+checado antes de cada etapa arriscada — `git pull` fast-forward
+`96bd3ea` → `12aa93a`, `pip install`/`pip check` limpos. **`ALTER
+TABLE opportunities ADD COLUMN`** aplicado via script idempotente
+(checou `INFORMATION_SCHEMA.COLUMNS` antes de cada coluna — nenhuma
+das 5 existia, todas adicionadas: `outcome_value FLOAT`, `product
+VARCHAR(200)`, `close_date DATETIME`, `cycle_days INTEGER`,
+`competitor VARCHAR(200)`, todas nullable), mesmo padrão dos fixes
+`MEDIUMTEXT` (V.1.4.54) e `opportunity_id` em `meeting_memory`
+(V.1.4.75). `systemctl restart saleia` — `active`, journal sem erros.
+Pós-restart: `/health` = `versao 1.4.86`, `status online`,
+`reunioes_ativas 0`.
+
 ### PENDENTE
-- Push + deploy na VPS (aditivo — 5 colunas nullable em `opportunities`,
-  tabela já existente; `create_all()` não migra colunas em tabelas
-  existentes, **exige `ALTER TABLE opportunities ADD COLUMN` manual na
-  VPS**, mesmo padrão dos fixes `MEDIUMTEXT` (V.1.4.54) e
-  `opportunity_id` em `meeting_memory` (V.1.4.75)).
 - **Tarefa 8.2 (Win/Loss Intelligence) não começa sem nova confirmação
   explícita do usuário.**
 

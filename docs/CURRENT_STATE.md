@@ -1,7 +1,7 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-14 (V.1.4.86, local — produção confirmada em
-`1.4.85`, ver "Deploy" abaixo; V.1.4.86 é a Tarefa 8.1 (Fase 8) do
+Atualizado em: 2026-09-14 (V.1.4.86, local + GitHub + **VPS confirmada
+em produção**, ver "Deploy" abaixo; V.1.4.86 é a Tarefa 8.1 (Fase 8) do
 "SALE-IA V2" — Outcome Tracking (`Opportunity` ganha o estado
 `abandoned` + campos de desfecho WON/LOST) — ver seção "Outcome
 Tracking — Fase 8 / Tarefa 8.1" abaixo e CHANGELOG.md V.1.4.86. Sem
@@ -956,12 +956,16 @@ Intelligence) não começou.
 - **Decisão deliberada**: sem endpoint HTTP novo, sem integração com
   `orquestrador.py`/`processador_tempo_real.py` — mesma disciplina das
   Fases 1-7.
-- **Pendente**: push + deploy na VPS. As 5 colunas novas em
-  `opportunities` (tabela já existente) **exigem `ALTER TABLE` manual
-  na VPS** — `create_all()` não migra colunas em tabelas existentes
-  (mesmo padrão dos fixes `MEDIUMTEXT`/`opportunity_id` anteriores).
-  **Tarefa 8.2 (Win/Loss Intelligence) não começa sem nova confirmação
-  explícita do usuário.**
+- **Push + deploy confirmados (14/09/2026)**: commit `12aa93a` no
+  GitHub. Na VPS, `reunioes_ativas: 0` checado antes de cada etapa —
+  `git pull` fast-forward `96bd3ea` → `12aa93a` + `pip install`/`pip
+  check` limpos. `ALTER TABLE opportunities ADD COLUMN` aplicado via
+  script idempotente (checou `INFORMATION_SCHEMA.COLUMNS` antes — as 5
+  colunas não existiam, todas adicionadas nullable). `systemctl
+  restart saleia` — `active`, journal sem erros. Pós-restart: `/health`
+  = `versao 1.4.86`, `status online`, `reunioes_ativas 0`.
+- **Pendente**: **Tarefa 8.2 (Win/Loss Intelligence) não começa sem
+  nova confirmação explícita do usuário.**
 
 ### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)
 - `services/embeddings/`: interface `EmbeddingProvider` (`embed`, `embed_async`, `embed_batch`, `health_check`), `OllamaEmbeddingProvider` (HTTP local via `httpx`, zero import de SDKs de LLM externos), `OpenAIEmbeddingProvider`, `factory.get_embedding_provider()` (lê `EMBEDDING_PROVIDER`, erro explícito em valor desconhecido).

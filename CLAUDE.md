@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.86** (backend, local — ainda não deployada; produção confirmada em V.1.4.85) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.86** (backend, local + GitHub + **VPS confirmada em produção**) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -1255,12 +1255,13 @@ perdidas) não começou.
   disciplina da Fase 2 — `Opportunity` continua sem rota própria), sem
   integração com `orquestrador.py`/`processador_tempo_real.py`.
 - Versão: `1.4.85` → `1.4.86`.
-- **Pendente**: push + deploy na VPS (aditivo — 5 colunas nullable em
-  tabela já existente, `create_all()` não migra colunas em tabelas
-  existentes, **exige `ALTER TABLE opportunities ADD COLUMN` manual na
-  VPS**, mesmo padrão dos fixes `MEDIUMTEXT`/`opportunity_id` já feitos
-  antes). **Tarefa 8.2 (Win/Loss Intelligence) não começa sem nova
-  confirmação explícita do usuário.**
+- **Push + deploy confirmados (14/09/2026)**: commit `12aa93a`. Na VPS,
+  `ALTER TABLE opportunities ADD COLUMN` aplicado via script idempotente
+  (as 5 colunas nullable, checadas via `INFORMATION_SCHEMA.COLUMNS`
+  antes) + `systemctl restart saleia` — `/health` = `versao 1.4.86`,
+  journal sem erros.
+- **Pendente**: **Tarefa 8.2 (Win/Loss Intelligence) não começa sem
+  nova confirmação explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

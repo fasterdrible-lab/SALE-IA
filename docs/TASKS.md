@@ -794,7 +794,9 @@ Usuario confirmou avancar para a Fase 8 (Resultado da Venda). Escopo desta rodad
 - [x] 19 testes novos (`tests/test_outcome_rules.py`) + 6 testes novos em `tests/test_opportunity_memory.py`, incluindo o teste literal da Tarefa 8.1. Suite completa: 725 testes (700 + 25), 0 falhas, 1 skip pre-existente — sem regressao.
 - [x] Decisao deliberada: sem endpoint HTTP novo, sem integracao com `orquestrador.py`/`processador_tempo_real.py` — mesma disciplina das Fases 1-7.
 - [x] Versao: `1.4.85` -> `1.4.86`.
-- **Pendente**: push + deploy na VPS. As 5 colunas novas em `opportunities` (tabela ja existente) exigem `ALTER TABLE` manual na VPS — `create_all()` nao migra colunas em tabelas existentes (mesmo padrao dos fixes MEDIUMTEXT/opportunity_id anteriores). **Tarefa 8.2 (Win/Loss Intelligence) nao comeca sem nova confirmacao explicita do usuario.**
+- [x] Push para o GitHub (commit `12aa93a`).
+- [x] **Deploy confirmado na VPS (14/09/2026)**: `reunioes_ativas: 0` checado antes de cada etapa — `git pull` (fast-forward `96bd3ea` -> `12aa93a`) + `pip install`/`pip check` limpos. `ALTER TABLE opportunities ADD COLUMN` aplicado via script idempotente (checou `INFORMATION_SCHEMA.COLUMNS` antes — as 5 colunas nao existiam, todas adicionadas nullable: outcome_value/product/close_date/cycle_days/competitor). `systemctl restart saleia` — `active`, journal sem erros. Pos-restart: `/health` = `versao 1.4.86`, `status online`, `reunioes_ativas 0`.
+- **Pendente**: **Tarefa 8.2 (Win/Loss Intelligence) nao comeca sem nova confirmacao explicita do usuario.**
 
 ## Pendente
 
