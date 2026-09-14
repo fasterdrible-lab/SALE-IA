@@ -1,7 +1,7 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-13 (V.1.4.85, local — produção confirmada em
-`1.4.75`, ver "Deploy" abaixo; V.1.4.85 fecha a Tarefa 7.1 (Fase 7) do
+Atualizado em: 2026-09-14 (V.1.4.85, local + GitHub + **VPS confirmada
+em produção**, ver "Deploy" abaixo; V.1.4.85 fecha a Tarefa 7.1 (Fase 7) do
 "SALE-IA V2" com o MOTOR REAL do SalesReasoningEngine (`raciocinar_async()`,
 IA de verdade) + Golden Dataset de 57 cenários (harness Promptfoo criado,
 nunca rodado) — ver seção "SalesReasoningEngine — Fase 7 / Tarefa 7.1"
@@ -914,8 +914,15 @@ deliberada de escopo na rodada anterior.
   disciplina do resto da suíte (decisão de rodar é separada da decisão
   de construir).
 - Detalhe completo no CHANGELOG.md (V.1.4.85).
-- **Pendente**: push + deploy na VPS (aditivo, zero custo de IA em
-  repouso). Rodar o Golden Dataset de verdade. **Integrar ao
+- **Push + deploy confirmados (14/09/2026)**: commit `96bd3ea` no
+  GitHub. Na VPS, `reunioes_ativas: 0` checado antes de cada etapa —
+  `git pull` (fast-forward `451beae` → `96bd3ea`, aditivo, sem
+  tabela/coluna nova) + `pip install`/`pip check` limpos, `systemctl
+  restart saleia` — `active`, journal sem erros. Pós-restart: `/health`
+  = `versao 1.4.85`, `status online`, `reunioes_ativas 0`, 4 provedores
+  de IA `ok` (restart zerou os circuit breakers em memória — não
+  confirma saldo/chave de verdade, mesma ressalva de sempre).
+- **Pendente**: rodar o Golden Dataset de verdade. **Integrar ao
   orquestrador e qualquer fase seguinte (Fase 8 — Resultado da Venda)
   não começam sem nova confirmação explícita do usuário.**
 

@@ -4,7 +4,7 @@
 ---
 
 ## V.1.4.85 — SalesReasoningEngine (motor real): fecha a Tarefa 7.1 da Fase 7 do "PROMPT MESTRE — SALE-IA V2"
-> Data: 13/09/2026 | Local, aguardando push/deploy
+> Data: 13/09/2026 | Local + GitHub + **VPS confirmada em produção** (deploy 14/09/2026)
 
 ### CONTEXTO
 Sequência direta de V.1.4.84 (contrato de entrada/saída do
@@ -87,10 +87,19 @@ decisão deliberada de escopo (chamada de IA real + Golden Dataset de
 - `evals/README.md`/`package.json` (`npm run eval:sales_reasoning`)
   atualizados.
 
+### DEPLOY NA VPS — confirmado (14/09/2026)
+Commit `96bd3ea` empurrado ao GitHub. Na VPS, `reunioes_ativas: 0`
+checado antes de cada etapa arriscada (git pull, pip install, restart)
+— `git pull` fast-forward `451beae` → `96bd3ea` (aditivo, sem
+tabela/coluna nova), `pip install`/`pip check` limpos, `systemctl
+restart saleia` — `active`, journal sem erros. Pós-restart: `/health`
+= `versao 1.4.85`, `status online`, `reunioes_ativas 0`. Bônus: o
+restart limpou os circuit breakers em memória dos 4 provedores de IA
+centrais (voltaram de `degradado` para `status: ok`) — não confirma
+que o saldo/chave deles foi resolvido de verdade, só zera o contador,
+mesma ressalva já documentada em versões anteriores.
+
 ### PENDENTE
-- Push + deploy na VPS (aditivo — sem tabela/coluna nova, zero custo de
-  IA em repouso: `raciocinar_async()` só é chamado quando algo o
-  invocar explicitamente, e nada em produção o invoca ainda).
 - Rodar o Golden Dataset de verdade (`npm run eval:sales_reasoning`) —
   decisão de custo separada, não tomada nesta rodada.
 - **Integrar `raciocinar_async()` a `orquestrador.py`/

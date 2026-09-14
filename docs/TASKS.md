@@ -778,7 +778,9 @@ Usuario confirmou avancar para o motor real — a parte que a V.1.4.84 deixou pe
 - [x] 7 testes novos (`RaciocinarAsyncTest`, mock de `chamar_ia_com_fallback_claude`). Suite completa: 700 testes, 0 falhas, 1 skip pre-existente — sem regressao.
 - [x] Golden Dataset — 57 cenarios (minimo pedido: 50) em `evals/datasets/sales_reasoning/` (8 arquivos por categoria) + `evals/providers/sales_reasoning_provider.py` + `evals/promptfooconfig.sales_reasoning.yaml`, mesmo harness Promptfoo do Coach/Finance. Validacao sempre via `llm-rubric` (semantica, nunca igualdade literal de frase — regra explicita do prompt mestre pra este dataset). Inclui o exemplo PROIBIDO literal ("Esta caro." -> "Posso dar 20% agora."). **Nunca executado nesta rodada** (custa dinheiro real por cenario, mesma disciplina do resto da suite).
 - [x] Versao: `1.4.84` -> `1.4.85`.
-- **Pendente**: push + deploy na VPS (aditivo, zero custo de IA em repouso). Rodar o Golden Dataset de verdade (`npm run eval:sales_reasoning`). **Integrar `raciocinar_async()` ao orquestrador e a Fase 8 (Resultado da Venda) nao comecam sem nova confirmacao explicita do usuario.**
+- [x] Push para o GitHub (commit `96bd3ea`).
+- [x] **Deploy confirmado na VPS (14/09/2026)**: `reunioes_ativas: 0` checado antes de cada etapa arriscada — `git pull` (fast-forward `451beae` -> `96bd3ea`, aditivo, sem tabela/coluna nova) + `pip install`/`pip check` limpos. `systemctl restart saleia` — `active`, journal sem erros. Pos-restart: `/health` = `versao 1.4.85`, `status online`, `reunioes_ativas 0`, 4 provedores de IA `ok` (restart zerou os circuit breakers em memoria, mesma ressalva de sempre — nao confirma saldo/chave de verdade).
+- **Pendente**: rodar o Golden Dataset de verdade (`npm run eval:sales_reasoning`). **Integrar `raciocinar_async()` ao orquestrador e a Fase 8 (Resultado da Venda) nao comecam sem nova confirmacao explicita do usuario.**
 
 ## Pendente
 
