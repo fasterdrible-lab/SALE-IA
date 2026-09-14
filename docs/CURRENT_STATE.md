@@ -1,14 +1,13 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-14 (V.1.4.87, local — produção confirmada em
-`1.4.86`, ver "Deploy" abaixo; V.1.4.87 fecha a Tarefa 8.2 e a Fase 8
-("Resultado da Venda") do "SALE-IA V2" — Win/Loss Intelligence
-(`agent/win_loss_rules.py`, motor estatístico puro: comparação por
-variável, IC de Wilson, detecção de outliers IQR, paradoxo de Simpson,
-regra "nunca causa, sempre associação" garantida por templates fixos)
-— ver seção "Win/Loss Intelligence — Fase 8 / Tarefa 8.2" abaixo e
-CHANGELOG.md V.1.4.87. Sem endpoint HTTP novo, sem integração com
-`orquestrador.py`.
+Atualizado em: 2026-09-14 (V.1.4.88, local — produção confirmada em
+`1.4.86`, ver "Deploy" abaixo — V.1.4.87 e V.1.4.88 ainda não
+deployados; V.1.4.88 é a Tarefa 9.1 (Fase 9) do "SALE-IA V2" — Data
+Warehouse comercial mínimo (`agent/data_warehouse_rules.py`: dataset
+analítico derivado com as 16 dimensões do prompt mestre) — ver seção
+"Data Warehouse comercial mínimo — Fase 9 / Tarefa 9.1" abaixo e
+CHANGELOG.md V.1.4.88. Sem endpoint HTTP novo, sem integração com
+`orquestrador.py`/scheduler.
 O corpo deste documento nao acompanhou o
 CHANGELOG.md entre V.1.4.54 e V.1.4.66; a fonte de verdade sempre mais
 atualizada e o CHANGELOG e o `/health` de producao. Cost Intelligence
@@ -1001,8 +1000,41 @@ completa.
   pré-existente — sem regressão. Detalhe completo no CHANGELOG.md
   (V.1.4.87).
 - **Pendente**: push + deploy na VPS (aditivo — módulo puro em
-  memória). **Fase 9 (Seasonality Engine) e qualquer fase seguinte não
-  começam sem nova confirmação explícita do usuário.**
+  memória; segue junto do V.1.4.88 abaixo).
+
+## Data Warehouse comercial mínimo — Fase 9 / Tarefa 9.1 do "SALE-IA V2" (V.1.4.88, 14/09/2026)
+
+Usuário confirmou avançar para a Fase 9 (Seasonality Engine). Só a
+Tarefa 9.1 (Data Warehouse comercial mínimo) foi feita — Tarefas 9.2
+(Sazonalidade temporal) e 9.3 (Sazonalidade contextual) não começaram.
+
+- `agent/data_warehouse_rules.py` (novo, função pura, sem IA/banco):
+  `DIMENSOES_DATASET` documenta as 16 dimensões literais do prompt
+  mestre (calendário + negócio).
+- `derivar_dimensoes_calendario(data)` — as 6 dimensões de calendário
+  sempre calculadas a partir de uma data real, nunca aceitas como
+  input.
+- `construir_linha_analitica(opportunity, campo_data="close_date",
+  **dimensoes_extra)` — 1 linha do dataset a partir do formato de
+  `listar_opportunities()`; cai pra `created_at` sem `close_date`;
+  `ticket` usa `outcome_value` (Fase 8) senão `estimated_value`;
+  `won`/`lost` viram flags booleanos. Dimensões não rastreadas ainda
+  (`team`/`lead_source`/`objection_type`/`sales_strategy`) via
+  `**dimensoes_extra`.
+- `construir_dataset_analitico(opportunities, **kwargs)` — oportunidade
+  sem data válida é pulada, nunca derruba o dataset inteiro.
+- `pode_executar_analise_pesada(reunioes_ativas)` — implementa "nunca
+  analisar pesado em horário de reunião" reaproveitando o mesmo sinal
+  `reunioes_ativas` que já governa todo deploy seguro do projeto.
+- **Decisão deliberada**: sem endpoint HTTP, sem integração com
+  `orquestrador.py`/scheduler.
+- 19 testes novos. Suite completa: 768 testes, 0 falhas, 1 skip
+  pré-existente — sem regressão. Detalhe completo no CHANGELOG.md
+  (V.1.4.88).
+- **Pendente**: push + deploy na VPS (aditivo — módulo puro em
+  memória; V.1.4.87 também segue pendente, os dois podem ir juntos).
+  **Tarefa 9.2 (Sazonalidade temporal) não começa sem nova confirmação
+  explícita do usuário.**
 
 ### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)
 - `services/embeddings/`: interface `EmbeddingProvider` (`embed`, `embed_async`, `embed_batch`, `health_check`), `OllamaEmbeddingProvider` (HTTP local via `httpx`, zero import de SDKs de LLM externos), `OpenAIEmbeddingProvider`, `factory.get_embedding_provider()` (lê `EMBEDDING_PROVIDER`, erro explícito em valor desconhecido).

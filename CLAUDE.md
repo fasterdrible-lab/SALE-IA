@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.87** (backend, local — ainda não deployada; produção confirmada em V.1.4.86) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.88** (backend, local — ainda não deployada; produção confirmada em V.1.4.86) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -1333,9 +1333,61 @@ Usuário confirmou avançar para a Tarefa 8.2, fechando a Fase 8
   pré-existente — sem regressão.
 - Versão: `1.4.86` → `1.4.87`.
 - **Pendente**: push + deploy na VPS (aditivo — módulo puro em memória,
-  sem tabela/coluna nova). **Fase 9 (Seasonality Engine) e qualquer
-  fase seguinte do "PROMPT MESTRE — SALE-IA V2" não começam sem nova
-  confirmação explícita do usuário.**
+  sem tabela/coluna nova; junto do V.1.4.88 abaixo, ainda não
+  deployado).
+
+## Data Warehouse comercial mínimo — Fase 9 / Tarefa 9.1 do "PROMPT MESTRE — SALE-IA V2" (V.1.4.88)
+
+Usuário confirmou avançar para a Fase 9 (Seasonality Engine). Escopo
+desta rodada: só a Tarefa 9.1 (Data Warehouse comercial mínimo) —
+Tarefa 9.2 (Sazonalidade temporal) e 9.3 (Sazonalidade contextual) não
+começaram.
+
+- **`agent/data_warehouse_rules.py`** (novo, função pura, mesmo padrão
+  de `win_loss_rules.py`/`outcome_rules.py` — zero IA/banco):
+  `DIMENSOES_DATASET` documenta as 16 dimensões literais do prompt
+  mestre (calendário: date/month/quarter/week/weekday/hour; negócio:
+  seller/team/segment/product/lead_source/opportunity_stage/ticket/
+  objection_type/sales_strategy/won/lost/cycle_days).
+- **`derivar_dimensoes_calendario(data)`**: as 6 dimensões de
+  calendário sempre calculadas a partir de uma `datetime` real — nunca
+  aceitas como input separado do chamador, mesmo princípio de
+  `outcome_rules.calcular_cycle_days()` (Fase 8).
+- **`construir_linha_analitica(opportunity, campo_data="close_date",
+  **dimensoes_extra)`**: constrói 1 linha do dataset a partir do
+  formato de `listar_opportunities()`. Cai para `created_at` quando a
+  oportunidade ainda não tem `close_date` (aberta). `ticket` usa
+  `outcome_value` (Fase 8, valor real de fechamento) quando disponível,
+  senão `estimated_value`. `won`/`lost` viram flags booleanos
+  independentes (schema literal do prompt mestre — 2 colunas, não 1
+  status). Dimensões que a `Opportunity` ainda não rastreia
+  (`team`/`lead_source`/`objection_type`/`sales_strategy`) são aceitas
+  via `**dimensoes_extra` — quem extrai esse dado real é integração
+  futura não pedida por esta tarefa, mesmo princípio das 15 variáveis
+  de `win_loss_rules.py` (Fase 8 / Tarefa 8.2).
+- **`construir_dataset_analitico(opportunities, **kwargs)`**: aplica a
+  função acima a uma lista — oportunidade sem nenhuma data válida é
+  **pulada, nunca derruba o dataset inteiro** (dataset analítico
+  precisa ser resiliente a dado operacional incompleto).
+- **`pode_executar_analise_pesada(reunioes_ativas)`**: regra literal do
+  prompt mestre ("nunca executar análises pesadas diretamente sobre
+  tabelas operacionais em horário de reunião") — reaproveita o mesmo
+  sinal `reunioes_ativas` que já governa todo deploy seguro do projeto
+  (ver runbook de deploy acima) em vez de inventar um relógio de
+  "horário comercial" novo; uma reunião ativa é o sinal mais direto de
+  "estamos em horário de reunião" que o sistema já produz.
+- **Decisão deliberada de escopo**: sem endpoint HTTP, sem integração
+  com `orquestrador.py`/scheduler — motor de transformação genérico
+  sobre listas de dicts, não a extração de cada dimensão de negócio
+  real nem o agendamento de quando rodar.
+- 19 testes novos (`tests/test_data_warehouse_rules.py`). Suite
+  completa: **768 testes** (749 da Tarefa 8.2 + 19 novos), **0
+  falhas**, 1 skip pré-existente — sem regressão.
+- Versão: `1.4.87` → `1.4.88`.
+- **Pendente**: push + deploy na VPS (aditivo — módulo puro em memória,
+  sem tabela/coluna nova; junto do V.1.4.87 acima, ambos ainda não
+  deployados). **Tarefa 9.2 (Sazonalidade temporal) não começa sem
+  nova confirmação explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

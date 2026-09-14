@@ -3,6 +3,75 @@
 
 ---
 
+## V.1.4.88 — Data Warehouse comercial mínimo: Tarefa 9.1 da Fase 9 do "PROMPT MESTRE — SALE-IA V2"
+> Data: 14/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Sequência direta de V.1.4.87 (Win/Loss Intelligence, fecha a Fase 8).
+Usuário confirmou avançar para a Fase 9 (Seasonality Engine). Escopo
+desta rodada: só a Tarefa 9.1 (Data Warehouse comercial mínimo) —
+Tarefa 9.2 (Sazonalidade temporal) e 9.3 (Sazonalidade contextual) não
+começaram.
+
+### TAREFA 9.1 — Data Warehouse comercial mínimo
+- **`agent/data_warehouse_rules.py`** (novo, função pura — zero IA/
+  banco, mesmo padrão de `win_loss_rules.py`/`outcome_rules.py`):
+  `DIMENSOES_DATASET` documenta as 16 dimensões literais do prompt
+  mestre — calendário (`date`/`month`/`quarter`/`week`/`weekday`/
+  `hour`) e negócio (`seller`/`team`/`segment`/`product`/
+  `lead_source`/`opportunity_stage`/`ticket`/`objection_type`/
+  `sales_strategy`/`won`/`lost`/`cycle_days`).
+- **`derivar_dimensoes_calendario(data)`**: as 6 dimensões de
+  calendário sempre calculadas a partir de uma `datetime` real — nunca
+  aceitas como input separado, mesmo princípio de
+  `outcome_rules.calcular_cycle_days()` (Fase 8, Tarefa 8.1).
+- **`construir_linha_analitica(opportunity, campo_data="close_date",
+  **dimensoes_extra)`**: constrói 1 linha do dataset a partir do
+  formato de `api.database.listar_opportunities()`. Cai para
+  `created_at` quando a oportunidade ainda não tem `close_date`
+  (aberta). `ticket` usa `outcome_value` (valor real de fechamento,
+  Fase 8) quando disponível, senão `estimated_value` — nunca os dois
+  somados. `won`/`lost` viram flags booleanos independentes (schema
+  literal do prompt mestre pede 2 colunas, não 1 status único).
+  Dimensões que a `Opportunity` ainda não rastreia (`team`/
+  `lead_source`/`objection_type`/`sales_strategy`) são aceitas via
+  `**dimensoes_extra` — quem extrai esse dado real de que sistema é
+  integração futura não pedida por esta tarefa, mesmo princípio já
+  usado nas 15 variáveis de `win_loss_rules.py` (Fase 8 / Tarefa 8.2).
+- **`construir_dataset_analitico(opportunities, **kwargs)`**: aplica a
+  função acima a uma lista — oportunidade sem nenhuma data válida é
+  **pulada, nunca derruba o dataset inteiro**, já que um warehouse
+  precisa ser resiliente a dado operacional incompleto.
+- **`pode_executar_analise_pesada(reunioes_ativas)`**: implementa a
+  regra literal do prompt mestre ("nunca executar análises pesadas
+  diretamente sobre tabelas operacionais em horário de reunião") —
+  decisão desta rodada: reaproveitar o mesmo sinal `reunioes_ativas`
+  que já governa todo deploy seguro do projeto (`/health`, runbook de
+  deploy em `CLAUDE.md`) em vez de inventar um relógio de "horário
+  comercial" novo; uma reunião ativa é o sinal mais direto que o
+  sistema já produz de "estamos em horário de reunião".
+- **Decisão deliberada de escopo**: sem endpoint HTTP, sem integração
+  com `orquestrador.py` nem com nenhum scheduler — motor de
+  transformação genérico sobre listas de dicts, não a extração de cada
+  dimensão de negócio real (de onde vem `team`/`lead_source`/etc. em
+  produção) nem o agendamento de quando rodar de fato.
+- 19 testes novos (`tests/test_data_warehouse_rules.py`), incluindo a
+  verificação de que as 16 dimensões literais do prompt mestre estão
+  todas presentes em cada linha gerada. Suite completa: **768 testes**
+  (749 da Tarefa 8.2 + 19 novos), **0 falhas**, 1 skip pré-existente —
+  sem regressão.
+- Versão: `1.4.87` → `1.4.88` (`api/main.py::/health` e
+  `/monitor/metricas`).
+
+### PENDENTE
+- Push + deploy na VPS (aditivo — módulo puro em memória, sem
+  tabela/coluna nova; V.1.4.87 também segue pendente de deploy, os
+  dois podem ir juntos).
+- **Tarefa 9.2 (Sazonalidade temporal) não começa sem nova confirmação
+  explícita do usuário.**
+
+---
+
 ## V.1.4.87 — Win/Loss Intelligence: fecha a Tarefa 8.2 e a Fase 8 do "PROMPT MESTRE — SALE-IA V2"
 > Data: 14/09/2026 | Local, aguardando push/deploy
 
