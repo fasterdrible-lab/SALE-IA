@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.86** (backend, local + GitHub + **VPS confirmada em produção**) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.87** (backend, local — ainda não deployada; produção confirmada em V.1.4.86) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -1260,8 +1260,82 @@ perdidas) não começou.
   (as 5 colunas nullable, checadas via `INFORMATION_SCHEMA.COLUMNS`
   antes) + `systemctl restart saleia` — `/health` = `versao 1.4.86`,
   journal sem erros.
-- **Pendente**: **Tarefa 8.2 (Win/Loss Intelligence) não começa sem
-  nova confirmação explícita do usuário.**
+- **Pendente**: nada — Tarefa 8.2 (abaixo) fecha a Fase 8.
+
+## Win/Loss Intelligence — Fase 8 / Tarefa 8.2 do "PROMPT MESTRE — SALE-IA V2" (V.1.4.87)
+
+Usuário confirmou avançar para a Tarefa 8.2, fechando a Fase 8
+(Resultado da Venda) completa.
+
+- **`agent/win_loss_rules.py`** (novo, função pura, mesmo padrão de
+  `outcome_rules.py`/`deal_risk_rules.py` — **zero IA/banco e zero
+  numpy/scipy**, estatística implementada em Python puro):
+  `WIN_LOSS_VARIAVEIS` documenta as 15 variáveis literais do prompt
+  mestre (segment/seller/origin/ticket/cycle/pain/objection/
+  decision_maker/champion/strategy/spin_coverage/meddpicc_coverage/
+  talk_ratio/next_step/season) — as funções abaixo são genéricas sobre
+  qualquer campo do dict recebido, não travadas a esses 15 nomes.
+- **Regra científica central — "nunca causa, sempre associação" —
+  garantida por construção, não só por instrução**: as únicas strings
+  de texto livre do módulo vêm de 3 templates fixos
+  (`TEMPLATE_AFIRMACAO_ASSOCIACAO`/`TEMPLATE_AMOSTRA_INSUFICIENTE`/
+  `TEMPLATE_SIMPSONS_PARADOX`), nunca f-strings ad hoc espalhadas pelo
+  código — `tests/test_win_loss_rules.py::GuardaContraCausalidadeTest`
+  confirma que nenhum template (nem a saída gerada em tempo real)
+  contém "causa", mesmo padrão de guarda arquitetural já usado em
+  `signo_solar_rules.py`/`buyer_motivation_rules.py`/
+  `negotiation_rules.py`.
+- **`comparar_por_variavel_categorica(opportunities, campo, ...)`**:
+  agrupa won/lost pelo valor de um campo categórico (segment/seller/
+  strategy/etc.), retorna taxa de conversão + intervalo de confiança +
+  afirmação de associação por grupo. Oportunidade sem valor no campo
+  vai para `sem_dado` — **nunca vira um grupo `"None"` nem é descartada
+  silenciosamente** ("ausência de dados", um dos testes pedidos pela
+  Tarefa 8.2).
+- **`amostra_suficiente(n, minimo=30)`**: 30 é uma regra de bolso
+  padrão pra aproximação normal de proporções ser razoável — decisão
+  desta rodada, o prompt mestre não define o número exato, só pede o
+  teste de "amostra insuficiente". Grupo com amostra insuficiente nunca
+  recebe intervalo de confiança nem afirmação de associação, só o aviso
+  (`TEMPLATE_AMOSTRA_INSUFICIENTE`).
+- **`intervalo_confianca_wilson(sucessos, total, confianca=0.95)`**:
+  Wilson score interval (implementação fechada, sem scipy) — mais
+  confiável que a aproximação normal simples pra taxas perto de 0/1
+  (comum em win rate de vendas) e amostras pequenas. Atende "intervalos
+  de confiança quando aplicável" (só quando amostra suficiente).
+- **`calcular_limites_iqr`/`detectar_outliers_iqr`/
+  `resumir_variavel_numerica`**: método IQR clássico (Q1-1.5×IQR,
+  Q3+1.5×IQR) pra variáveis numéricas (ticket/cycle/talk_ratio) — separa
+  outliers da média/mediana em vez de deixá-los distorcer o resumo
+  silenciosamente; `n_outliers`/`outliers` sempre reportados, nunca
+  escondidos. Atende o teste de "outliers" pedido pela Tarefa 8.2.
+- **`detectar_simpsons_paradox(opportunities, campo, campo_segmento)`**:
+  compara exatamente 2 valores de `campo` (o paradoxo clássico é
+  binário; generalizar pra N grupos é escopo futuro não pedido) e
+  detecta reversão de tendência ao segmentar por `campo_segmento`.
+  **Testado com o dataset sintético clássico** (mesma estrutura do
+  estudo de tratamento de cálculo renal, adaptado a 2 estratégias de
+  venda × porte do negócio: A vence em cada segmento — 93%/87% e
+  73%/69% — mas B vence agregado — 78%/83% — porque a maioria das
+  oportunidades de A está no segmento mais difícil) — atende
+  literalmente o pedido "Simpson's paradox em dataset sintético" da
+  Tarefa 8.2.
+- **Decisão deliberada de escopo**: sem integração com
+  `Opportunity`/`orquestrador.py`, sem endpoint HTTP — as funções são
+  genéricas sobre listas de dicts (mesmo formato de
+  `listar_opportunities()`), quem monta os dados de cada variável
+  (SPIN coverage real, MEDDPICC coverage real, talk ratio real) é
+  integração futura não pedida pela Tarefa 8.2 (que pede o motor
+  estatístico, não a extração de cada uma das 15 variáveis).
+- 24 testes novos (`tests/test_win_loss_rules.py`), incluindo o dataset
+  sintético clássico do paradoxo de Simpson. Suite completa: **749
+  testes** (725 da Tarefa 8.1 + 24 novos), **0 falhas**, 1 skip
+  pré-existente — sem regressão.
+- Versão: `1.4.86` → `1.4.87`.
+- **Pendente**: push + deploy na VPS (aditivo — módulo puro em memória,
+  sem tabela/coluna nova). **Fase 9 (Seasonality Engine) e qualquer
+  fase seguinte do "PROMPT MESTRE — SALE-IA V2" não começam sem nova
+  confirmação explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

@@ -1,11 +1,14 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-14 (V.1.4.86, local + GitHub + **VPS confirmada
-em produção**, ver "Deploy" abaixo; V.1.4.86 é a Tarefa 8.1 (Fase 8) do
-"SALE-IA V2" — Outcome Tracking (`Opportunity` ganha o estado
-`abandoned` + campos de desfecho WON/LOST) — ver seção "Outcome
-Tracking — Fase 8 / Tarefa 8.1" abaixo e CHANGELOG.md V.1.4.86. Sem
-endpoint HTTP novo, sem integração com `orquestrador.py`.
+Atualizado em: 2026-09-14 (V.1.4.87, local — produção confirmada em
+`1.4.86`, ver "Deploy" abaixo; V.1.4.87 fecha a Tarefa 8.2 e a Fase 8
+("Resultado da Venda") do "SALE-IA V2" — Win/Loss Intelligence
+(`agent/win_loss_rules.py`, motor estatístico puro: comparação por
+variável, IC de Wilson, detecção de outliers IQR, paradoxo de Simpson,
+regra "nunca causa, sempre associação" garantida por templates fixos)
+— ver seção "Win/Loss Intelligence — Fase 8 / Tarefa 8.2" abaixo e
+CHANGELOG.md V.1.4.87. Sem endpoint HTTP novo, sem integração com
+`orquestrador.py`.
 O corpo deste documento nao acompanhou o
 CHANGELOG.md entre V.1.4.54 e V.1.4.66; a fonte de verdade sempre mais
 atualizada e o CHANGELOG e o `/health` de producao. Cost Intelligence
@@ -964,8 +967,42 @@ Intelligence) não começou.
   colunas não existiam, todas adicionadas nullable). `systemctl
   restart saleia` — `active`, journal sem erros. Pós-restart: `/health`
   = `versao 1.4.86`, `status online`, `reunioes_ativas 0`.
-- **Pendente**: **Tarefa 8.2 (Win/Loss Intelligence) não começa sem
-  nova confirmação explícita do usuário.**
+- **Pendente**: nada — Tarefa 8.2 (abaixo) fecha a Fase 8.
+
+## Win/Loss Intelligence — Fase 8 / Tarefa 8.2 do "SALE-IA V2" (V.1.4.87, 14/09/2026)
+
+Usuário confirmou avançar para a Tarefa 8.2, fechando a Fase 8
+completa.
+
+- `agent/win_loss_rules.py` (novo, função pura, zero IA/banco e **zero
+  numpy/scipy** — estatística em Python puro): `WIN_LOSS_VARIAVEIS`
+  documenta as 15 variáveis do prompt mestre (funções genéricas sobre
+  qualquer campo do dict, não travadas a esses nomes).
+- Regra científica "nunca causa, sempre associação" garantida por
+  construção: só 3 templates fixos geram texto
+  (`TEMPLATE_AFIRMACAO_ASSOCIACAO`/`TEMPLATE_AMOSTRA_INSUFICIENTE`/
+  `TEMPLATE_SIMPSONS_PARADOX`), guardados por
+  `GuardaContraCausalidadeTest`.
+- `comparar_por_variavel_categorica()` — taxa de conversão + IC de
+  Wilson + afirmação por grupo categórico; `sem_dado` nunca vira grupo
+  "None".
+- `amostra_suficiente(n, minimo=30)`, `intervalo_confianca_wilson()`
+  (Wilson score, sem scipy), `calcular_limites_iqr`/
+  `detectar_outliers_iqr`/`resumir_variavel_numerica` (método IQR pra
+  ticket/cycle/talk_ratio).
+- `detectar_simpsons_paradox()` — testado com o dataset sintético
+  clássico (2 estratégias × porte do negócio: A vence em cada segmento
+  mas B vence agregado) — atende literalmente "Simpson's paradox em
+  dataset sintético" da Tarefa 8.2.
+- **Decisão deliberada**: sem integração com `Opportunity`/
+  `orquestrador.py`, sem endpoint HTTP — motor estatístico genérico,
+  não a extração de cada uma das 15 variáveis reais.
+- 24 testes novos. Suite completa: 749 testes, 0 falhas, 1 skip
+  pré-existente — sem regressão. Detalhe completo no CHANGELOG.md
+  (V.1.4.87).
+- **Pendente**: push + deploy na VPS (aditivo — módulo puro em
+  memória). **Fase 9 (Seasonality Engine) e qualquer fase seguinte não
+  começam sem nova confirmação explícita do usuário.**
 
 ### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)
 - `services/embeddings/`: interface `EmbeddingProvider` (`embed`, `embed_async`, `embed_batch`, `health_check`), `OllamaEmbeddingProvider` (HTTP local via `httpx`, zero import de SDKs de LLM externos), `OpenAIEmbeddingProvider`, `factory.get_embedding_provider()` (lê `EMBEDDING_PROVIDER`, erro explícito em valor desconhecido).

@@ -796,7 +796,21 @@ Usuario confirmou avancar para a Fase 8 (Resultado da Venda). Escopo desta rodad
 - [x] Versao: `1.4.85` -> `1.4.86`.
 - [x] Push para o GitHub (commit `12aa93a`).
 - [x] **Deploy confirmado na VPS (14/09/2026)**: `reunioes_ativas: 0` checado antes de cada etapa — `git pull` (fast-forward `96bd3ea` -> `12aa93a`) + `pip install`/`pip check` limpos. `ALTER TABLE opportunities ADD COLUMN` aplicado via script idempotente (checou `INFORMATION_SCHEMA.COLUMNS` antes — as 5 colunas nao existiam, todas adicionadas nullable: outcome_value/product/close_date/cycle_days/competitor). `systemctl restart saleia` — `active`, journal sem erros. Pos-restart: `/health` = `versao 1.4.86`, `status online`, `reunioes_ativas 0`.
-- **Pendente**: **Tarefa 8.2 (Win/Loss Intelligence) nao comeca sem nova confirmacao explicita do usuario.**
+- **Pendente**: nada — Tarefa 8.2 (abaixo) fecha a Fase 8.
+
+## Concluido (V.1.4.87 — Win/Loss Intelligence, Tarefa 8.2, fecha a Fase 8 do "PROMPT MESTRE — SALE-IA V2")
+
+Usuario confirmou avancar para a Tarefa 8.2, fechando a Fase 8 (Resultado da Venda) completa.
+
+- [x] `agent/win_loss_rules.py` (novo, funcao pura, zero IA/banco e zero numpy/scipy — estatistica em Python puro): `WIN_LOSS_VARIAVEIS` documenta as 15 variaveis literais do prompt mestre (segment/seller/origin/ticket/cycle/pain/objection/decision_maker/champion/strategy/spin_coverage/meddpicc_coverage/talk_ratio/next_step/season) — funcoes genericas sobre qualquer campo do dict, nao travadas a esses nomes.
+- [x] Regra cientifica central "nunca causa, sempre associacao" garantida por construcao: so 3 templates fixos geram texto (`TEMPLATE_AFIRMACAO_ASSOCIACAO`/`TEMPLATE_AMOSTRA_INSUFICIENTE`/`TEMPLATE_SIMPSONS_PARADOX`), nunca f-strings ad hoc — guardados por `GuardaContraCausalidadeTest`.
+- [x] `comparar_por_variavel_categorica()` — taxa de conversao + IC de Wilson + afirmacao por grupo categorico; oportunidade sem valor no campo vai pra `sem_dado`, nunca vira grupo "None" nem e descartada silenciosamente ("ausencia de dados").
+- [x] `amostra_suficiente(n, minimo=30)` ("amostra insuficiente"), `intervalo_confianca_wilson()` (Wilson score interval implementado do zero, sem scipy — "intervalos de confianca quando aplicavel"), `calcular_limites_iqr`/`detectar_outliers_iqr`/`resumir_variavel_numerica` (metodo IQR classico pra ticket/cycle/talk_ratio — "outliers").
+- [x] `detectar_simpsons_paradox(opportunities, campo, campo_segmento)` — compara exatamente 2 valores de campo, detecta reversao de tendencia ao segmentar. Testado com dataset sintetico classico (mesma estrutura do estudo de tratamento de calculo renal, adaptado: 2 estrategias de venda x porte do negocio — A vence em cada segmento 93%/87% e 73%/69%, mas B vence agregado 78%/83%) — atende literalmente "Simpson's paradox em dataset sintetico".
+- [x] Decisao deliberada: sem integracao com `Opportunity`/`orquestrador.py`, sem endpoint HTTP — motor estatistico generico, nao a extracao de cada uma das 15 variaveis reais.
+- [x] 24 testes novos (`tests/test_win_loss_rules.py`), incluindo os 6 testes estatisticos pedidos literalmente pela Tarefa 8.2 (amostra insuficiente, outliers, divisao por segmento, ausencia de dados, Simpson's paradox, intervalos de confianca). Suite completa: 749 testes (725 + 24), 0 falhas, 1 skip pre-existente — sem regressao.
+- [x] Versao: `1.4.86` -> `1.4.87`.
+- **Pendente**: push + deploy na VPS (aditivo — modulo puro em memoria, sem tabela/coluna nova). **Fase 9 (Seasonality Engine) e qualquer fase seguinte nao comecam sem nova confirmacao explicita do usuario.**
 
 ## Pendente
 

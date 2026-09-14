@@ -3,6 +3,84 @@
 
 ---
 
+## V.1.4.87 — Win/Loss Intelligence: fecha a Tarefa 8.2 e a Fase 8 do "PROMPT MESTRE — SALE-IA V2"
+> Data: 14/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Sequência direta de V.1.4.86 (Outcome Tracking, Tarefa 8.1). Usuário
+confirmou avançar para a Tarefa 8.2, fechando a Fase 8 (Resultado da
+Venda) completa.
+
+### TAREFA 8.2 — Win/Loss Intelligence
+- **`agent/win_loss_rules.py`** (novo, função pura — zero IA/banco e
+  **zero dependência nova** (numpy/scipy não usados; estatística
+  implementada em Python puro), mesmo padrão de
+  `outcome_rules.py`/`deal_risk_rules.py`): `WIN_LOSS_VARIAVEIS`
+  documenta as 15 variáveis literais do prompt mestre
+  (segment/seller/origin/ticket/cycle/pain/objection/decision_maker/
+  champion/strategy/spin_coverage/meddpicc_coverage/talk_ratio/
+  next_step/season) — as funções são genéricas sobre qualquer campo do
+  dict recebido, não travadas a esses 15 nomes.
+- **Regra científica central do prompt mestre — "não declarar 'X causa
+  vendas', declarar 'X está associado a maior conversão nesta
+  amostra'" — garantida por construção**: as únicas strings de texto
+  livre do módulo vêm de 3 templates fixos
+  (`TEMPLATE_AFIRMACAO_ASSOCIACAO`/`TEMPLATE_AMOSTRA_INSUFICIENTE`/
+  `TEMPLATE_SIMPSONS_PARADOX`), nunca f-strings ad hoc — guardados por
+  `GuardaContraCausalidadeTest` (nenhum template nem saída gerada em
+  tempo real contém "causa"), mesmo padrão de guarda arquitetural já
+  usado em `signo_solar_rules.py`/`buyer_motivation_rules.py`.
+- **`comparar_por_variavel_categorica(opportunities, campo, ...)`**:
+  agrupa won/lost por valor categórico, retorna taxa de conversão +
+  IC + afirmação de associação por grupo. Oportunidade sem valor no
+  campo vai para `sem_dado` — nunca vira grupo `"None"` nem é
+  descartada silenciosamente.
+- **`amostra_suficiente(n, minimo=30)`**: regra de bolso padrão pra
+  aproximação normal de proporções — decisão desta rodada (prompt
+  mestre não define o número exato). Grupo insuficiente nunca recebe
+  IC nem afirmação de associação, só o aviso.
+- **`intervalo_confianca_wilson(sucessos, total, confianca=0.95)`**:
+  Wilson score interval implementado do zero (sem scipy) — mais
+  confiável que a normal simples pra taxas perto de 0/1 e amostras
+  pequenas.
+- **`calcular_limites_iqr`/`detectar_outliers_iqr`/
+  `resumir_variavel_numerica`**: método IQR clássico pra variáveis
+  numéricas (ticket/cycle/talk_ratio) — outliers separados da média/
+  mediana, sempre reportados, nunca escondidos.
+- **`detectar_simpsons_paradox(opportunities, campo, campo_segmento)`**:
+  compara exatamente 2 valores de `campo` (paradoxo clássico é
+  binário) e detecta reversão de tendência ao segmentar. **Testado com
+  o dataset sintético clássico** (mesma estrutura do estudo de
+  tratamento de cálculo renal, adaptado: 2 estratégias de venda ×
+  porte do negócio — estratégia A vence em cada segmento (93%/87% e
+  73%/69%) mas B vence agregado (78%/83%), porque a maioria das
+  oportunidades de A está no segmento mais difícil) — atende
+  literalmente "Simpson's paradox em dataset sintético" da Tarefa 8.2.
+- **Decisão deliberada de escopo**: sem integração com
+  `Opportunity`/`orquestrador.py`, sem endpoint HTTP — as funções são
+  genéricas sobre listas de dicts (mesmo formato de
+  `listar_opportunities()`); quem extrai cada uma das 15 variáveis
+  reais (SPIN coverage, MEDDPICC coverage, talk ratio) é integração
+  futura não pedida por esta tarefa (que pede o motor estatístico, não
+  a extração de dado).
+- 24 testes novos (`tests/test_win_loss_rules.py`), incluindo o dataset
+  sintético clássico do paradoxo de Simpson, "ausência de dados",
+  "amostra insuficiente", "divisão por segmento" e "outliers" — todos
+  os testes estatísticos pedidos literalmente pela Tarefa 8.2. Suite
+  completa: **749 testes** (725 da Tarefa 8.1 + 24 novos), **0
+  falhas**, 1 skip pré-existente — sem regressão.
+- Versão: `1.4.86` → `1.4.87` (`api/main.py::/health` e
+  `/monitor/metricas`).
+
+### PENDENTE
+- Push + deploy na VPS (aditivo — módulo puro em memória, sem
+  tabela/coluna nova).
+- **Fase 9 (Seasonality Engine) e qualquer fase seguinte do "PROMPT
+  MESTRE — SALE-IA V2" não começam sem nova confirmação explícita do
+  usuário.**
+
+---
+
 ## V.1.4.86 — Outcome Tracking: Tarefa 8.1 da Fase 8 do "PROMPT MESTRE — SALE-IA V2"
 > Data: 14/09/2026 | Local + GitHub + **VPS confirmada em produção**
 
