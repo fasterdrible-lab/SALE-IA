@@ -36,7 +36,7 @@ OPPORTUNITY_MEMORY_CATEGORIES = frozenset({
     "unknowns",
 })
 
-OPPORTUNITY_STATUSES = frozenset({"open", "won", "lost"})
+OPPORTUNITY_STATUSES = frozenset({"open", "won", "lost", "abandoned"})
 
 
 def validar_status(status: str) -> None:

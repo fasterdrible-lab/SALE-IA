@@ -1,12 +1,11 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-14 (V.1.4.85, local + GitHub + **VPS confirmada
-em produção**, ver "Deploy" abaixo; V.1.4.85 fecha a Tarefa 7.1 (Fase 7) do
-"SALE-IA V2" com o MOTOR REAL do SalesReasoningEngine (`raciocinar_async()`,
-IA de verdade) + Golden Dataset de 57 cenários (harness Promptfoo criado,
-nunca rodado) — ver seção "SalesReasoningEngine — Fase 7 / Tarefa 7.1"
-abaixo e CHANGELOG.md V.1.4.85. Não integrado a `orquestrador.py`/tempo
-real ainda (decisão de produto separada).
+Atualizado em: 2026-09-14 (V.1.4.86, local — produção confirmada em
+`1.4.85`, ver "Deploy" abaixo; V.1.4.86 é a Tarefa 8.1 (Fase 8) do
+"SALE-IA V2" — Outcome Tracking (`Opportunity` ganha o estado
+`abandoned` + campos de desfecho WON/LOST) — ver seção "Outcome
+Tracking — Fase 8 / Tarefa 8.1" abaixo e CHANGELOG.md V.1.4.86. Sem
+endpoint HTTP novo, sem integração com `orquestrador.py`.
 O corpo deste documento nao acompanhou o
 CHANGELOG.md entre V.1.4.54 e V.1.4.66; a fonte de verdade sempre mais
 atualizada e o CHANGELOG e o `/health` de producao. Cost Intelligence
@@ -923,8 +922,46 @@ deliberada de escopo na rodada anterior.
   de IA `ok` (restart zerou os circuit breakers em memória — não
   confirma saldo/chave de verdade, mesma ressalva de sempre).
 - **Pendente**: rodar o Golden Dataset de verdade. **Integrar ao
-  orquestrador e qualquer fase seguinte (Fase 8 — Resultado da Venda)
-  não começam sem nova confirmação explícita do usuário.**
+  orquestrador não começa sem nova confirmação explícita do usuário.**
+
+## Outcome Tracking — Fase 8 / Tarefa 8.1 do "SALE-IA V2" (V.1.4.86, 14/09/2026)
+
+Usuário confirmou avançar para a Fase 8 (Resultado da Venda). Só a
+Tarefa 8.1 (Outcome Tracking) foi feita — Tarefa 8.2 (Win/Loss
+Intelligence) não começou.
+
+- `agent/opportunity_memory_rules.py::OPPORTUNITY_STATUSES` ganha
+  `"abandoned"` (4º estado, junto de `open`/`won`/`lost` da Fase 2).
+- `agent/outcome_rules.py` (novo, função pura, sem IA/banco):
+  `calcular_cycle_days()` (sempre derivado das datas reais, nunca
+  aceito como input), `validar_dados_won({value, product, close_date})`,
+  `validar_dados_lost({reason, competitor})` (`competitor` opcional),
+  `esta_fechada(status)`, `resumo_por_status(opportunities)` — atende
+  a regra de teste literal da Tarefa 8.1: "uma oportunidade encerrada
+  precisa deixar de entrar como aberta em estatísticas".
+- `api/database.py::Opportunity` ganha 5 colunas aditivas
+  (`outcome_value`/`product`/`close_date`/`cycle_days` para WON,
+  `competitor` para LOST) — `reason`/`stage`/`lost_at` do schema do
+  prompt mestre reaproveitam `loss_reason`/`stage`/`lost_at` já
+  existentes, nunca duplicados.
+- `atualizar_status_opportunity()`: transição para `"won"` agora exige
+  `value`/`product`/`close_date`; `"lost"` exige `loss_reason`
+  (`competitor` opcional); `"abandoned"` não exige dado extra.
+- **Achado**: 2 testes pré-existentes da Fase 2 chamavam a transição
+  para `"won"` sem esses dados — corrigidos para passar
+  `value`/`product`/`close_date`, sem mudar o que cada teste verifica.
+- 25 testes novos (19 + 6). Suite completa: 725 testes, 0 falhas, 1
+  skip pré-existente — sem regressão. Detalhe completo no
+  CHANGELOG.md (V.1.4.86).
+- **Decisão deliberada**: sem endpoint HTTP novo, sem integração com
+  `orquestrador.py`/`processador_tempo_real.py` — mesma disciplina das
+  Fases 1-7.
+- **Pendente**: push + deploy na VPS. As 5 colunas novas em
+  `opportunities` (tabela já existente) **exigem `ALTER TABLE` manual
+  na VPS** — `create_all()` não migra colunas em tabelas existentes
+  (mesmo padrão dos fixes `MEDIUMTEXT`/`opportunity_id` anteriores).
+  **Tarefa 8.2 (Win/Loss Intelligence) não começa sem nova confirmação
+  explícita do usuário.**
 
 ### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)
 - `services/embeddings/`: interface `EmbeddingProvider` (`embed`, `embed_async`, `embed_batch`, `health_check`), `OllamaEmbeddingProvider` (HTTP local via `httpx`, zero import de SDKs de LLM externos), `OpenAIEmbeddingProvider`, `factory.get_embedding_provider()` (lê `EMBEDDING_PROVIDER`, erro explícito em valor desconhecido).

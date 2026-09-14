@@ -369,8 +369,15 @@ class Opportunity(SQLModel, table=True):
     estágios de pipeline aqui (diferente do `conversation_stage` SPIN já
     existente em `processador_tempo_real.py`, que é por-reunião, não
     por-oportunidade); inventar uma taxonomia não pedida seria escopo
-    fora da Tarefa 2.1. `status` é validado (`open`/`won`/`lost`) em
-    `agent/opportunity_memory_rules.py`.
+    fora da Tarefa 2.1. `status` é validado (`open`/`won`/`lost`/
+    `abandoned`, o último adicionado na Fase 8 / Tarefa 8.1 — Outcome
+    Tracking) em `agent/opportunity_memory_rules.py`.
+
+    Colunas de desfecho (Fase 8 / Tarefa 8.1, aditivas): `outcome_value`/
+    `product`/`close_date`/`cycle_days` para WON, `competitor` para
+    LOST — `reason`/`stage`/`lost_at` do schema do prompt mestre
+    reaproveitam `loss_reason`/`stage`/`lost_at` já existentes, nunca
+    duplicados. Validação em `agent/outcome_rules.py`.
     """
 
     __tablename__ = "opportunities"
@@ -386,6 +393,11 @@ class Opportunity(SQLModel, table=True):
     won_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
     lost_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
     loss_reason: Optional[str] = Field(default=None, sa_column=Column(String(500)))
+    outcome_value: Optional[float] = Field(default=None, sa_column=Column(Float))
+    product: Optional[str] = Field(default=None, sa_column=Column(String(200)))
+    close_date: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    cycle_days: Optional[int] = Field(default=None, sa_column=Column(Integer))
+    competitor: Optional[str] = Field(default=None, sa_column=Column(String(200)))
 
 
 class OpportunityMemory(SQLModel, table=True):
@@ -2514,6 +2526,11 @@ def _opportunity_to_dict(row: "Opportunity") -> dict:
         "won_at": row.won_at.isoformat() if row.won_at else None,
         "lost_at": row.lost_at.isoformat() if row.lost_at else None,
         "loss_reason": row.loss_reason,
+        "outcome_value": row.outcome_value,
+        "product": row.product,
+        "close_date": row.close_date.isoformat() if row.close_date else None,
+        "cycle_days": row.cycle_days,
+        "competitor": row.competitor,
     }
 
 
@@ -2570,12 +2587,28 @@ def atualizar_status_opportunity(
     opportunity_id: int,
     status: str,
     loss_reason: Optional[str] = None,
+    *,
+    value: Optional[float] = None,
+    product: Optional[str] = None,
+    close_date: Optional[datetime] = None,
+    competitor: Optional[str] = None,
 ) -> Optional[dict]:
-    """Atualiza o status (open/won/lost) — grava won_at/lost_at
-    automaticamente na primeira vez que o status muda para won/lost
-    (nunca sobrescreve um won_at/lost_at já gravado, mesmo que o status
-    seja setado de novo)."""
+    """Atualiza o status (open/won/lost/abandoned, Fase 8 / Tarefa 8.1
+    adiciona "abandoned") — grava won_at/lost_at automaticamente na
+    primeira vez que o status muda para won/lost (nunca sobrescreve um
+    won_at/lost_at já gravado, mesmo que o status seja setado de novo).
+
+    Para "won": `value`/`product`/`close_date` são obrigatórios
+    (validados por `agent.outcome_rules.validar_dados_won`); `close_date`
+    default é `won_at` quando omitido. `cycle_days` é sempre calculado
+    (`agent.outcome_rules.calcular_cycle_days`), nunca aceito como
+    input. Para "lost": `loss_reason` é obrigatório (validado por
+    `validar_dados_lost`); `competitor` é opcional (nem toda perda vai
+    para um concorrente identificado). "abandoned" não exige nenhum
+    dado extra — mesmo padrão de "não inventar requisito não pedido"
+    das fases anteriores."""
     from agent.opportunity_memory_rules import validar_status
+    from agent.outcome_rules import calcular_cycle_days, validar_dados_lost, validar_dados_won
 
     validar_status(status)
 
@@ -2583,12 +2616,22 @@ def atualizar_status_opportunity(
         row = session.get(Opportunity, opportunity_id)
         if not row:
             return None
-        row.status = status
+
         if status == "won" and row.won_at is None:
-            row.won_at = datetime.now()
+            efetiva_close_date = close_date or datetime.now()
+            validar_dados_won({"value": value, "product": product, "close_date": efetiva_close_date})
+            row.won_at = efetiva_close_date
+            row.outcome_value = value
+            row.product = product
+            row.close_date = efetiva_close_date
+            row.cycle_days = calcular_cycle_days(row.created_at, efetiva_close_date)
         if status == "lost" and row.lost_at is None:
+            validar_dados_lost({"reason": loss_reason, "competitor": competitor})
             row.lost_at = datetime.now()
             row.loss_reason = loss_reason
+            row.competitor = competitor
+
+        row.status = status
         row.updated_at = datetime.now()
         session.add(row)
         session.commit()

@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.85** (backend, local — ainda não deployada; produção confirmada em V.1.4.75) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.86** (backend, local — ainda não deployada; produção confirmada em V.1.4.85) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -1192,13 +1192,75 @@ a parte que ficara pendente por decisão deliberada de escopo.
   confirmar o custo esperado"). Harness revisado estaticamente (YAML
   validado com `yaml.safe_load`, 57/57 cenários parseados
   corretamente).
-- **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna nova,
-  zero custo de IA em repouso: `raciocinar_async()` só roda quando algo
-  o invocar explicitamente, e nada em produção o invoca ainda). Rodar
-  o Golden Dataset de verdade. **Integrar `raciocinar_async()` ao
-  orquestrador/tempo real, e a Fase 8 (Resultado da Venda) do "PROMPT
-  MESTRE — SALE-IA V2", não começam sem nova confirmação explícita do
-  usuário.**
+- **Deploy confirmado na VPS (14/09/2026)**: `git pull` + `systemctl
+  restart saleia` — `/health` = `versao 1.4.85`, journal sem erros.
+- **Pendente**: rodar o Golden Dataset de verdade. **Integrar
+  `raciocinar_async()` ao orquestrador/tempo real não começa sem nova
+  confirmação explícita do usuário.**
+
+## Outcome Tracking — Fase 8 / Tarefa 8.1 do "PROMPT MESTRE — SALE-IA V2" (V.1.4.86)
+
+Usuário confirmou avançar para a Fase 8 (Resultado da Venda). Escopo
+desta rodada: só a Tarefa 8.1 (Outcome Tracking) — Tarefa 8.2 (Win/Loss
+Intelligence, comparação estatística entre oportunidades ganhas e
+perdidas) não começou.
+
+- **`agent/opportunity_memory_rules.py::OPPORTUNITY_STATUSES`**: ganha
+  `"abandoned"` (4º estado, junto de `open`/`won`/`lost` já existentes
+  desde a Fase 2) — único ponto onde o vocabulário de `status` da
+  `Opportunity` é definido, reaproveitado (não duplicado) pelo módulo
+  novo abaixo.
+- **`agent/outcome_rules.py`** (novo, função pura, mesmo padrão de
+  `deal_risk_rules.py`/`meddpicc_rules.py` — zero IA/banco):
+  `calcular_cycle_days(created_at, close_date)` (nunca aceito como
+  input do chamador — sempre derivado das datas reais, evita
+  inconsistência), `validar_dados_won({value, product, close_date})`,
+  `validar_dados_lost({reason, competitor})` (`competitor` opcional —
+  nem toda perda vai para um concorrente identificado), `esta_fechada(
+  status)` (`True` para won/lost/abandoned), `resumo_por_status(
+  opportunities)` (agregação pura — atende a regra de teste literal da
+  Tarefa 8.1: "uma oportunidade encerrada precisa deixar de entrar como
+  aberta em estatísticas").
+- **`api/database.py::Opportunity`** ganha 5 colunas aditivas:
+  `outcome_value`/`product`/`close_date`/`cycle_days` (WON) e
+  `competitor` (LOST). **`reason`/`stage`/`lost_at` do schema do prompt
+  mestre reaproveitam `loss_reason`/`stage`/`lost_at` já existentes
+  desde a Fase 2 — nunca duplicados**, mesmo princípio já usado para
+  `KnowledgeItem` não virar `sales_memory` e para o Knowledge Graph não
+  duplicar evidência.
+- **`atualizar_status_opportunity()`**: transição para `"won"` agora
+  **exige** `value`/`product`/`close_date` (valida via
+  `validar_dados_won`, `close_date` default é `won_at` quando omitido;
+  `cycle_days` sempre calculado, nunca aceito do chamador) — decisão
+  desta rodada: um "ganho" sem saber o que foi vendido e por quanto não
+  é um dado de domínio válido, mesma disciplina de evidência
+  obrigatória já usada em `SalesEvent`/`SalesEvidence` (Fase 1).
+  Transição para `"lost"` exige `loss_reason` (já era o parâmetro
+  existente, agora validado de verdade) — `competitor` opcional.
+  `"abandoned"` não exige nenhum dado extra (não especificado pelo
+  prompt mestre — "não inventar requisito não pedido"). **Achado
+  durante a implementação**: os testes pré-existentes de
+  `test_atualizar_status_won_grava_won_at_uma_vez` e
+  `test_listar_opportunities_filtra_por_client_e_status` (Fase 2)
+  chamavam a transição para `"won"` sem esses dados — corrigidos para
+  passar `value`/`product`/`close_date`, sem mudar o que cada teste
+  verifica.
+- 19 testes novos (`tests/test_outcome_rules.py`) + 6 testes novos em
+  `tests/test_opportunity_memory.py` (incluindo o teste literal da
+  Tarefa 8.1: oportunidade encerrada não aparece como aberta em
+  `resumo_por_status()` nem em `listar_opportunities(status="open")`).
+  Suite completa: **725 testes** (700 da Fase 7 + 25 novos), **0
+  falhas**, 1 skip pré-existente — sem regressão.
+- **Decisão deliberada de escopo**: sem endpoint HTTP novo (mesma
+  disciplina da Fase 2 — `Opportunity` continua sem rota própria), sem
+  integração com `orquestrador.py`/`processador_tempo_real.py`.
+- Versão: `1.4.85` → `1.4.86`.
+- **Pendente**: push + deploy na VPS (aditivo — 5 colunas nullable em
+  tabela já existente, `create_all()` não migra colunas em tabelas
+  existentes, **exige `ALTER TABLE opportunities ADD COLUMN` manual na
+  VPS**, mesmo padrão dos fixes `MEDIUMTEXT`/`opportunity_id` já feitos
+  antes). **Tarefa 8.2 (Win/Loss Intelligence) não começa sem nova
+  confirmação explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

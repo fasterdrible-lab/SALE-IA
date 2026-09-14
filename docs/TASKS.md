@@ -780,7 +780,21 @@ Usuario confirmou avancar para o motor real — a parte que a V.1.4.84 deixou pe
 - [x] Versao: `1.4.84` -> `1.4.85`.
 - [x] Push para o GitHub (commit `96bd3ea`).
 - [x] **Deploy confirmado na VPS (14/09/2026)**: `reunioes_ativas: 0` checado antes de cada etapa arriscada — `git pull` (fast-forward `451beae` -> `96bd3ea`, aditivo, sem tabela/coluna nova) + `pip install`/`pip check` limpos. `systemctl restart saleia` — `active`, journal sem erros. Pos-restart: `/health` = `versao 1.4.85`, `status online`, `reunioes_ativas 0`, 4 provedores de IA `ok` (restart zerou os circuit breakers em memoria, mesma ressalva de sempre — nao confirma saldo/chave de verdade).
-- **Pendente**: rodar o Golden Dataset de verdade (`npm run eval:sales_reasoning`). **Integrar `raciocinar_async()` ao orquestrador e a Fase 8 (Resultado da Venda) nao comecam sem nova confirmacao explicita do usuario.**
+- **Pendente**: rodar o Golden Dataset de verdade (`npm run eval:sales_reasoning`). **Integrar `raciocinar_async()` ao orquestrador nao comeca sem nova confirmacao explicita do usuario.**
+
+## Concluido (V.1.4.86 — Outcome Tracking, Tarefa 8.1, inicio da Fase 8 do "PROMPT MESTRE — SALE-IA V2")
+
+Usuario confirmou avancar para a Fase 8 (Resultado da Venda). Escopo desta rodada: so a Tarefa 8.1 (Outcome Tracking) — Tarefa 8.2 (Win/Loss Intelligence) nao comecou.
+
+- [x] `agent/opportunity_memory_rules.py::OPPORTUNITY_STATUSES` ganha `"abandoned"` (4o estado, junto de open/won/lost da Fase 2).
+- [x] `agent/outcome_rules.py` (novo, funcao pura, sem IA/banco): `calcular_cycle_days()` (sempre derivado das datas reais, nunca aceito como input do chamador), `validar_dados_won({value, product, close_date})`, `validar_dados_lost({reason, competitor})` (competitor opcional — nem toda perda vai pra um concorrente identificado), `esta_fechada(status)` (True pra won/lost/abandoned), `resumo_por_status(opportunities)` — atende a regra de teste literal da Tarefa 8.1: "uma oportunidade encerrada precisa deixar de entrar como aberta em estatisticas".
+- [x] `api/database.py::Opportunity` ganha 5 colunas aditivas: `outcome_value`/`product`/`close_date`/`cycle_days` (WON) e `competitor` (LOST). `reason`/`stage`/`lost_at` do schema do prompt mestre reaproveitam `loss_reason`/`stage`/`lost_at` ja existentes desde a Fase 2 — nunca duplicados.
+- [x] `atualizar_status_opportunity()`: transicao pra "won" agora exige `value`/`product`/`close_date` (validados, `cycle_days` sempre calculado, nunca aceito do chamador); "lost" exige `loss_reason` (competitor opcional); "abandoned" nao exige dado extra.
+- [x] Achado: 2 testes pre-existentes da Fase 2 (`test_atualizar_status_won_grava_won_at_uma_vez`, `test_listar_opportunities_filtra_por_client_e_status`) chamavam a transicao pra "won" sem esses dados — corrigidos pra passar value/product/close_date, sem mudar o que cada teste verifica.
+- [x] 19 testes novos (`tests/test_outcome_rules.py`) + 6 testes novos em `tests/test_opportunity_memory.py`, incluindo o teste literal da Tarefa 8.1. Suite completa: 725 testes (700 + 25), 0 falhas, 1 skip pre-existente — sem regressao.
+- [x] Decisao deliberada: sem endpoint HTTP novo, sem integracao com `orquestrador.py`/`processador_tempo_real.py` — mesma disciplina das Fases 1-7.
+- [x] Versao: `1.4.85` -> `1.4.86`.
+- **Pendente**: push + deploy na VPS. As 5 colunas novas em `opportunities` (tabela ja existente) exigem `ALTER TABLE` manual na VPS — `create_all()` nao migra colunas em tabelas existentes (mesmo padrao dos fixes MEDIUMTEXT/opportunity_id anteriores). **Tarefa 8.2 (Win/Loss Intelligence) nao comeca sem nova confirmacao explicita do usuario.**
 
 ## Pendente
 

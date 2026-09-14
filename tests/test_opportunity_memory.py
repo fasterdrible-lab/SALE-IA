@@ -32,7 +32,7 @@ from api.database import MeetingMemory
 
 class ValidarStatusTest(unittest.TestCase):
     def test_status_validos_nao_levantam(self):
-        for status in ("open", "won", "lost"):
+        for status in ("open", "won", "lost", "abandoned"):
             validar_status(status)
 
     def test_status_invalido_levanta(self):
@@ -130,11 +130,15 @@ class OpportunityPersistenciaTest(unittest.TestCase):
 
     def test_atualizar_status_won_grava_won_at_uma_vez(self):
         opp = database.criar_opportunity(client_id="c1", seller_id="s1")
-        atualizada = database.atualizar_status_opportunity(opp["id"], "won")
+        atualizada = database.atualizar_status_opportunity(
+            opp["id"], "won", value=1000.0, product="SALEIA Enterprise", close_date=datetime.now(),
+        )
         self.assertEqual(atualizada["status"], "won")
         self.assertIsNotNone(atualizada["won_at"])
         primeiro_won_at = atualizada["won_at"]
 
+        # segunda chamada não precisa repassar value/product/close_date —
+        # won_at já gravado, validação (e sobrescrita) não roda de novo
         atualizada2 = database.atualizar_status_opportunity(opp["id"], "won")
         self.assertEqual(atualizada2["won_at"], primeiro_won_at)  # nunca sobrescreve
 
@@ -145,11 +149,75 @@ class OpportunityPersistenciaTest(unittest.TestCase):
         self.assertEqual(atualizada["loss_reason"], "Sem orcamento")
         self.assertIsNotNone(atualizada["lost_at"])
 
+    def test_atualizar_status_won_exige_value_product_close_date(self):
+        """Fase 8 / Tarefa 8.1 — Outcome Tracking."""
+        opp = database.criar_opportunity(client_id="c1", seller_id="s1")
+        with self.assertRaises(ValueError):
+            database.atualizar_status_opportunity(opp["id"], "won")  # sem value/product
+
+    def test_atualizar_status_won_grava_outcome_value_product_e_cycle_days(self):
+        opp = database.criar_opportunity(client_id="c1", seller_id="s1")
+        with Session(self._engine) as session:
+            row = session.get(database.Opportunity, opp["id"])
+            row.created_at = datetime(2026, 1, 1)
+            session.add(row)
+            session.commit()
+
+        atualizada = database.atualizar_status_opportunity(
+            opp["id"], "won",
+            value=25000.0, product="SALEIA Enterprise", close_date=datetime(2026, 1, 21),
+        )
+        self.assertEqual(atualizada["status"], "won")
+        self.assertEqual(atualizada["outcome_value"], 25000.0)
+        self.assertEqual(atualizada["product"], "SALEIA Enterprise")
+        self.assertEqual(atualizada["cycle_days"], 20)
+
+    def test_atualizar_status_lost_exige_reason(self):
+        opp = database.criar_opportunity(client_id="c1", seller_id="s1")
+        with self.assertRaises(ValueError):
+            database.atualizar_status_opportunity(opp["id"], "lost")  # sem loss_reason
+
+    def test_atualizar_status_lost_grava_competitor_opcional(self):
+        opp = database.criar_opportunity(client_id="c1", seller_id="s1")
+        atualizada = database.atualizar_status_opportunity(
+            opp["id"], "lost", loss_reason="Preco alto", competitor="ConcorrenteX",
+        )
+        self.assertEqual(atualizada["competitor"], "ConcorrenteX")
+
+        opp2 = database.criar_opportunity(client_id="c1", seller_id="s1")
+        atualizada2 = database.atualizar_status_opportunity(opp2["id"], "lost", loss_reason="Projeto cancelado")
+        self.assertIsNone(atualizada2["competitor"])
+
+    def test_atualizar_status_abandoned_nao_exige_dados_extras(self):
+        opp = database.criar_opportunity(client_id="c1", seller_id="s1")
+        atualizada = database.atualizar_status_opportunity(opp["id"], "abandoned")
+        self.assertEqual(atualizada["status"], "abandoned")
+
+    def test_oportunidade_fechada_nao_aparece_como_aberta_em_estatisticas(self):
+        """Regra de teste literal da Tarefa 8.1."""
+        database.criar_opportunity(client_id="c1", seller_id="s1")
+        opp2 = database.criar_opportunity(client_id="c1", seller_id="s1")
+        opp3 = database.criar_opportunity(client_id="c1", seller_id="s1")
+        database.atualizar_status_opportunity(opp2["id"], "won", value=1000, product="X", close_date=datetime.now())
+        database.atualizar_status_opportunity(opp3["id"], "abandoned")
+
+        from agent.outcome_rules import resumo_por_status
+
+        todas = database.listar_opportunities(client_id="c1")
+        resumo = resumo_por_status(todas)
+        self.assertEqual(resumo["abertas"], 1)
+        self.assertEqual(resumo["fechadas"], 2)
+
+        abertas_filtradas = database.listar_opportunities(client_id="c1", status="open")
+        self.assertEqual(len(abertas_filtradas), 1)
+
     def test_listar_opportunities_filtra_por_client_e_status(self):
         database.criar_opportunity(client_id="c1", seller_id="s1")
         opp2 = database.criar_opportunity(client_id="c1", seller_id="s1")
         database.criar_opportunity(client_id="c2", seller_id="s1")
-        database.atualizar_status_opportunity(opp2["id"], "won")
+        database.atualizar_status_opportunity(
+            opp2["id"], "won", value=1000.0, product="SALEIA Enterprise", close_date=datetime.now(),
+        )
 
         self.assertEqual(len(database.listar_opportunities(client_id="c1")), 2)
         self.assertEqual(len(database.listar_opportunities(status="won")), 1)

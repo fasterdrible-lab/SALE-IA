@@ -3,6 +3,88 @@
 
 ---
 
+## V.1.4.86 — Outcome Tracking: Tarefa 8.1 da Fase 8 do "PROMPT MESTRE — SALE-IA V2"
+> Data: 14/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Usuário confirmou avançar para a Fase 8 (Resultado da Venda). Escopo
+desta rodada: só a Tarefa 8.1 (Outcome Tracking) — Tarefa 8.2 (Win/Loss
+Intelligence, comparação estatística entre oportunidades ganhas e
+perdidas, com regras científicas de não inferir causalidade) não
+começou.
+
+### TAREFA 8.1 — Outcome Tracking
+- **`agent/opportunity_memory_rules.py::OPPORTUNITY_STATUSES`**: ganha
+  `"abandoned"` — 4º estado da `Opportunity`, junto de
+  `open`/`won`/`lost` já existentes desde a Fase 2 (Tarefa 2.1). Único
+  ponto de definição do vocabulário de `status`, reaproveitado (não
+  duplicado) pelo módulo novo abaixo.
+- **`agent/outcome_rules.py`** (novo, função pura, mesmo padrão de
+  `deal_risk_rules.py`/`meddpicc_rules.py` — zero IA/banco):
+  `calcular_cycle_days(created_at, close_date)` — nunca aceito como
+  input do chamador, sempre derivado das datas reais, evita
+  inconsistência entre o valor informado e a linha do tempo real.
+  `validar_dados_won({value, product, close_date})` e
+  `validar_dados_lost({reason, competitor})` (`competitor` opcional —
+  nem toda perda vai para um concorrente identificado, pode ser
+  orçamento/timing/projeto cancelado). `esta_fechada(status)` (`True`
+  para won/lost/abandoned). `resumo_por_status(opportunities)` —
+  agregação pura por status, implementa diretamente a regra de teste
+  literal da Tarefa 8.1: **"uma oportunidade encerrada precisa deixar
+  de entrar como aberta em estatísticas"**.
+- **`api/database.py::Opportunity`** ganha 5 colunas aditivas
+  (nullable): `outcome_value`/`product`/`close_date`/`cycle_days`
+  (WON) e `competitor` (LOST). **`reason`/`stage`/`lost_at` do schema
+  literal do prompt mestre reaproveitam `loss_reason`/`stage`/
+  `lost_at` já existentes desde a Fase 2 — decisão deliberada de não
+  duplicar dado**, mesmo princípio já usado para `KnowledgeItem` nunca
+  virar `sales_memory` e para o Knowledge Graph nunca duplicar
+  evidência.
+- **`api/database.py::atualizar_status_opportunity()`**: transição
+  para `"won"` agora **exige** `value`/`product`/`close_date`
+  (validados por `validar_dados_won`; `close_date` default é `won_at`
+  quando omitido; `cycle_days` sempre calculado via
+  `calcular_cycle_days()`, nunca aceito como input) — decisão desta
+  rodada: uma oportunidade "ganha" sem saber o que foi vendido e por
+  quanto não é um dado de domínio válido, mesma disciplina de
+  evidência obrigatória já usada em `SalesEvent`/`SalesEvidence`
+  (Fase 1). Transição para `"lost"` exige `loss_reason` (parâmetro já
+  existente desde a Fase 2, agora validado de verdade em vez de
+  aceito livre); `competitor` é opcional. `"abandoned"` não exige
+  nenhum dado extra — não especificado pelo prompt mestre, mesma
+  disciplina de "não inventar requisito não pedido" das fases
+  anteriores.
+- **Achado durante a implementação**: os testes pré-existentes
+  `test_atualizar_status_won_grava_won_at_uma_vez` e
+  `test_listar_opportunities_filtra_por_client_e_status` (escritos na
+  Fase 2, antes da Tarefa 8.1 existir) chamavam a transição para
+  `"won"` sem `value`/`product`/`close_date` — corrigidos para passar
+  esses dados, sem mudar o que cada teste verifica (a regra de "nunca
+  sobrescrever `won_at`" continua coberta por uma segunda chamada sem
+  esses dados, já que a validação só roda quando `won_at` ainda é
+  `None`).
+- 19 testes novos (`tests/test_outcome_rules.py`) + 6 testes novos em
+  `tests/test_opportunity_memory.py`, incluindo o teste literal da
+  Tarefa 8.1 (oportunidade encerrada não aparece como aberta nem em
+  `resumo_por_status()` nem em `listar_opportunities(status="open")`).
+  Suite completa: **725 testes** (700 da Fase 7 + 25 novos), **0
+  falhas**, 1 skip pré-existente — sem regressão.
+- **Decisão deliberada de escopo**: sem endpoint HTTP novo (mesma
+  disciplina da Fase 2 — `Opportunity` continua sem rota própria), sem
+  integração com `orquestrador.py`/`processador_tempo_real.py`.
+- Versão: `1.4.85` → `1.4.86`.
+
+### PENDENTE
+- Push + deploy na VPS (aditivo — 5 colunas nullable em `opportunities`,
+  tabela já existente; `create_all()` não migra colunas em tabelas
+  existentes, **exige `ALTER TABLE opportunities ADD COLUMN` manual na
+  VPS**, mesmo padrão dos fixes `MEDIUMTEXT` (V.1.4.54) e
+  `opportunity_id` em `meeting_memory` (V.1.4.75)).
+- **Tarefa 8.2 (Win/Loss Intelligence) não começa sem nova confirmação
+  explícita do usuário.**
+
+---
+
 ## V.1.4.85 — SalesReasoningEngine (motor real): fecha a Tarefa 7.1 da Fase 7 do "PROMPT MESTRE — SALE-IA V2"
 > Data: 13/09/2026 | Local + GitHub + **VPS confirmada em produção** (deploy 14/09/2026)
 
