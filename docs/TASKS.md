@@ -824,7 +824,22 @@ Usuario confirmou avancar para a Fase 9 (Seasonality Engine). Escopo desta rodad
 - [x] Decisao deliberada: sem endpoint HTTP, sem integracao com `orquestrador.py`/scheduler.
 - [x] 19 testes novos (`tests/test_data_warehouse_rules.py`), incluindo verificacao de que as 16 dimensoes literais do prompt mestre estao todas presentes em cada linha gerada. Suite completa: 768 testes (749 + 19), 0 falhas, 1 skip pre-existente — sem regressao.
 - [x] Versao: `1.4.87` -> `1.4.88`.
-- **Pendente**: push + deploy na VPS (aditivo — modulo puro em memoria, sem tabela/coluna nova; V.1.4.87 tambem segue pendente, os dois podem ir juntos). **Tarefa 9.2 (Sazonalidade temporal) nao comeca sem nova confirmacao explicita do usuario.**
+- **Pendente**: push + deploy na VPS (aditivo — modulo puro em memoria, sem tabela/coluna nova; segue junto do V.1.4.89 abaixo).
+
+## Concluido (V.1.4.89 — Sazonalidade Temporal, Tarefa 9.2 da Fase 9 do "PROMPT MESTRE — SALE-IA V2")
+
+Usuario confirmou avancar para a Tarefa 9.2. Constroi sobre o dataset analitico da Tarefa 9.1 e reaproveita as primitivas estatisticas de `win_loss_rules.py` (Fase 8). Tarefa 9.3 (Sazonalidade contextual) nao comecou.
+
+- [x] `agent/seasonality_rules.py` (novo, funcao pura, zero IA/banco/numpy/scipy, mesmo padrao de `win_loss_rules.py`): `DIMENSOES_TEMPORAIS` documenta as 5 dimensoes literais da Tarefa 9.2 (month/quarter/week/weekday/hour) — `date` (6a dimensao de calendario da Tarefa 9.1) fica de fora de proposito, granularidade unica por linha.
+- [x] Criterio de significancia sem scipy: amostra suficiente (reusa `amostra_suficiente`) + baseline geral fora do intervalo de confianca de Wilson do periodo (reusa `intervalo_confianca_wilson`) — nao e teste de hipotese formal, mas forma honesta e auto-calibrada de nao inventar sazonalidade.
+- [x] `taxa_conversao_por_periodo()`/`detectar_sazonalidade()` — agrupam linhas do dataset analitico (Tarefa 9.1) pela dimensao temporal; linha sem won/lost nao entra.
+- [x] Regra cientifica herdada da Tarefa 8.2 "nunca causa, sempre associacao" — unica string livre vem de `TEMPLATE_SAZONALIDADE`, guardado por `GuardaContraCausalidadeTest`.
+- [x] Testado com o exemplo literal do prompt mestre (segmento X, marco-maio, conversion +18%, adaptado sem o recorte de segmento — isso e a Tarefa 9.3): dataset sintetico com meses 3-5 a 68% vs 50% no resto do ano — os 3 meses marcados significativo=True, os outros 9 nao.
+- [x] "O motor NAO devera inventar sazonalidade significativa" — 2 testes: dataset com taxa identica em todo periodo (determinstico, sem depender de seed) + dataset aleatorio com seed fixa (random.Random(42), taxa constante 50%, n=200/mes) tolerando no maximo 1 falso-positivo em 12 meses (taxa esperada de IC 95%, documentada no teste).
+- [x] Decisao deliberada: sem integracao com `orquestrador.py`, sem endpoint HTTP. Segmento/produto/origem fica pra Tarefa 9.3.
+- [x] 12 testes novos (`tests/test_seasonality_rules.py`). Suite completa: 780 testes (768 + 12), 0 falhas, 1 skip pre-existente — sem regressao.
+- [x] Versao: `1.4.88` -> `1.4.89`.
+- **Pendente**: push + deploy na VPS (aditivo — modulo puro em memoria; V.1.4.87/88 tambem seguem pendentes, os tres podem ir juntos). **Tarefa 9.3 (Sazonalidade contextual) nao comeca sem nova confirmacao explicita do usuario.**
 
 ## Pendente
 

@@ -1,13 +1,14 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-14 (V.1.4.88, local — produção confirmada em
-`1.4.86`, ver "Deploy" abaixo — V.1.4.87 e V.1.4.88 ainda não
-deployados; V.1.4.88 é a Tarefa 9.1 (Fase 9) do "SALE-IA V2" — Data
-Warehouse comercial mínimo (`agent/data_warehouse_rules.py`: dataset
-analítico derivado com as 16 dimensões do prompt mestre) — ver seção
-"Data Warehouse comercial mínimo — Fase 9 / Tarefa 9.1" abaixo e
-CHANGELOG.md V.1.4.88. Sem endpoint HTTP novo, sem integração com
-`orquestrador.py`/scheduler.
+Atualizado em: 2026-09-14 (V.1.4.89, local — produção confirmada em
+`1.4.86`, ver "Deploy" abaixo — V.1.4.87/88/89 ainda não deployados;
+V.1.4.89 é a Tarefa 9.2 (Fase 9) do "SALE-IA V2" — Sazonalidade
+Temporal (`agent/seasonality_rules.py`: detecção de período com
+conversão estatisticamente divergente do baseline, testado com o
+exemplo literal do prompt mestre e com datasets sem sinal real) — ver
+seção "Sazonalidade Temporal — Fase 9 / Tarefa 9.2" abaixo e
+CHANGELOG.md V.1.4.89. Sem endpoint HTTP novo, sem integração com
+`orquestrador.py`.
 O corpo deste documento nao acompanhou o
 CHANGELOG.md entre V.1.4.54 e V.1.4.66; a fonte de verdade sempre mais
 atualizada e o CHANGELOG e o `/health` de producao. Cost Intelligence
@@ -1032,9 +1033,37 @@ Tarefa 9.1 (Data Warehouse comercial mínimo) foi feita — Tarefas 9.2
   pré-existente — sem regressão. Detalhe completo no CHANGELOG.md
   (V.1.4.88).
 - **Pendente**: push + deploy na VPS (aditivo — módulo puro em
-  memória; V.1.4.87 também segue pendente, os dois podem ir juntos).
-  **Tarefa 9.2 (Sazonalidade temporal) não começa sem nova confirmação
-  explícita do usuário.**
+  memória; segue junto do V.1.4.89 abaixo).
+
+## Sazonalidade Temporal — Fase 9 / Tarefa 9.2 do "SALE-IA V2" (V.1.4.89, 14/09/2026)
+
+Usuário confirmou avançar para a Tarefa 9.2. Constrói sobre o dataset
+analítico da Tarefa 9.1 e reaproveita as primitivas estatísticas de
+`win_loss_rules.py` (Fase 8). Tarefa 9.3 (Sazonalidade contextual) não
+começou.
+
+- `agent/seasonality_rules.py` (novo, função pura, zero IA/banco/numpy/
+  scipy): `DIMENSOES_TEMPORAIS` (month/quarter/week/weekday/hour —
+  `date` fica de fora de propósito, granularidade única por linha).
+- Critério de significância (sem scipy): amostra suficiente + baseline
+  geral fora do intervalo de confiança de Wilson do período.
+- `taxa_conversao_por_periodo()`/`detectar_sazonalidade()` — agrupam
+  linhas do dataset analítico pela dimensão temporal.
+- Regra "nunca causa, sempre associação" herdada da Fase 8, guardada
+  por `GuardaContraCausalidadeTest`.
+- Testado com o exemplo literal do prompt mestre (março-maio +18pp) e
+  com 2 datasets sem sinal real (taxa idêntica por construção; e
+  aleatório com seed fixa, tolerando no máximo 1 falso-positivo em 12
+  meses — taxa esperada de um IC de 95%, documentada no teste).
+- **Decisão deliberada**: sem integração com `orquestrador.py`, sem
+  endpoint HTTP. Segmento/produto/origem é a Tarefa 9.3.
+- 12 testes novos. Suite completa: 780 testes, 0 falhas, 1 skip
+  pré-existente — sem regressão. Detalhe completo no CHANGELOG.md
+  (V.1.4.89).
+- **Pendente**: push + deploy na VPS (aditivo — módulo puro em
+  memória; V.1.4.87/88 também seguem pendentes, os três podem ir
+  juntos). **Tarefa 9.3 (Sazonalidade contextual) não começa sem nova
+  confirmação explícita do usuário.**
 
 ### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)
 - `services/embeddings/`: interface `EmbeddingProvider` (`embed`, `embed_async`, `embed_batch`, `health_check`), `OllamaEmbeddingProvider` (HTTP local via `httpx`, zero import de SDKs de LLM externos), `OpenAIEmbeddingProvider`, `factory.get_embedding_provider()` (lê `EMBEDDING_PROVIDER`, erro explícito em valor desconhecido).

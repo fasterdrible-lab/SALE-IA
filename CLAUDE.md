@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.88** (backend, local — ainda não deployada; produção confirmada em V.1.4.86) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.89** (backend, local — ainda não deployada; produção confirmada em V.1.4.86) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -1385,9 +1385,71 @@ começaram.
   falhas**, 1 skip pré-existente — sem regressão.
 - Versão: `1.4.87` → `1.4.88`.
 - **Pendente**: push + deploy na VPS (aditivo — módulo puro em memória,
-  sem tabela/coluna nova; junto do V.1.4.87 acima, ambos ainda não
-  deployados). **Tarefa 9.2 (Sazonalidade temporal) não começa sem
-  nova confirmação explícita do usuário.**
+  sem tabela/coluna nova; junto do V.1.4.87/V.1.4.89, todos ainda não
+  deployados).
+
+## Sazonalidade Temporal — Fase 9 / Tarefa 9.2 do "PROMPT MESTRE — SALE-IA V2" (V.1.4.89)
+
+Usuário confirmou avançar para a Tarefa 9.2. Constrói diretamente sobre
+o dataset analítico da Tarefa 9.1 (`construir_dataset_analitico()`) e
+reaproveita as primitivas estatísticas de `win_loss_rules.py` (Fase 8
+/ Tarefa 8.2) em vez de duplicá-las. Tarefa 9.3 (Sazonalidade
+contextual) não começou.
+
+- **`agent/seasonality_rules.py`** (novo, função pura, zero IA/banco e
+  zero numpy/scipy — mesmo padrão de `win_loss_rules.py`):
+  `DIMENSOES_TEMPORAIS` documenta as 5 dimensões literais da Tarefa 9.2
+  (`month`/`quarter`/`week`/`weekday`/`hour`) — **`date` (a 6ª
+  dimensão de calendário da Tarefa 9.1) fica de fora de propósito**:
+  granularidade única por linha, quase nunca se repete o suficiente
+  pra "sazonalidade" (recorrência) fazer sentido.
+- **Critério de significância — decisão desta rodada, sem scipy**: um
+  período é `significativo` quando a amostra é suficiente (reusa
+  `win_loss_rules.amostra_suficiente`, padrão 30) **e** a taxa de
+  conversão baseline geral cai *fora* do intervalo de confiança de
+  Wilson daquele período (reusa
+  `win_loss_rules.intervalo_confianca_wilson`) — não é um teste de
+  hipótese formal (qui-quadrado exigiria scipy, dependência nova), mas
+  uma forma honesta e auto-calibrada: em dados sem sazonalidade real,
+  o baseline cai dentro do IC do período na esmagadora maioria das
+  vezes por construção estatística, então o motor não "inventa"
+  sazonalidade sistematicamente.
+- **`taxa_conversao_por_periodo()`**/**`detectar_sazonalidade()`**:
+  agrupam linhas do dataset analítico (Tarefa 9.1) pelo valor da
+  dimensão temporal — linha sem `won`/`lost` (oportunidade ainda
+  aberta) não entra, mesmo princípio de
+  `win_loss_rules.comparar_por_variavel_categorica`.
+- **Regra científica herdada da Tarefa 8.2 — nunca causa, sempre
+  associação**: única string de texto livre vem de
+  `TEMPLATE_SAZONALIDADE` (template fixo), guardado por
+  `GuardaContraCausalidadeTest` (mesmo padrão de
+  `win_loss_rules.py`).
+- **Testado com o exemplo literal do prompt mestre** ("segmento X,
+  março-maio, conversion +18%", adaptado sem o recorte de segmento —
+  isso é a Tarefa 9.3): dataset sintético com meses 3-5 a 68% de
+  conversão vs. 50% no resto do ano (n=100/mês) — os 3 meses são
+  corretamente marcados `significativo=True`, os outros 9 não.
+- **"O motor NÃO deverá inventar sazonalidade significativa"** — 2
+  testes: (1) dataset com taxa idêntica em todo período (nenhum
+  período pode ser significativo, por construção, sem depender de
+  sorte de seed); (2) dataset genuinamente aleatório
+  (`random.Random(42)`, taxa constante de 50% independente do mês,
+  n=200/mês) — tolera no máximo 1 falso-positivo em 12 meses testados,
+  reconhecendo explicitamente que um IC de 95% tem ~5% de taxa de
+  falso-positivo por período (comportamento estatístico esperado, não
+  bug).
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`, sem endpoint HTTP — mesma disciplina das Fases
+  1-9. Extração de segmento/produto/origem (contexto além de
+  calendário) fica pra Tarefa 9.3, não pedida nesta rodada.
+- 12 testes novos (`tests/test_seasonality_rules.py`). Suite completa:
+  **780 testes** (768 da Tarefa 9.1 + 12 novos), **0 falhas**, 1 skip
+  pré-existente — sem regressão.
+- Versão: `1.4.88` → `1.4.89`.
+- **Pendente**: push + deploy na VPS (aditivo — módulo puro em
+  memória; V.1.4.87/V.1.4.88 também seguem pendentes, os três podem ir
+  juntos). **Tarefa 9.3 (Sazonalidade contextual) não começa sem nova
+  confirmação explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

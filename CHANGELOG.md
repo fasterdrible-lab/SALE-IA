@@ -3,6 +3,79 @@
 
 ---
 
+## V.1.4.89 — Sazonalidade Temporal: Tarefa 9.2 da Fase 9 do "PROMPT MESTRE — SALE-IA V2"
+> Data: 14/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Sequência direta de V.1.4.88 (Data Warehouse comercial mínimo, Tarefa
+9.1). Usuário confirmou avançar para a Tarefa 9.2. Constrói sobre o
+dataset analítico da Tarefa 9.1 e reaproveita as primitivas
+estatísticas de `win_loss_rules.py` (Fase 8 / Tarefa 8.2) em vez de
+duplicá-las. Tarefa 9.3 (Sazonalidade contextual) não começou.
+
+### TAREFA 9.2 — Sazonalidade Temporal
+- **`agent/seasonality_rules.py`** (novo, função pura — zero IA/banco,
+  zero numpy/scipy, mesmo padrão de `win_loss_rules.py`):
+  `DIMENSOES_TEMPORAIS` documenta as 5 dimensões literais da Tarefa 9.2
+  (`month`/`quarter`/`week`/`weekday`/`hour`). **`date` (6ª dimensão de
+  calendário da Tarefa 9.1) fica de fora de propósito** — granularidade
+  única por linha, quase nunca se repete o suficiente pra
+  "sazonalidade" (recorrência) fazer sentido.
+- **Critério de significância — decisão desta rodada, sem scipy**: um
+  período é `significativo` quando a amostra é suficiente (reusa
+  `win_loss_rules.amostra_suficiente`, padrão 30) **e** a taxa de
+  conversão baseline geral cai *fora* do intervalo de confiança de
+  Wilson daquele período (reusa
+  `win_loss_rules.intervalo_confianca_wilson`) — não é um teste de
+  hipótese formal (qui-quadrado exigiria scipy), mas uma forma honesta
+  e auto-calibrada de nunca apontar sazonalidade que os dados não
+  sustentam: em dados sem sazonalidade real, o baseline cai dentro do
+  IC do período na esmagadora maioria das vezes por construção
+  estatística.
+- **`taxa_conversao_por_periodo()`/`detectar_sazonalidade()`**:
+  agrupam linhas do dataset analítico (Tarefa 9.1) pelo valor da
+  dimensão temporal — linha sem `won`/`lost` (oportunidade ainda
+  aberta) não entra, mesmo princípio de
+  `win_loss_rules.comparar_por_variavel_categorica`.
+- **Regra científica herdada da Tarefa 8.2 — nunca declarar
+  causalidade, sempre associação**: única string de texto livre do
+  módulo vem de `TEMPLATE_SAZONALIDADE` (template fixo), guardado por
+  `GuardaContraCausalidadeTest` — mesmo padrão de guarda arquitetural
+  de `win_loss_rules.py`.
+- **Testado com o exemplo literal do prompt mestre** ("segmento X,
+  março-maio, conversion +18%", adaptado sem o recorte de segmento —
+  isso é escopo da Tarefa 9.3, não desta): dataset sintético com meses
+  3-5 a 68% de conversão vs. 50% no resto do ano (n=100/mês) — os 3
+  meses são corretamente marcados `significativo=True` com diferença
+  >+10pp, os outros 9 não.
+- **"O motor NÃO deverá inventar sazonalidade significativa"** —
+  atendido com 2 testes complementares: (1) dataset com taxa idêntica
+  em todo período — nenhum período pode ser significativo, por
+  construção, sem depender de sorte de seed aleatória; (2) dataset
+  genuinamente aleatório (`random.Random(42)`, taxa constante de 50%
+  independente do mês, n=200/mês) — tolera no máximo 1 falso-positivo
+  em 12 meses testados, reconhecendo explicitamente que um IC de 95%
+  tem ~5% de taxa de falso-positivo por período testado (comportamento
+  estatístico esperado, documentado no teste, não um bug a esconder).
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`, sem endpoint HTTP — mesma disciplina das Fases
+  1-9. Extração de segmento/produto/origem (contexto além de
+  calendário) é a Tarefa 9.3, não pedida nesta rodada.
+- 12 testes novos (`tests/test_seasonality_rules.py`). Suite completa:
+  **780 testes** (768 da Tarefa 9.1 + 12 novos), **0 falhas**, 1 skip
+  pré-existente — sem regressão.
+- Versão: `1.4.88` → `1.4.89` (`api/main.py::/health` e
+  `/monitor/metricas`).
+
+### PENDENTE
+- Push + deploy na VPS (aditivo — módulo puro em memória, sem
+  tabela/coluna nova; V.1.4.87 e V.1.4.88 também seguem pendentes de
+  deploy, os três podem ir juntos).
+- **Tarefa 9.3 (Sazonalidade contextual) não começa sem nova
+  confirmação explícita do usuário.**
+
+---
+
 ## V.1.4.88 — Data Warehouse comercial mínimo: Tarefa 9.1 da Fase 9 do "PROMPT MESTRE — SALE-IA V2"
 > Data: 14/09/2026 | Local, aguardando push/deploy
 
