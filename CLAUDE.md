@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.89** (backend, local — ainda não deployada; produção confirmada em V.1.4.86) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.90** (backend, local — ainda não deployada; produção confirmada em V.1.4.86) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -1447,9 +1447,63 @@ contextual) não começou.
   pré-existente — sem regressão.
 - Versão: `1.4.88` → `1.4.89`.
 - **Pendente**: push + deploy na VPS (aditivo — módulo puro em
-  memória; V.1.4.87/V.1.4.88 também seguem pendentes, os três podem ir
-  juntos). **Tarefa 9.3 (Sazonalidade contextual) não começa sem nova
-  confirmação explícita do usuário.**
+  memória; V.1.4.87/V.1.4.88/V.1.4.90 também seguem pendentes, todos
+  podem ir juntos).
+
+## Sazonalidade Contextual — Fase 9 / Tarefa 9.3 do "PROMPT MESTRE — SALE-IA V2" (V.1.4.90, fecha a Fase 9)
+
+Usuário confirmou avançar para a Tarefa 9.3, fechando a Fase 9
+(Seasonality Engine) completa. Estende a Tarefa 9.2 combinando um
+período temporal com uma dimensão de contexto de negócio.
+
+- **`agent/contextual_seasonality_rules.py`** (novo, função pura, zero
+  IA/banco/numpy/scipy — arquivo próprio, mesmo padrão de cada Tarefa
+  ganhar seu módulo mesmo construindo sobre a anterior, como
+  `deal_risk_rules.py` sobre `meddpicc_rules.py` na Fase 4):
+  `DIMENSOES_CONTEXTO` documenta os 7 campos literais do prompt mestre
+  (`segment`/`product`/`origin`/`ticket`/`client_type`/
+  `objection_type`/`opportunity_stage`) — reaproveita os mesmos nomes
+  de `data_warehouse_rules.DIMENSOES_DATASET` (Tarefa 9.1) onde já
+  existem; `client_type` é o único ainda não rastreado por nenhuma
+  `Opportunity`.
+- **`detectar_sazonalidade_contextual(linhas_analiticas,
+  dimensao_temporal, dimensao_contexto, ...)`**: agrupa por
+  `(período, contexto)` e compara contra o **mesmo baseline geral
+  (global) da Tarefa 9.2** — decisão desta rodada: não o baseline do
+  contexto isolado, pra que "Q4 × segmento SaaS" seja comparável com
+  qualquer outra descoberta na mesma lista de resultados. Reaproveita
+  `win_loss_rules.amostra_suficiente`/`intervalo_confianca_wilson`
+  (Fase 8), mesmo critério estatístico da Tarefa 9.2.
+- **Schema de saída literal do prompt mestre**: cada descoberta usa
+  exatamente os 6 campos pedidos (`sample_size`, `baseline`,
+  `observed`, `difference`, `confidence`, `period`) — não um detalhe
+  de implementação interna, contrato de saída explícito. Retorna uma
+  **lista já ordenada por magnitude da diferença**, não um dict
+  aninhado — resposta direta a "quais são as descobertas", sem o
+  chamador precisar iterar estrutura própria.
+- **Decisão deliberada de escopo**: o exemplo do prompt mestre ("Q4,
+  segmento SaaS, objeção dominante = orçamento") mistura dois tipos de
+  insight — divergência de taxa (o que esta função faz) e "valor mais
+  frequente de uma categoria" (um mode-finder, tipo de análise
+  diferente, não coberto pelo Critério de 6 campos, que é todo
+  numérico). Implementada só a divergência de taxa, testada com o
+  mesmo formato Q4 × segmento; um "dominante" por frequência fica pra
+  quando for pedido explicitamente.
+- Regra científica herdada da Tarefa 8.2 — nunca causa, sempre
+  associação — guardada por `GuardaContraCausalidadeTest`.
+- 12 testes novos (`tests/test_contextual_seasonality_rules.py`),
+  incluindo o exemplo adaptado do prompt mestre (Q4 × SaaS com +30pp)
+  e datasets sem sinal real (taxa idêntica; aleatório com seed fixa).
+  Suite completa: **792 testes** (780 da Tarefa 9.2 + 12 novos), **0
+  falhas**, 1 skip pré-existente — sem regressão.
+- **Decisão deliberada**: sem integração com `orquestrador.py`, sem
+  endpoint HTTP — mesma disciplina das Fases 1-9.
+- Versão: `1.4.89` → `1.4.90`.
+- **Pendente**: push + deploy na VPS (aditivo — módulo puro em
+  memória; V.1.4.87/88/89 também seguem pendentes, todos podem ir
+  juntos). **Fase 10 (Strategy Effectiveness) e qualquer fase seguinte
+  do "PROMPT MESTRE — SALE-IA V2" não começam sem nova confirmação
+  explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

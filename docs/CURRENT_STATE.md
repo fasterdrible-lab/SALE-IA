@@ -1,13 +1,14 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-14 (V.1.4.89, local — produção confirmada em
-`1.4.86`, ver "Deploy" abaixo — V.1.4.87/88/89 ainda não deployados;
-V.1.4.89 é a Tarefa 9.2 (Fase 9) do "SALE-IA V2" — Sazonalidade
-Temporal (`agent/seasonality_rules.py`: detecção de período com
-conversão estatisticamente divergente do baseline, testado com o
-exemplo literal do prompt mestre e com datasets sem sinal real) — ver
-seção "Sazonalidade Temporal — Fase 9 / Tarefa 9.2" abaixo e
-CHANGELOG.md V.1.4.89. Sem endpoint HTTP novo, sem integração com
+Atualizado em: 2026-09-14 (V.1.4.90, local — produção confirmada em
+`1.4.86`, ver "Deploy" abaixo — V.1.4.87/88/89/90 ainda não deployados;
+V.1.4.90 fecha a Tarefa 9.3 e a Fase 9 ("Seasonality Engine") completa
+do "SALE-IA V2" — Sazonalidade Contextual
+(`agent/contextual_seasonality_rules.py`: combina período temporal +
+dimensão de negócio, schema de saída literal do prompt mestre —
+sample_size/baseline/observed/difference/confidence/period) — ver
+seção "Sazonalidade Contextual — Fase 9 / Tarefa 9.3" abaixo e
+CHANGELOG.md V.1.4.90. Sem endpoint HTTP novo, sem integração com
 `orquestrador.py`.
 O corpo deste documento nao acompanhou o
 CHANGELOG.md entre V.1.4.54 e V.1.4.66; a fonte de verdade sempre mais
@@ -1061,8 +1062,36 @@ começou.
   pré-existente — sem regressão. Detalhe completo no CHANGELOG.md
   (V.1.4.89).
 - **Pendente**: push + deploy na VPS (aditivo — módulo puro em
-  memória; V.1.4.87/88 também seguem pendentes, os três podem ir
-  juntos). **Tarefa 9.3 (Sazonalidade contextual) não começa sem nova
+  memória; segue junto do V.1.4.90 abaixo).
+
+## Sazonalidade Contextual — Fase 9 / Tarefa 9.3 do "SALE-IA V2" (V.1.4.90, 14/09/2026, fecha a Fase 9)
+
+Usuário confirmou avançar para a Tarefa 9.3, fechando a Fase 9
+completa.
+
+- `agent/contextual_seasonality_rules.py` (novo, função pura, zero
+  IA/banco/numpy/scipy): `DIMENSOES_CONTEXTO` (7 campos literais:
+  segment/product/origin/ticket/client_type/objection_type/
+  opportunity_stage — reaproveita nomes da Tarefa 9.1 onde já existem).
+- `detectar_sazonalidade_contextual()` — combina período temporal
+  (Tarefa 9.2) + dimensão de contexto, compara contra o mesmo baseline
+  geral da Tarefa 9.2. Cada descoberta usa exatamente os 6 campos
+  literais do prompt mestre (`sample_size`/`baseline`/`observed`/
+  `difference`/`confidence`/`period`), lista ordenada por magnitude.
+- **Decisão deliberada**: o exemplo do prompt mestre mistura
+  divergência de taxa (implementada) com "categoria dominante por
+  frequência" (mode-finder, fora do Critério de 6 campos — não
+  construído nesta rodada).
+- Regra "nunca causa, sempre associação" herdada da Fase 8.
+- 12 testes novos, incluindo o exemplo adaptado (Q4 × SaaS) e 2
+  datasets sem sinal real. Suite completa: 792 testes, 0 falhas, 1
+  skip pré-existente — sem regressão. Detalhe completo no
+  CHANGELOG.md (V.1.4.90).
+- **Decisão deliberada**: sem integração com `orquestrador.py`, sem
+  endpoint HTTP.
+- **Pendente**: push + deploy na VPS (aditivo — módulo puro em
+  memória; V.1.4.87/88/89 também seguem pendentes, todos podem ir
+  juntos). **Fase 10 (Strategy Effectiveness) não começa sem nova
   confirmação explícita do usuário.**
 
 ### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)

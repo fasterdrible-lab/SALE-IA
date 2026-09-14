@@ -3,6 +3,74 @@
 
 ---
 
+## V.1.4.90 — Sazonalidade Contextual: fecha a Tarefa 9.3 e a Fase 9 do "PROMPT MESTRE — SALE-IA V2"
+> Data: 14/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Sequência direta de V.1.4.89 (Sazonalidade Temporal, Tarefa 9.2).
+Usuário confirmou avançar para a Tarefa 9.3, fechando a Fase 9
+(Seasonality Engine) completa.
+
+### TAREFA 9.3 — Sazonalidade Contextual
+- **`agent/contextual_seasonality_rules.py`** (novo, função pura —
+  zero IA/banco/numpy/scipy, arquivo próprio mesmo construindo sobre a
+  Tarefa 9.2, mesmo padrão de cada Tarefa ganhar seu módulo já usado
+  em `deal_risk_rules.py` sobre `meddpicc_rules.py`, Fase 4):
+  `DIMENSOES_CONTEXTO` documenta os 7 campos literais do prompt mestre
+  (`segment`/`product`/`origin`/`ticket`/`client_type`/
+  `objection_type`/`opportunity_stage`) — reaproveita os mesmos nomes
+  de `data_warehouse_rules.DIMENSOES_DATASET` (Tarefa 9.1) onde já
+  existem; `client_type` é o único ainda não rastreado por nenhuma
+  `Opportunity`.
+- **`detectar_sazonalidade_contextual(linhas_analiticas,
+  dimensao_temporal, dimensao_contexto, ...)`**: agrupa por `(período,
+  contexto)` e compara contra o **mesmo baseline geral (global) da
+  Tarefa 9.2** — decisão desta rodada: não o baseline do contexto
+  isolado, pra que "Q4 × segmento SaaS" seja comparável com qualquer
+  outra descoberta na mesma lista de resultados. Reaproveita
+  `win_loss_rules.amostra_suficiente`/`intervalo_confianca_wilson`
+  (Fase 8), mesmo critério estatístico da Tarefa 9.2 (amostra
+  suficiente + baseline fora do IC de Wilson do grupo).
+- **Schema de saída literal do prompt mestre**: cada descoberta usa
+  exatamente os 6 campos pedidos (`sample_size`, `baseline`,
+  `observed`, `difference`, `confidence`, `period`) — contrato de
+  saída explícito, não um detalhe de implementação interna. Retorna
+  uma **lista já ordenada por magnitude da diferença**.
+- **Decisão deliberada de escopo**: o exemplo do prompt mestre ("Q4,
+  segmento SaaS, objeção dominante = orçamento") mistura 2 tipos de
+  insight — divergência de taxa (implementada) e "valor mais frequente
+  de uma categoria" (um mode-finder, tipo de análise diferente, fora
+  do Critério de 6 campos, que é todo numérico). Só a divergência de
+  taxa foi construída, testada com o mesmo formato Q4 × segmento; um
+  "dominante" por frequência fica pra quando for pedido explicitamente.
+- Regra científica herdada da Tarefa 8.2 — nunca causa, sempre
+  associação — guardada por `GuardaContraCausalidadeTest`, mesmo
+  padrão de `win_loss_rules.py`/`seasonality_rules.py`.
+- 12 testes novos (`tests/test_contextual_seasonality_rules.py`),
+  incluindo o exemplo adaptado do prompt mestre (Q4 × SaaS com +30pp
+  detectado corretamente, outras 7 combinações não), verificação dos 6
+  campos literais em cada descoberta, ordenação por magnitude, e 2
+  datasets sem sinal real (taxa idêntica por construção; aleatório com
+  seed fixa `random.Random(7)`, tolerando no máximo 2 falso-positivos
+  em 12 combinações testadas — taxa esperada de um IC de 95%).
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`, sem endpoint HTTP — mesma disciplina das Fases
+  1-9.
+- Suite completa: **792 testes** (780 da Tarefa 9.2 + 12 novos), **0
+  falhas**, 1 skip pré-existente — sem regressão.
+- Versão: `1.4.89` → `1.4.90` (`api/main.py::/health` e
+  `/monitor/metricas`).
+
+### PENDENTE
+- Push + deploy na VPS (aditivo — módulo puro em memória, sem
+  tabela/coluna nova; V.1.4.87/88/89 também seguem pendentes de
+  deploy, todos podem ir juntos).
+- **Fase 10 (Strategy Effectiveness) e qualquer fase seguinte do
+  "PROMPT MESTRE — SALE-IA V2" não começam sem nova confirmação
+  explícita do usuário.**
+
+---
+
 ## V.1.4.89 — Sazonalidade Temporal: Tarefa 9.2 da Fase 9 do "PROMPT MESTRE — SALE-IA V2"
 > Data: 14/09/2026 | Local, aguardando push/deploy
 

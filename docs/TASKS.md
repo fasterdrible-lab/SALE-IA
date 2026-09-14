@@ -839,7 +839,21 @@ Usuario confirmou avancar para a Tarefa 9.2. Constroi sobre o dataset analitico 
 - [x] Decisao deliberada: sem integracao com `orquestrador.py`, sem endpoint HTTP. Segmento/produto/origem fica pra Tarefa 9.3.
 - [x] 12 testes novos (`tests/test_seasonality_rules.py`). Suite completa: 780 testes (768 + 12), 0 falhas, 1 skip pre-existente — sem regressao.
 - [x] Versao: `1.4.88` -> `1.4.89`.
-- **Pendente**: push + deploy na VPS (aditivo — modulo puro em memoria; V.1.4.87/88 tambem seguem pendentes, os tres podem ir juntos). **Tarefa 9.3 (Sazonalidade contextual) nao comeca sem nova confirmacao explicita do usuario.**
+- **Pendente**: push + deploy na VPS (aditivo — modulo puro em memoria; segue junto do V.1.4.90 abaixo).
+
+## Concluido (V.1.4.90 — Sazonalidade Contextual, Tarefa 9.3, fecha a Fase 9 do "PROMPT MESTRE — SALE-IA V2")
+
+Usuario confirmou avancar para a Tarefa 9.3, fechando a Fase 9 (Seasonality Engine) completa. Estende a Tarefa 9.2 combinando periodo temporal com dimensao de contexto de negocio.
+
+- [x] `agent/contextual_seasonality_rules.py` (novo, funcao pura, zero IA/banco/numpy/scipy — arquivo proprio mesmo construindo sobre a Tarefa 9.2, mesmo padrao de cada tarefa ganhar seu modulo ja usado em `deal_risk_rules.py` sobre `meddpicc_rules.py` na Fase 4): `DIMENSOES_CONTEXTO` documenta os 7 campos literais do prompt mestre (segment/product/origin/ticket/client_type/objection_type/opportunity_stage) — reaproveita nomes de `data_warehouse_rules.DIMENSOES_DATASET` (Tarefa 9.1) onde ja existem; `client_type` e o unico ainda nao rastreado.
+- [x] `detectar_sazonalidade_contextual(linhas_analiticas, dimensao_temporal, dimensao_contexto, ...)` — agrupa por (periodo, contexto) e compara contra o mesmo baseline geral (global) da Tarefa 9.2 (decisao desta rodada, nao o baseline do contexto isolado). Reaproveita `win_loss_rules.amostra_suficiente`/`intervalo_confianca_wilson` (Fase 8).
+- [x] Schema de saida literal do prompt mestre: cada descoberta usa exatamente os 6 campos pedidos (sample_size/baseline/observed/difference/confidence/period) — contrato explicito. Retorna lista ja ordenada por magnitude da diferenca.
+- [x] Decisao deliberada de escopo: o exemplo do prompt mestre ("Q4, segmento SaaS, objecao dominante = orcamento") mistura divergencia de taxa (implementada) com "categoria dominante por frequencia" (mode-finder, fora do Criterio de 6 campos, todo numerico) — so a divergencia de taxa foi construida.
+- [x] Regra cientifica herdada da Tarefa 8.2 — nunca causa, sempre associacao — guardada por `GuardaContraCausalidadeTest`.
+- [x] 12 testes novos (`tests/test_contextual_seasonality_rules.py`), incluindo o exemplo adaptado do prompt mestre (Q4 x SaaS com +30pp detectado, outras 7 combinacoes nao), verificacao dos 6 campos literais, ordenacao por magnitude, e 2 datasets sem sinal real (taxa identica; aleatorio com seed fixa random.Random(7), tolerando no maximo 2 falsos-positivos em 12 combinacoes). Suite completa: 792 testes (780 + 12), 0 falhas, 1 skip pre-existente — sem regressao.
+- [x] Decisao deliberada: sem integracao com `orquestrador.py`, sem endpoint HTTP.
+- [x] Versao: `1.4.89` -> `1.4.90`.
+- **Pendente**: push + deploy na VPS (aditivo — modulo puro em memoria; V.1.4.87/88/89 tambem seguem pendentes, todos podem ir juntos). **Fase 10 (Strategy Effectiveness) e qualquer fase seguinte nao comecam sem nova confirmacao explicita do usuario.**
 
 ## Pendente
 
