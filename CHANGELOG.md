@@ -3,6 +3,77 @@
 
 ---
 
+## V.1.4.98 — Sales Science Engine: Fase 13 do "PROMPT MESTRE — SALE-IA V2" (contrato + wrappers dos 5 submódulos existentes)
+
+> Data: 15/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Usuário confirmou avançar para a Fase 13. Antes de implementar,
+pergunta direta sobre escopo (mesma disciplina das Fases 7/10):
+2 dos 7 submódulos literais do prompt mestre (`ObjectionTrendAnalyzer`,
+`ConversionDriverAnalyzer`) não foram construídos por nenhuma fase
+anterior — usuário escolheu **só o contrato de saída + wrappers dos 5
+submódulos que já existem** (`PatternDiscovery`, `SeasonalityEngine`,
+`WinLossAnalyzer`, `SellerBenchmark`, `StrategyEffectiveness`), mesmo
+padrão "contrato primeiro" já usado na Fase 7 (V.1.4.84 antes da
+V.1.4.85).
+
+### FASE 13 — Sales Science Engine
+- **`agent/sales_science_engine.py`** (novo, função pura, sem
+  IA/banco): `SALES_SCIENCE_SUBMODULOS` documenta os 7 submódulos
+  literais; `SUBMODULOS_IMPLEMENTADOS` (5) / `SUBMODULOS_PENDENTES`
+  (`objection_trend_analyzer`, `conversion_driver_analyzer`) deixam o
+  gap explícito, não escondido.
+- **Regra literal "Saída nunca deve ser apenas 'descobrimos isso'",
+  imposta estruturalmente**: `montar_insight()` exige `insight` +
+  `evidence` + `sample` + `possible_confounders` + `recommended_test`
+  sempre presentes e não vazios — `ValueError` em qualquer um
+  faltando. `confidence` é o único campo opcional (`None` quando o
+  submódulo de origem não produz um intervalo de confiança formal,
+  como `seller_benchmark`/`strategy_effectiveness`).
+- **Cada wrapper só reshape o resultado que o submódulo correspondente
+  já calculou — zero cálculo estatístico novo**:
+  `insight_de_win_loss_analyzer()` ← `win_loss_rules.comparar_por_
+  variavel_categorica()` (Fase 8); `insight_de_seasonality_engine()`
+  ← `seasonality_rules.detectar_sazonalidade()` (Fase 9);
+  `insight_de_seller_benchmark()` ← `seller_benchmark_rules.
+  benchmark_controlado()` (Fase 12.1) — único wrapper onde
+  `possible_confounders` é preenchido automaticamente, já que a
+  própria variável de controle É o confundidor identificado;
+  `insight_de_strategy_effectiveness()` ← `recommendation_
+  effectiveness_rules.calcular_efetividade_por_estrategia()` (Fase
+  10.3); `insight_de_pattern_discovery()` ← `pattern_discovery_
+  rules.descobrir_padrao()` (Fase 12.2).
+- **Cada wrapper retorna `None` (não um insight vazio/forçado) quando
+  o submódulo de origem não encontrou sinal estatisticamente
+  defensável** — amostra insuficiente, período não significativo,
+  diferença não significativa, ou nenhum confundimento detectado
+  (nesse último caso, `None` é o resultado "limpo" esperado, não um
+  erro).
+- 21 testes novos (`tests/test_sales_science_engine.py`), chamando os
+  módulos reais das Fases 8-12 (sem mock) para gerar as entradas dos
+  wrappers — mesmo padrão de integração real já usado em outros
+  testes do roadmap. Suite completa: **905 testes** (884 da Tarefa
+  12.2 + 21 novos), **0 falhas**, 1 skip pré-existente — sem
+  regressão.
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP,
+  sem persistência nova — mesma disciplina das Fases 1-12.
+  `ObjectionTrendAnalyzer`/`ConversionDriverAnalyzer` ficam para
+  quando o usuário confirmar essa extensão.
+- Versão: `1.4.97` → `1.4.98` (`api/main.py::/health` e
+  `/monitor/metricas`).
+
+### PENDENTE
+- Push + deploy na VPS (aditivo — sem tabela/coluna nova, módulo puro
+  em memória).
+- **`ObjectionTrendAnalyzer`/`ConversionDriverAnalyzer` (fechar a Fase
+  13 por completo) e qualquer fase seguinte do "PROMPT MESTRE —
+  SALE-IA V2" não começam sem nova confirmação explícita do
+  usuário.**
+
+---
+
 ## V.1.4.97 — Descoberta de Padrões: Tarefa 12.2 da Fase 12 do "PROMPT MESTRE — SALE-IA V2", fecha a Fase 12 (Collective Sales Intelligence)
 
 > Data: 15/09/2026 | Local, aguardando push/deploy

@@ -1,16 +1,20 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-15 (V.1.4.97, local — produção confirmada em
-`1.4.96`, ver "Deploy" abaixo — V.1.4.97 ainda não deployada;
-V.1.4.97 é a Tarefa 12.2, **fecha a Fase 12 (Collective Sales
-Intelligence)** do "SALE-IA V2" — Descoberta de Padrões
-(`agent/pattern_discovery_rules.py`: testa hipótese de comportamento
-comparando top group × control group, reaproveitando IC de Wilson da
-Fase 8). Ver seção "Descoberta de Padrões — Fase 12 / Tarefa 12.2"
-abaixo e CHANGELOG.md V.1.4.97. Sem endpoint HTTP novo, sem integração
-com `orquestrador.py`. V.1.4.91-96 (Fases 10 e 11 completas + Tarefa
-12.1) foram deployadas na VPS em 15/09/2026 (`/health` confirmou
-`versao 1.4.96`, `reunioes_ativas: 0` checado antes de cada restart,
+Atualizado em: 2026-09-15 (V.1.4.98, local — produção confirmada em
+`1.4.97`, ver "Deploy" abaixo — V.1.4.98 ainda não deployada;
+V.1.4.98 é a Fase 13 (Sales Science Engine) do "SALE-IA V2" —
+`agent/sales_science_engine.py`: contrato de saída padronizado
+(INSIGHT/EVIDENCE/SAMPLE/CONFIDENCE/POSSIBLE_CONFOUNDERS/
+RECOMMENDED_TEST) + wrappers dos 5 submódulos já existentes
+(PatternDiscovery/SeasonalityEngine/WinLossAnalyzer/SellerBenchmark/
+StrategyEffectiveness). `ObjectionTrendAnalyzer`/`ConversionDriverAnalyzer`
+ficam pendentes por decisão deliberada — ver seção "Sales Science
+Engine — Fase 13" abaixo e CHANGELOG.md V.1.4.98. Sem endpoint HTTP
+novo, sem integração com `orquestrador.py`. V.1.4.91-97 (Fases 10, 11
+e 12 completas) foram deployadas na VPS em 15/09/2026 (`/health`
+confirmou `versao 1.4.97`, `reunioes_ativas: 0` checado antes do
+restart — o restart de V.1.4.97 ficou bloqueado por uma reunião real
+em andamento e foi concluído automaticamente assim que ela terminou,
 journal sem erros).
 O corpo deste documento nao acompanhou o
 CHANGELOG.md entre V.1.4.54 e V.1.4.66; a fonte de verdade sempre mais
@@ -1351,10 +1355,45 @@ Usuário confirmou avançar para a Tarefa 12.2, fechando a Fase 12
   endpoint HTTP, sem persistência nova.
 - **Fecha a Fase 12 (Collective Sales Intelligence)** completa: Tarefa
   12.1 (Benchmark) → 12.2 (Descoberta de Padrões).
+- **Push + deploy confirmados (15/09/2026)**: commit `4fb4d93` no
+  GitHub. Na VPS, `git pull` foi feito com `reunioes_ativas: 1` (só
+  arquivos em disco, seguro) — o restart ficou pendente até a reunião
+  real terminar, concluído automaticamente logo em seguida.
+  Pós-restart: `/health` = `versao 1.4.97`, `status online`,
+  `reunioes_ativas 0`; `/dashboard` = `200`; journal sem erros.
+
+## Sales Science Engine — Fase 13 do "SALE-IA V2" (V.1.4.98, 15/09/2026)
+
+Usuário confirmou avançar para a Fase 13. Pergunta direta sobre
+escopo: 2 dos 7 submódulos literais (`ObjectionTrendAnalyzer`,
+`ConversionDriverAnalyzer`) não existem ainda — usuário escolheu só o
+contrato + wrappers dos 5 que já existem.
+
+- `agent/sales_science_engine.py` (novo): `SALES_SCIENCE_SUBMODULOS`
+  (7 literais), `SUBMODULOS_IMPLEMENTADOS` (5)/`SUBMODULOS_PENDENTES`
+  (2, explícitos).
+- **Regra "saída nunca é só 'descobrimos isso'", imposta
+  estruturalmente**: `montar_insight()` exige `insight`+`evidence`+
+  `sample`+`possible_confounders`+`recommended_test` sempre
+  presentes — `ValueError` se faltar algum. `confidence` é o único
+  campo opcional.
+- 5 wrappers (`insight_de_win_loss_analyzer`/`_seasonality_engine`/
+  `_seller_benchmark`/`_strategy_effectiveness`/`_pattern_discovery`)
+  reshapeiam resultados já calculados pelas Fases 8-12 — zero cálculo
+  novo. `insight_de_seller_benchmark` é o único que preenche
+  `possible_confounders` automaticamente (a variável de controle É o
+  confundidor). Cada wrapper retorna `None` (nunca insight forçado)
+  quando o submódulo de origem não achou sinal defensável.
+- 21 testes novos, chamando os módulos reais das Fases 8-12 (sem
+  mock). Suite completa: 905 testes, 0 falhas, 1 skip pré-existente —
+  sem regressão. Detalhe completo no CHANGELOG.md (V.1.4.98).
+- **Decisão deliberada**: sem integração com `orquestrador.py`, sem
+  endpoint HTTP, sem persistência nova.
 - **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna
-  nova, módulo puro em memória). **Qualquer fase/tarefa seguinte do
-  "PROMPT MESTRE — SALE-IA V2" não começa sem nova confirmação
-  explícita do usuário.**
+  nova, módulo puro em memória). **`ObjectionTrendAnalyzer`/
+  `ConversionDriverAnalyzer` (fechar a Fase 13) e qualquer fase
+  seguinte do "PROMPT MESTRE — SALE-IA V2" não começam sem nova
+  confirmação explícita do usuário.**
 
 ### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)
 - `services/embeddings/`: interface `EmbeddingProvider` (`embed`, `embed_async`, `embed_batch`, `health_check`), `OllamaEmbeddingProvider` (HTTP local via `httpx`, zero import de SDKs de LLM externos), `OpenAIEmbeddingProvider`, `factory.get_embedding_provider()` (lê `EMBEDDING_PROVIDER`, erro explícito em valor desconhecido).

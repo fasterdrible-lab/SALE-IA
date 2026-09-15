@@ -956,7 +956,20 @@ Usuario confirmou avancar para a Tarefa 12.2, fechando a Fase 12 (Collective Sal
 - [x] Decisao deliberada: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP, sem persistencia nova — mesma disciplina das Fases 1-12.
 - [x] **Fecha a Fase 12 (Collective Sales Intelligence)** completa: Tarefa 12.1 (Benchmark) -> 12.2 (Descoberta de Padroes).
 - [x] Versao: `1.4.96` -> `1.4.97`.
-- **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna nova, modulo puro em memoria). **Qualquer fase/tarefa seguinte do "PROMPT MESTRE — SALE-IA V2" nao comeca sem nova confirmacao explicita do usuario.**
+- [x] Push + deploy confirmados (15/09/2026): commit `4fb4d93` no GitHub. `git pull` feito na VPS com `reunioes_ativas: 1` (so arquivos em disco, seguro); restart ficou pendente ate a reuniao real terminar, concluido automaticamente logo em seguida. Pos-restart: `/health` = `versao 1.4.97`, `status online`, `reunioes_ativas 0`; `/dashboard` = `200`; journal sem erros.
+
+## Concluido (V.1.4.98 — Sales Science Engine, Fase 13 do "PROMPT MESTRE — SALE-IA V2", contrato + wrappers dos 5 submodulos existentes)
+
+Usuario confirmou avancar para a Fase 13. Pergunta direta sobre escopo (mesma disciplina das Fases 7/10): 2 dos 7 submodulos literais (ObjectionTrendAnalyzer, ConversionDriverAnalyzer) nao foram construidos por nenhuma fase anterior — usuario escolheu so o contrato de saida + wrappers dos 5 submodulos que ja existem.
+
+- [x] `agent/sales_science_engine.py` (novo, funcao pura, sem IA/banco): `SALES_SCIENCE_SUBMODULOS` documenta os 7 submodulos literais; `SUBMODULOS_IMPLEMENTADOS` (5) / `SUBMODULOS_PENDENTES` (objection_trend_analyzer, conversion_driver_analyzer) deixam o gap explicito, nao escondido.
+- [x] Regra literal "Saida nunca deve ser apenas 'descobrimos isso'", imposta estruturalmente: `montar_insight()` exige `insight` + `evidence` + `sample` + `possible_confounders` + `recommended_test` sempre presentes e nao vazios — ValueError em qualquer um faltando. `confidence` e o unico campo opcional (None quando o submodulo de origem nao produz um intervalo de confianca formal).
+- [x] Cada wrapper so reshape o resultado que o submodulo correspondente ja calculou — zero calculo estatistico novo: `insight_de_win_loss_analyzer()` <- `win_loss_rules.comparar_por_variavel_categorica()` (Fase 8); `insight_de_seasonality_engine()` <- `seasonality_rules.detectar_sazonalidade()` (Fase 9); `insight_de_seller_benchmark()` <- `seller_benchmark_rules.benchmark_controlado()` (Fase 12.1) — unico wrapper onde `possible_confounders` e preenchido automaticamente; `insight_de_strategy_effectiveness()` <- `recommendation_effectiveness_rules.calcular_efetividade_por_estrategia()` (Fase 10.3); `insight_de_pattern_discovery()` <- `pattern_discovery_rules.descobrir_padrao()` (Fase 12.2).
+- [x] Cada wrapper retorna None (nunca insight vazio/forcado) quando o submodulo de origem nao encontrou sinal estatisticamente defensavel — amostra insuficiente, periodo nao significativo, diferenca nao significativa, ou nenhum confundimento detectado.
+- [x] 21 testes novos (`tests/test_sales_science_engine.py`), chamando os modulos reais das Fases 8-12 (sem mock) para gerar as entradas dos wrappers. Suite completa: 905 testes (884 da Tarefa 12.2 + 21 novos), 0 falhas, 1 skip pre-existente — sem regressao.
+- [x] Decisao deliberada: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP, sem persistencia nova — mesma disciplina das Fases 1-12.
+- [x] Versao: `1.4.97` -> `1.4.98`.
+- **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna nova, modulo puro em memoria). **ObjectionTrendAnalyzer/ConversionDriverAnalyzer (fechar a Fase 13) e qualquer fase seguinte do "PROMPT MESTRE — SALE-IA V2" nao comecam sem nova confirmacao explicita do usuario.**
 
 ## Pendente
 
