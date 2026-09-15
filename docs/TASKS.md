@@ -868,7 +868,23 @@ Usuario confirmou avancar para a Fase 10 (Strategy Effectiveness). Escopo desta 
 - [x] Decisao deliberada: sem vocabulario fechado pra strategy (prompt mestre nao define taxonomia aqui), sem endpoint HTTP (mesma decisao das Tarefas 1.1/1.2/2.1).
 - [x] 12 testes novos (`tests/test_recommendation_event.py`), incluindo a regra "nunca sobrescreve used_at" e validacao de cada campo obrigatorio. Suite completa: 804 testes (792 + 12), 0 falhas, 1 skip pre-existente — sem regressao.
 - [x] Versao: `1.4.90` -> `1.4.91`.
-- **Pendente**: push + deploy na VPS (aditivo — 1 tabela nova via `create_all()`). **Tarefa 10.2 (Detectar se o vendedor utilizou a recomendacao) nao comeca sem nova confirmacao explicita do usuario.**
+- **Pendente**: push + deploy na VPS (aditivo — 1 tabela nova via `create_all()`; segue junto do V.1.4.92 abaixo).
+
+## Concluido (V.1.4.92 — Detectar Uso da Recomendacao, Tarefa 10.2 da Fase 10 do "PROMPT MESTRE — SALE-IA V2")
+
+Usuario confirmou avancar para a Tarefa 10.2 e escolheu embeddings (nao IA nem so contrato) pra deteccao — regra central "nao exigir correspondencia literal": "Pergunte sobre impacto financeiro." precisa ser reconhecida como usada quando o vendedor pergunta "Quanto vocês estimam que isso custa todo mês?", sem nenhuma palavra em comum.
+
+- [x] `agent/recommendation_usage_rules.py` (novo, arquivo proprio mesmo construindo sobre a Tarefa 10.1, mesmo padrao de `deal_risk_rules.py` sobre `meddpicc_rules.py` na Fase 4): `RECOMMENDATION_USAGE_STATES` (USED/PARTIALLY_USED/IGNORED/UNKNOWN, os 4 estados literais do prompt mestre).
+- [x] `cosine_similarity(vetor_a, vetor_b)` — helper de par unico (cosine_top_k existente compara 1 vetor contra uma matriz, nao serve direto).
+- [x] `classificar_uso_por_similaridade(similaridade, seller_action, limiar_used=0.55, limiar_partially_used=0.35)` — funcao pura, nunca gera embedding sozinha; limiares sao decisao desta rodada. UNKNOWN quando sem seller_action OU quando similaridade e None (embedding falhou) — nunca IGNORED.
+- [x] `detectar_uso_recomendacao(recommendation, seller_action, ...)` (motor real, async) — gera os 2 embeddings via `services.embeddings.get_embedding_provider()` (Ollama local por padrao, mesmo provedor do RAG) e classifica por similaridade de cosseno.
+- [x] Estado nunca e coluna nova em `RecommendationEvent` — decisao desta rodada: sempre derivado de recommendation/seller_action ja persistidos, calculado sob demanda (mesmo principio de calcular_cycle_days, Fase 8).
+- [x] Sem wrapper async novo em `api/database.py` (inteiramente sincrono hoje) — compor busca (sincrona) + classificacao (async) fica a cargo do chamador.
+- [x] Testado com o exemplo literal do prompt mestre: embeddings mockados (mesmo padrao de test_embeddings.py, que mocka a camada HTTP em vez de Ollama real) simulando vetores semanticamente proximos — classificado corretamente como USED.
+- [x] 15 testes novos (`tests/test_recommendation_usage_rules.py`), incluindo falha de embedding virando UNKNOWN nunca IGNORED. Suite completa: 819 testes (804 + 15), 0 falhas, 1 skip pre-existente — sem regressao.
+- [x] Decisao deliberada: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP.
+- [x] Versao: `1.4.91` -> `1.4.92`.
+- **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna nova; V.1.4.91 tambem segue pendente, os dois podem ir juntos). **Tarefa 10.3 (Recommendation Effectiveness) nao comeca sem nova confirmacao explicita do usuario.**
 
 ## Pendente
 

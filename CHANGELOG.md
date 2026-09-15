@@ -3,6 +3,83 @@
 
 ---
 
+## V.1.4.92 — Detectar Uso da Recomendação: Tarefa 10.2 da Fase 10 do "PROMPT MESTRE — SALE-IA V2"
+> Data: 14/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Sequência direta de V.1.4.91 (RecommendationEvent, Tarefa 10.1).
+Usuário confirmou avançar para a Tarefa 10.2. Regra central do prompt
+mestre — "não exigir correspondência literal" — exige reconhecer que
+"Pergunte sobre impacto financeiro." e "Quanto vocês estimam que isso
+custa todo mês?" são a mesma coisa, sem nenhuma palavra em comum;
+string/keyword matching não resolve isso. Pergunta direta sobre
+abordagem: usuário escolheu **embeddings** (`services/embeddings/`,
+mesmo provedor já usado no RAG/Sales Memory) em vez de uma chamada de
+IA nova por detecção.
+
+### TAREFA 10.2 — Detectar se o vendedor utilizou a recomendação
+- **`agent/recommendation_usage_rules.py`** (novo, arquivo próprio
+  mesmo construindo sobre a Tarefa 10.1, mesmo padrão de
+  `deal_risk_rules.py` sobre `meddpicc_rules.py`, Fase 4):
+  `RECOMMENDATION_USAGE_STATES` — os 4 estados literais do prompt
+  mestre (`USED`/`PARTIALLY_USED`/`IGNORED`/`UNKNOWN`).
+- **`cosine_similarity(vetor_a, vetor_b)`**: helper simples de par
+  único (`services.embeddings.provider.cosine_top_k` compara 1 vetor
+  contra uma matriz de muitos, não serve direto aqui).
+- **`classificar_uso_por_similaridade(similaridade, seller_action,
+  limiar_used=0.55, limiar_partially_used=0.35)`**: função pura, nunca
+  gera embedding sozinha — separa a classificação (testável sem
+  nenhum I/O) da geração do vetor. Limiares são decisão desta rodada
+  (prompt mestre não define os números exatos, só os 4 estados).
+  `UNKNOWN` quando não há `seller_action` ainda **ou** quando a
+  similaridade é `None` (embedding falhou) — nunca interpretado como
+  `IGNORED`: não saber se foi usada é diferente de saber que não foi.
+- **`detectar_uso_recomendacao(recommendation, seller_action, ...)`**
+  (motor real, `async`): gera os 2 embeddings via
+  `services.embeddings.get_embedding_provider()` (Ollama local por
+  padrão, zero custo extra por chamada) e classifica por similaridade
+  de cosseno.
+- **Estado nunca é uma coluna nova em `RecommendationEvent`** — decisão
+  desta rodada: o schema literal da Tarefa 10.1 não tem campo de
+  status; o estado é sempre *derivado* de `recommendation` +
+  `seller_action` já persistidos, calculado sob demanda — mesmo
+  princípio de `outcome_rules.calcular_cycle_days()` (Fase 8): nunca
+  armazenar o que pode ser recalculado com precisão a partir do dado
+  real.
+- **Sem wrapper novo em `api/database.py`** — decisão desta rodada:
+  `database.py` é inteiramente síncrono hoje (nenhuma função `async`
+  existente); compor "buscar o evento" (síncrono,
+  `obter_recommendation_event()`) com "classificar" (`async`,
+  `detectar_uso_recomendacao()`) fica a cargo de quem chamar os dois,
+  mesma separação de responsabilidades já usada entre `agent/
+  multiagente/*.py` (busca dado, chama IA) e `api/database.py` (CRUD
+  puro).
+- **Testado com o exemplo literal do prompt mestre**: embeddings
+  mockados (mesmo padrão de `tests/test_embeddings.py`, que mocka a
+  camada HTTP em vez de depender de Ollama real rodando) simulando 2
+  vetores semanticamente próximos para "Pergunte sobre impacto
+  financeiro." × "Quanto vocês estimam que isso custa todo mês?" —
+  classificado corretamente como `USED`.
+- 15 testes novos (`tests/test_recommendation_usage_rules.py`),
+  incluindo falha de embedding (`embed_async()` retornando `None`)
+  virando `UNKNOWN` e nunca `IGNORED`. Suite completa: **819 testes**
+  (804 da Tarefa 10.1 + 15 novos), **0 falhas**, 1 skip pré-existente —
+  sem regressão.
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP —
+  mesma disciplina das Fases 1-10.
+- Versão: `1.4.91` → `1.4.92` (`api/main.py::/health` e
+  `/monitor/metricas`).
+
+### PENDENTE
+- Push + deploy na VPS (aditivo — sem tabela/coluna nova;
+  `RecommendationEvent` da Tarefa 10.1 também segue pendente de
+  deploy, os dois podem ir juntos).
+- **Tarefa 10.3 (Recommendation Effectiveness) não começa sem nova
+  confirmação explícita do usuário.**
+
+---
+
 ## V.1.4.91 — RecommendationEvent: Tarefa 10.1 da Fase 10 do "PROMPT MESTRE — SALE-IA V2"
 > Data: 14/09/2026 | Local, aguardando push/deploy
 

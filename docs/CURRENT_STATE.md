@@ -1,13 +1,12 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-14 (V.1.4.91, local — produção confirmada em
-`1.4.90`, ver "Deploy" abaixo; V.1.4.91 é a Tarefa 10.1 (início da
-Fase 10, "Strategy Effectiveness") do "SALE-IA V2" — criação do
-`RecommendationEvent` (`api/database.py` + `agent/
-recommendation_rules.py`: registra toda recomendação mostrada ao
-vendedor, base para detectar uso e medir efetividade real depois) —
-ver seção "RecommendationEvent — Fase 10 / Tarefa 10.1" abaixo e
-CHANGELOG.md V.1.4.91. Sem endpoint HTTP novo, sem integração com
+Atualizado em: 2026-09-14 (V.1.4.92, local — produção confirmada em
+`1.4.90`, ver "Deploy" abaixo — V.1.4.91/92 ainda não deployados;
+V.1.4.92 é a Tarefa 10.2 (Fase 10) do "SALE-IA V2" — Detectar Uso da
+Recomendação (`agent/recommendation_usage_rules.py`: embeddings +
+similaridade de cosseno, sem exigir correspondência literal) — ver
+seção "Detectar Uso da Recomendação — Fase 10 / Tarefa 10.2" abaixo e
+CHANGELOG.md V.1.4.92. Sem endpoint HTTP novo, sem integração com
 `orquestrador.py`.
 O corpo deste documento nao acompanhou o
 CHANGELOG.md entre V.1.4.54 e V.1.4.66; a fonte de verdade sempre mais
@@ -1122,9 +1121,36 @@ a Tarefa 10.1 (criar o `RecommendationEvent`) foi feita — Tarefas 10.2
   pré-existente — sem regressão. Detalhe completo no CHANGELOG.md
   (V.1.4.91).
 - **Pendente**: push + deploy na VPS (aditivo — 1 tabela nova via
-  `create_all()`). **Tarefa 10.2 (Detectar se o vendedor utilizou a
-  recomendação) não começa sem nova confirmação explícita do
-  usuário.**
+  `create_all()`; segue junto do V.1.4.92 abaixo).
+
+## Detectar Uso da Recomendação — Fase 10 / Tarefa 10.2 do "SALE-IA V2" (V.1.4.92, 14/09/2026)
+
+Usuário confirmou avançar para a Tarefa 10.2 e escolheu embeddings
+(não IA nem só contrato) para a detecção — regra central "não exigir
+correspondência literal".
+
+- `agent/recommendation_usage_rules.py` (novo): `RECOMMENDATION_USAGE_STATES`
+  (USED/PARTIALLY_USED/IGNORED/UNKNOWN), `cosine_similarity()`,
+  `classificar_uso_por_similaridade()` (função pura, limiares 0.55/0.35
+  — decisão desta rodada), `detectar_uso_recomendacao()` (motor real,
+  `async`, usa `services.embeddings.get_embedding_provider()`, mesmo
+  provedor do RAG).
+- Estado nunca é coluna nova em `RecommendationEvent` — sempre derivado
+  de `recommendation`/`seller_action` já persistidos.
+- Sem wrapper async em `api/database.py` (inteiramente síncrono hoje) —
+  compor busca + classificação fica a cargo do chamador.
+- Testado com o exemplo literal do prompt mestre (embeddings mockados
+  simulando vetores próximos) — classificado como `USED`. Falha de
+  embedding vira `UNKNOWN`, nunca `IGNORED`.
+- 15 testes novos. Suite completa: 819 testes, 0 falhas, 1 skip
+  pré-existente — sem regressão. Detalhe completo no CHANGELOG.md
+  (V.1.4.92).
+- **Decisão deliberada**: sem integração com `orquestrador.py`, sem
+  endpoint HTTP.
+- **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna
+  nova; V.1.4.91 também segue pendente, os dois podem ir juntos).
+  **Tarefa 10.3 (Recommendation Effectiveness) não começa sem nova
+  confirmação explícita do usuário.**
 
 ### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)
 - `services/embeddings/`: interface `EmbeddingProvider` (`embed`, `embed_async`, `embed_batch`, `health_check`), `OllamaEmbeddingProvider` (HTTP local via `httpx`, zero import de SDKs de LLM externos), `OpenAIEmbeddingProvider`, `factory.get_embedding_provider()` (lê `EMBEDDING_PROVIDER`, erro explícito em valor desconhecido).
