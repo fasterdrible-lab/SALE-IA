@@ -3,6 +3,71 @@
 
 ---
 
+## V.1.4.96 — Benchmark dos Melhores Vendedores: Tarefa 12.1 da Fase 12 do "PROMPT MESTRE — SALE-IA V2", início da Fase 12 (Collective Sales Intelligence)
+
+> Data: 15/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Usuário confirmou avançar para a Fase 12 (Collective Sales
+Intelligence) — nova fase do roadmap. Escopo desta rodada: só a
+Tarefa 12.1 (Benchmark dos melhores vendedores) — Tarefa 12.2
+(Descoberta de padrões) não começou.
+
+### TAREFA 12.1 — Benchmark dos melhores vendedores
+- **`agent/seller_benchmark_rules.py`** (novo, função pura, sem
+  IA/banco): `PERFORMANCE_TIERS = ("top", "median", "low")` e
+  `CONTROL_VARIABLES = ("segment", "lead_source", "ticket",
+  "product")` — as 4 variáveis de controle literais do prompt mestre.
+  `comparar_tiers(opportunities)` reaproveita `win_loss_rules.
+  comparar_por_variavel_categorica()` direto sobre `seller_tier` (taxa
+  de conversão bruta por tier).
+- **Regra central "não concluir que um vendedor é melhor só porque
+  recebe leads melhores", imposta reaproveitando o paradoxo de Simpson
+  já construído na Fase 8** (nenhum cálculo novo e paralelo):
+  `benchmark_controlado(opportunities, tier_a="top", tier_b="low",
+  campos_controle=CONTROL_VARIABLES)` chama `win_loss_rules.
+  detectar_simpsons_paradox()` uma vez por variável de controle — a
+  vantagem bruta entre os 2 tiers só é confiável quando se mantém
+  dentro de cada estrato; quando a direção se inverte em todos os
+  estratos de uma variável, o resultado vem sinalizado como possível
+  confundimento (mesmo template/mecanismo da Fase 8, nunca declara
+  causalidade).
+- **Testado com o dataset sintético clássico já usado em
+  `test_win_loss_rules.py`** (Fase 8, análogo ao estudo de tratamento
+  de cálculo renal), adaptado a `seller_tier`/`segment`: `top` parece
+  pior no agregado (78,0% vs 82,6% do `low`), mas é melhor dentro de
+  **cada** segmento (93,1%>86,7%; 73,0%>68,75%) — exatamente o
+  cenário que a Tarefa 12.1 pede para nunca virar "low é melhor
+  vendedor" sem controlar por segmento. Também testado o caso inverso
+  (vantagem real, sem confundimento — não deve ser sinalizado como
+  paradoxo).
+- **Quem monta as linhas de entrada**: cada linha é uma oportunidade
+  no formato já aceito por `win_loss_rules.py` (`status`) +
+  `seller_tier` (já classificado pelo chamador a partir de alguma
+  métrica de desempenho real — este módulo nunca decide sozinho quem
+  é top/median/low) + um campo por variável de controle já
+  categorizada (`ticket` precisa vir pré-bucketizado em faixas pelo
+  chamador) — mesmo princípio de "quem extrai/classifica o sinal real
+  é integração futura" de `deal_risk_rules.py`/Fase 4.2 e
+  `conversation_metrics_rules.py`/Fase 11.1.
+- 9 testes novos (`tests/test_seller_benchmark_rules.py`). Suite
+  completa: **875 testes** (866 da Tarefa 11.2 + 9 novos), **0
+  falhas**, 1 skip pré-existente — sem regressão.
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP,
+  sem persistência nova — mesma disciplina das Fases 1-11.
+- Versão: `1.4.95` → `1.4.96` (`api/main.py::/health` e
+  `/monitor/metricas`).
+
+### PENDENTE
+- Push + deploy na VPS (aditivo — sem tabela/coluna nova, módulo puro
+  em memória).
+- **Tarefa 12.2 (Descoberta de padrões) e qualquer fase/tarefa
+  seguinte do "PROMPT MESTRE — SALE-IA V2" não começam sem nova
+  confirmação explícita do usuário.**
+
+---
+
 ## V.1.4.95 — Seller Scorecard: Tarefa 11.2 da Fase 11 do "PROMPT MESTRE — SALE-IA V2", fecha a Fase 11 (Seller Coaching)
 
 > Data: 15/09/2026 | Local, aguardando push/deploy

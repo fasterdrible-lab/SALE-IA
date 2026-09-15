@@ -926,7 +926,20 @@ Usuario confirmou avancar para a Tarefa 11.2, fechando a Fase 11 (Seller Coachin
 - [x] Decisao deliberada: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP, sem persistencia nova — mesma disciplina das Fases 1-11. Mapear cada dimensao para os sinais reais das Fases 3/4/6/11 (ex.: `Qualification` a partir do `meddpicc_state`) e integracao futura nao pedida por esta tarefa.
 - [x] **Fecha a Fase 11 (Seller Coaching)** completa: Tarefa 11.1 (Conversation Metrics) -> 11.2 (Seller Scorecard).
 - [x] Versao: `1.4.94` -> `1.4.95`.
-- **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna nova, modulo puro em memoria). **Qualquer fase/tarefa seguinte do "PROMPT MESTRE — SALE-IA V2" nao comeca sem nova confirmacao explicita do usuario.**
+- [x] Push + deploy confirmados (15/09/2026): commit `3ffce0c` no GitHub. `reunioes_ativas: 0` checado antes/depois na VPS — `git pull` (fast-forward `33dd12a` -> `3ffce0c`) + `systemctl restart saleia` — `active`, journal sem erros. Pos-restart: `/health` = `versao 1.4.95`, `status online`, `reunioes_ativas 0`.
+
+## Concluido (V.1.4.96 — Benchmark dos Melhores Vendedores, Tarefa 12.1, inicio da Fase 12 do "PROMPT MESTRE — SALE-IA V2")
+
+Usuario confirmou avancar para a Fase 12 (Collective Sales Intelligence) — nova fase do roadmap. So a Tarefa 12.1 executada — Tarefa 12.2 (Descoberta de padroes) nao comecou.
+
+- [x] `agent/seller_benchmark_rules.py` (novo, funcao pura, sem IA/banco): `PERFORMANCE_TIERS = ("top", "median", "low")` e `CONTROL_VARIABLES = ("segment", "lead_source", "ticket", "product")` — as 4 variaveis de controle literais do prompt mestre. `comparar_tiers(opportunities)` reaproveita `win_loss_rules.comparar_por_variavel_categorica()` direto sobre `seller_tier` (taxa de conversao bruta por tier).
+- [x] Regra central "nao concluir que um vendedor e melhor so porque recebe leads melhores", imposta reaproveitando o paradoxo de Simpson ja construido na Fase 8 (nenhum calculo novo e paralelo): `benchmark_controlado(opportunities, tier_a="top", tier_b="low", campos_controle=CONTROL_VARIABLES)` chama `win_loss_rules.detectar_simpsons_paradox()` uma vez por variavel de controle — a vantagem bruta entre os 2 tiers so e confiavel quando se mantem dentro de cada estrato; quando a direcao se inverte em todos os estratos de uma variavel, o resultado vem sinalizado como possivel confundimento (mesmo template/mecanismo da Fase 8, nunca declara causalidade).
+- [x] Testado com o dataset sintetico classico ja usado em `test_win_loss_rules.py` (Fase 8, analogo ao estudo de tratamento de calculo renal), adaptado a `seller_tier`/`segment`: `top` parece pior no agregado (78,0% vs 82,6% do `low`), mas e melhor dentro de cada segmento (93,1%>86,7%; 73,0%>68,75%) — exatamente o cenario que a Tarefa 12.1 pede para nunca virar "low e melhor vendedor" sem controlar por segmento. Tambem testado o caso inverso (vantagem real, sem confundimento — nao deve ser sinalizado como paradoxo).
+- [x] Quem monta as linhas de entrada: cada linha e uma oportunidade no formato ja aceito por `win_loss_rules.py` (`status`) + `seller_tier` (ja classificado pelo chamador a partir de alguma metrica de desempenho real — este modulo nunca decide sozinho quem e top/median/low) + um campo por variavel de controle ja categorizada (`ticket` precisa vir pre-bucketizado em faixas pelo chamador) — mesmo principio de "quem extrai/classifica o sinal real e integracao futura" de `deal_risk_rules.py`/Fase 4.2 e `conversation_metrics_rules.py`/Fase 11.1.
+- [x] 9 testes novos (`tests/test_seller_benchmark_rules.py`). Suite completa: 875 testes (866 da Tarefa 11.2 + 9 novos), 0 falhas, 1 skip pre-existente — sem regressao.
+- [x] Decisao deliberada: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP, sem persistencia nova — mesma disciplina das Fases 1-11.
+- [x] Versao: `1.4.95` -> `1.4.96`.
+- **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna nova, modulo puro em memoria). **Tarefa 12.2 (Descoberta de padroes) e qualquer fase/tarefa seguinte do "PROMPT MESTRE — SALE-IA V2" nao comecam sem nova confirmacao explicita do usuario.**
 
 ## Pendente
 

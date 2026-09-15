@@ -1,17 +1,18 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-15 (V.1.4.95, local — produção confirmada em
-`1.4.94`, ver "Deploy" abaixo — V.1.4.95 ainda não deployada;
-V.1.4.95 é a Tarefa 11.2, **fecha a Fase 11 (Seller Coaching)** do
-"SALE-IA V2" — Seller Scorecard (`agent/seller_scorecard_rules.py`:
-7 dimensões literais, cada score uma fração transparente sobre
-evidências já classificadas, nunca combinadas numa nota geral única).
-Ver seção "Seller Scorecard — Fase 11 / Tarefa 11.2" abaixo e
-CHANGELOG.md V.1.4.95. Sem endpoint HTTP novo, sem integração com
-`orquestrador.py`. V.1.4.91-94 (Fase 10 completa + Tarefa 11.1) foram
-deployadas na VPS em 15/09/2026 (`/health` confirmou `versao 1.4.94`,
-`reunioes_ativas: 0` checado antes de cada restart, journal sem
-erros).
+Atualizado em: 2026-09-15 (V.1.4.96, local — produção confirmada em
+`1.4.95`, ver "Deploy" abaixo — V.1.4.96 ainda não deployada;
+V.1.4.96 é a Tarefa 12.1, início da Fase 12 (Collective Sales
+Intelligence) do "SALE-IA V2" — Benchmark dos Melhores Vendedores
+(`agent/seller_benchmark_rules.py`: compara tiers top/median/low
+reaproveitando o paradoxo de Simpson da Fase 8 pra nunca concluir que
+um vendedor é melhor só porque recebe leads melhores). Ver seção
+"Benchmark dos Melhores Vendedores — Fase 12 / Tarefa 12.1" abaixo e
+CHANGELOG.md V.1.4.96. Sem endpoint HTTP novo, sem integração com
+`orquestrador.py`. V.1.4.91-95 (Fase 10 completa + Fase 11 completa)
+foram deployadas na VPS em 15/09/2026 (`/health` confirmou `versao
+1.4.95`, `reunioes_ativas: 0` checado antes de cada restart, journal
+sem erros).
 O corpo deste documento nao acompanhou o
 CHANGELOG.md entre V.1.4.54 e V.1.4.66; a fonte de verdade sempre mais
 atualizada e o CHANGELOG e o `/health` de producao. Cost Intelligence
@@ -1271,10 +1272,51 @@ Usuário confirmou avançar para a Tarefa 11.2, fechando a Fase 11
   sinais reais das Fases 3/4/6/11 é integração futura não pedida.
 - **Fecha a Fase 11 (Seller Coaching)** completa: Tarefa 11.1
   (Conversation Metrics) → 11.2 (Seller Scorecard).
+- **Push + deploy confirmados (15/09/2026)**: commit `3ffce0c` no
+  GitHub. Na VPS, `reunioes_ativas: 0` checado antes/depois — `git
+  pull` (fast-forward `33dd12a` → `3ffce0c`) + `systemctl restart
+  saleia` — `active`, journal sem erros. Pós-restart: `/health` =
+  `versao 1.4.95`, `status online`, `reunioes_ativas 0`.
+
+## Benchmark dos Melhores Vendedores — Fase 12 / Tarefa 12.1 do "SALE-IA V2" (V.1.4.96, início da Fase 12, 15/09/2026)
+
+Usuário confirmou avançar para a Fase 12 (Collective Sales
+Intelligence) — nova fase do roadmap. Só a Tarefa 12.1 executada —
+Tarefa 12.2 (Descoberta de padrões) não começou.
+
+- `agent/seller_benchmark_rules.py` (novo): `PERFORMANCE_TIERS =
+  ("top", "median", "low")`, `CONTROL_VARIABLES = ("segment",
+  "lead_source", "ticket", "product")`. `comparar_tiers(opportunities)`
+  reaproveita `win_loss_rules.comparar_por_variavel_categorica()`
+  sobre `seller_tier` (taxa bruta por tier).
+- **Regra central "não concluir que um vendedor é melhor só porque
+  recebe leads melhores", imposta reaproveitando o paradoxo de Simpson
+  da Fase 8** (nenhum cálculo novo): `benchmark_controlado(
+  opportunities, tier_a="top", tier_b="low", campos_controle=
+  CONTROL_VARIABLES)` chama `win_loss_rules.detectar_simpsons_
+  paradox()` uma vez por variável de controle — vantagem bruta só é
+  confiável quando se mantém dentro de cada estrato; reversão em todos
+  os estratos vira sinal de possível confundimento.
+- Testado com o dataset sintético clássico já usado na Fase 8
+  (análogo ao estudo de cálculo renal), adaptado a `seller_tier`/
+  `segment`: `top` parece pior no agregado mas é melhor dentro de
+  **cada** segmento — exatamente o cenário que a tarefa pede para
+  nunca virar "low é melhor vendedor" sem controlar por segmento.
+  Também testado o caso sem confundimento (vantagem real confirmada).
+- Quem monta as linhas de entrada: oportunidades no formato de
+  `win_loss_rules.py` + `seller_tier` já classificado pelo chamador +
+  variáveis de controle já categorizadas (`ticket` pré-bucketizado) —
+  módulo nunca decide sozinho quem é top/median/low.
+- 9 testes novos. Suite completa: 875 testes, 0 falhas, 1 skip
+  pré-existente — sem regressão. Detalhe completo no CHANGELOG.md
+  (V.1.4.96).
+- **Decisão deliberada**: sem integração com `orquestrador.py`, sem
+  endpoint HTTP, sem persistência nova.
 - **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna
-  nova, módulo puro em memória). **Qualquer fase/tarefa seguinte do
-  "PROMPT MESTRE — SALE-IA V2" não começa sem nova confirmação
-  explícita do usuário.**
+  nova, módulo puro em memória). **Tarefa 12.2 (Descoberta de
+  padrões) e qualquer fase/tarefa seguinte do "PROMPT MESTRE —
+  SALE-IA V2" não começam sem nova confirmação explícita do
+  usuário.**
 
 ### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)
 - `services/embeddings/`: interface `EmbeddingProvider` (`embed`, `embed_async`, `embed_batch`, `health_check`), `OllamaEmbeddingProvider` (HTTP local via `httpx`, zero import de SDKs de LLM externos), `OpenAIEmbeddingProvider`, `factory.get_embedding_provider()` (lê `EMBEDDING_PROVIDER`, erro explícito em valor desconhecido).

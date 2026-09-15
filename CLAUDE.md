@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.95** (backend, local — ainda não deployada; produção confirmada em V.1.4.94) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.96** (backend, local — ainda não deployada; produção confirmada em V.1.4.95) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -1794,10 +1794,66 @@ Usuário confirmou avançar para a Tarefa 11.2, fechando a Fase 11
 - **Fecha a Fase 11 (Seller Coaching)** completa: Tarefa 11.1
   (Conversation Metrics) → 11.2 (Seller Scorecard).
 - Versão: `1.4.94` → `1.4.95`.
+- **Push + deploy confirmados (15/09/2026)**: commit `3ffce0c` no
+  GitHub. Na VPS, `reunioes_ativas: 0` checado antes/depois — `git
+  pull` (fast-forward `33dd12a` → `3ffce0c`) + `systemctl restart
+  saleia` — `active`, journal sem erros. Pós-restart: `/health` =
+  `versao 1.4.95`, `status online`, `reunioes_ativas 0`.
+
+## Benchmark dos Melhores Vendedores — Fase 12 / Tarefa 12.1 do "PROMPT MESTRE — SALE-IA V2" (V.1.4.96, início da Fase 12 — Collective Sales Intelligence)
+
+Usuário confirmou avançar para a Fase 12 (Collective Sales
+Intelligence) — nova fase do roadmap. Só a Tarefa 12.1 executada
+nesta rodada — Tarefa 12.2 (Descoberta de padrões) não começou.
+
+- **`agent/seller_benchmark_rules.py`** (novo, função pura, sem
+  IA/banco): `PERFORMANCE_TIERS = ("top", "median", "low")` e
+  `CONTROL_VARIABLES = ("segment", "lead_source", "ticket",
+  "product")` — as 4 variáveis de controle literais do prompt mestre.
+  `comparar_tiers(opportunities)` reaproveita `win_loss_rules.
+  comparar_por_variavel_categorica()` direto sobre `seller_tier` (taxa
+  de conversão bruta por tier).
+- **Regra central "não concluir que um vendedor é melhor só porque
+  recebe leads melhores", imposta reaproveitando o paradoxo de Simpson
+  já construído na Fase 8** (nenhum cálculo novo e paralelo):
+  `benchmark_controlado(opportunities, tier_a="top", tier_b="low",
+  campos_controle=CONTROL_VARIABLES)` chama `win_loss_rules.
+  detectar_simpsons_paradox()` uma vez por variável de controle — a
+  vantagem bruta entre os 2 tiers só é confiável quando se mantém
+  dentro de cada estrato; quando a direção se inverte em todos os
+  estratos de uma variável, o resultado vem sinalizado como possível
+  confundimento (mesmo template/mecanismo da Fase 8, nunca declara
+  causalidade).
+- **Testado com o dataset sintético clássico já usado em
+  `test_win_loss_rules.py`** (Fase 8, análogo ao estudo de tratamento
+  de cálculo renal), adaptado a `seller_tier`/`segment`: `top` parece
+  pior no agregado (78,0% vs 82,6% do `low`), mas é melhor dentro de
+  **cada** segmento (93,1%>86,7%; 73,0%>68,75%) — exatamente o
+  cenário que a Tarefa 12.1 pede para nunca virar "low é melhor
+  vendedor" sem controlar por segmento. Também testado o caso inverso
+  (vantagem real, sem confundimento — não deve ser sinalizado como
+  paradoxo).
+- **Quem monta as linhas de entrada**: cada linha é uma oportunidade
+  no formato já aceito por `win_loss_rules.py` (`status`) +
+  `seller_tier` (já classificado pelo chamador a partir de alguma
+  métrica de desempenho real — este módulo nunca decide sozinho quem
+  é top/median/low) + um campo por variável de controle já
+  categorizada (`ticket` precisa vir pré-bucketizado em faixas pelo
+  chamador) — mesmo princípio de "quem extrai/classifica o sinal real
+  é integração futura" de `deal_risk_rules.py`/Fase 4.2 e
+  `conversation_metrics_rules.py`/Fase 11.1.
+- 9 testes novos (`tests/test_seller_benchmark_rules.py`). Suite
+  completa: **875 testes** (866 da Tarefa 11.2 + 9 novos), **0
+  falhas**, 1 skip pré-existente — sem regressão.
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP,
+  sem persistência nova — mesma disciplina das Fases 1-11.
+- Versão: `1.4.95` → `1.4.96`.
 - **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna
-  nova, módulo puro em memória). **Qualquer fase/tarefa seguinte do
-  "PROMPT MESTRE — SALE-IA V2" não começa sem nova confirmação
-  explícita do usuário.**
+  nova, módulo puro em memória). **Tarefa 12.2 (Descoberta de
+  padrões) e qualquer fase/tarefa seguinte do "PROMPT MESTRE —
+  SALE-IA V2" não começam sem nova confirmação explícita do
+  usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 
