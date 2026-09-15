@@ -1,13 +1,18 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-14 (V.1.4.92, local — produção confirmada em
-`1.4.90`, ver "Deploy" abaixo — V.1.4.91/92 ainda não deployados;
-V.1.4.92 é a Tarefa 10.2 (Fase 10) do "SALE-IA V2" — Detectar Uso da
-Recomendação (`agent/recommendation_usage_rules.py`: embeddings +
-similaridade de cosseno, sem exigir correspondência literal) — ver
-seção "Detectar Uso da Recomendação — Fase 10 / Tarefa 10.2" abaixo e
-CHANGELOG.md V.1.4.92. Sem endpoint HTTP novo, sem integração com
-`orquestrador.py`.
+Atualizado em: 2026-09-15 (V.1.4.93, local — produção confirmada em
+`1.4.92`, ver "Deploy" abaixo — V.1.4.93 ainda não deployada;
+V.1.4.93 é a Tarefa 10.3 (Fase 10) do "SALE-IA V2" — Recommendation
+Effectiveness (`agent/recommendation_effectiveness_rules.py`: mede
+avanço de estágio e desfecho final por estratégia de recomendação,
+sempre como métricas separadas — nunca causalidade) — **fecha a Fase
+10 completa**. Ver seção "Recommendation Effectiveness — Fase 10 /
+Tarefa 10.3" abaixo e CHANGELOG.md V.1.4.93. Sem endpoint HTTP novo,
+sem integração com `orquestrador.py`. V.1.4.91 (RecommendationEvent) e
+V.1.4.92 (Detectar Uso da Recomendação) foram deployadas na VPS em
+15/09/2026 (`git pull` `06e4fc3`→`6d5c9ce` + `systemctl restart
+saleia`, `/health` confirmou `versao 1.4.92`, `reunioes_ativas: 0`
+checado antes do restart, journal sem erros).
 O corpo deste documento nao acompanhou o
 CHANGELOG.md entre V.1.4.54 e V.1.4.66; a fonte de verdade sempre mais
 atualizada e o CHANGELOG e o `/health` de producao. Cost Intelligence
@@ -1147,10 +1152,51 @@ correspondência literal".
   (V.1.4.92).
 - **Decisão deliberada**: sem integração com `orquestrador.py`, sem
   endpoint HTTP.
+- **Push + deploy confirmados (15/09/2026)**: commit `6d5c9ce` no
+  GitHub (junto com V.1.4.91, `672644a`). Na VPS, `reunioes_ativas: 0`
+  checado antes de cada etapa — `git pull` (fast-forward `06e4fc3` →
+  `6d5c9ce`) + `pip install`/`pip check` limpos. `systemctl restart
+  saleia` — `active`, journal sem erros. Pós-restart: `/health` =
+  `versao 1.4.92`, `status online`, `reunioes_ativas 0`, 4 provedores
+  `ok`; `/dashboard` = `200`.
+
+## Recommendation Effectiveness — Fase 10 / Tarefa 10.3 do "SALE-IA V2" (V.1.4.93, fecha a Fase 10, 15/09/2026)
+
+Usuário confirmou avançar para a Tarefa 10.3. **Achado**: o módulo e os
+testes já existiam no working tree local, não commitados, de uma
+sessão anterior — revisados por completo (imports conferidos contra
+`recommendation_usage_rules.py`/`win_loss_rules.py`, suite completa
+rodada do zero) antes de aceitar o código; nenhuma linha nova escrita
+além do bump de versão e da documentação.
+
+- `agent/recommendation_effectiveness_rules.py` (novo):
+  `calcular_efetividade_por_estrategia(eventos, minimo_amostra=
+  AMOSTRA_MINIMA_PADRAO)` agrupa eventos por `strategy` e mede
+  efetividade a partir de sinais já classificados (`state` da Tarefa
+  10.2, `stage_advanced`, `opportunity_result`) — não extrai nada de
+  transcrição real.
+- **Regra central — nunca confundir "avanço imediato" com "causa da
+  venda"**: `taxa_avanco` e `taxa_desfecho_positivo` são sempre
+  calculadas e reportadas separadamente, nunca combinadas numa métrica
+  única — mesma disciplina de `win_loss_rules.py`/`seasonality_rules.py`
+  (Fases 8-9). Dado ausente (`None`) nunca conta no denominador (nunca
+  vira "não avançou"/"não converteu" por omissão).
+- `ESTADOS_CONTADOS_COMO_USO = {USED, PARTIALLY_USED}` — decisão desta
+  rodada; `amostra_avanco_suficiente`/`amostra_desfecho_suficiente`
+  reaproveitam `win_loss_rules.amostra_suficiente` (Fase 8).
+- Testado com o exemplo literal do prompt mestre ("SPIN Implication —
+  187 usos — 61% avanço", "Case Similar — 153 usos — 66% avanço").
+- 10 testes novos. Suite completa: 829 testes, 0 falhas, 1 skip
+  pré-existente — sem regressão. Detalhe completo no CHANGELOG.md
+  (V.1.4.93).
+- **Decisão deliberada**: sem integração com `orquestrador.py`, sem
+  endpoint HTTP, sem persistência nova.
+- **Fecha a Fase 10 (Strategy Effectiveness)** completa: Tarefa 10.1
+  (RecommendationEvent) → 10.2 (Detectar Uso) → 10.3 (Effectiveness).
 - **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna
-  nova; V.1.4.91 também segue pendente, os dois podem ir juntos).
-  **Tarefa 10.3 (Recommendation Effectiveness) não começa sem nova
-  confirmação explícita do usuário.**
+  nova, módulo puro em memória). **Qualquer fase/tarefa seguinte do
+  "PROMPT MESTRE — SALE-IA V2" não começa sem nova confirmação
+  explícita do usuário.**
 
 ### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)
 - `services/embeddings/`: interface `EmbeddingProvider` (`embed`, `embed_async`, `embed_batch`, `health_check`), `OllamaEmbeddingProvider` (HTTP local via `httpx`, zero import de SDKs de LLM externos), `OpenAIEmbeddingProvider`, `factory.get_embedding_provider()` (lê `EMBEDDING_PROVIDER`, erro explícito em valor desconhecido).

@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.92** (backend, local — ainda não deployada; produção confirmada em V.1.4.90) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.93** (backend, local — ainda não deployada; produção confirmada em V.1.4.92) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -1612,11 +1612,69 @@ motor real.
   `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP —
   mesma disciplina das Fases 1-10.
 - Versão: `1.4.91` → `1.4.92`.
+- **Push + deploy confirmados (15/09/2026)**: commit `6d5c9ce` no
+  GitHub (junto com V.1.4.91, `672644a`). Na VPS, `reunioes_ativas: 0`
+  checado antes de cada etapa — `git pull` (fast-forward `06e4fc3` →
+  `6d5c9ce`) + `pip install`/`pip check` limpos. `systemctl restart
+  saleia` — `active`, journal sem erros. Pós-restart: `/health` =
+  `versao 1.4.92`, `status online`, `reunioes_ativas 0`, 4 provedores
+  `ok`; `/dashboard` = `200`.
+
+## Recommendation Effectiveness — Fase 10 / Tarefa 10.3 do "PROMPT MESTRE — SALE-IA V2" (V.1.4.93, fecha a Fase 10)
+
+Usuário confirmou avançar para a Tarefa 10.3, fechando a Fase 10
+(Strategy Effectiveness) completa — cadeia recomendação → uso → reação
+→ avanço de estágio → resultado. **Achado**: o módulo
+(`agent/recommendation_effectiveness_rules.py`) e seus testes já
+existiam no working tree local, não commitados, de uma sessão
+anterior — revisados linha a linha (imports conferidos contra
+`agent/recommendation_usage_rules.py`, Tarefa 10.2, e
+`agent/win_loss_rules.py`, Fase 8) e a suíte completa rodada do zero
+(829 testes, 0 falhas, 1 skip pré-existente) antes de aceitar o código
+como pronto — nenhuma linha nova escrita nesta rodada além do bump de
+versão e desta documentação.
+
+- **`agent/recommendation_effectiveness_rules.py`** (arquivo próprio
+  mesmo construindo sobre a Tarefa 10.2, mesmo padrão de
+  `deal_risk_rules.py` sobre `meddpicc_rules.py`, Fase 4; função pura,
+  sem IA/banco): `calcular_efetividade_por_estrategia(eventos,
+  minimo_amostra=AMOSTRA_MINIMA_PADRAO)` agrupa eventos por `strategy`
+  e mede efetividade a partir de sinais já classificados pelo chamador
+  (`state` da Tarefa 10.2, `stage_advanced`, `opportunity_result`) —
+  nunca extrai nada de uma transcrição real, mesmo princípio genérico
+  de `win_loss_rules.comparar_por_variavel_categorica` (Fase 8).
+- **`ESTADOS_CONTADOS_COMO_USO = {"USED", "PARTIALLY_USED"}`** —
+  decisão desta rodada para o schema literal do prompt mestre ("187
+  usos"); `IGNORED`/`UNKNOWN` não contam.
+- **Regra "Importante" do prompt mestre, imposta estruturalmente —
+  nunca confundir "avanço imediato" com "causa da venda"**:
+  `taxa_avanco` (associação com `stage_advanced`) e `taxa_desfecho_
+  positivo` (associação com `opportunity_result`) são **dois números
+  sempre calculados e reportados separadamente**, nunca combinados
+  numa métrica ou afirmação causal única — mesma disciplina "nunca
+  causa, sempre associação" de `win_loss_rules.py`/`seasonality_
+  rules.py` (Fases 8-9). Única string de texto livre vem de
+  `TEMPLATE_EFETIVIDADE` (template fixo), guardado por
+  `GuardaContraConfusaoCausalTest`.
+- **Dado ausente (`None`) nunca conta no denominador** — evento sem
+  `stage_advanced`/`opportunity_result` é excluído da conta, nunca
+  interpretado como "não avançou"/"não converteu" por omissão.
+  Reaproveita `win_loss_rules.amostra_suficiente`/`AMOSTRA_MINIMA_
+  PADRAO` (Fase 8) para sinalizar amostra suficiente por estratégia.
+- **Testado com o exemplo literal do prompt mestre**: "SPIN
+  Implication — 187 usos — 61% avanço", "Case Similar — 153 usos —
+  66% avanço".
+- 10 testes novos (`tests/test_recommendation_effectiveness_rules.py`).
+  Suite completa: **829 testes** (819 da Tarefa 10.2 + 10 novos), **0
+  falhas**, 1 skip pré-existente — sem regressão.
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP,
+  sem persistência nova — mesma disciplina das Fases 1-10.
+- Versão: `1.4.92` → `1.4.93`.
 - **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna
-  nova, `RecommendationEvent` da Tarefa 10.1 também segue pendente de
-  deploy, os dois podem ir juntos). **Tarefa 10.3 (Recommendation
-  Effectiveness) não começa sem nova confirmação explícita do
-  usuário.**
+  nova, módulo puro em memória). **Qualquer fase/tarefa seguinte do
+  "PROMPT MESTRE — SALE-IA V2" não começa sem nova confirmação
+  explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

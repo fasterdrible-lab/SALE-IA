@@ -3,6 +3,90 @@
 
 ---
 
+## V.1.4.93 — Recommendation Effectiveness: Tarefa 10.3 da Fase 10 do "PROMPT MESTRE — SALE-IA V2", fecha a Fase 10
+
+> Data: 15/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Sequência direta de V.1.4.92 (Tarefa 10.2). Usuário confirmou avançar
+para a Tarefa 10.3, fechando a Fase 10 (Strategy Effectiveness)
+completa. Cadeia do prompt mestre: recomendação → vendedor usou →
+reação na conversa → avanço de estágio → resultado da oportunidade.
+**Achado desta rodada**: o módulo (`agent/recommendation_effectiveness_
+rules.py`) e seus testes já existiam no working tree, não commitados,
+de uma sessão anterior — revisados linha a linha, imports conferidos
+contra `agent/recommendation_usage_rules.py` (Tarefa 10.2) e
+`agent/win_loss_rules.py` (Fase 8) antes de aceitar o código, suite
+completa rodada do zero para confirmar (829 testes, 0 falhas, 1 skip
+pré-existente) — nenhuma linha nova escrita nesta rodada além do bump
+de versão e desta documentação.
+
+### TAREFA 10.3 — Recommendation Effectiveness
+- **`agent/recommendation_effectiveness_rules.py`** (novo, arquivo
+  próprio mesmo construindo sobre a Tarefa 10.2, mesmo padrão de
+  `deal_risk_rules.py` sobre `meddpicc_rules.py`, Fase 4; função pura,
+  sem IA/banco): `calcular_efetividade_por_estrategia(eventos,
+  minimo_amostra=AMOSTRA_MINIMA_PADRAO)` agrupa eventos por `strategy`
+  e mede efetividade a partir de sinais já classificados pelo chamador
+  (`state` da Tarefa 10.2, `stage_advanced`, `opportunity_result`) —
+  nunca extrai nada de uma transcrição real, mesmo princípio genérico
+  de `win_loss_rules.comparar_por_variavel_categorica` (Fase 8) e
+  `data_warehouse_rules`/`seasonality_rules` (Fase 9).
+- **`ESTADOS_CONTADOS_COMO_USO = {"USED", "PARTIALLY_USED"}`**: decisão
+  desta rodada para o schema literal do prompt mestre ("187 usos") —
+  `PARTIALLY_USED` ainda é algum grau de uso real; `IGNORED`/`UNKNOWN`
+  não contam.
+- **Regra "Importante" do prompt mestre, imposta estruturalmente —
+  nunca confundir "avanço imediato" com "causa da venda"**:
+  `taxa_avanco` (associação com `stage_advanced` logo após o uso) e
+  `taxa_desfecho_positivo` (associação com `opportunity_result` final)
+  são **dois números sempre calculados e reportados separadamente**,
+  nunca combinados numa métrica ou afirmação causal única — mesma
+  disciplina "nunca causa, sempre associação" de `win_loss_rules.py`
+  (Fase 8) e `seasonality_rules.py`/`contextual_seasonality_rules.py`
+  (Fase 9). Única string de texto livre vem de `TEMPLATE_EFETIVIDADE`
+  (template fixo, nunca f-string ad hoc), guardado por
+  `GuardaContraConfusaoCausalTest::
+  test_template_traz_aviso_explicito_contra_causalidade`.
+- **`stage_advanced`/`opportunity_result` ausentes (`None`) nunca
+  contam no denominador** — evento sem esse dado é excluído da conta,
+  nunca interpretado como "não avançou"/"não converteu" por omissão
+  (mesmo princípio de `UNKNOWN` na Tarefa 10.2). Reaproveita
+  `win_loss_rules.amostra_suficiente`/`AMOSTRA_MINIMA_PADRAO` (Fase 8)
+  para sinalizar `amostra_avanco_suficiente`/`amostra_desfecho_
+  suficiente` por estratégia, em vez de reportar uma taxa sem contexto
+  de tamanho de amostra.
+- **Testado com o exemplo literal do prompt mestre**: dataset sintético
+  reproduzindo exatamente "SPIN Implication — 187 usos — 61% avanço" e
+  "Case Similar — 153 usos — 66% avanço".
+- 10 testes novos (`tests/test_recommendation_effectiveness_rules.py`),
+  incluindo a guarda contra confusão causal (cenário onde `taxa_avanco`
+  e `taxa_desfecho_positivo` divergem bastante, provando que nunca são
+  combinadas numa fórmula só). Suite completa: **829 testes** (819 da
+  Tarefa 10.2 + 10 novos), **0 falhas**, 1 skip pré-existente — sem
+  regressão.
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP,
+  sem persistência nova — mesma disciplina das Fases 1-10. Extração
+  automática de `stage_advanced`/`opportunity_result` a partir de uma
+  reunião real (o "de onde vem cada sinal" de produção) é integração
+  futura não pedida por esta tarefa.
+- Versão: `1.4.92` → `1.4.93` (`api/main.py::/health` e
+  `/monitor/metricas`).
+
+### FECHA A FASE 10 (Strategy Effectiveness)
+Tarefa 10.1 (RecommendationEvent) → 10.2 (Detectar Uso) → 10.3
+(Effectiveness) completam a cadeia recomendação → uso → avanço →
+resultado pedida pelo prompt mestre para esta fase.
+
+### PENDENTE
+- Push + deploy na VPS (aditivo — sem tabela/coluna nova, módulo puro
+  em memória).
+- **Qualquer fase/tarefa seguinte do "PROMPT MESTRE — SALE-IA V2" não
+  começa sem nova confirmação explícita do usuário.**
+
+---
+
 ## V.1.4.92 — Detectar Uso da Recomendação: Tarefa 10.2 da Fase 10 do "PROMPT MESTRE — SALE-IA V2"
 > Data: 14/09/2026 | Local, aguardando push/deploy
 

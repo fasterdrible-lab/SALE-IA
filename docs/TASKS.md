@@ -884,7 +884,21 @@ Usuario confirmou avancar para a Tarefa 10.2 e escolheu embeddings (nao IA nem s
 - [x] 15 testes novos (`tests/test_recommendation_usage_rules.py`), incluindo falha de embedding virando UNKNOWN nunca IGNORED. Suite completa: 819 testes (804 + 15), 0 falhas, 1 skip pre-existente — sem regressao.
 - [x] Decisao deliberada: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP.
 - [x] Versao: `1.4.91` -> `1.4.92`.
-- **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna nova; V.1.4.91 tambem segue pendente, os dois podem ir juntos). **Tarefa 10.3 (Recommendation Effectiveness) nao comeca sem nova confirmacao explicita do usuario.**
+- [x] Push + deploy confirmados (15/09/2026): commit `6d5c9ce` no GitHub (junto com V.1.4.91, `672644a`). `reunioes_ativas: 0` checado antes de cada etapa na VPS — `git pull` (fast-forward `06e4fc3` -> `6d5c9ce`) + `pip install`/`pip check` limpos. `systemctl restart saleia` — `active`, journal sem erros. Pos-restart: `/health` = `versao 1.4.92`, `status online`, `reunioes_ativas 0`, 4 provedores `ok`; `/dashboard` = `200`.
+
+## Concluido (V.1.4.93 — Recommendation Effectiveness, Tarefa 10.3, fecha a Fase 10 do "PROMPT MESTRE — SALE-IA V2")
+
+Usuario confirmou avancar para a Tarefa 10.3, fechando a Fase 10 (Strategy Effectiveness) completa. Achado: o modulo e os testes ja existiam no working tree local, nao commitados, de uma sessao anterior — revisados por completo (imports conferidos contra `recommendation_usage_rules.py`/`win_loss_rules.py`, suite completa rodada do zero) antes de aceitar o codigo; nenhuma linha nova escrita alem do bump de versao e da documentacao.
+
+- [x] `agent/recommendation_effectiveness_rules.py` (novo, funcao pura, sem IA/banco, mesmo padrao de `deal_risk_rules.py` sobre `meddpicc_rules.py`, Fase 4): `calcular_efetividade_por_estrategia(eventos, minimo_amostra=AMOSTRA_MINIMA_PADRAO)` agrupa eventos por `strategy` e mede efetividade a partir de sinais ja classificados (`state` da Tarefa 10.2, `stage_advanced`, `opportunity_result`) — nao extrai nada de transcricao real.
+- [x] Regra central "Importante" do prompt mestre, imposta estruturalmente: nunca confundir avanco imediato (`taxa_avanco`) com causa da venda (`taxa_desfecho_positivo`) — sempre dois numeros separados, nunca combinados numa metrica ou afirmacao causal unica. Mesma disciplina "nunca causa, sempre associacao" de `win_loss_rules.py` (Fase 8)/`seasonality_rules.py` (Fase 9), guardada por `GuardaContraConfusaoCausalTest`.
+- [x] Dado ausente (`stage_advanced`/`opportunity_result` = `None`) nunca conta no denominador — evento excluido da conta, nunca vira "nao avancou"/"nao converteu" por omissao. `ESTADOS_CONTADOS_COMO_USO = {USED, PARTIALLY_USED}` (decisao desta rodada). Reaproveita `win_loss_rules.amostra_suficiente`/`AMOSTRA_MINIMA_PADRAO` (Fase 8) para `amostra_avanco_suficiente`/`amostra_desfecho_suficiente`.
+- [x] Testado com o exemplo literal do prompt mestre: "SPIN Implication — 187 usos — 61% avanco", "Case Similar — 153 usos — 66% avanco".
+- [x] 10 testes novos (`tests/test_recommendation_effectiveness_rules.py`). Suite completa: 829 testes (819 da Tarefa 10.2 + 10 novos), 0 falhas, 1 skip pre-existente — sem regressao.
+- [x] Decisao deliberada: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP, sem persistencia nova — mesma disciplina das Fases 1-10.
+- [x] **Fecha a Fase 10 (Strategy Effectiveness)** completa: Tarefa 10.1 (RecommendationEvent) -> 10.2 (Detectar Uso) -> 10.3 (Effectiveness).
+- [x] Versao: `1.4.92` -> `1.4.93`.
+- **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna nova, modulo puro em memoria). **Qualquer fase/tarefa seguinte do "PROMPT MESTRE — SALE-IA V2" nao comeca sem nova confirmacao explicita do usuario.**
 
 ## Pendente
 
