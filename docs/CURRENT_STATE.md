@@ -1,18 +1,20 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-15 (V.1.4.93, local — produção confirmada em
-`1.4.92`, ver "Deploy" abaixo — V.1.4.93 ainda não deployada;
-V.1.4.93 é a Tarefa 10.3 (Fase 10) do "SALE-IA V2" — Recommendation
-Effectiveness (`agent/recommendation_effectiveness_rules.py`: mede
-avanço de estágio e desfecho final por estratégia de recomendação,
-sempre como métricas separadas — nunca causalidade) — **fecha a Fase
-10 completa**. Ver seção "Recommendation Effectiveness — Fase 10 /
-Tarefa 10.3" abaixo e CHANGELOG.md V.1.4.93. Sem endpoint HTTP novo,
-sem integração com `orquestrador.py`. V.1.4.91 (RecommendationEvent) e
-V.1.4.92 (Detectar Uso da Recomendação) foram deployadas na VPS em
-15/09/2026 (`git pull` `06e4fc3`→`6d5c9ce` + `systemctl restart
-saleia`, `/health` confirmou `versao 1.4.92`, `reunioes_ativas: 0`
-checado antes do restart, journal sem erros).
+Atualizado em: 2026-09-15 (V.1.4.94, local — produção confirmada em
+`1.4.93`, ver "Deploy" abaixo — V.1.4.94 ainda não deployada;
+V.1.4.94 é a Tarefa 11.1, início da Fase 11 (Seller Coaching) do
+"SALE-IA V2" — Conversation Metrics
+(`agent/conversation_metrics_rules.py`: talk ratio, perguntas
+abertas/fechadas, interrupções, monólogos, timing de preço/
+apresentação e taxas de exploração de objeção/próximo passo, a partir
+de transcrição temporizada estruturada). Ver seção "Conversation
+Metrics — Fase 11 / Tarefa 11.1" abaixo e CHANGELOG.md V.1.4.94. Sem
+endpoint HTTP novo, sem integração com `orquestrador.py`. V.1.4.91
+(RecommendationEvent), V.1.4.92 (Detectar Uso da Recomendação) e
+V.1.4.93 (Recommendation Effectiveness, fecha a Fase 10) foram
+deployadas na VPS em 15/09/2026 (`/health` confirmou `versao 1.4.93`,
+`reunioes_ativas: 0` checado antes de cada restart, journal sem
+erros).
 O corpo deste documento nao acompanhou o
 CHANGELOG.md entre V.1.4.54 e V.1.4.66; a fonte de verdade sempre mais
 atualizada e o CHANGELOG e o `/health` de producao. Cost Intelligence
@@ -1193,10 +1195,49 @@ além do bump de versão e da documentação.
   endpoint HTTP, sem persistência nova.
 - **Fecha a Fase 10 (Strategy Effectiveness)** completa: Tarefa 10.1
   (RecommendationEvent) → 10.2 (Detectar Uso) → 10.3 (Effectiveness).
+- **Push + deploy confirmados (15/09/2026)**: commit `36c7585` no
+  GitHub. Na VPS, `reunioes_ativas: 0` checado antes/depois — `git
+  pull` (fast-forward `6d5c9ce` → `36c7585`) + `systemctl restart
+  saleia` — `active`, journal sem erros. Pós-restart: `/health` =
+  `versao 1.4.93`, `status online`, `reunioes_ativas 0`.
+
+## Conversation Metrics — Fase 11 / Tarefa 11.1 do "SALE-IA V2" (V.1.4.94, início da Fase 11, 15/09/2026)
+
+Usuário confirmou avançar para a Fase 11 (Seller Coaching) — nova fase
+do roadmap, confirmação explícita pedida separadamente da confirmação
+de tarefa dentro de uma fase já em andamento (mesma disciplina desde
+a Fase 0).
+
+- `agent/conversation_metrics_rules.py` (novo):
+  `calcular_metricas_conversa(turns, objections=None, next_step_
+  proposto=None, ...)` calcula as 11 métricas literais da Tarefa 11.1
+  a partir de uma transcrição temporizada estruturada (`speaker`/
+  `start`/`end`/`text` por turno).
+- **Separação estrutural × classificação de negócio**: talk ratio/
+  interrupções/monólogos e contagem de perguntas (aberta/fechada) são
+  calculados de sinais estruturais do próprio turno (timing + `"?"`);
+  `price_timing`/`presentation_timing`/`objection_exploration_rate`/
+  `next_step_rate` sempre recebem o sinal já classificado do chamador
+  (flags por turno / lista de objeções / booleano) — nunca inferidos
+  por keyword matching de negócio dentro do módulo, mesmo princípio de
+  `deal_risk_rules.py` (Fase 4.2).
+- Falante não identificado nunca conta nos ratios/interrupções; dado
+  ausente nunca vira 0/False por omissão (mesma disciplina de
+  `recommendation_effectiveness_rules.py`, Fase 10). Perguntas
+  contadas só do vendedor. Turnos consecutivos do mesmo falante são
+  mesclados antes de checar o limiar de monólogo. Função ordena os
+  turnos internamente por `start`.
+- Testado com uma transcrição temporizada conhecida (11 turnos, 302s)
+  com valores calculados à mão — literal da instrução da Tarefa 11.1.
+- 22 testes novos. Suite completa: 851 testes, 0 falhas, 1 skip
+  pré-existente — sem regressão. Detalhe completo no CHANGELOG.md
+  (V.1.4.94).
+- **Decisão deliberada**: sem integração com `orquestrador.py`, sem
+  endpoint HTTP, sem persistência nova.
 - **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna
-  nova, módulo puro em memória). **Qualquer fase/tarefa seguinte do
-  "PROMPT MESTRE — SALE-IA V2" não começa sem nova confirmação
-  explícita do usuário.**
+  nova, módulo puro em memória). **Tarefa 11.2 (Seller Scorecard) e
+  qualquer fase/tarefa seguinte do "PROMPT MESTRE — SALE-IA V2" não
+  começam sem nova confirmação explícita do usuário.**
 
 ### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)
 - `services/embeddings/`: interface `EmbeddingProvider` (`embed`, `embed_async`, `embed_batch`, `health_check`), `OllamaEmbeddingProvider` (HTTP local via `httpx`, zero import de SDKs de LLM externos), `OpenAIEmbeddingProvider`, `factory.get_embedding_provider()` (lê `EMBEDDING_PROVIDER`, erro explícito em valor desconhecido).

@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.93** (backend, local — ainda não deployada; produção confirmada em V.1.4.92) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.94** (backend, local — ainda não deployada; produção confirmada em V.1.4.93) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -1671,10 +1671,74 @@ versão e desta documentação.
   `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP,
   sem persistência nova — mesma disciplina das Fases 1-10.
 - Versão: `1.4.92` → `1.4.93`.
+- **Push + deploy confirmados (15/09/2026)**: commit `36c7585` no
+  GitHub. Na VPS, `reunioes_ativas: 0` checado antes/depois — `git
+  pull` (fast-forward `6d5c9ce` → `36c7585`) + `systemctl restart
+  saleia` — `active`, journal sem erros. Pós-restart: `/health` =
+  `versao 1.4.93`, `status online`, `reunioes_ativas 0`.
+
+## Conversation Metrics — Fase 11 / Tarefa 11.1 do "PROMPT MESTRE — SALE-IA V2" (V.1.4.94, início da Fase 11 — Seller Coaching)
+
+Usuário confirmou avançar para a Fase 11 — nova fase do roadmap,
+exigiu confirmação explícita nomeando a fase (mesma disciplina de toda
+transição de fase, não só de tarefa dentro de uma fase já em
+andamento).
+
+- **`agent/conversation_metrics_rules.py`** (novo, função pura, sem
+  IA/banco, mesmo padrão de `deal_risk_rules.py`/`win_loss_rules.py`):
+  `calcular_metricas_conversa(turns, objections=None, next_step_
+  proposto=None, palavras_abertura=PALAVRAS_ABERTURA_PADRAO, limiar_
+  monologo_segundos=90.0)` — genérica sobre uma transcrição já
+  temporizada e estruturada pelo chamador (lista de `turns` com
+  `speaker`/`start`/`end`/`text`), nunca extrai nada de áudio bruto
+  nem decide diarização.
+- **Disciplina de escopo — mesma separação estrutural × classificação
+  de negócio das Fases 4-10**: `seller_talk_ratio`/`customer_talk_
+  ratio`/`interruptions`/`monologues` são puramente estruturais (só
+  `speaker`/`start`/`end`); `questions_total`/`open_questions`/
+  `closed_questions` usam um sinal estrutural do próprio texto do
+  turno (detecção de `"?"` + heurística de palavra de abertura,
+  sobrescrevível) — nunca um julgamento de conteúdo de negócio. Já
+  `price_timing`/`presentation_timing`/`objection_exploration_rate`/
+  `next_step_rate` **sempre recebem o sinal já classificado do
+  chamador** (flags `is_price_mention`/`is_presentation_mention` por
+  turno, lista `objections` com `explored`, `next_step_proposto`) —
+  nunca inferidos por keyword matching de negócio aqui dentro, mesmo
+  princípio de `deal_risk_rules.calcular_riscos()` (Fase 4.2: "de onde
+  vem cada sinal em produção real é integração futura").
+- **Falante não identificado (`"incerto"` ou qualquer valor fora de
+  `vendedor`/`cliente`) nunca conta nos ratios/interrupções** — mesmo
+  princípio de "dado ausente nunca vira 0/False por omissão" já usado
+  em `recommendation_effectiveness_rules.py` (Fase 10).
+- **Perguntas contadas só do vendedor** (decisão desta rodada — feature
+  de Seller Coaching, mede a habilidade do vendedor em fazer perguntas
+  de descoberta, não do cliente).
+- **Turnos consecutivos do mesmo falante são mesclados** antes de
+  checar o limiar de monólogo — dois turnos seguidos do vendedor sem
+  fala do cliente entre eles somam para 1 monólogo só, não 2.
+- **Interrupção**: turno de falante diferente que começa antes do
+  turno anterior terminar — sobreposição do mesmo falante ou
+  envolvendo falante incerto nunca conta.
+- **Função ordena os turnos internamente por `start`** — o chamador
+  não precisa garantir ordem cronológica (mesmo princípio defensivo de
+  `outcome_rules.calcular_cycle_days()`, Fase 8).
+- **Testado com uma transcrição temporizada conhecida** (11 turnos,
+  302s totais) com valores esperados calculados à mão — literal da
+  instrução da Tarefa 11.1 ("Criar transcrições temporizadas
+  conhecidas. Comparar cálculo esperado com cálculo real."). Inclui
+  teste de robustez a ordem (transcrição embaralhada produz o mesmo
+  resultado).
+- 22 testes novos (`tests/test_conversation_metrics_rules.py`). Suite
+  completa: **851 testes** (829 da Tarefa 10.3 + 22 novos), **0
+  falhas**, 1 skip pré-existente — sem regressão.
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP,
+  sem persistência nova — mesma disciplina das Fases 1-10.
+- Versão: `1.4.93` → `1.4.94`.
 - **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna
-  nova, módulo puro em memória). **Qualquer fase/tarefa seguinte do
-  "PROMPT MESTRE — SALE-IA V2" não começa sem nova confirmação
-  explícita do usuário.**
+  nova, módulo puro em memória). **Tarefa 11.2 (Seller Scorecard) e
+  qualquer fase/tarefa seguinte do "PROMPT MESTRE — SALE-IA V2" não
+  começam sem nova confirmação explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

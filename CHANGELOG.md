@@ -3,6 +3,86 @@
 
 ---
 
+## V.1.4.94 — Conversation Metrics: Tarefa 11.1 da Fase 11 do "PROMPT MESTRE — SALE-IA V2", início da Fase 11 (Seller Coaching)
+
+> Data: 15/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Sequência direta de V.1.4.93 (fecha a Fase 10). Usuário confirmou
+avançar para a Fase 11 (Seller Coaching), Tarefa 11.1 (Conversation
+Metrics) — a primeira fase nova do roadmap desde a Fase 10, exigiu
+confirmação nomeando explicitamente a fase (mesma disciplina de toda
+transição de fase anterior, não só de tarefa dentro de uma fase já em
+andamento).
+
+### TAREFA 11.1 — Conversation Metrics
+- **`agent/conversation_metrics_rules.py`** (novo, função pura, sem
+  IA/banco, mesmo padrão de `deal_risk_rules.py`/`win_loss_rules.py`):
+  `calcular_metricas_conversa(turns, objections=None, next_step_
+  proposto=None, palavras_abertura=PALAVRAS_ABERTURA_PADRAO, limiar_
+  monologo_segundos=90.0)` — genérica sobre uma transcrição já
+  temporizada e estruturada pelo chamador (lista de "turns" com
+  `speaker`/`start`/`end`/`text`), nunca extrai nada de áudio bruto
+  nem decide diarização.
+- **Disciplina de escopo — mesma separação estrutural × classificação
+  de negócio já usada nas Fases 4-10**: `seller_talk_ratio`/
+  `customer_talk_ratio`/`interruptions`/`monologues` são puramente
+  estruturais (só `speaker`/`start`/`end`); `questions_total`/`open_
+  questions`/`closed_questions` usam um sinal estrutural do próprio
+  texto do turno (detecção de `"?"` + heurística de palavra de
+  abertura, `PALAVRAS_ABERTURA_PADRAO`, sobrescrevível) — nunca um
+  julgamento de conteúdo de negócio. Já `price_timing`/`presentation_
+  timing`/`objection_exploration_rate`/`next_step_rate` **sempre
+  recebem o sinal já classificado do chamador** (flags `is_price_
+  mention`/`is_presentation_mention` por turno, lista `objections` com
+  `explored`, `next_step_proposto`) — nunca inferidos por keyword
+  matching de negócio aqui dentro, mesmo princípio de `deal_risk_
+  rules.calcular_riscos()` (Fase 4.2: "de onde vem cada sinal em
+  produção real é integração futura").
+- **Falante não identificado (`"incerto"` ou qualquer valor fora de
+  `vendedor`/`cliente`) nunca conta nos ratios/interrupções** — mesmo
+  princípio de "dado ausente nunca vira 0/False por omissão" já usado
+  em `recommendation_effectiveness_rules.py` (Fase 10).
+- **Perguntas contadas só do vendedor** (decisão desta rodada — feature
+  de Seller Coaching, mede a habilidade do vendedor em fazer perguntas
+  de descoberta, não do cliente).
+- **Turnos consecutivos do mesmo falante são mesclados antes de checar
+  o limiar de monólogo** — dois turnos seguidos do vendedor sem fala
+  do cliente entre eles somam para 1 monólogo só, não 2.
+- **Interrupção**: turno de falante diferente que começa antes do
+  turno anterior terminar (`start < end` do anterior) — sobreposição
+  do mesmo falante ou envolvendo falante incerto nunca conta.
+- **Função ordena os turnos internamente por `start`** — o chamador
+  não precisa garantir ordem cronológica (mesmo princípio defensivo de
+  nunca confiar em pré-computação externa já usado em `outcome_
+  rules.calcular_cycle_days()`, Fase 8).
+- Testado com uma transcrição temporizada conhecida (11 turnos,
+  302s totais) com valores esperados calculados à mão — literal da
+  instrução da Tarefa 11.1 ("Criar transcrições temporizadas
+  conhecidas. Comparar cálculo esperado com cálculo real."). Inclui
+  teste de robustez a ordem (mesma transcrição embaralhada produz o
+  mesmo resultado).
+- 22 testes novos (`tests/test_conversation_metrics_rules.py`). Suite
+  completa: **851 testes** (829 da Tarefa 10.3 + 22 novos), **0
+  falhas**, 1 skip pré-existente — sem regressão.
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP,
+  sem persistência nova — mesma disciplina das Fases 1-10. Extração
+  automática de `speaker`/`start`/`end`/flags de negócio a partir de
+  uma reunião real (diarização, detecção de preço/apresentação) é
+  integração futura não pedida por esta tarefa.
+- Versão: `1.4.93` → `1.4.94` (`api/main.py::/health` e
+  `/monitor/metricas`).
+
+### PENDENTE
+- Push + deploy na VPS (aditivo — sem tabela/coluna nova, módulo puro
+  em memória).
+- **Tarefa 11.2 (Seller Scorecard) e qualquer fase/tarefa seguinte do
+  "PROMPT MESTRE — SALE-IA V2" não começam sem nova confirmação
+  explícita do usuário.**
+
+---
+
 ## V.1.4.93 — Recommendation Effectiveness: Tarefa 10.3 da Fase 10 do "PROMPT MESTRE — SALE-IA V2", fecha a Fase 10
 
 > Data: 15/09/2026 | Local, aguardando push/deploy
