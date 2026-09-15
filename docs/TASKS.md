@@ -939,7 +939,24 @@ Usuario confirmou avancar para a Fase 12 (Collective Sales Intelligence) — nov
 - [x] 9 testes novos (`tests/test_seller_benchmark_rules.py`). Suite completa: 875 testes (866 da Tarefa 11.2 + 9 novos), 0 falhas, 1 skip pre-existente — sem regressao.
 - [x] Decisao deliberada: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP, sem persistencia nova — mesma disciplina das Fases 1-11.
 - [x] Versao: `1.4.95` -> `1.4.96`.
-- **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna nova, modulo puro em memoria). **Tarefa 12.2 (Descoberta de padroes) e qualquer fase/tarefa seguinte do "PROMPT MESTRE — SALE-IA V2" nao comecam sem nova confirmacao explicita do usuario.**
+- [x] Push + deploy confirmados (15/09/2026): commit `329a47d` no GitHub. `reunioes_ativas: 0` checado antes/depois na VPS — `git pull` (fast-forward `3ffce0c` -> `329a47d`) + `systemctl restart saleia` — `active`, journal sem erros. Pos-restart: `/health` = `versao 1.4.96`, `status online`, `reunioes_ativas 0`.
+
+## Concluido (V.1.4.97 — Descoberta de Padroes, Tarefa 12.2, fecha a Fase 12 do "PROMPT MESTRE — SALE-IA V2")
+
+Usuario confirmou avancar para a Tarefa 12.2, fechando a Fase 12 (Collective Sales Intelligence) completa.
+
+- [x] `agent/pattern_discovery_rules.py` (novo, funcao pura, sem IA/banco): `descobrir_padrao(observacoes, hipotese, minimo_amostra=AMOSTRA_MINIMA_PADRAO, confianca=0.95)` testa uma hipotese de comportamento (ex.: "vendedores de alta conversao exploram implicacao antes de apresentar solucao") comparando a taxa do comportamento entre um `top group` e um `control group`.
+- [x] Reuso, nao reinvencao: reaproveita `win_loss_rules.comparar_por_variavel_categorica()` (Fase 8) direto — o "desfecho" vira o comportamento observado (`exhibited`) em vez de won/lost, e a "categoria" vira o grupo (`top`/`control`) em vez de segmento/estrategia. Mesma funcao, sem alteracao, mesmo principio de `seller_benchmark_rules.py` (Tarefa 12.1).
+- [x] Retorno literal do prompt mestre: `sample`, `top_group`, `control_group`, `difference`, `confidence` — mais `diferenca_significativa`/`afirmacao` (campos adicionais para o Dashboard distinguir sinal real de ruido sem reimplementar a logica).
+- [x] Significancia sem scipy — mesma disciplina honesta e auto-calibrada de `seasonality_rules.py` (Fase 9): `diferenca_significativa` so e `True` quando os 2 grupos tem amostra suficiente e os intervalos de confianca de Wilson dos 2 grupos nao se sobrepoem.
+- [x] Regra cientifica herdada das Fases 8-9 — nunca causa, sempre associacao: unica string de texto livre vem de `TEMPLATE_PADRAO_DESCOBERTO`/`TEMPLATE_PADRAO_SEM_SINAL` (templates fixos), guardado por `GuardaContraCausalidadeTest`.
+- [x] Quem monta as observacoes e o que e "exhibited": cada observacao e `{"group": "top"|"control", "exhibited": bool}` — `group` ja classificado pelo chamador (quem e "alta conversao" e definicao de negocio, nao decidida aqui — mesmo padrao de `seller_tier` da Tarefa 12.1), `exhibited` ja classificado pelo chamador (este modulo nunca extrai comportamento de transcricao livre). `hipotese` (texto) e so uma etiqueta de rastreabilidade no resultado, nunca interpretada pelo modulo.
+- [x] Testado com o exemplo literal do prompt mestre (top 40/50=80%, control 15/50=30%, ICs de Wilson nao sobrepostos -> diferenca significativa) e o caso negativo (taxas parecidas -> sem sinal) e o caso de amostra insuficiente (diferenca grande mas n<30 -> nao significativa, mesmo com diferenca calculada e reportada).
+- [x] 9 testes novos (`tests/test_pattern_discovery_rules.py`). Suite completa: 884 testes (875 da Tarefa 12.1 + 9 novos), 0 falhas, 1 skip pre-existente — sem regressao.
+- [x] Decisao deliberada: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP, sem persistencia nova — mesma disciplina das Fases 1-12.
+- [x] **Fecha a Fase 12 (Collective Sales Intelligence)** completa: Tarefa 12.1 (Benchmark) -> 12.2 (Descoberta de Padroes).
+- [x] Versao: `1.4.96` -> `1.4.97`.
+- **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna nova, modulo puro em memoria). **Qualquer fase/tarefa seguinte do "PROMPT MESTRE — SALE-IA V2" nao comeca sem nova confirmacao explicita do usuario.**
 
 ## Pendente
 

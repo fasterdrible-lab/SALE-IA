@@ -1,18 +1,17 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-15 (V.1.4.96, local — produção confirmada em
-`1.4.95`, ver "Deploy" abaixo — V.1.4.96 ainda não deployada;
-V.1.4.96 é a Tarefa 12.1, início da Fase 12 (Collective Sales
-Intelligence) do "SALE-IA V2" — Benchmark dos Melhores Vendedores
-(`agent/seller_benchmark_rules.py`: compara tiers top/median/low
-reaproveitando o paradoxo de Simpson da Fase 8 pra nunca concluir que
-um vendedor é melhor só porque recebe leads melhores). Ver seção
-"Benchmark dos Melhores Vendedores — Fase 12 / Tarefa 12.1" abaixo e
-CHANGELOG.md V.1.4.96. Sem endpoint HTTP novo, sem integração com
-`orquestrador.py`. V.1.4.91-95 (Fase 10 completa + Fase 11 completa)
-foram deployadas na VPS em 15/09/2026 (`/health` confirmou `versao
-1.4.95`, `reunioes_ativas: 0` checado antes de cada restart, journal
-sem erros).
+Atualizado em: 2026-09-15 (V.1.4.97, local — produção confirmada em
+`1.4.96`, ver "Deploy" abaixo — V.1.4.97 ainda não deployada;
+V.1.4.97 é a Tarefa 12.2, **fecha a Fase 12 (Collective Sales
+Intelligence)** do "SALE-IA V2" — Descoberta de Padrões
+(`agent/pattern_discovery_rules.py`: testa hipótese de comportamento
+comparando top group × control group, reaproveitando IC de Wilson da
+Fase 8). Ver seção "Descoberta de Padrões — Fase 12 / Tarefa 12.2"
+abaixo e CHANGELOG.md V.1.4.97. Sem endpoint HTTP novo, sem integração
+com `orquestrador.py`. V.1.4.91-96 (Fases 10 e 11 completas + Tarefa
+12.1) foram deployadas na VPS em 15/09/2026 (`/health` confirmou
+`versao 1.4.96`, `reunioes_ativas: 0` checado antes de cada restart,
+journal sem erros).
 O corpo deste documento nao acompanhou o
 CHANGELOG.md entre V.1.4.54 e V.1.4.66; a fonte de verdade sempre mais
 atualizada e o CHANGELOG e o `/health` de producao. Cost Intelligence
@@ -1312,11 +1311,50 @@ Tarefa 12.2 (Descoberta de padrões) não começou.
   (V.1.4.96).
 - **Decisão deliberada**: sem integração com `orquestrador.py`, sem
   endpoint HTTP, sem persistência nova.
+- **Push + deploy confirmados (15/09/2026)**: commit `329a47d` no
+  GitHub. Na VPS, `reunioes_ativas: 0` checado antes/depois — `git
+  pull` (fast-forward `3ffce0c` → `329a47d`) + `systemctl restart
+  saleia` — `active`, journal sem erros. Pós-restart: `/health` =
+  `versao 1.4.96`, `status online`, `reunioes_ativas 0`.
+
+## Descoberta de Padrões — Fase 12 / Tarefa 12.2 do "SALE-IA V2" (V.1.4.97, fecha a Fase 12, 15/09/2026)
+
+Usuário confirmou avançar para a Tarefa 12.2, fechando a Fase 12
+(Collective Sales Intelligence) completa.
+
+- `agent/pattern_discovery_rules.py` (novo): `descobrir_padrao(
+  observacoes, hipotese, minimo_amostra=AMOSTRA_MINIMA_PADRAO,
+  confianca=0.95)` testa uma hipótese de comportamento (ex.:
+  "vendedores de alta conversão exploram implicação antes de
+  apresentar solução") comparando a taxa entre `top group` e `control
+  group`.
+- **Reuso, não reinvenção**: reaproveita `win_loss_rules.comparar_
+  por_variavel_categorica()` (Fase 8) direto — "desfecho" vira o
+  comportamento (`exhibited`), "categoria" vira o grupo
+  (`top`/`control`).
+- **Retorno literal do prompt mestre**: `sample`, `top_group`,
+  `control_group`, `difference`, `confidence` (+ `diferenca_
+  significativa`/`afirmacao`).
+- **Significância sem scipy — mesma disciplina honesta de
+  `seasonality_rules.py` (Fase 9)**: `diferenca_significativa` só é
+  `True` quando os 2 grupos têm amostra suficiente **e** os ICs de
+  Wilson não se sobrepõem.
+- Regra "nunca causa, sempre associação" herdada das Fases 8-9,
+  guardada por `GuardaContraCausalidadeTest`.
+- Testado com o exemplo literal do prompt mestre (top 80% vs control
+  30%, n=50 cada, ICs não sobrepostos → significativo), caso sem
+  sinal real e caso de amostra insuficiente.
+- 9 testes novos. Suite completa: 884 testes, 0 falhas, 1 skip
+  pré-existente — sem regressão. Detalhe completo no CHANGELOG.md
+  (V.1.4.97).
+- **Decisão deliberada**: sem integração com `orquestrador.py`, sem
+  endpoint HTTP, sem persistência nova.
+- **Fecha a Fase 12 (Collective Sales Intelligence)** completa: Tarefa
+  12.1 (Benchmark) → 12.2 (Descoberta de Padrões).
 - **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna
-  nova, módulo puro em memória). **Tarefa 12.2 (Descoberta de
-  padrões) e qualquer fase/tarefa seguinte do "PROMPT MESTRE —
-  SALE-IA V2" não começam sem nova confirmação explícita do
-  usuário.**
+  nova, módulo puro em memória). **Qualquer fase/tarefa seguinte do
+  "PROMPT MESTRE — SALE-IA V2" não começa sem nova confirmação
+  explícita do usuário.**
 
 ### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)
 - `services/embeddings/`: interface `EmbeddingProvider` (`embed`, `embed_async`, `embed_batch`, `health_check`), `OllamaEmbeddingProvider` (HTTP local via `httpx`, zero import de SDKs de LLM externos), `OpenAIEmbeddingProvider`, `factory.get_embedding_provider()` (lê `EMBEDDING_PROVIDER`, erro explícito em valor desconhecido).

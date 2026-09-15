@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.96** (backend, local — ainda não deployada; produção confirmada em V.1.4.95) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.97** (backend, local — ainda não deployada; produção confirmada em V.1.4.96) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -1849,11 +1849,70 @@ nesta rodada — Tarefa 12.2 (Descoberta de padrões) não começou.
   `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP,
   sem persistência nova — mesma disciplina das Fases 1-11.
 - Versão: `1.4.95` → `1.4.96`.
+- **Push + deploy confirmados (15/09/2026)**: commit `329a47d` no
+  GitHub. Na VPS, `reunioes_ativas: 0` checado antes/depois — `git
+  pull` (fast-forward `3ffce0c` → `329a47d`) + `systemctl restart
+  saleia` — `active`, journal sem erros. Pós-restart: `/health` =
+  `versao 1.4.96`, `status online`, `reunioes_ativas 0`.
+
+## Descoberta de Padrões — Fase 12 / Tarefa 12.2 do "PROMPT MESTRE — SALE-IA V2" (V.1.4.97, fecha a Fase 12 — Collective Sales Intelligence)
+
+Usuário confirmou avançar para a Tarefa 12.2, fechando a Fase 12
+(Collective Sales Intelligence) completa.
+
+- **`agent/pattern_discovery_rules.py`** (novo, função pura, sem
+  IA/banco): `descobrir_padrao(observacoes, hipotese, minimo_amostra=
+  AMOSTRA_MINIMA_PADRAO, confianca=0.95)` testa uma hipótese de
+  comportamento (ex.: "vendedores de alta conversão exploram
+  implicação antes de apresentar solução") comparando a taxa do
+  comportamento entre um `top group` e um `control group`.
+- **Reuso, não reinvenção**: reaproveita `win_loss_rules.comparar_
+  por_variavel_categorica()` (Fase 8) direto — o "desfecho" vira o
+  comportamento observado (`exhibited`) em vez de won/lost, e a
+  "categoria" vira o grupo (`top`/`control`) em vez de segmento/
+  estratégia. Mesma função, sem alteração, mesmo princípio de
+  `seller_benchmark_rules.py` (Tarefa 12.1).
+- **Retorno literal do prompt mestre**: `sample`, `top_group`,
+  `control_group`, `difference`, `confidence` — mais `diferenca_
+  significativa`/`afirmacao` (campos adicionais para o Dashboard
+  distinguir sinal real de ruído sem reimplementar a lógica).
+- **Significância sem scipy — mesma disciplina honesta e
+  auto-calibrada de `seasonality_rules.py` (Fase 9)**: em vez de teste
+  de hipótese formal (qui-quadrado exigiria scipy), `diferenca_
+  significativa` só é `True` quando os 2 grupos têm amostra suficiente
+  **e** os intervalos de confiança de Wilson dos 2 grupos não se
+  sobrepõem.
+- **Regra científica herdada das Fases 8-9 — nunca causa, sempre
+  associação**: única string de texto livre vem de `TEMPLATE_PADRAO_
+  DESCOBERTO`/`TEMPLATE_PADRAO_SEM_SINAL` (templates fixos), guardado
+  por `GuardaContraCausalidadeTest`.
+- **Quem monta as observações e o que é "exhibited"**: cada observação
+  é `{"group": "top"|"control", "exhibited": bool}` — `group` já
+  classificado pelo chamador (quem é "alta conversão" é definição de
+  negócio, não decidida aqui — mesmo padrão de `seller_tier` da Tarefa
+  12.1), `exhibited` já classificado pelo chamador (este módulo nunca
+  extrai comportamento de transcrição livre). `hipotese` (texto) é só
+  uma etiqueta de rastreabilidade no resultado, nunca interpretada
+  pelo módulo.
+- Testado com o exemplo literal do prompt mestre (top 40/50=80%,
+  control 15/50=30%, ICs de Wilson não sobrepostos → diferença
+  significativa) e o caso negativo (taxas parecidas → sem sinal) e o
+  caso de amostra insuficiente (diferença grande mas n<30 → não
+  significativa, mesmo com diferença calculada e reportada).
+- 9 testes novos (`tests/test_pattern_discovery_rules.py`). Suite
+  completa: **884 testes** (875 da Tarefa 12.1 + 9 novos), **0
+  falhas**, 1 skip pré-existente — sem regressão.
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP,
+  sem persistência nova — mesma disciplina das Fases 1-12.
+- **Fecha a Fase 12 (Collective Sales Intelligence)** completa: Tarefa
+  12.1 (Benchmark dos Melhores Vendedores) → 12.2 (Descoberta de
+  Padrões).
+- Versão: `1.4.96` → `1.4.97`.
 - **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna
-  nova, módulo puro em memória). **Tarefa 12.2 (Descoberta de
-  padrões) e qualquer fase/tarefa seguinte do "PROMPT MESTRE —
-  SALE-IA V2" não começam sem nova confirmação explícita do
-  usuário.**
+  nova, módulo puro em memória). **Qualquer fase/tarefa seguinte do
+  "PROMPT MESTRE — SALE-IA V2" não começa sem nova confirmação
+  explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

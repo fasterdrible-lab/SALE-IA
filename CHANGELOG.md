@@ -3,6 +3,76 @@
 
 ---
 
+## V.1.4.97 — Descoberta de Padrões: Tarefa 12.2 da Fase 12 do "PROMPT MESTRE — SALE-IA V2", fecha a Fase 12 (Collective Sales Intelligence)
+
+> Data: 15/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Sequência direta de V.1.4.96 (Tarefa 12.1). Usuário confirmou avançar
+para a Tarefa 12.2, fechando a Fase 12 (Collective Sales Intelligence)
+completa.
+
+### TAREFA 12.2 — Descoberta de padrões
+- **`agent/pattern_discovery_rules.py`** (novo, função pura, sem
+  IA/banco): `descobrir_padrao(observacoes, hipotese, minimo_amostra=
+  AMOSTRA_MINIMA_PADRAO, confianca=0.95)` testa uma hipótese de
+  comportamento (ex.: "vendedores de alta conversão exploram
+  implicação antes de apresentar solução") comparando a taxa do
+  comportamento entre um `top group` e um `control group`.
+- **Reuso, não reinvenção**: reaproveita `win_loss_rules.comparar_
+  por_variavel_categorica()` (Fase 8) direto — o "desfecho" vira o
+  comportamento observado (`exhibited`) em vez de won/lost, e a
+  "categoria" vira o grupo (`top`/`control`) em vez de segmento/
+  estratégia. Mesma função, sem alteração, mesmo princípio de
+  `seller_benchmark_rules.py` (Tarefa 12.1).
+- **Retorno literal do prompt mestre**: `sample`, `top_group`,
+  `control_group`, `difference`, `confidence` — mais `diferenca_
+  significativa`/`afirmacao` (campos adicionais para o Dashboard
+  distinguir sinal real de ruído sem precisar reimplementar a lógica).
+- **Significância sem scipy — mesma disciplina honesta e
+  auto-calibrada de `seasonality_rules.py` (Fase 9)**: em vez de teste
+  de hipótese formal (qui-quadrado exigiria scipy), `diferenca_
+  significativa` só é `True` quando os 2 grupos têm amostra suficiente
+  **e** os intervalos de confiança de Wilson dos 2 grupos não se
+  sobrepõem.
+- **Regra científica herdada das Fases 8-9 — nunca causa, sempre
+  associação**: única string de texto livre vem de `TEMPLATE_PADRAO_
+  DESCOBERTO`/`TEMPLATE_PADRAO_SEM_SINAL` (templates fixos), guardado
+  por `GuardaContraCausalidadeTest`.
+- **Quem monta as observações e o que é "exhibited"**: cada observação
+  é `{"group": "top"|"control", "exhibited": bool}` — `group` já
+  classificado pelo chamador (quem é "alta conversão" é definição de
+  negócio, não decidida aqui — mesmo padrão de `seller_tier` da Tarefa
+  12.1), `exhibited` já classificado pelo chamador (este módulo nunca
+  extrai comportamento de transcrição livre). `hipotese` (texto) é só
+  uma etiqueta de rastreabilidade no resultado, nunca interpretada
+  pelo módulo.
+- Testado com o exemplo literal do prompt mestre (top 40/50=80%,
+  control 15/50=30%, ICs de Wilson não sobrepostos → diferença
+  significativa) e o caso negativo (taxas parecidas → sem sinal) e o
+  caso de amostra insuficiente (diferença grande mas n<30 → não
+  significativa, mesmo com diferença calculada e reportada).
+- 9 testes novos (`tests/test_pattern_discovery_rules.py`). Suite
+  completa: **884 testes** (875 da Tarefa 12.1 + 9 novos), **0
+  falhas**, 1 skip pré-existente — sem regressão.
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP,
+  sem persistência nova — mesma disciplina das Fases 1-12.
+- Versão: `1.4.96` → `1.4.97` (`api/main.py::/health` e
+  `/monitor/metricas`).
+
+### FECHA A FASE 12 (Collective Sales Intelligence)
+Tarefa 12.1 (Benchmark dos Melhores Vendedores) → 12.2 (Descoberta de
+Padrões) completam a Fase 12.
+
+### PENDENTE
+- Push + deploy na VPS (aditivo — sem tabela/coluna nova, módulo puro
+  em memória).
+- **Qualquer fase/tarefa seguinte do "PROMPT MESTRE — SALE-IA V2" não
+  começa sem nova confirmação explícita do usuário.**
+
+---
+
 ## V.1.4.96 — Benchmark dos Melhores Vendedores: Tarefa 12.1 da Fase 12 do "PROMPT MESTRE — SALE-IA V2", início da Fase 12 (Collective Sales Intelligence)
 
 > Data: 15/09/2026 | Local, aguardando push/deploy
