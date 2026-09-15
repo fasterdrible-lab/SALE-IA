@@ -1,18 +1,15 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-15 (V.1.4.94, local — produção confirmada em
-`1.4.93`, ver "Deploy" abaixo — V.1.4.94 ainda não deployada;
-V.1.4.94 é a Tarefa 11.1, início da Fase 11 (Seller Coaching) do
-"SALE-IA V2" — Conversation Metrics
-(`agent/conversation_metrics_rules.py`: talk ratio, perguntas
-abertas/fechadas, interrupções, monólogos, timing de preço/
-apresentação e taxas de exploração de objeção/próximo passo, a partir
-de transcrição temporizada estruturada). Ver seção "Conversation
-Metrics — Fase 11 / Tarefa 11.1" abaixo e CHANGELOG.md V.1.4.94. Sem
-endpoint HTTP novo, sem integração com `orquestrador.py`. V.1.4.91
-(RecommendationEvent), V.1.4.92 (Detectar Uso da Recomendação) e
-V.1.4.93 (Recommendation Effectiveness, fecha a Fase 10) foram
-deployadas na VPS em 15/09/2026 (`/health` confirmou `versao 1.4.93`,
+Atualizado em: 2026-09-15 (V.1.4.95, local — produção confirmada em
+`1.4.94`, ver "Deploy" abaixo — V.1.4.95 ainda não deployada;
+V.1.4.95 é a Tarefa 11.2, **fecha a Fase 11 (Seller Coaching)** do
+"SALE-IA V2" — Seller Scorecard (`agent/seller_scorecard_rules.py`:
+7 dimensões literais, cada score uma fração transparente sobre
+evidências já classificadas, nunca combinadas numa nota geral única).
+Ver seção "Seller Scorecard — Fase 11 / Tarefa 11.2" abaixo e
+CHANGELOG.md V.1.4.95. Sem endpoint HTTP novo, sem integração com
+`orquestrador.py`. V.1.4.91-94 (Fase 10 completa + Tarefa 11.1) foram
+deployadas na VPS em 15/09/2026 (`/health` confirmou `versao 1.4.94`,
 `reunioes_ativas: 0` checado antes de cada restart, journal sem
 erros).
 O corpo deste documento nao acompanhou o
@@ -1234,10 +1231,50 @@ a Fase 0).
   (V.1.4.94).
 - **Decisão deliberada**: sem integração com `orquestrador.py`, sem
   endpoint HTTP, sem persistência nova.
+- **Push + deploy confirmados (15/09/2026)**: commit `33dd12a` no
+  GitHub. Na VPS, `reunioes_ativas: 0` checado antes/depois — `git
+  pull` (fast-forward `36c7585` → `33dd12a`) + `systemctl restart
+  saleia` — `active`, journal sem erros. Pós-restart: `/health` =
+  `versao 1.4.94`, `status online`, `reunioes_ativas 0`.
+
+## Seller Scorecard — Fase 11 / Tarefa 11.2 do "SALE-IA V2" (V.1.4.95, fecha a Fase 11, 15/09/2026)
+
+Usuário confirmou avançar para a Tarefa 11.2, fechando a Fase 11
+(Seller Coaching) completa.
+
+- `agent/seller_scorecard_rules.py` (novo): `SCORECARD_DIMENSOES` — as
+  7 dimensões literais do prompt mestre (Discovery, Listening,
+  Qualification, Value Building, Negotiation, Closing, Next Step
+  Discipline). `calcular_scorecard(evidencias_por_dimensao)` genérica
+  sobre evidências já classificadas pelo chamador (de
+  `conversation_metrics_rules.py`, `spin_coverage_rules.py`,
+  `meddpicc_rules.py`, `objection_rules.py`/`negotiation_rules.py`
+  etc.) — nunca decide sozinha o que conta como evidência.
+- **Regra literal "Não criar score arbitrário", imposta
+  estruturalmente**: cada dimensão é `criterios_atendidos /
+  total_criterios` sobre a lista de evidências — nunca peso/fórmula
+  inventada, e **nunca combinada com as outras 6 numa nota geral
+  única** (nenhuma chave `score_geral` existe na API, guardado por
+  `GuardaContraScoreArbitrarioTest`).
+- "Cada score precisa apontar evidências": resultado de cada dimensão
+  sempre inclui a lista de evidências (`{"criterio", "atendido",
+  "quote"}`) que o compõe. Dimensão sem evidência recebida vem como
+  `score: None`, nunca `0` por omissão. `dimensoes_sem_evidencia()`
+  helper pro Dashboard sinalizar "dado insuficiente".
+- Vocabulário de dimensão fechado (chave fora das 7 literais levanta
+  `ValueError`); as 7 dimensões sempre aparecem no retorno.
+- 15 testes novos. Suite completa: 866 testes, 0 falhas, 1 skip
+  pré-existente — sem regressão. Detalhe completo no CHANGELOG.md
+  (V.1.4.95).
+- **Decisão deliberada**: sem integração com `orquestrador.py`, sem
+  endpoint HTTP, sem persistência nova. Mapear cada dimensão para os
+  sinais reais das Fases 3/4/6/11 é integração futura não pedida.
+- **Fecha a Fase 11 (Seller Coaching)** completa: Tarefa 11.1
+  (Conversation Metrics) → 11.2 (Seller Scorecard).
 - **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna
-  nova, módulo puro em memória). **Tarefa 11.2 (Seller Scorecard) e
-  qualquer fase/tarefa seguinte do "PROMPT MESTRE — SALE-IA V2" não
-  começam sem nova confirmação explícita do usuário.**
+  nova, módulo puro em memória). **Qualquer fase/tarefa seguinte do
+  "PROMPT MESTRE — SALE-IA V2" não começa sem nova confirmação
+  explícita do usuário.**
 
 ### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)
 - `services/embeddings/`: interface `EmbeddingProvider` (`embed`, `embed_async`, `embed_batch`, `health_check`), `OllamaEmbeddingProvider` (HTTP local via `httpx`, zero import de SDKs de LLM externos), `OpenAIEmbeddingProvider`, `factory.get_embedding_provider()` (lê `EMBEDDING_PROVIDER`, erro explícito em valor desconhecido).

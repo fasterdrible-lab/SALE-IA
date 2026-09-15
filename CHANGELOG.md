@@ -3,6 +3,77 @@
 
 ---
 
+## V.1.4.95 — Seller Scorecard: Tarefa 11.2 da Fase 11 do "PROMPT MESTRE — SALE-IA V2", fecha a Fase 11 (Seller Coaching)
+
+> Data: 15/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Sequência direta de V.1.4.94 (Tarefa 11.1). Usuário confirmou avançar
+para a Tarefa 11.2, fechando a Fase 11 (Seller Coaching) completa.
+
+### TAREFA 11.2 — Seller Scorecard
+- **`agent/seller_scorecard_rules.py`** (novo, função pura, sem
+  IA/banco, mesmo padrão de `conversation_metrics_rules.py`/
+  `deal_risk_rules.py`): `SCORECARD_DIMENSOES` — as 7 dimensões
+  literais do prompt mestre (`Discovery`, `Listening`,
+  `Qualification`, `Value Building`, `Negotiation`, `Closing`, `Next
+  Step Discipline`). `calcular_scorecard(evidencias_por_dimensao)`
+  genérica sobre evidências já classificadas pelo chamador (de
+  `conversation_metrics_rules.py`/Tarefa 11.1, `spin_coverage_
+  rules.py`/Fase 3, `meddpicc_rules.py`/Fase 4,
+  `objection_rules.py`/`negotiation_rules.py`/Fase 6, etc.) — nunca
+  decide sozinha o que conta como evidência de cada dimensão.
+- **Regra literal "Não criar score arbitrário", imposta
+  estruturalmente**: cada dimensão é uma fração transparente
+  `criterios_atendidos / total_criterios` sobre a lista de evidências
+  recebida — nunca peso/fórmula inventada, e **nunca combinada com as
+  outras 6 dimensões numa nota geral única** (essa combinação nem
+  existe na API do módulo — nenhuma chave `score_geral`/
+  `overall_score` é produzida, guardado por
+  `GuardaContraScoreArbitrarioTest`).
+- **"Cada score precisa apontar evidências"**: o resultado de cada
+  dimensão sempre inclui a lista de evidências que o compõe (nunca só
+  o número) — cada evidência é `{"criterio", "atendido", "quote"}`;
+  `criterio` (o que foi avaliado) obrigatório e não-vazio, `quote`
+  opcional (nem toda evidência vem de uma fala literal — ex.:
+  `customer_talk_ratio` da Tarefa 11.1 é sinal estrutural, não
+  citação).
+- **Dimensão sem nenhuma evidência recebida nunca vira `0` por
+  omissão** — vem como `score: None` (mesmo princípio de
+  `conversation_metrics_rules.py`/`recommendation_effectiveness_
+  rules.py`, Fases 10-11). `dimensoes_sem_evidencia(scorecard)`
+  helper para o Dashboard sinalizar "dado insuficiente" em vez de
+  esconder a dimensão.
+- **Vocabulário de dimensão fechado**: chave fora das 7 literais
+  levanta `ValueError` (mesma disciplina de `OBJECTION_TIPOS`/
+  `MOTIVATION_TIPOS`, Fases 5-6). As 7 dimensões sempre aparecem no
+  retorno, mesmo sem nenhuma evidência recebida ainda.
+- 15 testes novos (`tests/test_seller_scorecard_rules.py`), incluindo
+  a guarda contra score arbitrário (nenhuma chave de score combinado
+  produzida; score sempre recomputável a partir das próprias
+  evidências). Suite completa: **866 testes** (851 da Tarefa 11.1 +
+  15 novos), **0 falhas**, 1 skip pré-existente — sem regressão.
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP,
+  sem persistência nova — mesma disciplina das Fases 1-11. Mapear
+  cada dimensão para os sinais reais das Fases 3/4/6/11 (ex.:
+  `Qualification` a partir do `meddpicc_state`) é integração futura
+  não pedida por esta tarefa.
+- Versão: `1.4.94` → `1.4.95` (`api/main.py::/health` e
+  `/monitor/metricas`).
+
+### FECHA A FASE 11 (Seller Coaching)
+Tarefa 11.1 (Conversation Metrics) → 11.2 (Seller Scorecard) completam
+a Fase 11.
+
+### PENDENTE
+- Push + deploy na VPS (aditivo — sem tabela/coluna nova, módulo puro
+  em memória).
+- **Qualquer fase/tarefa seguinte do "PROMPT MESTRE — SALE-IA V2" não
+  começa sem nova confirmação explícita do usuário.**
+
+---
+
 ## V.1.4.94 — Conversation Metrics: Tarefa 11.1 da Fase 11 do "PROMPT MESTRE — SALE-IA V2", início da Fase 11 (Seller Coaching)
 
 > Data: 15/09/2026 | Local, aguardando push/deploy

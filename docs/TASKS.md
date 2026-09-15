@@ -911,7 +911,22 @@ Usuario confirmou avancar para a Fase 11 (Seller Coaching) — nova fase do road
 - [x] 22 testes novos (`tests/test_conversation_metrics_rules.py`). Suite completa: 851 testes (829 da Tarefa 10.3 + 22 novos), 0 falhas, 1 skip pre-existente — sem regressao.
 - [x] Decisao deliberada: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP, sem persistencia nova — mesma disciplina das Fases 1-10. Extracao automatica de speaker/start/end/flags de negocio a partir de uma reuniao real (diarizacao, deteccao de preco/apresentacao) e integracao futura nao pedida por esta tarefa.
 - [x] Versao: `1.4.93` -> `1.4.94`.
-- **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna nova, modulo puro em memoria). **Tarefa 11.2 (Seller Scorecard) e qualquer fase/tarefa seguinte do "PROMPT MESTRE — SALE-IA V2" nao comecam sem nova confirmacao explicita do usuario.**
+- [x] Push + deploy confirmados (15/09/2026): commit `33dd12a` no GitHub. `reunioes_ativas: 0` checado antes/depois na VPS — `git pull` (fast-forward `36c7585` -> `33dd12a`) + `systemctl restart saleia` — `active`, journal sem erros. Pos-restart: `/health` = `versao 1.4.94`, `status online`, `reunioes_ativas 0`.
+
+## Concluido (V.1.4.95 — Seller Scorecard, Tarefa 11.2, fecha a Fase 11 do "PROMPT MESTRE — SALE-IA V2")
+
+Usuario confirmou avancar para a Tarefa 11.2, fechando a Fase 11 (Seller Coaching) completa.
+
+- [x] `agent/seller_scorecard_rules.py` (novo, funcao pura, sem IA/banco, mesmo padrao de `conversation_metrics_rules.py`/`deal_risk_rules.py`): `SCORECARD_DIMENSOES` — as 7 dimensoes literais do prompt mestre (Discovery, Listening, Qualification, Value Building, Negotiation, Closing, Next Step Discipline). `calcular_scorecard(evidencias_por_dimensao)` generica sobre evidencias ja classificadas pelo chamador (de `conversation_metrics_rules.py`/Tarefa 11.1, `spin_coverage_rules.py`/Fase 3, `meddpicc_rules.py`/Fase 4, `objection_rules.py`/`negotiation_rules.py`/Fase 6, etc.) — nunca decide sozinha o que conta como evidencia de cada dimensao.
+- [x] Regra literal "Nao criar score arbitrario", imposta estruturalmente: cada dimensao e uma fracao transparente `criterios_atendidos / total_criterios` sobre a lista de evidencias recebida — nunca peso/formula inventada, e nunca combinada com as outras 6 dimensoes numa nota geral unica (essa combinacao nem existe na API do modulo — nenhuma chave `score_geral`/`overall_score` e produzida, guardado por `GuardaContraScoreArbitrarioTest`).
+- [x] "Cada score precisa apontar evidencias": o resultado de cada dimensao sempre inclui a lista de evidencias que o compoe (nunca so o numero) — cada evidencia e `{"criterio", "atendido", "quote"}`; `criterio` obrigatorio e nao-vazio, `quote` opcional (nem toda evidencia vem de uma fala literal — ex.: `customer_talk_ratio` da Tarefa 11.1 e sinal estrutural, nao citacao).
+- [x] Dimensao sem nenhuma evidencia recebida nunca vira `0` por omissao — vem como `score: None` (mesmo principio de `conversation_metrics_rules.py`/`recommendation_effectiveness_rules.py`, Fases 10-11). `dimensoes_sem_evidencia(scorecard)` helper para o Dashboard sinalizar "dado insuficiente" em vez de esconder a dimensao.
+- [x] Vocabulario de dimensao fechado: chave fora das 7 literais levanta `ValueError`. As 7 dimensoes sempre aparecem no retorno, mesmo sem nenhuma evidencia recebida ainda.
+- [x] 15 testes novos (`tests/test_seller_scorecard_rules.py`), incluindo a guarda contra score arbitrario (nenhuma chave de score combinado produzida; score sempre recomputavel a partir das proprias evidencias). Suite completa: 866 testes (851 da Tarefa 11.1 + 15 novos), 0 falhas, 1 skip pre-existente — sem regressao.
+- [x] Decisao deliberada: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP, sem persistencia nova — mesma disciplina das Fases 1-11. Mapear cada dimensao para os sinais reais das Fases 3/4/6/11 (ex.: `Qualification` a partir do `meddpicc_state`) e integracao futura nao pedida por esta tarefa.
+- [x] **Fecha a Fase 11 (Seller Coaching)** completa: Tarefa 11.1 (Conversation Metrics) -> 11.2 (Seller Scorecard).
+- [x] Versao: `1.4.94` -> `1.4.95`.
+- **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna nova, modulo puro em memoria). **Qualquer fase/tarefa seguinte do "PROMPT MESTRE — SALE-IA V2" nao comeca sem nova confirmacao explicita do usuario.**
 
 ## Pendente
 
