@@ -1,9 +1,8 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-16 (V.1.4.104, local — produção confirmada em
-`1.4.103`, ver "Deploy" abaixo — V.1.4.104 ainda não deployada.
-V.1.4.104 **fecha a Fase 17 (Preparação para Autonomia) do "SALE-IA
-V2"** — `agent/autonomy_policy_rules.py` (conceito `AutonomyPolicy`
+Atualizado em: 2026-09-16 (V.1.4.104, **deployada e confirmada em
+produção**. V.1.4.104 **fecha a Fase 17 (Preparação para Autonomia)
+do "SALE-IA V2"** — `agent/autonomy_policy_rules.py` (conceito `AutonomyPolicy`
 com os 6 níveis literais + Decision Boundaries da Tarefa 17.1, com a
 garantia estrutural "nenhum LLM pode contornar políticas" —
 FORBIDDEN/HUMAN_REQUIRED/HUMAN_APPROVAL bloqueados em qualquer nível
