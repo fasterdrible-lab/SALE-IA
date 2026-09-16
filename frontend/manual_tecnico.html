@@ -120,6 +120,7 @@
     <a href="#ia">IA / Roteador</a>
     <a href="#motor-nba">Motor NBA</a>
     <a href="#sales-brain">Sales Brain</a>
+    <a href="#sale-ia-v2">SALE-IA V2</a>
     <a href="#banco">Banco</a>
     <a href="#monitor">Monitor</a>
     <a href="#seguranca">Segurança</a>
@@ -132,7 +133,7 @@
   <div class="hero-title">Dev Manual — SALEIA</div>
   <div class="hero-sub">Referência técnica para manutenção, deploy e operação em produção.</div>
   <div class="hero-badges">
-    <span class="badge badge-gold">V.1.4.40</span>
+    <span class="badge badge-gold">V.1.4.100</span>
     <span class="badge badge-green">FastAPI + Python 3.14</span>
     <span class="badge badge-blue">MySQL + SQLite</span>
     <span class="badge badge-orange">Hetzner VPS</span>
@@ -152,6 +153,7 @@
     <a href="#ia">Roteador de IA</a>
     <a href="#motor-nba">Motor NBA V.1.4.28</a>
     <a href="#sales-brain">Sales Brain V.1.4.31–37</a>
+    <a href="#sale-ia-v2">SALE-IA V2 (Fases 1–13)</a>
     <a href="#banco">Banco de Dados</a>
     <div class="sidebar-group">Operação</div>
     <a href="#monitor">Monitor / Métricas</a>
@@ -787,6 +789,42 @@ skill_context = resolver_skill_context(
       </div>
     </section>
 
+    <!-- SALE-IA V2 -->
+    <section class="section" id="sale-ia-v2">
+      <div class="section-title">SALE-IA V2 — "PROMPT MESTRE" (Fases 1–13)</div>
+      <div class="alert alert-blue">Roadmap de 25 fases (`PROMPT MESTRE — SALE-IA V2-03_09_26.txt`, raiz do repo), <strong>diferente</strong> do "PROMPT MESTRE — EVOLUÇÃO DA SALEIA.txt" (Observabilidade/Promptfoo/Whisper Local/Biblioteca de Inteligência, já documentados acima). Fases 1–13 concluídas (V.1.4.73–1.4.99); Fase 14 (Experiment Engine) em diante exige nova confirmação explícita do usuário antes de começar — ver <code>docs/TASKS.md</code>.</div>
+      <div class="card">
+        <div class="card-title">Padrão comum a todas as 13 fases</div>
+        <ul>
+          <li>Cada tarefa é um módulo novo em <code>agent/*_rules.py</code> (ou nome próprio tipo <code>sales_reasoning_engine.py</code>) — <strong>função pura, zero IA e zero banco</strong>, exceto onde indicado.</li>
+          <li><strong>Nenhum está integrado</strong> a <code>orquestrador.py</code>/<code>processador_tempo_real.py</code> nem exposto por endpoint HTTP — são motores prontos, aguardando decisão de produto separada para plugar no tempo real.</li>
+          <li>Disciplina de evidência: dado de domínio (SalesEvent, SalesEvidence, hipóteses de MEDDPICC/motivação/objeção) nunca nasce sem uma <code>evidence_quote</code>/evidência real — valida com <code>ValueError</code>, nunca falha silenciosa como <code>AiUsageEvent</code>.</li>
+          <li>Estatística sem <code>scipy</code>: significância usa <code>win_loss_rules.amostra_suficiente()</code> (n≥30) + <code>intervalo_confianca_wilson()</code> (Fase 8), reaproveitados por Seasonality (9), Benchmark (12) e Sales Science (13).</li>
+          <li>Guarda de causalidade: templates de texto fixos, nunca f-string ad hoc, testados por <code>GuardaContraCausalidadeTest</code> (grep pela palavra "causa", inclusive dentro de negações).</li>
+        </ul>
+      </div>
+      <table>
+        <tr><th>Fase</th><th>Nome</th><th>Módulo(s)</th><th>Versão</th></tr>
+        <tr><td>1</td><td>Modelo canônico (SalesEvent/SalesEvidence)</td><td><code>sales_event_rules.py</code>, <code>sales_evidence_rules.py</code></td><td>1.4.73–74</td></tr>
+        <tr><td>2</td><td>Opportunity Memory + Graph</td><td><code>opportunity_memory_rules.py</code>, <code>opportunity_graph_rules.py</code></td><td>1.4.75</td></tr>
+        <tr><td>3</td><td>SPIN Coverage + Question Gap</td><td><code>spin_coverage_rules.py</code>, <code>question_gap_rules.py</code></td><td>1.4.76–77</td></tr>
+        <tr><td>4</td><td>MEDDPICC + Deal Risk</td><td><code>meddpicc_rules.py</code>, <code>deal_risk_rules.py</code></td><td>1.4.78–79</td></tr>
+        <tr><td>5</td><td>Motivação + Sinais Comportamentais</td><td><code>buyer_motivation_rules.py</code>, <code>behavioral_signal_rules.py</code></td><td>1.4.80–81</td></tr>
+        <tr><td>6</td><td>Objeção (taxonomia + root cause) + Negociação</td><td><code>objection_rules.py</code>, <code>negotiation_rules.py</code></td><td>1.4.82–83</td></tr>
+        <tr><td>7</td><td>Sales Reasoning Engine (motor central)</td><td><code>sales_reasoning_engine.py</code> — único com chamada de IA real (<code>raciocinar_async()</code>, via <code>claude_fallback</code>)</td><td>1.4.84–85</td></tr>
+        <tr><td>8</td><td>Outcome Tracking + Win/Loss Intelligence</td><td><code>outcome_rules.py</code>, <code>win_loss_rules.py</code></td><td>1.4.86–87</td></tr>
+        <tr><td>9</td><td>Data Warehouse + Sazonalidade (temporal/contextual)</td><td><code>data_warehouse_rules.py</code>, <code>seasonality_rules.py</code>, <code>contextual_seasonality_rules.py</code></td><td>1.4.88–90</td></tr>
+        <tr><td>10</td><td>RecommendationEvent + uso + efetividade</td><td>tabela <code>RecommendationEvent</code>, <code>recommendation_usage_rules.py</code> (embeddings), <code>recommendation_effectiveness_rules.py</code></td><td>1.4.91–93</td></tr>
+        <tr><td>11</td><td>Seller Coaching (métricas de conversa + scorecard)</td><td><code>conversation_metrics_rules.py</code>, <code>seller_scorecard_rules.py</code></td><td>1.4.94–95</td></tr>
+        <tr><td>12</td><td>Collective Sales Intelligence</td><td><code>seller_benchmark_rules.py</code>, <code>pattern_discovery_rules.py</code></td><td>1.4.96–97</td></tr>
+        <tr><td>13</td><td>Sales Science Engine (consolidação, 7 submódulos)</td><td><code>sales_science_engine.py</code> + <code>objection_trend_analyzer.py</code> + <code>conversion_driver_analyzer.py</code> (reshape puro dos módulos das Fases 8–12, via <code>montar_insight()</code>)</td><td>1.4.98–99</td></tr>
+      </table>
+      <div class="card" style="margin-top:12px">
+        <div class="card-title">Onde ler o detalhe de cada fase</div>
+        <p>Cada versão tem uma seção própria em <code>CHANGELOG.md</code> e um resumo em <code>CLAUDE.md</code> (mesmo nome de seção da fase) com as decisões de escopo tomadas naquela rodada — este manual só mapeia onde o código está, não repete o histórico de decisões.</p>
+      </div>
+    </section>
+
     <!-- BANCO -->
     <section class="section" id="banco">
       <div class="section-title">Banco de Dados</div>
@@ -796,6 +834,7 @@ skill_context = resolver_skill_context(
           <ul>
             <li><code>usuarios</code> — auth, perfil, plano, reset_token</li>
             <li><code>reunioes</code> — meeting_id, dados da sessão</li>
+            <li><code>meeting_memory</code> — SQLModel, <code>api/database.py::MeetingMemory</code>. <code>transcript_full</code>/<code>transcript_buffer</code>/<code>accumulated_summary</code>/<code>current_diagnosis</code> usam <code>_LongText</code> (<code>MEDIUMTEXT</code>, até 16MB) desde V.1.4.100 — eram <code>Text</code> puro (64KB) e estouravam em reuniões reais longas (ver Troubleshoot)</li>
             <li><code>base_conhecimento</code> — textos + embeddings para RAG</li>
             <li><code>relatorios</code> — recapitulações, DISC, score history</li>
             <li><code>sales_memories</code> — memórias extraídas por reunião</li>
@@ -805,6 +844,7 @@ skill_context = resolver_skill_context(
             <li><code>client_profiles</code> — perfis de clientes</li>
             <li><code>client_meetings</code> — vínculo cliente↔reunião</li>
             <li><code>followups</code> — mensagens de follow-up por canal</li>
+            <li><code>opportunities</code> / <code>opportunity_memories</code> / <code>opportunity_graph_edges</code> / <code>sales_events</code> / <code>sales_evidences</code> / <code>recommendation_events</code> — schema do "SALE-IA V2" (ver seção própria abaixo)</li>
           </ul>
         </div>
         <div class="card">
@@ -939,6 +979,18 @@ skill_context = resolver_skill_context(
           <li><strong>Se <code>EMBEDDING_PROVIDER=openai</code>:</strong> a chave <code>OPENAI_API_KEY</code> está inválida ou expirada — atualizar via painel admin → APIs → OpenAI → Salvar.</li>
           <li>Em ambos os casos a falha é graciosa: o documento é salvo <em>sem</em> embedding (aviso no retorno de <code>POST /base</code>) em vez de derrubar a requisição — rodar <code>scripts/reindex_embeddings.py</code> depois de corrigir o provedor.</li>
         </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Transcrição some no meio de uma reunião longa (fix V.1.4.100)</div>
+        <p><code>pymysql.err.DataError (1406, "Data too long for column 'transcript_full'")</code> — reunião com mais de ~1h30 estourava o limite de 64KB do MySQL <code>TEXT</code> puro (achado real em 15-16/09/2026). Desde a V.1.4.100, <code>MeetingMemory.transcript_full</code>/<code>transcript_buffer</code>/<code>accumulated_summary</code>/<code>current_diagnosis</code> usam <code>MEDIUMTEXT</code> (até 16MB) no código.</p>
+        <div class="alert alert-red" style="margin-top:8px"><code>create_all()</code> não migra colunas de tabela já existente — em qualquer VPS que ainda não rodou o <code>ALTER TABLE</code> abaixo, o bug continua ativo mesmo com o código já atualizado.</div>
+        <pre><code><span class="cmt"># Rodar só com reunioes_ativas: 0 confirmado em /health</span>
+<span class="cmd">mysql -h $DB_HOST -u $DB_USER -p$DB_PASS $DB_NAME -e "
+ALTER TABLE meeting_memory MODIFY transcript_full MEDIUMTEXT,
+  MODIFY transcript_buffer MEDIUMTEXT,
+  MODIFY accumulated_summary MEDIUMTEXT,
+  MODIFY current_diagnosis MEDIUMTEXT;"</span></code></pre>
       </div>
 
       <div class="card">

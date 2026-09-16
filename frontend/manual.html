@@ -238,7 +238,7 @@
 <header>
   <div class="logo">SALE<span>IA</span></div>
   <p class="tagline">Assistente de Vendas com Inteligência Artificial — Manual do Usuário</p>
-  <div class="versao">Versão 1.4.54 · Setembro 2026</div>
+  <div class="versao">Versão 1.4.100 · Setembro 2026</div>
 </header>
 
 <nav class="indice">
@@ -576,76 +576,21 @@
   <!-- ── 5. TRANSCRIÇÃO ── -->
   <section id="transcricao">
     <h2><span class="section-num">5</span> Transcrição de Áudio</h2>
-    <p class="section-desc">O SALEIA captura o microfone e converte fala em texto usando IA. Dois provedores disponíveis — configure no Dashboard.</p>
-
-    <div class="grid-2">
-      <div class="card" style="border-top: 3px solid var(--primary)">
-        <div class="card-title">🎵 OpenAI Whisper</div>
-        <table style="margin-top:8px">
-          <tr><td><strong>Modelo</strong></td><td><code>whisper-1</code></td></tr>
-          <tr><td><strong>Chave</strong></td><td>OPENAI_API_KEY</td></tr>
-          <tr><td><strong>Custo</strong></td><td>~$0,006 / min de áudio</td></tr>
-          <tr><td><strong>Qualidade</strong></td><td><span class="badge badge-blue">Alta</span></td></tr>
-        </table>
-      </div>
-      <div class="card" style="border-top: 3px solid var(--purple)">
-        <div class="card-title">⚡ Groq (Whisper Large v3)</div>
-        <table style="margin-top:8px">
-          <tr><td><strong>Modelo</strong></td><td><code>whisper-large-v3</code></td></tr>
-          <tr><td><strong>Chave</strong></td><td>GROQ_API_KEY</td></tr>
-          <tr><td><strong>Custo</strong></td><td>Grátis até ~7.200 min/dia</td></tr>
-          <tr><td><strong>Qualidade</strong></td><td><span class="badge badge-purple">Muito alta</span></td></tr>
-        </table>
-      </div>
-    </div>
+    <p class="section-desc">O SALEIA captura o microfone e converte fala em texto usando IA automaticamente — você não precisa fazer nada durante a reunião além de iniciar a captura na sidebar.</p>
 
     <div class="callout callout-tip">
       <div class="callout-icon">💡</div>
       <div class="callout-body">
-        <strong>Recomendação: use o Groq</strong>
-        O <code>whisper-large-v3</code> do Groq é gratuito, mais preciso em português e mais rápido. Configure em Dashboard → Configurações → Transcrição de Áudio.
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">⚙️ Como configurar o Groq (gratuito)</div>
-      <div class="steps" style="margin-top:8px">
-        <div class="step">
-          <div class="step-num"></div>
-          <div class="step-body">
-            <h3>Criar conta no Groq</h3>
-            <p>Acesse <strong>console.groq.com</strong> e crie uma conta gratuita.</p>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-num"></div>
-          <div class="step-body">
-            <h3>Gerar a chave de API</h3>
-            <p>No painel Groq: <strong>API Keys → Create API key</strong>. A chave começa com <code>gsk_</code> e tem ~54 caracteres.</p>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-num"></div>
-          <div class="step-body">
-            <h3>Salvar no Dashboard SALEIA</h3>
-            <p>Dashboard → Configurações → Transcrição de Áudio → card <strong>Groq</strong> → cole a chave → clique 👁 para confirmar → <strong>Salvar chave</strong> → clique <strong>Testar conexão</strong> para verificar.</p>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-num"></div>
-          <div class="step-body">
-            <h3>Ativar o Groq</h3>
-            <p>Após salvar, clique em <strong>Usar este provedor</strong> no card Groq. O status muda para "✅ Provedor ativo".</p>
-          </div>
-        </div>
+        <strong>Configuração é feita pelo administrador</strong>
+        O provedor de transcrição (qual serviço converte áudio em texto) é escolhido uma única vez em Dashboard → Configurações → Transcrição de Áudio, por um administrador. Se você não é admin, não precisa se preocupar com isso.
       </div>
     </div>
 
     <div class="callout callout-warn">
       <div class="callout-icon">⚠️</div>
       <div class="callout-body">
-        <strong>Erro "401 Invalid API Key" na sidebar</strong>
-        A chave Groq salva é inválida. Gere uma nova em console.groq.com, cole no campo do card Groq e clique <strong>Salvar chave</strong>. Use o botão <strong>Testar conexão</strong> para confirmar que a chave está válida antes de usar.
+        <strong>Erro na barra de status da sidebar</strong>
+        Se aparecer um erro de transcrição durante a reunião, avise o administrador — normalmente é uma chave de acesso vencida do lado do servidor, não algo que você resolve pela extensão.
       </div>
     </div>
   </section>
@@ -1060,8 +1005,8 @@
     <div class="callout callout-warn">
       <div class="callout-icon">⚠️</div>
       <div class="callout-body">
-        <strong>Requer chave OpenAI (DALL-E 3)</strong>
-        A geração de imagens usa o DALL-E 3 da OpenAI. Configure a <code>OPENAI_API_KEY</code> em Dashboard → Configurações → Provedores de IA.
+        <strong>Requer provedor de imagem configurado</strong>
+        A geração de imagens depende de um provedor de IA configurado pelo administrador em Dashboard → Configurações → Provedores de IA. Se o botão "Gerar Cenários" der erro, avise o administrador.
       </div>
     </div>
   </section>
@@ -1457,8 +1402,8 @@
       <div class="card-title">🎙️ Transcrição de Áudio</div>
       <table style="margin-top:8px">
         <tr><th>Elemento</th><th>Descrição</th></tr>
-        <tr><td>Card Whisper</td><td>Usa <code>OPENAI_API_KEY</code> já configurada — sem configuração extra</td></tr>
-        <tr><td>Card Groq</td><td>Cole a <code>GROQ_API_KEY</code> → 👁 para confirmar → <strong>Salvar chave</strong> → <strong>Usar este provedor</strong></td></tr>
+        <tr><td>Card Whisper</td><td>Usa a chave da OpenAI já configurada — sem configuração extra</td></tr>
+        <tr><td>Card Groq</td><td>Cole a chave da API Groq → 👁 para confirmar → <strong>Salvar chave</strong> → <strong>Usar este provedor</strong></td></tr>
         <tr><td>Botão 👁 / 🙈</td><td>Mostra ou oculta a chave digitada para confirmar antes de salvar</td></tr>
         <tr><td>✅ Provedor ativo</td><td>Indica qual está em uso — apenas um pode estar ativo por vez</td></tr>
       </table>
@@ -1658,8 +1603,8 @@
       <div class="step">
         <div class="step-num"></div>
         <div class="step-body">
-          <h3>Configure o Groq para transcrição gratuita e de alta qualidade</h3>
-          <p>O <code>whisper-large-v3</code> do Groq é gratuito até ~7.200 min/dia e mais preciso que o Whisper padrão. Configure uma vez e esqueça — veja a seção Transcrição para o passo a passo.</p>
+          <h3>Peça ao administrador para ativar o Groq na transcrição</h3>
+          <p>O provedor Groq costuma ser gratuito e mais preciso em português que a alternativa padrão. Isso é configurado uma vez pelo administrador em Dashboard → Configurações.</p>
         </div>
       </div>
       <div class="step">
@@ -1732,16 +1677,10 @@
     </details>
 
     <details>
-      <summary>Erro "401 Invalid API Key" na barra de status da sidebar</summary>
+      <summary>Erro "Chave de API inválida" na barra de status da sidebar</summary>
       <div class="faq-body">
-        <p>A chave Groq salva no servidor é inválida. Para resolver:</p>
-        <ol>
-          <li>Acesse <strong>console.groq.com</strong> → API Keys → Create API key</li>
-          <li>Copie a nova chave (começa com <code>gsk_</code>, ~54 caracteres)</li>
-          <li>Dashboard → Configurações → Transcrição de Áudio → card Groq → cole a chave</li>
-          <li>Clique 👁 para confirmar o valor → <strong>Salvar chave</strong> → <strong>Usar este provedor</strong></li>
-        </ol>
-        <p style="margin-top:10px"><strong>Alternativa rápida:</strong> mude para Whisper no card OpenAI Whisper → <strong>Usar este provedor</strong>.</p>
+        <p>A chave do provedor de transcrição configurada no servidor expirou ou é inválida — isso é um ajuste de administrador, não algo que se resolve pela extensão.</p>
+        <p style="margin-top:10px">Avise o administrador. Como alternativa rápida, um admin pode trocar o provedor ativo em Dashboard → Configurações → Transcrição de Áudio → <strong>Usar este provedor</strong> no outro card disponível.</p>
       </div>
     </details>
 
@@ -1749,10 +1688,10 @@
       <summary>A captura de áudio inicia mas nada é transcrito</summary>
       <div class="faq-body">
         <ul>
-          <li><strong>Chave de API inválida:</strong> erro aparece na barra de status (⚠️) — veja a FAQ acima</li>
+          <li><strong>Chave de API inválida:</strong> erro aparece na barra de status (⚠️) — avise o administrador</li>
           <li><strong>Microfone incorreto:</strong> clique no ícone de cadeado/câmera na barra de endereço do Chrome e verifique se o microfone selecionado é o correto</li>
-          <li><strong>Áudio muito baixo:</strong> chunks menores que 512 bytes são descartados — aproxime-se do microfone</li>
-          <li><strong>Servidor reiniciando:</strong> aguarde 5–10 segundos e o próximo chunk será enviado automaticamente</li>
+          <li><strong>Áudio muito baixo:</strong> fale mais próximo do microfone</li>
+          <li><strong>Servidor reiniciando:</strong> aguarde alguns segundos e a próxima captura será enviada automaticamente</li>
         </ul>
       </div>
     </details>
