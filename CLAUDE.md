@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.98** (backend, local — ainda não deployada; produção confirmada em V.1.4.97) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.99** (backend, local — ainda não deployada; produção confirmada em V.1.4.98) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -1968,9 +1968,81 @@ V.1.4.85).
   `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP,
   sem persistência nova — mesma disciplina das Fases 1-12.
 - Versão: `1.4.97` → `1.4.98`.
+- **Push + deploy confirmados (16/09/2026)**: commit `d83497e` no
+  GitHub. Restart na VPS ficou bloqueado por reunião real em
+  andamento (~100min), concluído automaticamente assim que terminou.
+  Pós-restart: `/health` = `versao 1.4.98`, `status online`,
+  `reunioes_ativas 0`; `/dashboard` = `200`; journal sem erros da
+  aplicação — ver "Incidente ao vivo — 15-16/09/2026" no
+  `docs/CURRENT_STATE.md` para o que foi encontrado enquanto se
+  esperava a janela segura (saldo DeepSeek/OpenAI esgotado +
+  `transcript_full` estourando 64KB em reunião longa, nenhum corrigido
+  ainda).
+
+## Sales Science Engine — Fase 13 (fecho) do "PROMPT MESTRE — SALE-IA V2" (V.1.4.99, ObjectionTrendAnalyzer + ConversionDriverAnalyzer)
+
+Usuário confirmou "fechar 2 módulos pendentes" — fecha a Fase 13
+(Sales Science Engine) por completo, os 7 submódulos literais do
+prompt mestre implementados.
+
+- **`agent/objection_trend_analyzer.py`** (novo, função pura, sem
+  IA/banco, reaproveita `win_loss_rules.amostra_suficiente`/
+  `intervalo_confianca_wilson`, Fase 8): `calcular_tendencias(eventos,
+  ordem_periodos, minimo_amostra=AMOSTRA_MINIMA_PADRAO, confianca=
+  0.95)` detecta se a participação de uma categoria de objeção
+  (vocabulário livre — não travado a `objection_rules.OBJECTION_
+  TIPOS`) vem crescendo ou diminuindo, comparando a primeira metade de
+  `ordem_periodos` (já ordenada cronologicamente pelo chamador) contra
+  a segunda. **Quem monta os eventos e decide os períodos**: `{
+  "category", "period"}` — classificação de objeção (Fase 6.1) e
+  extração real de período (calendário, Fase 9) ficam com o chamador.
+- **Significância sem scipy — mesma disciplina honesta de
+  `seasonality_rules.py` (Fase 9)**: só marca `significativo` quando
+  ambos os totais (início/fim) têm amostra suficiente **e** os
+  intervalos de confiança de Wilson das duas proporções não se
+  sobrepõem. Testado com `PRICE` crescendo (20%→75%) e `TRUST` caindo
+  (80%→25%) no mesmo dataset.
+- **`agent/conversion_driver_analyzer.py`** (novo, função pura, sem
+  IA/banco, reaproveita `win_loss_rules.calcular_taxa_conversao`/
+  `comparar_por_variavel_categorica`, Fase 8): `ranquear_drivers(
+  opportunities, campos, minimo_amostra=AMOSTRA_MINIMA_PADRAO,
+  confianca=0.95)` ranqueia pares `(campo, valor)`, entre vários campos
+  categóricos passados pelo chamador, pelo maior desvio absoluto da
+  taxa de conversão em relação ao baseline geral da amostra — só
+  inclui pares com sinal estatisticamente defensável (testado com um
+  campo com sinal real e outro construído exatamente no baseline,
+  corretamente excluído do ranking).
+- **`agent/sales_science_engine.py`**: `insight_de_objection_trend_
+  analyzer()` e `insight_de_conversion_driver_analyzer()` (novos) —
+  mesmo padrão dos 5 wrappers já existentes, reshape puro do resultado
+  já calculado, sem cálculo estatístico próprio. `SUBMODULOS_
+  IMPLEMENTADOS` agora cobre os 7 submódulos literais;
+  `SUBMODULOS_PENDENTES` vira `frozenset()`.
+- **Achado durante a implementação**: os 2 primeiros templates
+  (`TEMPLATE_TENDENCIA_OBJECAO`/`TEMPLATE_DRIVER`) continham a palavra
+  "causa" dentro de uma negação ("não confirmação de causa"/"não
+  causa") — o guarda de causalidade corretamente pegou isso como falso
+  positivo estrutural (a string contém "causa", mesmo negando).
+  Corrigido para "associação observada nesta amostra, nunca
+  confirmação de mecanismo" — mesma lição já registrada em
+  `pattern_discovery_rules.py` (Fase 12.2): nunca usar a palavra
+  proibida, nem dentro de uma negação.
+- 20 testes novos (9 em `test_objection_trend_analyzer.py`, 8 em
+  `test_conversion_driver_analyzer.py`, 3 em
+  `test_sales_science_engine.py`). Suite completa: **925 testes** (905
+  da V.1.4.98 + 20 novos), **0 falhas**, 1 skip pré-existente — sem
+  regressão.
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP,
+  sem persistência nova — mesma disciplina das Fases 1-13.
+- **Fecha a Fase 13 (Sales Science Engine)** completa: todos os 7
+  submódulos literais (`PatternDiscovery`, `SeasonalityEngine`,
+  `WinLossAnalyzer`, `SellerBenchmark`, `StrategyEffectiveness`,
+  `ObjectionTrendAnalyzer`, `ConversionDriverAnalyzer`)
+  implementados, consolidados sob `montar_insight()`.
+- Versão: `1.4.98` → `1.4.99`.
 - **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna
-  nova, módulo puro em memória). **`ObjectionTrendAnalyzer`/
-  `ConversionDriverAnalyzer` (fechar a Fase 13 por completo) e
+  nova, módulos puros em memória). **Fase 14 (Experiment Engine) e
   qualquer fase seguinte do "PROMPT MESTRE — SALE-IA V2" não começam
   sem nova confirmação explícita do usuário.**
 

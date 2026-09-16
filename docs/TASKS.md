@@ -969,7 +969,24 @@ Usuario confirmou avancar para a Fase 13. Pergunta direta sobre escopo (mesma di
 - [x] 21 testes novos (`tests/test_sales_science_engine.py`), chamando os modulos reais das Fases 8-12 (sem mock) para gerar as entradas dos wrappers. Suite completa: 905 testes (884 da Tarefa 12.2 + 21 novos), 0 falhas, 1 skip pre-existente — sem regressao.
 - [x] Decisao deliberada: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP, sem persistencia nova — mesma disciplina das Fases 1-12.
 - [x] Versao: `1.4.97` -> `1.4.98`.
-- **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna nova, modulo puro em memoria). **ObjectionTrendAnalyzer/ConversionDriverAnalyzer (fechar a Fase 13) e qualquer fase seguinte do "PROMPT MESTRE — SALE-IA V2" nao comecam sem nova confirmacao explicita do usuario.**
+- [x] Push + deploy confirmados (16/09/2026): commit `d83497e` no GitHub. Restart na VPS ficou bloqueado por reuniao real em andamento (~100min), concluido automaticamente assim que terminou. Pos-restart: `/health` = `versao 1.4.98`, `status online`, `reunioes_ativas 0`; `/dashboard` = `200`; journal sem erros da aplicacao (ver "Incidente ao vivo" em `docs/CURRENT_STATE.md`).
+
+## Concluido (V.1.4.99 — Sales Science Engine, fecha a Fase 13 do "PROMPT MESTRE — SALE-IA V2", ObjectionTrendAnalyzer + ConversionDriverAnalyzer)
+
+Usuario confirmou "fechar 2 modulos pendentes" — fecha a Fase 13 por completo, os 7 submodulos literais do prompt mestre implementados.
+
+- [x] `agent/objection_trend_analyzer.py` (novo, funcao pura, sem IA/banco, reaproveita `win_loss_rules.amostra_suficiente`/`intervalo_confianca_wilson`, Fase 8): `calcular_tendencias(eventos, ordem_periodos, minimo_amostra=AMOSTRA_MINIMA_PADRAO, confianca=0.95)` detecta se a participacao de uma categoria de objecao (vocabulario livre) vem crescendo ou diminuindo, comparando a primeira metade de `ordem_periodos` (ja ordenada cronologicamente pelo chamador) contra a segunda.
+- [x] Significancia sem scipy — mesma disciplina honesta de `seasonality_rules.py` (Fase 9): so marca `significativo` quando ambos os totais (inicio/fim) tem amostra suficiente e os intervalos de confianca de Wilson das duas proporcoes nao se sobrepoem.
+- [x] Testado com categoria crescente (PRICE, 20%->75%) e decrescente (TRUST, 80%->25%) no mesmo dataset. 9 testes novos (`tests/test_objection_trend_analyzer.py`).
+- [x] `agent/conversion_driver_analyzer.py` (novo, funcao pura, sem IA/banco, reaproveita `win_loss_rules.calcular_taxa_conversao`/`comparar_por_variavel_categorica`, Fase 8): `ranquear_drivers(opportunities, campos, minimo_amostra=AMOSTRA_MINIMA_PADRAO, confianca=0.95)` ranqueia pares `(campo, valor)`, entre varios campos categoricos passados pelo chamador, pelo maior desvio absoluto da taxa de conversao em relacao ao baseline geral da amostra.
+- [x] So inclui pares com sinal estatisticamente defensavel: amostra suficiente e intervalo de confianca de Wilson que nao contem o baseline — testado com um campo com sinal real e outro construido exatamente no baseline, corretamente excluido do ranking. 8 testes novos (`tests/test_conversion_driver_analyzer.py`).
+- [x] `agent/sales_science_engine.py`: `insight_de_objection_trend_analyzer()` e `insight_de_conversion_driver_analyzer()` (novos) — mesmo padrao dos 5 wrappers ja existentes, reshape puro do resultado ja calculado, sem calculo estatistico proprio. `SUBMODULOS_IMPLEMENTADOS` agora cobre os 7 submodulos literais; `SUBMODULOS_PENDENTES` fica `frozenset()`. 6 testes novos + ajuste do teste de vocabulario para "7 implementados, 0 pendentes".
+- [x] Achado durante a implementacao: os 2 primeiros templates (`TEMPLATE_TENDENCIA_OBJECAO`/`TEMPLATE_DRIVER`) continham a palavra "causa" dentro de uma negacao ("nao confirmacao de causa"/"nao causa") — o guarda de causalidade corretamente pegou isso como falso positivo estrutural. Corrigido para "associacao observada nesta amostra, nunca confirmacao de mecanismo" — mesma licao ja registrada em `pattern_discovery_rules.py` (Fase 12.2).
+- [x] Suite completa: 925 testes (905 da V.1.4.98 + 20 novos — 9 em test_objection_trend_analyzer.py, 8 em test_conversion_driver_analyzer.py, 3 em test_sales_science_engine.py), 0 falhas, 1 skip pre-existente — sem regressao.
+- [x] Decisao deliberada: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP, sem persistencia nova — mesma disciplina das Fases 1-13.
+- [x] **Fecha a Fase 13 (Sales Science Engine)** completa: todos os 7 submodulos literais implementados.
+- [x] Versao: `1.4.98` -> `1.4.99`.
+- **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna nova, modulos puros em memoria). **Fase 14 (Experiment Engine) e qualquer fase seguinte do "PROMPT MESTRE — SALE-IA V2" nao comecam sem nova confirmacao explicita do usuario.**
 
 ## Pendente
 

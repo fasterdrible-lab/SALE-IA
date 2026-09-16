@@ -15,6 +15,8 @@ Run:
 
 import unittest
 
+from agent.conversion_driver_analyzer import ranquear_drivers
+from agent.objection_trend_analyzer import calcular_tendencias
 from agent.pattern_discovery_rules import descobrir_padrao
 from agent.recommendation_effectiveness_rules import calcular_efetividade_por_estrategia
 from agent.sales_science_engine import (
@@ -22,6 +24,8 @@ from agent.sales_science_engine import (
     SALES_SCIENCE_SUBMODULOS,
     SUBMODULOS_IMPLEMENTADOS,
     SUBMODULOS_PENDENTES,
+    insight_de_conversion_driver_analyzer,
+    insight_de_objection_trend_analyzer,
     insight_de_pattern_discovery,
     insight_de_seasonality_engine,
     insight_de_seller_benchmark,
@@ -39,14 +43,13 @@ def _opp(status, **campos):
 
 
 class VocabularioTest(unittest.TestCase):
-    def test_5_implementados_mais_2_pendentes_cobrem_os_7_literais(self):
-        self.assertEqual(SUBMODULOS_IMPLEMENTADOS | SUBMODULOS_PENDENTES, set(SALES_SCIENCE_SUBMODULOS))
-        self.assertEqual(SUBMODULOS_IMPLEMENTADOS & SUBMODULOS_PENDENTES, set())
+    def test_7_submodulos_todos_implementados(self):
+        self.assertEqual(SUBMODULOS_IMPLEMENTADOS, set(SALES_SCIENCE_SUBMODULOS))
+        self.assertEqual(SUBMODULOS_PENDENTES, set())
         self.assertEqual(len(SALES_SCIENCE_SUBMODULOS), 7)
-        self.assertEqual(len(SUBMODULOS_IMPLEMENTADOS), 5)
-        self.assertEqual(len(SUBMODULOS_PENDENTES), 2)
-        self.assertIn("objection_trend_analyzer", SUBMODULOS_PENDENTES)
-        self.assertIn("conversion_driver_analyzer", SUBMODULOS_PENDENTES)
+        self.assertEqual(len(SUBMODULOS_IMPLEMENTADOS), 7)
+        self.assertIn("objection_trend_analyzer", SUBMODULOS_IMPLEMENTADOS)
+        self.assertIn("conversion_driver_analyzer", SUBMODULOS_IMPLEMENTADOS)
 
 
 class MontarInsightContratoTest(unittest.TestCase):
@@ -216,6 +219,49 @@ class PatternDiscoveryWrapperTest(unittest.TestCase):
         resultado_padrao = descobrir_padrao(observacoes, hipotese="hipótese de teste")
         resultado = insight_de_pattern_discovery(resultado_padrao)
         self.assertIsNone(resultado)
+
+
+class ObjectionTrendAnalyzerWrapperTest(unittest.TestCase):
+    def _evt(self, category, period):
+        return {"category": category, "period": period}
+
+    def test_categoria_significativa_vira_insight(self):
+        eventos = (
+            [self._evt("PRICE", 1) for _ in range(10)] + [self._evt("TRUST", 1) for _ in range(40)]
+            + [self._evt("PRICE", 4) for _ in range(45)] + [self._evt("TRUST", 4) for _ in range(15)]
+        )
+        tendencias = calcular_tendencias(eventos, [1, 2, 3, 4, 5, 6])
+        resultado = insight_de_objection_trend_analyzer(tendencias["categorias"]["PRICE"], categoria="PRICE")
+        self.assertIsNotNone(resultado)
+        self.assertEqual(resultado["submodulo"], "objection_trend_analyzer")
+        self.assertEqual(resultado["sample"], 55)
+
+    def test_categoria_nao_significativa_retorna_none(self):
+        eventos = (
+            [self._evt("TIMING", 1) for _ in range(26)] + [self._evt("OUTRO", 1) for _ in range(24)]
+            + [self._evt("TIMING", 4) for _ in range(24)] + [self._evt("OUTRO", 4) for _ in range(26)]
+        )
+        tendencias = calcular_tendencias(eventos, [1, 2, 3, 4, 5, 6])
+        resultado = insight_de_objection_trend_analyzer(tendencias["categorias"]["TIMING"], categoria="TIMING")
+        self.assertIsNone(resultado)
+
+
+class ConversionDriverAnalyzerWrapperTest(unittest.TestCase):
+    def _dataset(self):
+        opportunities = (
+            [{"status": "won", "segment": "enterprise"} for _ in range(70)]
+            + [{"status": "lost", "segment": "enterprise"} for _ in range(30)]
+            + [{"status": "won", "segment": "smb"} for _ in range(30)]
+            + [{"status": "lost", "segment": "smb"} for _ in range(70)]
+        )
+        return opportunities
+
+    def test_driver_ranqueado_vira_insight(self):
+        drivers = ranquear_drivers(self._dataset(), campos=["segment"])
+        resultado = insight_de_conversion_driver_analyzer(drivers[0])
+        self.assertIsNotNone(resultado)
+        self.assertEqual(resultado["submodulo"], "conversion_driver_analyzer")
+        self.assertEqual(resultado["confidence"], 0.95)
 
 
 class RecommendedTestPadraoTest(unittest.TestCase):

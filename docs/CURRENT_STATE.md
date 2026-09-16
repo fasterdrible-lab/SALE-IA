@@ -1,21 +1,21 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-15 (V.1.4.98, local — produção confirmada em
-`1.4.97`, ver "Deploy" abaixo — V.1.4.98 ainda não deployada;
-V.1.4.98 é a Fase 13 (Sales Science Engine) do "SALE-IA V2" —
-`agent/sales_science_engine.py`: contrato de saída padronizado
-(INSIGHT/EVIDENCE/SAMPLE/CONFIDENCE/POSSIBLE_CONFOUNDERS/
-RECOMMENDED_TEST) + wrappers dos 5 submódulos já existentes
-(PatternDiscovery/SeasonalityEngine/WinLossAnalyzer/SellerBenchmark/
-StrategyEffectiveness). `ObjectionTrendAnalyzer`/`ConversionDriverAnalyzer`
-ficam pendentes por decisão deliberada — ver seção "Sales Science
-Engine — Fase 13" abaixo e CHANGELOG.md V.1.4.98. Sem endpoint HTTP
-novo, sem integração com `orquestrador.py`. V.1.4.91-97 (Fases 10, 11
-e 12 completas) foram deployadas na VPS em 15/09/2026 (`/health`
-confirmou `versao 1.4.97`, `reunioes_ativas: 0` checado antes do
-restart — o restart de V.1.4.97 ficou bloqueado por uma reunião real
-em andamento e foi concluído automaticamente assim que ela terminou,
-journal sem erros).
+Atualizado em: 2026-09-16 (V.1.4.99, local — produção confirmada em
+`1.4.98`, ver "Deploy" abaixo — V.1.4.99 ainda não deployada;
+V.1.4.99 **fecha a Fase 13 (Sales Science Engine) por completo** do
+"SALE-IA V2" — os 2 submódulos que faltavam,
+`agent/objection_trend_analyzer.py` (tendência de categoria de
+objeção ao longo do tempo) e `agent/conversion_driver_analyzer.py`
+(ranking do que mais impulsiona conversão), com seus wrappers em
+`agent/sales_science_engine.py`. Ver seção "Sales Science Engine —
+Fase 13 (fecho)" abaixo e CHANGELOG.md V.1.4.99. Sem endpoint HTTP
+novo, sem integração com `orquestrador.py`. V.1.4.91-98 (Fases 10, 11
+e 12 completas + Fase 13 parcial) foram deployadas na VPS em
+15-16/09/2026 (`/health` confirmou `versao 1.4.98`, `reunioes_ativas:
+0` checado antes do restart — o restart de V.1.4.98 ficou bloqueado
+por reuniões reais em andamento por ~100min e foi concluído
+automaticamente assim que a última terminou, journal sem erros —
+ver também "Incidente ao vivo" abaixo, achado durante essa espera).
 
 ## Incidente ao vivo — 15-16/09/2026 (reunião longa: saldo esgotado + coluna de transcrição estourada)
 
@@ -1462,6 +1462,53 @@ contrato + wrappers dos 5 que já existem.
   `ConversionDriverAnalyzer` (fechar a Fase 13) e qualquer fase
   seguinte do "PROMPT MESTRE — SALE-IA V2" não começam sem nova
   confirmação explícita do usuário.**
+- **Push + deploy confirmados (16/09/2026)**: commit `d83497e` no
+  GitHub. Na VPS, o restart ficou bloqueado por uma reunião real em
+  andamento (~100min), concluído automaticamente assim que ela
+  terminou. Pós-restart: `/health` = `versao 1.4.98`, `status
+  online`, `reunioes_ativas 0`; `/dashboard` = `200`; journal sem
+  erros da aplicação (ver "Incidente ao vivo" abaixo para o que foi
+  encontrado enquanto se esperava a janela segura).
+
+## Sales Science Engine — Fase 13 (fecho) do "SALE-IA V2" (V.1.4.99, 16/09/2026)
+
+Usuário confirmou "fechar 2 módulos pendentes" — fecha a Fase 13 por
+completo, os 7 submódulos literais do prompt mestre implementados.
+
+- `agent/objection_trend_analyzer.py` (novo): `calcular_tendencias(
+  eventos, ordem_periodos)` reaproveita `win_loss_rules.amostra_
+  suficiente`/`intervalo_confianca_wilson` (Fase 8) pra detectar se a
+  participação de uma categoria de objeção cresce/diminui entre a
+  primeira e a segunda metade dos períodos — testado com `PRICE`
+  crescendo (20%→75%) e `TRUST` caindo (80%→25%) no mesmo dataset.
+- `agent/conversion_driver_analyzer.py` (novo): `ranquear_drivers(
+  opportunities, campos)` reaproveita `win_loss_rules.calcular_taxa_
+  conversao`/`comparar_por_variavel_categorica` (Fase 8) pra ranquear
+  `(campo, valor)` pelo maior desvio da taxa de conversão vs. o
+  baseline geral — só inclui pares com sinal estatisticamente
+  defensável (testado com um campo com sinal real e outro construído
+  exatamente no baseline, corretamente excluído do ranking).
+- `agent/sales_science_engine.py`: 2 wrappers novos (`insight_de_
+  objection_trend_analyzer`/`insight_de_conversion_driver_analyzer`),
+  mesmo padrão de reshape puro dos outros 5. `SUBMODULOS_
+  IMPLEMENTADOS` agora cobre os 7; `SUBMODULOS_PENDENTES` vira
+  `frozenset()`.
+- **Achado durante a implementação**: os 2 primeiros templates
+  continham a palavra "causa" dentro de uma negação ("não... causa")
+  — o guarda de causalidade pegou o falso positivo estrutural, mesma
+  lição já registrada em `pattern_discovery_rules.py` (Fase 12.2).
+  Corrigido para nunca usar a palavra, nem negada.
+- 20 testes novos (9 em `test_objection_trend_analyzer.py`, 8 em
+  `test_conversion_driver_analyzer.py`, 3 em
+  `test_sales_science_engine.py`). Suite completa: 925 testes, 0
+  falhas, 1 skip pré-existente — sem regressão. Detalhe completo no
+  CHANGELOG.md (V.1.4.99).
+- **Decisão deliberada**: sem integração com `orquestrador.py`, sem
+  endpoint HTTP, sem persistência nova.
+- **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna
+  nova, módulos puros em memória). **Fase 14 (Experiment Engine) e
+  qualquer fase seguinte do "PROMPT MESTRE — SALE-IA V2" não começam
+  sem nova confirmação explícita do usuário.**
 
 ### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)
 - `services/embeddings/`: interface `EmbeddingProvider` (`embed`, `embed_async`, `embed_batch`, `health_check`), `OllamaEmbeddingProvider` (HTTP local via `httpx`, zero import de SDKs de LLM externos), `OpenAIEmbeddingProvider`, `factory.get_embedding_provider()` (lê `EMBEDDING_PROVIDER`, erro explícito em valor desconhecido).

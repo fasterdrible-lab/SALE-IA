@@ -7,13 +7,17 @@ pura (sem IA/banco) — **não recalcula nada**: consolida, sob um
 contrato de saída único, os resultados que os módulos estatísticos das
 Fases 8-12 já produzem.
 
-Escopo desta rodada, confirmado com o usuário: só o **contrato** de
+Escopo original (confirmado com o usuário): só o **contrato** de
 saída (`montar_insight()`) + **wrappers dos 5 submódulos que já
-existem** — `ObjectionTrendAnalyzer` e `ConversionDriverAnalyzer` (os
-2 dos 7 submódulos literais do prompt mestre que nenhuma fase anterior
-construiu) ficam documentados como pendentes, mesmo padrão de "contrato
-primeiro, motor depois" já usado na Fase 7 (`sales_reasoning_
-engine.py`, V.1.4.84 antes da V.1.4.85).
+existiam** — mesmo padrão de "contrato primeiro, motor depois" já
+usado na Fase 7 (`sales_reasoning_engine.py`, V.1.4.84 antes da
+V.1.4.85). **Fechado nesta rodada** (usuário confirmou "fechar 2
+módulos pendentes"): os 2 submódulos que faltavam,
+`agent/objection_trend_analyzer.py` e
+`agent/conversion_driver_analyzer.py` (novos, mesma disciplina de
+reuso das primitivas de `win_loss_rules.py`), com seus próprios
+wrappers abaixo — os 7 submódulos literais do prompt mestre estão
+todos implementados agora.
 
 **Regra literal do prompt mestre, imposta estruturalmente — "Saída
 nunca deve ser apenas 'descobrimos isso'"**: `montar_insight()` exige
@@ -40,6 +44,10 @@ já calculou** — nenhum cálculo estatístico novo mora aqui:
   effectiveness_rules.calcular_efetividade_por_estrategia()` (Fase 10.3)
 - `insight_de_pattern_discovery` ← `pattern_discovery_rules.
   descobrir_padrao()` (Fase 12.2)
+- `insight_de_objection_trend_analyzer` ← `objection_trend_analyzer.
+  calcular_tendencias()` (novo, esta rodada)
+- `insight_de_conversion_driver_analyzer` ← `conversion_driver_
+  analyzer.ranquear_drivers()` (novo, esta rodada)
 
 Cada wrapper retorna `None` (não um insight vazio) quando o submódulo
 de origem não encontrou sinal estatisticamente defensável — nunca
@@ -64,13 +72,13 @@ SALES_SCIENCE_SUBMODULOS = (
 SUBMODULOS_IMPLEMENTADOS = frozenset({
     "pattern_discovery", "seasonality_engine", "win_loss_analyzer",
     "seller_benchmark", "strategy_effectiveness",
+    "objection_trend_analyzer", "conversion_driver_analyzer",
 })
 
-# Decisão desta rodada: ObjectionTrendAnalyzer (tendência de objeções
-# ao longo do tempo) e ConversionDriverAnalyzer (o que mais impulsiona
-# conversão) não foram construídos por nenhuma fase anterior — ficam
-# pendentes, não implementados nesta rodada.
-SUBMODULOS_PENDENTES = frozenset({"objection_trend_analyzer", "conversion_driver_analyzer"})
+# Os 7 submódulos literais do prompt mestre estão todos implementados
+# desde esta rodada — mantido como frozenset vazio (em vez de remover
+# a constante) para não quebrar quem já importa `SUBMODULOS_PENDENTES`.
+SUBMODULOS_PENDENTES = frozenset()
 
 RECOMMENDED_TEST_PADRAO = (
     "Rodar um experimento controlado (Fase 14 / Experiment Engine) "
@@ -246,4 +254,55 @@ def insight_de_pattern_discovery(
         ],
         recommended_test=recommended_test,
         confidence=resultado_padrao.get("confidence"),
+    )
+
+
+def insight_de_objection_trend_analyzer(
+    categoria_resultado: dict,
+    categoria: str,
+    confianca: float = 0.95,
+    possible_confounders: Optional[list] = None,
+    recommended_test: str = RECOMMENDED_TEST_PADRAO,
+) -> Optional[dict]:
+    """Reshape de UMA categoria já calculada por `objection_trend_
+    analyzer.calcular_tendencias(eventos, ordem_periodos)
+    ["categorias"][categoria]`. `confianca` precisa bater com o valor
+    usado na chamada original (o resultado de origem não devolve
+    isso). Retorna `None` quando a categoria não foi marcada
+    `significativo`."""
+    if not categoria_resultado.get("significativo"):
+        return None
+    return montar_insight(
+        submodulo="objection_trend_analyzer",
+        insight=categoria_resultado["afirmacao"],
+        evidence={"categoria": categoria, "n_inicio": categoria_resultado["n_inicio"], "n_fim": categoria_resultado["n_fim"]},
+        sample=categoria_resultado["n_inicio"] + categoria_resultado["n_fim"],
+        possible_confounders=possible_confounders if possible_confounders is not None else [
+            "não controlado por segmento/produto/vendedor — mudança na mistura de clientes pode explicar a tendência, não só o comportamento de vendas"
+        ],
+        recommended_test=recommended_test,
+        confidence=confianca,
+    )
+
+
+def insight_de_conversion_driver_analyzer(
+    driver: dict,
+    confianca: float = 0.95,
+    possible_confounders: Optional[list] = None,
+    recommended_test: str = RECOMMENDED_TEST_PADRAO,
+) -> dict:
+    """Reshape de UM driver já ranqueado por `conversion_driver_
+    analyzer.ranquear_drivers()` — a função de origem já filtra por
+    significância (não retorna drivers sem sinal), então este wrapper
+    nunca retorna `None`, diferente dos outros."""
+    return montar_insight(
+        submodulo="conversion_driver_analyzer",
+        insight=driver["afirmacao"],
+        evidence={"campo": driver["campo"], "valor": driver["valor"], "taxa_conversao": driver["taxa_conversao"]},
+        sample=driver["sample"],
+        possible_confounders=possible_confounders if possible_confounders is not None else [
+            f"driver isolado em {driver['campo']!r} — considerar seller_benchmark_rules.benchmark_controlado() se envolver comparação entre vendedores"
+        ],
+        recommended_test=recommended_test,
+        confidence=confianca,
     )
