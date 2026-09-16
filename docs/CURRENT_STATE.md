@@ -16,6 +16,60 @@ confirmou `versao 1.4.97`, `reunioes_ativas: 0` checado antes do
 restart — o restart de V.1.4.97 ficou bloqueado por uma reunião real
 em andamento e foi concluído automaticamente assim que ela terminou,
 journal sem erros).
+
+## Incidente ao vivo — 15-16/09/2026 (reunião longa: saldo esgotado + coluna de transcrição estourada)
+
+Durante a espera pela janela segura de restart do V.1.4.98 (reunião
+real bloqueando o deploy), monitoramento do `/health` mostrou os 4
+provedores centrais de IA degradados/em cooldown com centenas de
+falhas consecutivas. Investigação via `journalctl` (só leitura, sem
+nenhuma ação na reunião ativa) encontrou **dois problemas reais
+simultâneos**, o segundo deles **novo, nunca documentado antes**:
+
+1. **DeepSeek `402 Insufficient Balance`** desde `21:32:52` (15/09,
+   ~3h+ contínuas até o momento desta nota) — **1.740 ocorrências**
+   no log em 3h. Mesmo padrão já visto no incidente de 31/08/2026:
+   saldo da conta esgotado faz todo ciclo de `/tempo-real` cair em
+   cascata pelos 4 provedores (`openai`/`anthropic`/`gemini` também em
+   cooldown). **Fallback para Conta Claude pessoal do vendedor
+   (`agent/multiagente/claude_fallback.py`, V.1.4.49) não disparou**
+   nesta reunião — nenhuma linha de `claude_fallback`/`claude_account`
+   no journal das últimas 90min, mesmo achado de "vendedor sem login
+   na extensão" do incidente anterior.
+2. **NOVO — `MeetingMemory.transcript_full`: `pymysql.err.DataError
+   (1406, "Data too long for column 'transcript_full'")`** desde
+   `22:58:44` (15/09) — **380 ocorrências** desde então, toda tentativa
+   de salvar um novo fragmento de transcrição falhando. **Causa raiz
+   confirmada no código**: `api/database.py::MeetingMemory.
+   transcript_full`/`transcript_buffer`/`accumulated_summary`/
+   `current_diagnosis` continuam `Column(Text, ...)` — limite de 64KB
+   do MySQL `TEXT` puro — **nunca receberam o mesmo fix de
+   `Text().with_variant(MEDIUMTEXT, "mysql")`** já aplicado em
+   `KnowledgeSource.texto_extraido`/`sections_json` (V.1.4.54, mesma
+   classe de bug). Uma reunião comum nunca gerava transcrição longa o
+   bastante pra estourar 64KB — esta é (pelo menos) a primeira vez
+   registrada que isso acontece de verdade em produção. **Efeito
+   prático**: a partir de `22:58:44`, `transcript_full`/
+   `transcript_buffer` dessa reunião ficaram congelados no MySQL —
+   tudo que foi falado depois disso nunca foi persistido (a análise em
+   tempo real na sidebar do vendedor pode continuar funcionando via
+   memória do processo, mas o relatório final/recapitulação gerados a
+   partir do banco vão refletir só a transcrição até esse instante).
+3. **Nenhuma ação corretiva tomada nesta rodada** — nem no saldo
+   (decisão de produto/financeira, fora do escopo técnico), nem no
+   schema `MeetingMemory` (mudar coluna em produção com reunião ativa
+   é uma decisão de deploy separada, precisa de confirmação explícita
+   e da mesma disciplina seguinda em V.1.4.54: `ALTER TABLE` manual +
+   `reunioes_ativas: 0` antes de aplicar). Achado registrado aqui para
+   a próxima sessão não perder o contexto.
+- **Recomendação para quando for corrigir**: mesmo padrão já usado em
+  V.1.4.54 — `ALTER TABLE meeting_memory MODIFY transcript_full
+  MEDIUMTEXT, MODIFY transcript_buffer MEDIUMTEXT, MODIFY
+  accumulated_summary MEDIUMTEXT, MODIFY current_diagnosis MEDIUMTEXT`
+  na VPS (com `reunioes_ativas: 0` confirmado antes) + atualizar
+  `api/database.py` pra `Text().with_variant(MEDIUMTEXT, "mysql")` nas
+  4 colunas, igual ao que já foi feito para `KnowledgeSource`.
+
 O corpo deste documento nao acompanhou o
 CHANGELOG.md entre V.1.4.54 e V.1.4.66; a fonte de verdade sempre mais
 atualizada e o CHANGELOG e o `/health` de producao. Cost Intelligence
