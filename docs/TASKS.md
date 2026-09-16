@@ -1041,7 +1041,7 @@ Usuario confirmou avancar para a Fase 16. Fase sem subtarefas numeradas — perg
 - [x] Decisao deliberada de escopo: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem persistencia nova, sem endpoint HTTP.
 - [x] **Fecha a Fase 16 (Next Best Action V2)** completa.
 - [x] Versao: `1.4.102` -> `1.4.103`.
-- [ ] Push + deploy na VPS (sem tabela/coluna nova — modulo puro em memoria) — pendente. **Fase 17 (Preparacao para Autonomia) e qualquer fase seguinte nao comecam sem nova confirmacao explicita do usuario.**
+- [x] Push + deploy confirmados (16/09/2026): commit `c511902` no GitHub. `reunioes_ativas: 0` checado antes/depois na VPS — `git pull` (fast-forward `c751bc3` -> `c511902`) + `systemctl restart saleia` — `active`, journal sem erros. Pos-restart: `/health` = `versao 1.4.103`, `status online`, `reunioes_ativas 0`, 4 provedores `ok`. **Fase 17 (Preparacao para Autonomia) e qualquer fase seguinte nao comecam sem nova confirmacao explicita do usuario.**
 
 ## Pendente
 - [ ] **Incidente de saldo (achado 15-16/09/2026, atualizado apos deploy V.1.4.98)**: DeepSeek `402 Insufficient Balance` desde `21:32:52` (15/09/2026, 1740 ocorrencias em 3h) — mesmo padrao do incidente de 31/08/2026. **Atualizacao ~01:13 UTC (16/09)**: OpenAI tambem confirmado sem credito real (`429 insufficient_quota`, "You have no credits remaining") numa reuniao nova, poucos minutos apos o restart do V.1.4.98 zerar os contadores em memoria. 2 dos 4 provedores centrais com cobranca confirmada esgotada, nao so 1. Fallback para Conta Claude pessoal do vendedor nao disparou (sem login na extensao, mesmo achado de antes). Decisao de saldo/financeira, fora do escopo tecnico desta sessao.

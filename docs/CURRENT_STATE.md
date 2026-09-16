@@ -1,8 +1,7 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-16 (V.1.4.103, local — produção confirmada em
-`1.4.102`, ver "Deploy" abaixo — V.1.4.103 ainda não deployada.
-V.1.4.103 **fecha a Fase 16 (Next Best Action V2) do "SALE-IA V2"** —
+Atualizado em: 2026-09-16 (V.1.4.103, **deployada e confirmada em
+produção**. V.1.4.103 **fecha a Fase 16 (Next Best Action V2) do "SALE-IA V2"** —
 `agent/next_best_action_v2_rules.py` (contrato + validações
 estruturais das 4 consistências literais — fatos, estágio, políticas,
 conhecimento disponível — reusando `spin_coverage_rules`/
