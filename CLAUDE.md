@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.101** (backend, local + GitHub + **VPS confirmada em produção**) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.102** (backend, local — ainda não deployada; produção confirmada em V.1.4.101) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -2097,9 +2097,58 @@ Usuário confirmou avançar para a Fase 14 e fechar as duas tarefas
   GitHub. `reunioes_ativas: 0` checado antes/depois na VPS — `git
   pull` (fast-forward `200f19c` → `652781e`) + `systemctl restart
   saleia` — `active`, journal sem erros. Pós-restart: `/health` =
-  `versao 1.4.101`, `status online`, 4 provedores `ok`. **Fase 15
-  (Seller DNA) e qualquer fase seguinte não começam sem nova
-  confirmação explícita do usuário.**
+  `versao 1.4.101`, `status online`, 4 provedores `ok`.
+
+## Seller DNA — Fase 15 do "PROMPT MESTRE — SALE-IA V2" (V.1.4.102, Tarefas 15.1 + 15.2, fecha a Fase 15)
+
+Usuário confirmou avançar para a Fase 15.
+
+- **`agent/seller_dna_rules.py`** (novo, função pura, sem IA/banco,
+  mesmo padrão de `seller_scorecard_rules.py`/`deal_risk_rules.py`):
+  **Tarefa 15.1** — `SELLER_DNA_CAMPOS`, os 12 campos literais do
+  prompt mestre (`communication_style`, `opening_patterns`,
+  `discovery_style`, `question_patterns`, `storytelling_patterns`,
+  `negotiation_patterns`, `objection_patterns`, `pricing_style`,
+  `closing_patterns`, `language_patterns`, `preferred_phrases`,
+  `forbidden_phrases`), vocabulário fechado.
+  `construir_seller_dna(seller_id, n_reunioes_analisadas,
+  observacoes_por_campo, minimo_amostra=10)` monta o perfil a partir
+  de observações já extraídas pelo chamador — nunca lê transcrição.
+- **Regra literal "não clonar personalidade a partir de poucas
+  conversas, exigir amostra mínima configurável" — garantida
+  estruturalmente**: recusa (`ValueError`) montar qualquer perfil com
+  `n_reunioes_analisadas` abaixo do mínimo. Padrão `10` (decisão desta
+  rodada — diferente do `n≥30` de significância estatística de
+  `win_loss_rules.py`; aqui o objetivo é só evitar generalizar a
+  partir de 1-2 reuniões atípicas), sempre sobrescrevível por
+  chamada. Campo sem observação recebida vem `None`, nunca inventado
+  (`campos_sem_observacao()`, mesmo princípio de
+  `seller_scorecard_rules.dimensoes_sem_evidencia()`).
+- **Tarefa 15.2 — regra central do prompt mestre, garantida
+  estruturalmente, não só por instrução**: "'André costuma fazer X'
+  não significa 'X funciona'. SellerDNA registra comportamento, Sales
+  Science mede eficácia, nunca misturar os dois."
+  `validar_sem_alegacao_de_eficacia(campo, valor)` recusa qualquer
+  valor de campo contendo linguagem de eficácia/resultado
+  (`TERMOS_ALEGACAO_EFICACIA`), chamada automaticamente em cada um
+  dos 12 campos por `construir_seller_dna()`. Quem precisar saber SE
+  um comportamento observado funciona de fato usa
+  `agent/sales_science_engine.py` (Fase 13) — nunca o SellerDNA.
+- 17 testes novos (`tests/test_seller_dna_rules.py`), incluindo
+  `GuardaContraAlegacaoDeEficaciaTest` com os dois exemplos literais
+  ("André costuma fazer X" aceito, "X funciona" recusado).
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`/`processador_tempo_real.py`, sem persistência
+  nova e sem endpoint HTTP — mesma disciplina das Fases 1-14.
+  Extração automática de padrões comportamentais a partir de
+  transcrições reais (o que alimentaria `observacoes_por_campo`) não
+  foi construída — fora do enunciado desta fase.
+- **Fecha a Fase 15 (Seller DNA)** completa: Tarefa 15.1 (perfil) →
+  15.2 (comportamento vs. eficácia).
+- Versão: `1.4.101` → `1.4.102`.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — módulo
+  puro em memória). **Fase 16 (Next Best Action V2) e qualquer fase
+  seguinte não começam sem nova confirmação explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

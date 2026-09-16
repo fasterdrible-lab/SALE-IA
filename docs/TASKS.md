@@ -1016,7 +1016,20 @@ Usuario confirmou avancar para a Fase 14 e fechar as duas tarefas (14.1 e 14.2) 
 - [x] 22 testes novos (`tests/test_experiment_engine_rules.py`). Suite completa sem regressao.
 - [x] **Fecha a Fase 14 (Experiment Engine)** completa: Tarefa 14.1 (hipotese -> teste) -> 14.2 (A/B controlado + seguranca).
 - [x] Versao: `1.4.100` -> `1.4.101`.
-- [x] Push + deploy confirmados (16/09/2026): commit `652781e` no GitHub. `reunioes_ativas: 0` checado antes/depois na VPS — `git pull` (fast-forward `200f19c` -> `652781e`) + `systemctl restart saleia` — `active`, journal sem erros. Pos-restart: `/health` = `versao 1.4.101`, `status online`, `reunioes_ativas 0`, 4 provedores `ok`. **Fase 15 (Seller DNA) e qualquer fase seguinte nao comecam sem nova confirmacao explicita do usuario.**
+- [x] Push + deploy confirmados (16/09/2026): commit `652781e` no GitHub. `reunioes_ativas: 0` checado antes/depois na VPS — `git pull` (fast-forward `200f19c` -> `652781e`) + `systemctl restart saleia` — `active`, journal sem erros. Pos-restart: `/health` = `versao 1.4.101`, `status online`, `reunioes_ativas 0`, 4 provedores `ok`.
+
+## Concluido (V.1.4.102 — Seller DNA, Fase 15 do "PROMPT MESTRE — SALE-IA V2", Tarefas 15.1 + 15.2, fecha a Fase 15)
+
+Usuario confirmou avancar para a Fase 15.
+
+- [x] `agent/seller_dna_rules.py` (novo, funcao pura, sem IA/banco): Tarefa 15.1 — `SELLER_DNA_CAMPOS`, os 12 campos literais do prompt mestre (communication_style, opening_patterns, discovery_style, question_patterns, storytelling_patterns, negotiation_patterns, objection_patterns, pricing_style, closing_patterns, language_patterns, preferred_phrases, forbidden_phrases). `construir_seller_dna(seller_id, n_reunioes_analisadas, observacoes_por_campo, minimo_amostra=10)` monta o perfil a partir de observacoes ja extraidas pelo chamador.
+- [x] Regra literal ("nao clonar personalidade a partir de poucas conversas, exigir amostra minima configuravel") garantida estruturalmente: recusa (`ValueError`) montar perfil com `n_reunioes_analisadas` abaixo do minimo (padrao 10, decisao desta rodada, sempre sobrescrevivel). Campo sem observacao vem `None`, nunca inventado (`campos_sem_observacao()`).
+- [x] Tarefa 15.2 — regra central do prompt mestre ("André costuma fazer X" nao significa "X funciona"; SellerDNA registra comportamento, Sales Science mede eficacia, nunca misturar) garantida estruturalmente: `validar_sem_alegacao_de_eficacia(campo, valor)` recusa qualquer valor com linguagem de eficacia/resultado, chamada automaticamente em cada um dos 12 campos.
+- [x] 17 testes novos (`tests/test_seller_dna_rules.py`), incluindo os 2 exemplos literais do prompt mestre. Suite completa sem regressao.
+- [x] Decisao deliberada de escopo: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem persistencia nova, sem endpoint HTTP.
+- [x] **Fecha a Fase 15 (Seller DNA)** completa: Tarefa 15.1 (perfil) -> 15.2 (comportamento vs eficacia).
+- [x] Versao: `1.4.101` -> `1.4.102`.
+- [ ] Push + deploy na VPS (sem tabela/coluna nova — modulo puro em memoria) — pendente. **Fase 16 (Next Best Action V2) e qualquer fase seguinte nao comecam sem nova confirmacao explicita do usuario.**
 
 ## Pendente
 - [ ] **Incidente de saldo (achado 15-16/09/2026, atualizado apos deploy V.1.4.98)**: DeepSeek `402 Insufficient Balance` desde `21:32:52` (15/09/2026, 1740 ocorrencias em 3h) — mesmo padrao do incidente de 31/08/2026. **Atualizacao ~01:13 UTC (16/09)**: OpenAI tambem confirmado sem credito real (`429 insufficient_quota`, "You have no credits remaining") numa reuniao nova, poucos minutos apos o restart do V.1.4.98 zerar os contadores em memoria. 2 dos 4 provedores centrais com cobranca confirmada esgotada, nao so 1. Fallback para Conta Claude pessoal do vendedor nao disparou (sem login na extensao, mesmo achado de antes). Decisao de saldo/financeira, fora do escopo tecnico desta sessao.

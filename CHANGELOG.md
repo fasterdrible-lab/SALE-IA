@@ -3,6 +3,66 @@
 
 ---
 
+## V.1.4.102 — Seller DNA, Fase 15 do "PROMPT MESTRE — SALE-IA V2" (Tarefas 15.1 + 15.2, fecha a Fase 15)
+
+> Data: 16/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Usuário confirmou avançar para a Fase 15 (Seller DNA).
+
+### Perfil do Vendedor (Tarefa 15.1)
+- **`agent/seller_dna_rules.py`** (novo, função pura, sem IA/banco,
+  mesmo padrão de `seller_scorecard_rules.py`/`deal_risk_rules.py`):
+  `SELLER_DNA_CAMPOS` — os 12 campos literais do prompt mestre
+  (`communication_style` a `forbidden_phrases`), vocabulário fechado.
+  `construir_seller_dna(seller_id, n_reunioes_analisadas,
+  observacoes_por_campo, minimo_amostra=10)` monta o perfil a partir
+  de observações já extraídas pelo chamador (nunca lê transcrição).
+- **Regra literal "não clonar personalidade a partir de poucas
+  conversas, exigir amostra mínima configurável" — garantida
+  estruturalmente**: `construir_seller_dna()` recusa (`ValueError`)
+  montar qualquer perfil com `n_reunioes_analisadas` abaixo do
+  mínimo. Padrão `10` (decisão desta rodada — o prompt mestre não
+  define o número exato; diferente do `n≥30` de significância
+  estatística de `win_loss_rules.py`, aqui o objetivo é só evitar
+  generalizar a partir de 1-2 reuniões atípicas), sempre
+  sobrescrevível por chamada.
+- Campo sem observação recebida nunca vira valor inventado — vem
+  `None`, mesmo princípio de `seller_scorecard_rules.py`
+  (`campos_sem_observacao()` helper equivalente a
+  `dimensoes_sem_evidencia()`).
+
+### Comportamento vs. Eficácia (Tarefa 15.2)
+- **Regra central do prompt mestre — "'André costuma fazer X' não
+  significa 'X funciona'. SellerDNA registra comportamento, Sales
+  Science mede eficácia, nunca misturar os dois." — garantida
+  estruturalmente**: `validar_sem_alegacao_de_eficacia(campo, valor)`
+  recusa qualquer valor de campo contendo linguagem de eficácia/
+  resultado (`TERMOS_ALEGACAO_EFICACIA` — "funciona", "eficaz",
+  "comprovado", "vende mais", etc.). Chamada automaticamente por
+  `construir_seller_dna()` em cada um dos 12 campos.
+- Quem precisar saber SE um comportamento observado funciona de fato
+  usa o `agent/sales_science_engine.py` (Fase 13) — nunca o SellerDNA,
+  que só registra O QUE o vendedor faz.
+- 17 testes novos (`tests/test_seller_dna_rules.py`), incluindo
+  `GuardaContraAlegacaoDeEficaciaTest` com os dois exemplos literais
+  do prompt mestre ("André costuma fazer X" aceito, "X funciona"
+  recusado).
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`/`processador_tempo_real.py`, sem persistência
+  nova e sem endpoint HTTP — mesma disciplina das Fases 1-14.
+  Extração automática de padrões comportamentais a partir de
+  transcrições reais (o que alimentaria `observacoes_por_campo`) não
+  foi construída — fora do enunciado desta fase.
+- **Fecha a Fase 15 (Seller DNA)** completa: Tarefa 15.1 (perfil) →
+  15.2 (comportamento vs. eficácia).
+- Versão: `1.4.101` → `1.4.102`.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — módulo
+  puro em memória). **Fase 16 (Next Best Action V2) e qualquer fase
+  seguinte não começam sem nova confirmação explícita do usuário.**
+
+---
+
 ## V.1.4.101 — Experiment Engine, Fase 14 do "PROMPT MESTRE — SALE-IA V2" (Tarefas 14.1 + 14.2)
 
 > Data: 16/09/2026 | Local, aguardando push/deploy
