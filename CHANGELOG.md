@@ -3,6 +3,70 @@
 
 ---
 
+## V.1.4.104 — Preparação para Autonomia (AutonomyPolicy), Fase 17 do "PROMPT MESTRE — SALE-IA V2" (Tarefa 17.1, fecha a Fase 17)
+
+> Data: 16/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Usuário confirmou avançar para a Fase 17. Regra explícita da própria
+fase — "ainda não colocar agente para vender sozinho" — deixa o
+escopo claro sem precisar de pergunta de escopo (diferente das Fases
+7/10/13/14/16): só a camada de governança (conceito `AutonomyPolicy`
++ Decision Boundaries), nenhum motor de execução, nenhuma integração
+com `orquestrador.py`.
+
+### O que foi construído
+- **`agent/autonomy_policy_rules.py`** (novo, função pura, sem
+  IA/banco): `AUTONOMY_LEVELS` — os 6 níveis literais do prompt
+  mestre (`OBSERVE`, `RECOMMEND`, `DRAFT`, `EXECUTE_LOW_RISK`,
+  `EXECUTE_HUMAN_APPROVAL`, `AUTONOMOUS_WITHIN_POLICY`), com o índice
+  na tupla igual ao número literal do nível (0-5). `DECISION_
+  BOUNDARIES` — as 5 fronteiras literais da Tarefa 17.1
+  (`AUTONOMOUS`, `POLICY_DEPENDENT`, `HUMAN_APPROVAL`,
+  `HUMAN_REQUIRED`, `FORBIDDEN`).
+- **`DECISION_BOUNDARIES_PADRAO`** reproduz a tabela literal do
+  exemplo (dar_informacao_publica/qualificar/agendar_reuniao/
+  enviar_followup → `AUTONOMOUS`; alteracao_juridica →
+  `HUMAN_REQUIRED`; promessa_nao_documentada → `FORBIDDEN`).
+  `avaliar_desconto(percentual, limite=5.0)` cobre o caso
+  parametrizado do exemplo (desconto ≤5% → `POLICY_DEPENDENT`,
+  >5% → `HUMAN_APPROVAL`) — função própria em vez de 2 entradas
+  estáticas na tabela, já que o desconto é contínuo, não uma ação
+  fixa.
+- **Regra literal da Tarefa 17.1, garantida estruturalmente — "nenhum
+  LLM pode contornar políticas"**: `pode_executar_autonomamente()` é
+  o único portão de decisão. `FORBIDDEN`/`HUMAN_REQUIRED`/
+  `HUMAN_APPROVAL` retornam sempre `False`, em **qualquer** nível de
+  autonomia — nem o nível máximo (5, `AUTONOMOUS_WITHIN_POLICY`) muda
+  o resultado. `POLICY_DEPENDENT` só permite execução com aprovação
+  explícita externa (`policy_dependente_aprovado=True`, nunca
+  assumida) **e** nível suficiente. `AUTONOMOUS` só executa em nível
+  `EXECUTE_LOW_RISK` (3) ou acima — em `OBSERVE`/`RECOMMEND`/`DRAFT`
+  (0-2) nada é executado, mesmo uma ação de fronteira `AUTONOMOUS`.
+- **Fail-closed em `avaliar_acao()`**: ação sem fronteira mapeada
+  levanta `ValueError` — nunca tratada como `AUTONOMOUS` por omissão.
+- **"Testes: criar suite específica de policy tests" — atendido
+  literalmente**: `tests/test_autonomy_policy_rules.py` tem
+  `GuardaContraContornoDePoliticaTest` como núcleo, testando as 6
+  combinações de fronteira × todos os 6 níveis de autonomia
+  (inclusive o caso mais literal — `FORBIDDEN` no nível máximo
+  continua bloqueado).
+- 27 testes novos, incluindo a tabela completa do exemplo literal da
+  Tarefa 17.1.
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP,
+  sem persistência nova — nenhum nível de autonomia é de fato ativado
+  em produção por este módulo (mesma disciplina "contrato primeiro"
+  das Fases 8-16, reforçada aqui pela instrução explícita da própria
+  fase).
+- **Fecha a Fase 17 (Preparação para Autonomia)** completa.
+- Versão: `1.4.103` → `1.4.104`.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — módulo
+  puro em memória). **Fase 18 (Segurança) e qualquer fase seguinte
+  não começam sem nova confirmação explícita do usuário.**
+
+---
+
 ## V.1.4.103 — Next Best Action V2, Fase 16 do "PROMPT MESTRE — SALE-IA V2" (fecha a Fase 16)
 
 > Data: 16/09/2026 | Local, aguardando push/deploy

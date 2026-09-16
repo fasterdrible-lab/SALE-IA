@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.103** (backend, local + GitHub + **VPS confirmada em produção**) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.104** (backend, local — ainda não deployada; produção confirmada em V.1.4.103) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -2213,6 +2213,58 @@ já usada nas Fases 8-15.
   `versao 1.4.103`, `status online`, 4 provedores `ok`. **Fase 17
   (Preparação para Autonomia) e qualquer fase seguinte não começam
   sem nova confirmação explícita do usuário.**
+
+## Preparação para Autonomia (AutonomyPolicy) — Fase 17 do "PROMPT MESTRE — SALE-IA V2" (V.1.4.104, Tarefa 17.1, fecha a Fase 17)
+
+Usuário confirmou avançar para a Fase 17. Regra explícita da própria
+fase — "ainda não colocar agente para vender sozinho" — deixa o
+escopo claro sem precisar de pergunta de escopo (diferente das Fases
+7/10/13/14/16): só a camada de governança, nenhum motor de execução.
+
+- **`agent/autonomy_policy_rules.py`** (novo, função pura, sem
+  IA/banco): `AUTONOMY_LEVELS` — os 6 níveis literais do prompt
+  mestre (`OBSERVE`, `RECOMMEND`, `DRAFT`, `EXECUTE_LOW_RISK`,
+  `EXECUTE_HUMAN_APPROVAL`, `AUTONOMOUS_WITHIN_POLICY`), índice da
+  tupla igual ao número literal do nível (0-5). `DECISION_BOUNDARIES`
+  — as 5 fronteiras literais da Tarefa 17.1 (`AUTONOMOUS`,
+  `POLICY_DEPENDENT`, `HUMAN_APPROVAL`, `HUMAN_REQUIRED`,
+  `FORBIDDEN`).
+- **`DECISION_BOUNDARIES_PADRAO`** reproduz a tabela literal do
+  exemplo (dar_informacao_publica/qualificar/agendar_reuniao/
+  enviar_followup → `AUTONOMOUS`; alteracao_juridica →
+  `HUMAN_REQUIRED`; promessa_nao_documentada → `FORBIDDEN`).
+  `avaliar_desconto(percentual, limite=5.0)` cobre o caso
+  parametrizado do exemplo (desconto ≤5% → `POLICY_DEPENDENT`, >5% →
+  `HUMAN_APPROVAL`) — função própria, já que desconto é contínuo, não
+  uma ação fixa como as demais.
+- **Regra literal da Tarefa 17.1, garantida estruturalmente — "nenhum
+  LLM pode contornar políticas"**: `pode_executar_autonomamente()` é
+  o único portão de decisão. `FORBIDDEN`/`HUMAN_REQUIRED`/
+  `HUMAN_APPROVAL` retornam sempre `False`, em qualquer nível de
+  autonomia — nem o nível máximo (5, `AUTONOMOUS_WITHIN_POLICY`) muda
+  o resultado. `POLICY_DEPENDENT` só permite execução com aprovação
+  explícita externa (`policy_dependente_aprovado=True`, nunca
+  assumida) e nível suficiente. `AUTONOMOUS` só executa em nível
+  `EXECUTE_LOW_RISK` (3) ou acima — em `OBSERVE`/`RECOMMEND`/`DRAFT`
+  (0-2) nada é executado, mesmo uma ação de fronteira `AUTONOMOUS`.
+  `avaliar_acao()` é fail-closed: ação sem fronteira mapeada levanta
+  `ValueError`, nunca tratada como `AUTONOMOUS` por omissão.
+- **"Testes: criar suite específica de policy tests" — atendido
+  literalmente**: `tests/test_autonomy_policy_rules.py` tem
+  `GuardaContraContornoDePoliticaTest` como núcleo, testando as
+  combinações de fronteira × todos os 6 níveis de autonomia
+  (inclusive o caso mais literal — `FORBIDDEN` no nível máximo
+  continua bloqueado).
+- 27 testes novos, incluindo a tabela completa do exemplo literal.
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP,
+  sem persistência nova — nenhum nível de autonomia é de fato ativado
+  em produção por este módulo.
+- **Fecha a Fase 17 (Preparação para Autonomia)** completa.
+- Versão: `1.4.103` → `1.4.104`.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — módulo
+  puro em memória). **Fase 18 (Segurança) e qualquer fase seguinte
+  não começam sem nova confirmação explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

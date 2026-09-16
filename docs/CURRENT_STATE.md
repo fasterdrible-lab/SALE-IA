@@ -1,7 +1,19 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-16 (V.1.4.103, **deployada e confirmada em
-produção**. V.1.4.103 **fecha a Fase 16 (Next Best Action V2) do "SALE-IA V2"** —
+Atualizado em: 2026-09-16 (V.1.4.104, local — produção confirmada em
+`1.4.103`, ver "Deploy" abaixo — V.1.4.104 ainda não deployada.
+V.1.4.104 **fecha a Fase 17 (Preparação para Autonomia) do "SALE-IA
+V2"** — `agent/autonomy_policy_rules.py` (conceito `AutonomyPolicy`
+com os 6 níveis literais + Decision Boundaries da Tarefa 17.1, com a
+garantia estrutural "nenhum LLM pode contornar políticas" —
+FORBIDDEN/HUMAN_REQUIRED/HUMAN_APPROVAL bloqueados em qualquer nível
+de autonomia, inclusive o máximo). Regra explícita da própria fase
+("ainda não colocar agente para vender sozinho") — nenhum nível é de
+fato ativado, sem integração com `orquestrador.py`. Ver seção
+"Preparação para Autonomia — Fase 17" no CLAUDE.md e CHANGELOG.md
+V.1.4.104. Sem endpoint HTTP novo, sem tabela/coluna nova.
+
+V.1.4.103 **fecha a Fase 16 (Next Best Action V2) do "SALE-IA V2"** —
 `agent/next_best_action_v2_rules.py` (contrato + validações
 estruturais das 4 consistências literais — fatos, estágio, políticas,
 conhecimento disponível — reusando `spin_coverage_rules`/

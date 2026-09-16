@@ -1041,7 +1041,20 @@ Usuario confirmou avancar para a Fase 16. Fase sem subtarefas numeradas — perg
 - [x] Decisao deliberada de escopo: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem persistencia nova, sem endpoint HTTP.
 - [x] **Fecha a Fase 16 (Next Best Action V2)** completa.
 - [x] Versao: `1.4.102` -> `1.4.103`.
-- [x] Push + deploy confirmados (16/09/2026): commit `c511902` no GitHub. `reunioes_ativas: 0` checado antes/depois na VPS — `git pull` (fast-forward `c751bc3` -> `c511902`) + `systemctl restart saleia` — `active`, journal sem erros. Pos-restart: `/health` = `versao 1.4.103`, `status online`, `reunioes_ativas 0`, 4 provedores `ok`. **Fase 17 (Preparacao para Autonomia) e qualquer fase seguinte nao comecam sem nova confirmacao explicita do usuario.**
+- [x] Push + deploy confirmados (16/09/2026): commit `c511902` no GitHub. `reunioes_ativas: 0` checado antes/depois na VPS — `git pull` (fast-forward `c751bc3` -> `c511902`) + `systemctl restart saleia` — `active`, journal sem erros. Pos-restart: `/health` = `versao 1.4.103`, `status online`, `reunioes_ativas 0`, 4 provedores `ok`.
+
+## Concluido (V.1.4.104 — Preparacao para Autonomia / AutonomyPolicy, Fase 17 do "PROMPT MESTRE — SALE-IA V2", Tarefa 17.1, fecha a Fase 17)
+
+Usuario confirmou avancar para a Fase 17. Regra explicita da propria fase ("ainda nao colocar agente para vender sozinho") deixa o escopo claro sem precisar de pergunta de escopo.
+
+- [x] `agent/autonomy_policy_rules.py` (novo, funcao pura, sem IA/banco): `AUTONOMY_LEVELS` — os 6 niveis literais (OBSERVE, RECOMMEND, DRAFT, EXECUTE_LOW_RISK, EXECUTE_HUMAN_APPROVAL, AUTONOMOUS_WITHIN_POLICY), indice = numero literal do nivel (0-5). `DECISION_BOUNDARIES` — as 5 fronteiras literais (AUTONOMOUS, POLICY_DEPENDENT, HUMAN_APPROVAL, HUMAN_REQUIRED, FORBIDDEN).
+- [x] `DECISION_BOUNDARIES_PADRAO` reproduz a tabela literal do exemplo (dar_informacao_publica/qualificar/agendar_reuniao/enviar_followup -> AUTONOMOUS; alteracao_juridica -> HUMAN_REQUIRED; promessa_nao_documentada -> FORBIDDEN). `avaliar_desconto(percentual, limite=5.0)` cobre o caso parametrizado (desconto <=5% -> POLICY_DEPENDENT, >5% -> HUMAN_APPROVAL).
+- [x] Regra literal ("nenhum LLM pode contornar politicas") garantida estruturalmente: `pode_executar_autonomamente()` e o unico portao — FORBIDDEN/HUMAN_REQUIRED/HUMAN_APPROVAL sempre `False` em qualquer nivel (inclusive o maximo, 5). POLICY_DEPENDENT exige aprovacao explicita + nivel suficiente. AUTONOMOUS so executa em nivel EXECUTE_LOW_RISK (3) ou acima. `avaliar_acao()` fail-closed (ValueError se acao nao mapeada).
+- [x] "Testes: criar suite especifica de policy tests" atendido literalmente: `tests/test_autonomy_policy_rules.py`, nucleo `GuardaContraContornoDePoliticaTest` testando fronteira x todos os 6 niveis. 27 testes novos. Suite completa sem regressao.
+- [x] Decisao deliberada de escopo: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP, sem persistencia nova — nenhum nivel de autonomia e de fato ativado.
+- [x] **Fecha a Fase 17 (Preparacao para Autonomia)** completa.
+- [x] Versao: `1.4.103` -> `1.4.104`.
+- [ ] Push + deploy na VPS (sem tabela/coluna nova — modulo puro em memoria) — pendente. **Fase 18 (Seguranca) e qualquer fase seguinte nao comecam sem nova confirmacao explicita do usuario.**
 
 ## Pendente
 - [ ] **Incidente de saldo (achado 15-16/09/2026, atualizado apos deploy V.1.4.98)**: DeepSeek `402 Insufficient Balance` desde `21:32:52` (15/09/2026, 1740 ocorrencias em 3h) — mesmo padrao do incidente de 31/08/2026. **Atualizacao ~01:13 UTC (16/09)**: OpenAI tambem confirmado sem credito real (`429 insufficient_quota`, "You have no credits remaining") numa reuniao nova, poucos minutos apos o restart do V.1.4.98 zerar os contadores em memoria. 2 dos 4 provedores centrais com cobranca confirmada esgotada, nao so 1. Fallback para Conta Claude pessoal do vendedor nao disparou (sem login na extensao, mesmo achado de antes). Decisao de saldo/financeira, fora do escopo tecnico desta sessao.
