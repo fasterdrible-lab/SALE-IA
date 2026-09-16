@@ -83,6 +83,18 @@ simultâneos**, o segundo deles **novo, nunca documentado antes**:
   problema de cobrança confirmado**, não só 1 (o achado original desta
   seção citava só DeepSeek). Segue sem nenhuma ação corretiva tomada
   — decisão financeira/de produto, fora do escopo técnico.
+- **Checagem final (16/09/2026, ~02:04 UTC)**: `reunioes_ativas: 0`
+  (nenhuma reunião ativa no momento) e **zero ocorrências novas** de
+  `"Data too long for column"`/`"Insufficient Balance"`/
+  `"insufficient_quota"` no journal desde o restart do V.1.4.99
+  (`01:47:12` UTC) — os erros vistos minutos antes eram resíduo da
+  reunião longa que acabou de terminar, não um problema novo
+  acontecendo agora. **Isso não fecha o incidente**: saldo de
+  DeepSeek/OpenAI continua esgotado (só não há chamada de IA
+  acontecendo pra expor isso sem reunião ativa) e a coluna
+  `transcript_full` continua sem o fix `MEDIUMTEXT` — ambos voltam a
+  se manifestar assim que a próxima reunião de IA rodar/for longa o
+  bastante.
 
 O corpo deste documento nao acompanhou o
 CHANGELOG.md entre V.1.4.54 e V.1.4.66; a fonte de verdade sempre mais
