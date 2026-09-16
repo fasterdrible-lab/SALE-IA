@@ -1,7 +1,18 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-16 (V.1.4.102, **deployada e confirmada em
-produção**. V.1.4.102 **fecha a Fase 15 (Seller DNA) do "SALE-IA V2"** —
+Atualizado em: 2026-09-16 (V.1.4.103, local — produção confirmada em
+`1.4.102`, ver "Deploy" abaixo — V.1.4.103 ainda não deployada.
+V.1.4.103 **fecha a Fase 16 (Next Best Action V2) do "SALE-IA V2"** —
+`agent/next_best_action_v2_rules.py` (contrato + validações
+estruturais das 4 consistências literais — fatos, estágio, políticas,
+conhecimento disponível — reusando `spin_coverage_rules`/
+`meddpicc_rules`/`sales_science_engine` já prontos; sem motor de IA
+por decisão de escopo, mesma disciplina das Fases 8-15). Ver seção
+"Next Best Action V2 — Fase 16" no CLAUDE.md e CHANGELOG.md V.1.4.103.
+Sem endpoint HTTP novo, sem integração com `orquestrador.py`, sem
+tabela/coluna nova.
+
+V.1.4.102 **fecha a Fase 15 (Seller DNA) do "SALE-IA V2"** —
 `agent/seller_dna_rules.py` (Tarefas 15.1 perfil do vendedor nos 12
 campos literais, com guarda de amostra mínima, e 15.2 guarda
 estrutural "comportamento vs. eficácia" — SellerDNA nunca alega que um

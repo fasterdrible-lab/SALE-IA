@@ -3,6 +3,69 @@
 
 ---
 
+## V.1.4.103 — Next Best Action V2, Fase 16 do "PROMPT MESTRE — SALE-IA V2" (fecha a Fase 16)
+
+> Data: 16/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Usuário confirmou avançar para a Fase 16. Pergunta direta sobre
+escopo (mesma disciplina das Fases 7/10/13/14): a fase não tem
+subtarefas numeradas, só uma descrição contínua — usuário escolheu
+**só contrato + validações estruturais** (sem motor de IA, sem
+integração com o orquestrador), mesma disciplina "contrato primeiro"
+já usada nas Fases 8-15.
+
+### O que foi construído
+- **`agent/next_best_action_v2_rules.py`** (novo, função pura, sem
+  IA/banco): `NBA_V2_FONTES_COMBINADAS` documenta as 8 dimensões
+  literais do prompt mestre (metodologia/contexto/histórico/
+  sazonalidade/cliente/oportunidade/seller_dna/resultado_observado).
+  `montar_next_best_action_v2(...)` monta a recomendação no formato
+  literal do exemplo (`titulo`/`por_que`/`spin_gap`/`meddpicc_gap`/
+  `historico`/`confianca`/`pergunta`/`evite`) — testado reproduzindo
+  o exemplo completo ("Quantifique o impacto financeiro." → SPIN
+  Implication ausente → MEDDPICC Metrics ausente → histórico com
+  evidência → confiança alta).
+- **Regra literal "a recomendação precisa manter consistência com:
+  fatos; estágio; políticas; conhecimento disponível" — garantida
+  estruturalmente, não só por instrução**, reusando módulos já
+  prontos em vez de duplicar lógica:
+  - **fatos**: `spin_gap_campo`/`meddpicc_gap_item` precisam ser gaps
+    REAIS presentes no `spin_cobertura` (`spin_coverage_rules`, Fase
+    3) / `meddpicc_estado` (`meddpicc_rules`, Fase 4) recebidos —
+    nunca inventados.
+  - **estágio**: `spin_gap_campo` precisa pertencer ao estágio SPIN
+    ATUAL (`spin_coverage_rules.estagio_atual()`) — a recomendação
+    não pode pular um estágio ainda pendente.
+  - **políticas**: `bloqueios_politica` (sinais já calculados por
+    qualquer motor de política, ex.: `objection_rules.
+    precisa_investigar()`, `deal_risk_rules.calcular_riscos()`)
+    precisa vir vazio — qualquer bloqueio ativo recusa a
+    recomendação, fail-closed, mesmo padrão de
+    `EXPERIMENT_SAFETY_CHECKS` (Fase 14).
+  - **conhecimento disponível**: `confianca="alta"` exige um
+    `historico_insight` real, no mesmo contrato de
+    `sales_science_engine.montar_insight()` (Fase 13) — nunca alta
+    confiança sem evidência de histórico por trás.
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP,
+  sem persistência nova — mesma disciplina das Fases 1-15. Extração
+  automática de `spin_cobertura`/`meddpicc_estado`/`historico_
+  insight`/`bloqueios_politica` a partir do ciclo de tempo real real
+  não foi construída — quem monta esses inputs em produção é
+  integração futura, não pedida por esta fase.
+- 17 testes novos (`tests/test_next_best_action_v2_rules.py`),
+  incluindo o exemplo literal completo e um caso por consistência
+  exigida.
+- **Fecha a Fase 16 (Next Best Action V2)** completa.
+- Versão: `1.4.102` → `1.4.103`.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — módulo
+  puro em memória). **Fase 17 (Preparação para Autonomia) e qualquer
+  fase seguinte não começam sem nova confirmação explícita do
+  usuário.**
+
+---
+
 ## V.1.4.102 — Seller DNA, Fase 15 do "PROMPT MESTRE — SALE-IA V2" (Tarefas 15.1 + 15.2, fecha a Fase 15)
 
 > Data: 16/09/2026 | Local, aguardando push/deploy

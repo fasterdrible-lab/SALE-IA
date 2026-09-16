@@ -1029,7 +1029,19 @@ Usuario confirmou avancar para a Fase 15.
 - [x] Decisao deliberada de escopo: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem persistencia nova, sem endpoint HTTP.
 - [x] **Fecha a Fase 15 (Seller DNA)** completa: Tarefa 15.1 (perfil) -> 15.2 (comportamento vs eficacia).
 - [x] Versao: `1.4.101` -> `1.4.102`.
-- [x] Push + deploy confirmados (16/09/2026): commit `3c993a2` no GitHub. `reunioes_ativas: 0` checado antes/depois na VPS — `git pull` (fast-forward `9cd9529` -> `3c993a2`) + `systemctl restart saleia` — `active`, journal sem erros. Pos-restart: `/health` = `versao 1.4.102`, `status online`, `reunioes_ativas 0`, 4 provedores `ok`. **Fase 16 (Next Best Action V2) e qualquer fase seguinte nao comecam sem nova confirmacao explicita do usuario.**
+- [x] Push + deploy confirmados (16/09/2026): commit `3c993a2` no GitHub. `reunioes_ativas: 0` checado antes/depois na VPS — `git pull` (fast-forward `9cd9529` -> `3c993a2`) + `systemctl restart saleia` — `active`, journal sem erros. Pos-restart: `/health` = `versao 1.4.102`, `status online`, `reunioes_ativas 0`, 4 provedores `ok`.
+
+## Concluido (V.1.4.103 — Next Best Action V2, Fase 16 do "PROMPT MESTRE — SALE-IA V2", fecha a Fase 16)
+
+Usuario confirmou avancar para a Fase 16. Fase sem subtarefas numeradas — pergunta direta sobre escopo (mesma disciplina das Fases 7/10/13/14): usuario escolheu so contrato + validacoes estruturais, sem motor de IA nem integracao com orquestrador.
+
+- [x] `agent/next_best_action_v2_rules.py` (novo, funcao pura, sem IA/banco): `NBA_V2_FONTES_COMBINADAS` — as 8 dimensoes literais do prompt mestre (metodologia/contexto/historico/sazonalidade/cliente/oportunidade/seller_dna/resultado_observado). `montar_next_best_action_v2(...)` monta a recomendacao no formato literal do exemplo (titulo/por_que/spin_gap/meddpicc_gap/historico/confianca/pergunta/evite) — testado reproduzindo o exemplo completo ("Quantifique o impacto financeiro." -> SPIN Implication ausente -> MEDDPICC Metrics ausente -> historico com evidencia -> confianca alta).
+- [x] Regra literal ("recomendacao precisa manter consistencia com: fatos; estagio; politicas; conhecimento disponivel") garantida estruturalmente, reusando modulos ja prontos: fatos (spin_gap/meddpicc_gap precisam ser gaps reais de `spin_coverage_rules`/`meddpicc_rules`, Fases 3/4), estagio (spin_gap precisa pertencer ao estagio SPIN atual via `estagio_atual()`), politicas (`bloqueios_politica` precisa vir vazio, fail-closed, mesmo padrao de `EXPERIMENT_SAFETY_CHECKS` da Fase 14), conhecimento disponivel (confianca="alta" exige `historico_insight` real no contrato de `sales_science_engine.montar_insight()`, Fase 13).
+- [x] 17 testes novos (`tests/test_next_best_action_v2_rules.py`), incluindo o exemplo literal completo e um caso por consistencia exigida. Suite completa sem regressao.
+- [x] Decisao deliberada de escopo: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem persistencia nova, sem endpoint HTTP.
+- [x] **Fecha a Fase 16 (Next Best Action V2)** completa.
+- [x] Versao: `1.4.102` -> `1.4.103`.
+- [ ] Push + deploy na VPS (sem tabela/coluna nova — modulo puro em memoria) — pendente. **Fase 17 (Preparacao para Autonomia) e qualquer fase seguinte nao comecam sem nova confirmacao explicita do usuario.**
 
 ## Pendente
 - [ ] **Incidente de saldo (achado 15-16/09/2026, atualizado apos deploy V.1.4.98)**: DeepSeek `402 Insufficient Balance` desde `21:32:52` (15/09/2026, 1740 ocorrencias em 3h) — mesmo padrao do incidente de 31/08/2026. **Atualizacao ~01:13 UTC (16/09)**: OpenAI tambem confirmado sem credito real (`429 insufficient_quota`, "You have no credits remaining") numa reuniao nova, poucos minutos apos o restart do V.1.4.98 zerar os contadores em memoria. 2 dos 4 provedores centrais com cobranca confirmada esgotada, nao so 1. Fallback para Conta Claude pessoal do vendedor nao disparou (sem login na extensao, mesmo achado de antes). Decisao de saldo/financeira, fora do escopo tecnico desta sessao.
