@@ -1505,10 +1505,17 @@ completo, os 7 submódulos literais do prompt mestre implementados.
   CHANGELOG.md (V.1.4.99).
 - **Decisão deliberada**: sem integração com `orquestrador.py`, sem
   endpoint HTTP, sem persistência nova.
-- **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna
-  nova, módulos puros em memória). **Fase 14 (Experiment Engine) e
-  qualquer fase seguinte do "PROMPT MESTRE — SALE-IA V2" não começam
-  sem nova confirmação explícita do usuário.**
+- **Pendente**: **Fase 14 (Experiment Engine) e qualquer fase
+  seguinte do "PROMPT MESTRE — SALE-IA V2" não começam sem nova
+  confirmação explícita do usuário.**
+- **Push + deploy confirmados (16/09/2026)**: commit `ea6e4bc` no
+  GitHub. `reunioes_ativas: 0` confirmado na VPS (sem reunião ativa
+  desta vez) — `git pull` (fast-forward `d83497e` → `ea6e4bc`) +
+  `systemctl restart saleia` — `active`, journal sem erros.
+  Pós-restart: `/health` = `versao 1.4.99`, `status online`, 4
+  provedores `ok` (restart zerou os contadores de falha, mesma
+  ressalva de sempre — não resolve o saldo de verdade, ver
+  "Incidente ao vivo" acima); `/dashboard` = `200`.
 
 ### Embeddings Desacoplados — Ollama local + OpenAI opcional (V.1.4.39)
 - `services/embeddings/`: interface `EmbeddingProvider` (`embed`, `embed_async`, `embed_batch`, `health_check`), `OllamaEmbeddingProvider` (HTTP local via `httpx`, zero import de SDKs de LLM externos), `OpenAIEmbeddingProvider`, `factory.get_embedding_provider()` (lê `EMBEDDING_PROVIDER`, erro explícito em valor desconhecido).

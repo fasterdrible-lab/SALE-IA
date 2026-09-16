@@ -986,7 +986,7 @@ Usuario confirmou "fechar 2 modulos pendentes" — fecha a Fase 13 por completo,
 - [x] Decisao deliberada: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP, sem persistencia nova — mesma disciplina das Fases 1-13.
 - [x] **Fecha a Fase 13 (Sales Science Engine)** completa: todos os 7 submodulos literais implementados.
 - [x] Versao: `1.4.98` -> `1.4.99`.
-- **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna nova, modulos puros em memoria). **Fase 14 (Experiment Engine) e qualquer fase seguinte do "PROMPT MESTRE — SALE-IA V2" nao comecam sem nova confirmacao explicita do usuario.**
+- [x] Push + deploy confirmados (16/09/2026): commit `ea6e4bc` no GitHub. `reunioes_ativas: 0` confirmado na VPS (sem reuniao ativa desta vez) — `git pull` (fast-forward `d83497e` -> `ea6e4bc`) + `systemctl restart saleia` — `active`, journal sem erros. Pos-restart: `/health` = `versao 1.4.99`, `status online`, 4 provedores `ok`; `/dashboard` = `200`.
 
 ## Pendente
 

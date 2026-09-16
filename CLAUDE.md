@@ -2041,10 +2041,14 @@ prompt mestre implementados.
   `ObjectionTrendAnalyzer`, `ConversionDriverAnalyzer`)
   implementados, consolidados sob `montar_insight()`.
 - Versão: `1.4.98` → `1.4.99`.
-- **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna
-  nova, módulos puros em memória). **Fase 14 (Experiment Engine) e
-  qualquer fase seguinte do "PROMPT MESTRE — SALE-IA V2" não começam
-  sem nova confirmação explícita do usuário.**
+- **Pendente**: **Fase 14 (Experiment Engine) e qualquer fase
+  seguinte do "PROMPT MESTRE — SALE-IA V2" não começam sem nova
+  confirmação explícita do usuário.**
+- **Push + deploy confirmados (16/09/2026)**: commit `ea6e4bc` no
+  GitHub. `reunioes_ativas: 0` confirmado na VPS — `git pull`
+  (fast-forward `d83497e` → `ea6e4bc`) + `systemctl restart saleia` —
+  `active`, journal sem erros. Pós-restart: `/health` = `versao
+  1.4.99`, `status online`, 4 provedores `ok`; `/dashboard` = `200`.
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 
