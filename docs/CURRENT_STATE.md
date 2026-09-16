@@ -1,16 +1,23 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-16 (V.1.4.100, **deployada e confirmada em
-produção**. V.1.4.100 é o **fix do bug ativo do incidente
-15-16/09/2026**: `MeetingMemory.transcript_full`/`transcript_buffer`/
+Atualizado em: 2026-09-16 (V.1.4.101, local — produção confirmada em
+`1.4.100`, ver "Deploy" abaixo — V.1.4.101 ainda não deployada.
+V.1.4.101 **fecha a Fase 14 (Experiment Engine) do "SALE-IA V2"** —
+`agent/experiment_engine_rules.py` (Tarefas 14.1 hipótese→teste e
+14.2 A/B controlado + guarda de segurança fail-closed dos 5 itens do
+prompt mestre). Ver seção "Experiment Engine — Fase 14" no CLAUDE.md
+e CHANGELOG.md V.1.4.101. Sem endpoint HTTP novo, sem integração com
+`orquestrador.py`, sem tabela/coluna nova.
+
+V.1.4.100 **fecha o bug ativo do incidente 15-16/09/2026**:
+`MeetingMemory.transcript_full`/`transcript_buffer`/
 `accumulated_summary`/`current_diagnosis` trocados de `Text` puro
 (64KB no MySQL) para `_LongText`/`MEDIUMTEXT` (até 16MB) — mesmo
-padrão já usado em `KnowledgeSource` desde a V.1.4.54. Suite completa
-sem regressão (925 testes). `ALTER TABLE` manual aplicado na VPS com
-`reunioes_ativas: 0` confirmado (`DESCRIBE meeting_memory` confirmou
-as 4 colunas em `mediumtext`) + `systemctl restart saleia` — `/health`
-= `versao 1.4.100`, `status online`, journal sem erros. **Fecha o bug
-ativo** — ver CHANGELOG.md V.1.4.100 e docs/TASKS.md.
+padrão já usado em `KnowledgeSource` desde a V.1.4.54. `ALTER TABLE`
+manual aplicado na VPS com `reunioes_ativas: 0` confirmado (`DESCRIBE
+meeting_memory` confirmou as 4 colunas em `mediumtext`) +
+`systemctl restart saleia` — `/health` = `versao 1.4.100`, `status
+online`, journal sem erros.
 
 V.1.4.99 **fecha a Fase 13 (Sales Science Engine) por completo** do
 "SALE-IA V2" — os 2 submódulos que faltavam,

@@ -3,6 +3,62 @@
 
 ---
 
+## V.1.4.101 — Experiment Engine, Fase 14 do "PROMPT MESTRE — SALE-IA V2" (Tarefas 14.1 + 14.2)
+
+> Data: 16/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Usuário confirmou avançar para a Fase 14 (Experiment Engine) e, em
+seguida, fechar as duas tarefas (14.1 e 14.2) na mesma rodada.
+
+### Hipótese → Teste (Tarefa 14.1)
+- **`agent/experiment_engine_rules.py`** (novo, função pura, sem
+  IA/banco, mesmo padrão de `negotiation_rules.py`/
+  `deal_risk_rules.py`): `montar_experiment_hypothesis(hypothesis,
+  control, treatment, metric)`/`validar_experiment_hypothesis(...)` —
+  os 4 campos literais do exemplo do prompt mestre, todos obrigatórios
+  e não-vazios.
+- Testado com o exemplo literal: `hypothesis="Quantificar impacto
+  antes de preço melhora avanço."`, `control="fluxo atual"`,
+  `treatment="pergunta de impacto"`, `metric="stage advancement"`.
+
+### A/B Controlado + Segurança (Tarefa 14.2)
+- **`validar_experiment_config(pilot_group, control_group, duration,
+  minimum_sample, safety_attestation)`** — os 4 campos literais do
+  prompt mestre (`pilot group`/`control group`/`duration`/`minimum
+  sample`), mais validação de que os dois grupos são distintos.
+- **Regra de segurança do prompt mestre — "experimento não pode
+  envolver: informação falsa, discriminação, preço enganoso, escassez
+  falsa, ocultação de informação relevante" — garantida
+  estruturalmente**: `EXPERIMENT_SAFETY_CHECKS` (os 5 itens literais)
+  precisam vir com atestação explícita `True` — item ausente, `False`,
+  ou qualquer valor truthy não-booleano (ex.: `"sim"`) é recusado
+  (`ValueError`), fail-closed. Nenhum experimento nasce aprovado por
+  omissão, mesma disciplina de evidência obrigatória de
+  `SalesEvent`/`SalesEvidence` (Fase 1) e das guardas estruturais de
+  MEDDPICC/Objeções/Negociação (Fases 4/6).
+- `montar_experiment_config(hypothesis_test, pilot_group,
+  control_group, duration, minimum_sample, safety_attestation)`
+  combina o resultado da Tarefa 14.1 com a configuração da 14.2 num
+  único registro, revalidando a hipótese antes de aceitar.
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`/`processador_tempo_real.py`, sem persistência
+  nova e sem endpoint HTTP — mesma disciplina das Fases 1-13. Análise
+  estatística do resultado de um experimento (pilot vs. control) não
+  foi construída aqui — quando alguém precisar, reaproveitar
+  `pattern_discovery_rules.descobrir_padrao()` (Fase 12.2), já pronto
+  pra comparar dois grupos por significância.
+- 22 testes novos (`tests/test_experiment_engine_rules.py`). Suite
+  completa sem regressão (ver resultado da rodada completa).
+- **Fecha a Fase 14 (Experiment Engine)** completa: Tarefa 14.1
+  (hipótese → teste) → 14.2 (A/B controlado + segurança).
+- Versão: `1.4.100` → `1.4.101`.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — módulo
+  puro em memória). **Fase 15 (Seller DNA) e qualquer fase seguinte
+  não começam sem nova confirmação explícita do usuário.**
+
+---
+
 ## V.1.4.100 — Fix: MeetingMemory colunas de texto longo (MEDIUMTEXT)
 
 > Data: 16/09/2026 | Local, aguardando push/deploy

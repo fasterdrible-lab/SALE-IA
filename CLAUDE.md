@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.100** (backend, local + GitHub + **VPS confirmada em produção**) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.101** (backend, local — ainda não deployada; produção confirmada em V.1.4.100) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -2049,6 +2049,53 @@ prompt mestre implementados.
   (fast-forward `d83497e` → `ea6e4bc`) + `systemctl restart saleia` —
   `active`, journal sem erros. Pós-restart: `/health` = `versao
   1.4.99`, `status online`, 4 provedores `ok`; `/dashboard` = `200`.
+
+## Experiment Engine — Fase 14 do "PROMPT MESTRE — SALE-IA V2" (V.1.4.101, Tarefas 14.1 + 14.2, fecha a Fase 14)
+
+Usuário confirmou avançar para a Fase 14 e fechar as duas tarefas
+(14.1 e 14.2) na mesma rodada.
+
+- **`agent/experiment_engine_rules.py`** (novo, função pura, sem
+  IA/banco, mesmo padrão de `negotiation_rules.py`/
+  `deal_risk_rules.py`): **Tarefa 14.1** —
+  `montar_experiment_hypothesis(hypothesis, control, treatment,
+  metric)` transforma uma hipótese de vendas num teste formal, os 4
+  campos literais do exemplo do prompt mestre (`hypothesis`/`control`/
+  `treatment`/`metric`), todos obrigatórios e não-vazios. Testado com
+  o exemplo literal ("Quantificar impacto antes de preço melhora
+  avanço." / "fluxo atual" / "pergunta de impacto" / "stage
+  advancement").
+- **Tarefa 14.2** — `validar_experiment_config(pilot_group,
+  control_group, duration, minimum_sample, safety_attestation)`
+  configura o teste como A/B controlado (os 4 campos literais do
+  prompt mestre), exigindo grupos distintos.
+- **Regra de segurança do prompt mestre — "experimento não pode
+  envolver: informação falsa, discriminação, preço enganoso, escassez
+  falsa, ocultação de informação relevante" — garantida
+  estruturalmente, não só por instrução**: `EXPERIMENT_SAFETY_CHECKS`
+  (os 5 itens literais) exigem atestação explícita `True` cada — item
+  ausente, `False`, ou qualquer valor truthy não-booleano (ex.:
+  `"sim"`) é recusado (`ValueError`), fail-closed. Nenhum experimento
+  nasce aprovado por omissão — mesma disciplina de evidência
+  obrigatória de `SalesEvent`/`SalesEvidence` (Fase 1) e das guardas
+  estruturais de MEDDPICC/Objeções/Negociação (Fases 4/6).
+  `montar_experiment_config()` combina o resultado da 14.1 com a
+  configuração da 14.2 num único registro, revalidando a hipótese
+  antes de aceitar.
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`/`processador_tempo_real.py`, sem persistência
+  nova e sem endpoint HTTP — mesma disciplina das Fases 1-13. Análise
+  estatística do resultado de um experimento (pilot vs. control) não
+  foi construída aqui — reaproveitar
+  `pattern_discovery_rules.descobrir_padrao()` (Fase 12.2) quando
+  alguém precisar comparar os dois grupos por significância.
+- 22 testes novos (`tests/test_experiment_engine_rules.py`).
+- **Fecha a Fase 14 (Experiment Engine)** completa: Tarefa 14.1
+  (hipótese → teste) → 14.2 (A/B controlado + segurança).
+- Versão: `1.4.100` → `1.4.101`.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — módulo
+  puro em memória). **Fase 15 (Seller DNA) e qualquer fase seguinte
+  não começam sem nova confirmação explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 
