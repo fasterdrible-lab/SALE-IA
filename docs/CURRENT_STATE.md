@@ -69,6 +69,20 @@ simultâneos**, o segundo deles **novo, nunca documentado antes**:
   na VPS (com `reunioes_ativas: 0` confirmado antes) + atualizar
   `api/database.py` pra `Text().with_variant(MEDIUMTEXT, "mysql")` nas
   4 colunas, igual ao que já foi feito para `KnowledgeSource`.
+- **Atualização (16/09/2026, ~01:13 UTC, pós-deploy V.1.4.98)**: o
+  restart do `saleia.service` para aplicar V.1.4.98 zerou os
+  contadores de falha em memória (mesmo efeito colateral já
+  documentado em deploys anteriores — não resolve o saldo de
+  verdade), mas **em menos de 10min uma nova reunião real
+  (`reunioes_ativas: 1`) já reacumulava falhas nos 4 provedores**
+  (`/health` = `status: "degradado"`, não mais `"online"`). Journal
+  confirma um **segundo provedor com crédito esgotado de verdade**:
+  `openai` — `429 insufficient_quota`, `"You have no credits
+  remaining"` — além do `402 Insufficient Balance` já confirmado do
+  `deepseek`. Isso muda o quadro: **2 dos 4 provedores centrais têm
+  problema de cobrança confirmado**, não só 1 (o achado original desta
+  seção citava só DeepSeek). Segue sem nenhuma ação corretiva tomada
+  — decisão financeira/de produto, fora do escopo técnico.
 
 O corpo deste documento nao acompanhou o
 CHANGELOG.md entre V.1.4.54 e V.1.4.66; a fonte de verdade sempre mais
