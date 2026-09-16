@@ -3,6 +3,40 @@
 
 ---
 
+## V.1.4.100 — Fix: MeetingMemory colunas de texto longo (MEDIUMTEXT)
+
+> Data: 16/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Fix do bug ativo achado no "Incidente ao vivo — 15-16/09/2026" (ver
+`docs/CURRENT_STATE.md`): uma reunião real com mais de ~1h30 estourou
+o limite de 64KB do MySQL `TEXT` puro em `MeetingMemory.
+transcript_full` — `pymysql.err.DataError (1406, "Data too long for
+column 'transcript_full'")`, 380 ocorrências no journal a partir de
+`22:58:44` (15/09/2026). Toda tentativa de salvar um novo fragmento de
+transcrição dessa reunião falhava a partir desse instante.
+
+### Fix
+- **`api/database.py::MeetingMemory`**: `transcript_full`/
+  `transcript_buffer`/`accumulated_summary`/`current_diagnosis` agora
+  usam `_LongText` (`Text().with_variant(MEDIUMTEXT, "mysql")`, até
+  16MB no MySQL) em vez de `Column(Text, ...)` puro — mesma variável
+  já definida no topo do arquivo e já usada por `KnowledgeSource.
+  texto_extraido`/`sections_json` desde a V.1.4.54 (mesma classe de
+  bug, mesmo fix).
+- **`create_all()` não migra colunas existentes** — precisa de
+  `ALTER TABLE meeting_memory MODIFY transcript_full MEDIUMTEXT,
+  MODIFY transcript_buffer MEDIUMTEXT, MODIFY accumulated_summary
+  MEDIUMTEXT, MODIFY current_diagnosis MEDIUMTEXT;` manual direto no
+  MySQL de produção, com `reunioes_ativas: 0` confirmado antes —
+  mesma disciplina de deploy já usada na V.1.4.54.
+- Suite completa: **925 testes, 0 falhas**, 1 skip pré-existente —
+  sem regressão (SQLite em dev/teste cai no `Text` comum, sem
+  limite de tamanho, então o comportamento em teste não muda).
+- Versão: `1.4.99` → `1.4.100`.
+
+---
+
 ## V.1.4.99 — Sales Science Engine: fecha a Fase 13 completa (ObjectionTrendAnalyzer + ConversionDriverAnalyzer)
 
 > Data: 16/09/2026 | Local, aguardando push/deploy

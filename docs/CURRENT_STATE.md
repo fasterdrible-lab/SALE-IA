@@ -1,7 +1,15 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-16 (V.1.4.99, local — produção confirmada em
-`1.4.98`, ver "Deploy" abaixo — V.1.4.99 ainda não deployada;
+Atualizado em: 2026-09-16 (V.1.4.100, local — produção confirmada em
+`1.4.99`, ver "Deploy" abaixo — V.1.4.100 ainda não deployada.
+V.1.4.100 é o **fix do bug ativo do incidente 15-16/09/2026**:
+`MeetingMemory.transcript_full`/`transcript_buffer`/
+`accumulated_summary`/`current_diagnosis` trocados de `Text` puro
+(64KB no MySQL) para `_LongText`/`MEDIUMTEXT` (até 16MB) — mesmo
+padrão já usado em `KnowledgeSource` desde a V.1.4.54. Suite completa
+sem regressão (925 testes). Falta o `ALTER TABLE` manual na VPS (ver
+CHANGELOG.md V.1.4.100 e docs/TASKS.md).
+
 V.1.4.99 **fecha a Fase 13 (Sales Science Engine) por completo** do
 "SALE-IA V2" — os 2 submódulos que faltavam,
 `agent/objection_trend_analyzer.py` (tendência de categoria de
@@ -16,6 +24,8 @@ e 12 completas + Fase 13 parcial) foram deployadas na VPS em
 por reuniões reais em andamento por ~100min e foi concluído
 automaticamente assim que a última terminou, journal sem erros —
 ver também "Incidente ao vivo" abaixo, achado durante essa espera).
+V.1.4.99 foi deployada em seguida (commit `ea6e4bc`, `reunioes_ativas:
+0` confirmado, `/health` = `versao 1.4.99`).
 
 ## Incidente ao vivo — 15-16/09/2026 (reunião longa: saldo esgotado + coluna de transcrição estourada)
 

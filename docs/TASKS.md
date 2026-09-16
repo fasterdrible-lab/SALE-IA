@@ -988,9 +988,16 @@ Usuario confirmou "fechar 2 modulos pendentes" — fecha a Fase 13 por completo,
 - [x] Versao: `1.4.98` -> `1.4.99`.
 - [x] Push + deploy confirmados (16/09/2026): commit `ea6e4bc` no GitHub. `reunioes_ativas: 0` confirmado na VPS (sem reuniao ativa desta vez) — `git pull` (fast-forward `d83497e` -> `ea6e4bc`) + `systemctl restart saleia` — `active`, journal sem erros. Pos-restart: `/health` = `versao 1.4.99`, `status online`, 4 provedores `ok`; `/dashboard` = `200`.
 
-## Pendente
+## Concluido (V.1.4.100 — Fix MeetingMemory MEDIUMTEXT)
 
-- [ ] **BUG ativo (achado 15-16/09/2026, ver "Incidente ao vivo" em `docs/CURRENT_STATE.md`)**: `MeetingMemory.transcript_full`/`transcript_buffer`/`accumulated_summary`/`current_diagnosis` (`api/database.py`) continuam `Column(Text, ...)` puro — limite 64KB do MySQL. Reuniao real com mais de ~1h30 estourou o limite (`pymysql.err.DataError 1406`, 380 ocorrencias em 3h no journal), transcricao parou de ser persistida a partir de `22:58:44` (15/09/2026). Fix: mesmo padrao ja usado em V.1.4.54 para `KnowledgeSource` — `Text().with_variant(MEDIUMTEXT, "mysql")` nas 4 colunas + `ALTER TABLE meeting_memory MODIFY ... MEDIUMTEXT` manual na VPS (com `reunioes_ativas: 0` confirmado antes). Nao corrigido ainda — aguardando confirmacao explicita do usuario pra aplicar em producao.
+Usuario confirmou aplicar o fix do bug ativo achado no incidente de 15-16/09/2026.
+
+- [x] `api/database.py::MeetingMemory`: `transcript_full`/`transcript_buffer`/`accumulated_summary`/`current_diagnosis` trocados de `Column(Text, ...)` para `Column(_LongText, ...)` (`Text().with_variant(MEDIUMTEXT, "mysql")`, ja definido no topo do arquivo e ja usado por `KnowledgeSource` desde a V.1.4.54 — mesma classe de bug, mesmo fix, nenhuma constante nova).
+- [x] Suite completa: 925 testes, 0 falhas, 1 skip pre-existente — sem regressao (SQLite em dev/teste cai no `Text` comum, sem limite de tamanho).
+- [x] Versao: `1.4.99` -> `1.4.100`.
+- [ ] Push + deploy na VPS + `ALTER TABLE meeting_memory MODIFY transcript_full MEDIUMTEXT, MODIFY transcript_buffer MEDIUMTEXT, MODIFY accumulated_summary MEDIUMTEXT, MODIFY current_diagnosis MEDIUMTEXT;` manual (com `reunioes_ativas: 0` confirmado antes) — em andamento nesta rodada.
+
+## Pendente
 - [ ] **Incidente de saldo (achado 15-16/09/2026, atualizado apos deploy V.1.4.98)**: DeepSeek `402 Insufficient Balance` desde `21:32:52` (15/09/2026, 1740 ocorrencias em 3h) — mesmo padrao do incidente de 31/08/2026. **Atualizacao ~01:13 UTC (16/09)**: OpenAI tambem confirmado sem credito real (`429 insufficient_quota`, "You have no credits remaining") numa reuniao nova, poucos minutos apos o restart do V.1.4.98 zerar os contadores em memoria. 2 dos 4 provedores centrais com cobranca confirmada esgotada, nao so 1. Fallback para Conta Claude pessoal do vendedor nao disparou (sem login na extensao, mesmo achado de antes). Decisao de saldo/financeira, fora do escopo tecnico desta sessao.
 - [ ] **Debito tecnico (achado 05/09/2026, fora de escopo)**: migrar `google.generativeai` (totalmente descontinuado pelo Google) para `google.genai`, e `claude-sonnet-4-20250514` (EOL 15/06/2026) para um modelo Anthropic atual.
 - [x] ~~Fase 3 PROMPT MESTRE — deploy do Whisper Local na VPS~~ — **feito em 05/09/2026**: deploy confirmado (`/health` = `versao 1.4.63`) e modelo validado com transcricao real direto na VPS (4,4s, ver `docs/TASKS.md` acima e CHANGELOG). Falta so ativar de fato `whisper_local` como `TRANSCRICAO_PROVEDOR` pelo Dashboard quando o usuario decidir (hoje continua `whisper`/`groq`).
