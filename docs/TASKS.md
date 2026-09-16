@@ -1016,7 +1016,7 @@ Usuario confirmou avancar para a Fase 14 e fechar as duas tarefas (14.1 e 14.2) 
 - [x] 22 testes novos (`tests/test_experiment_engine_rules.py`). Suite completa sem regressao.
 - [x] **Fecha a Fase 14 (Experiment Engine)** completa: Tarefa 14.1 (hipotese -> teste) -> 14.2 (A/B controlado + seguranca).
 - [x] Versao: `1.4.100` -> `1.4.101`.
-- [ ] Push + deploy na VPS (sem tabela/coluna nova — modulo puro em memoria) — pendente. **Fase 15 (Seller DNA) e qualquer fase seguinte nao comecam sem nova confirmacao explicita do usuario.**
+- [x] Push + deploy confirmados (16/09/2026): commit `652781e` no GitHub. `reunioes_ativas: 0` checado antes/depois na VPS — `git pull` (fast-forward `200f19c` -> `652781e`) + `systemctl restart saleia` — `active`, journal sem erros. Pos-restart: `/health` = `versao 1.4.101`, `status online`, `reunioes_ativas 0`, 4 provedores `ok`. **Fase 15 (Seller DNA) e qualquer fase seguinte nao comecam sem nova confirmacao explicita do usuario.**
 
 ## Pendente
 - [ ] **Incidente de saldo (achado 15-16/09/2026, atualizado apos deploy V.1.4.98)**: DeepSeek `402 Insufficient Balance` desde `21:32:52` (15/09/2026, 1740 ocorrencias em 3h) — mesmo padrao do incidente de 31/08/2026. **Atualizacao ~01:13 UTC (16/09)**: OpenAI tambem confirmado sem credito real (`429 insufficient_quota`, "You have no credits remaining") numa reuniao nova, poucos minutos apos o restart do V.1.4.98 zerar os contadores em memoria. 2 dos 4 provedores centrais com cobranca confirmada esgotada, nao so 1. Fallback para Conta Claude pessoal do vendedor nao disparou (sem login na extensao, mesmo achado de antes). Decisao de saldo/financeira, fora do escopo tecnico desta sessao.

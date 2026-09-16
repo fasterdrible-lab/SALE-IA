@@ -1,13 +1,15 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-16 (V.1.4.101, local — produção confirmada em
-`1.4.100`, ver "Deploy" abaixo — V.1.4.101 ainda não deployada.
-V.1.4.101 **fecha a Fase 14 (Experiment Engine) do "SALE-IA V2"** —
-`agent/experiment_engine_rules.py` (Tarefas 14.1 hipótese→teste e
-14.2 A/B controlado + guarda de segurança fail-closed dos 5 itens do
-prompt mestre). Ver seção "Experiment Engine — Fase 14" no CLAUDE.md
-e CHANGELOG.md V.1.4.101. Sem endpoint HTTP novo, sem integração com
-`orquestrador.py`, sem tabela/coluna nova.
+Atualizado em: 2026-09-16 (V.1.4.101, **deployada e confirmada em
+produção**. V.1.4.101 **fecha a Fase 14 (Experiment Engine) do
+"SALE-IA V2"** — `agent/experiment_engine_rules.py` (Tarefas 14.1
+hipótese→teste e 14.2 A/B controlado + guarda de segurança
+fail-closed dos 5 itens do prompt mestre). Ver seção "Experiment
+Engine — Fase 14" no CLAUDE.md e CHANGELOG.md V.1.4.101. Sem endpoint
+HTTP novo, sem integração com `orquestrador.py`, sem tabela/coluna
+nova — deploy foi só `git pull` + `systemctl restart saleia`
+(`reunioes_ativas: 0` confirmado antes/depois), `/health` = `versao
+1.4.101`, journal sem erros.
 
 V.1.4.100 **fecha o bug ativo do incidente 15-16/09/2026**:
 `MeetingMemory.transcript_full`/`transcript_buffer`/
