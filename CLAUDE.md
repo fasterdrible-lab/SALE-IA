@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.102** (backend, local — ainda não deployada; produção confirmada em V.1.4.101) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.102** (backend, local + GitHub + **VPS confirmada em produção**) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -2146,9 +2146,13 @@ Usuário confirmou avançar para a Fase 15.
 - **Fecha a Fase 15 (Seller DNA)** completa: Tarefa 15.1 (perfil) →
   15.2 (comportamento vs. eficácia).
 - Versão: `1.4.101` → `1.4.102`.
-- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — módulo
-  puro em memória). **Fase 16 (Next Best Action V2) e qualquer fase
-  seguinte não começam sem nova confirmação explícita do usuário.**
+- **Push + deploy confirmados (16/09/2026)**: commit `3c993a2` no
+  GitHub. `reunioes_ativas: 0` checado antes/depois na VPS — `git
+  pull` (fast-forward `9cd9529` → `3c993a2`) + `systemctl restart
+  saleia` — `active`, journal sem erros. Pós-restart: `/health` =
+  `versao 1.4.102`, `status online`, 4 provedores `ok`. **Fase 16
+  (Next Best Action V2) e qualquer fase seguinte não começam sem
+  nova confirmação explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 
