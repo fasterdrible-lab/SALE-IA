@@ -1,7 +1,7 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-17 (V.1.4.105, local — produção confirmada em
-`1.4.104`, ver "Deploy" abaixo — V.1.4.105 ainda não deployada.
+Atualizado em: 2026-09-17 (V.1.4.105 — **local + GitHub + produção
+confirmada** na VPS, ver "Deploy" abaixo).
 V.1.4.105 é a **Fase 18 / Tarefa 18.1 (Tenant/User Isolation) do
 "SALE-IA V2"** — fix crítico de segurança real (não módulo isolado
 como as Fases 14-17): `POST /recapitulacao-viva` não tinha
@@ -11,11 +11,17 @@ coluna de dono. `MeetingMemory.usuario_id` e `client_profiles.
 usuario_id` (novos) + `_verificar_dono_ou_admin()` aplicado em ~15
 endpoints. Dado sem dono continua aberto a qualquer autenticado
 (decisão confirmada); `/cenario/*` continua público por design.
-20 testes novos (`tests/test_tenant_isolation.py`). Ver seção
-"Tenant/User Isolation — Fase 18" no CLAUDE.md e CHANGELOG.md
-V.1.4.105. **Deploy exige `ALTER TABLE meeting_memory ADD COLUMN
-usuario_id VARCHAR(36) NULL` manual na VPS** (`client_profiles` é
-self-migrating).
+20 testes novos (`tests/test_tenant_isolation.py`) + 3 testes
+pré-existentes corrigidos (2 assumiam o comportamento antigo sem
+auth, 1 não isolava o engine em SQLite de memória e caiu no schema
+desatualizado do `data/saleia.db` local). Ver seção "Tenant/User
+Isolation — Fase 18" no CLAUDE.md e CHANGELOG.md V.1.4.105.
+**Deploy confirmado em produção (17/09/2026)**: commit `ecfd028`,
+`ALTER TABLE meeting_memory ADD COLUMN usuario_id VARCHAR(36) NULL`
+aplicado com `reunioes_ativas: 0` confirmado antes, `systemctl
+restart saleia` — `/health` = `versao 1.4.105`, `/dashboard` = `200`,
+journal sem erros. `client_profiles.usuario_id` self-migrating
+confirmado no mesmo restart.
 
 V.1.4.104 **fecha a Fase 17 (Preparação para Autonomia)
 do "SALE-IA V2"** — `agent/autonomy_policy_rules.py` (conceito `AutonomyPolicy`

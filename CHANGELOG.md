@@ -5,7 +5,7 @@
 
 ## V.1.4.105 — Tenant/User Isolation, Fase 18 do "PROMPT MESTRE — SALE-IA V2" (Tarefa 18.1)
 
-> Data: 17/09/2026 | Local, aguardando push/deploy
+> Data: 17/09/2026 | Local + GitHub + VPS confirmada em produção
 
 ### CONTEXTO
 Usuário confirmou avançar para a Fase 18 (Segurança), começando pela
@@ -94,14 +94,38 @@ pertencia a quem pedia.
   `RecapitulacaoVivaIsolationTest`/`HistoricoUsoIsolationTest`/
   `RelatorioStatusIsolationTest` (fim-a-fim via TestClient real +
   SQLite em memória, mesmo padrão de `test_e2e_meeting_lifecycle.py`).
+- **3 testes pré-existentes corrigidos antes do commit** (achados ao
+  rodar a suite completa, não regressão de lógica): `tests/
+  test_e2e_meeting_lifecycle.py::test_ACHADO_recapitulacao_viva_sem_
+  auth_nem_ownership` e `::test_reuniao_completa_ponta_a_ponta`
+  assumiam o comportamento antigo (recapitulação sem auth) — o
+  primeiro já trazia a instrução própria no docstring/assert pra ser
+  atualizado no dia em que o achado fosse corrigido (agora é); o
+  segundo passou a receber `headers=self.headers` na leitura da
+  recapitulação de uma reunião que ele mesmo cria com dono.
+  `docs/BASELINE_REPORT_FASE0.md` atualizado para "CORRIGIDO em
+  V.1.4.105". `tests/test_resumo_cliente_endpoint.py` não isolava
+  `api.database.engine` em SQLite de memória (único dos 3 arquivos que
+  não seguia o padrão já usado por `test_e2e_meeting_lifecycle.py`/
+  `test_tenant_isolation.py`) — como `resumo_cliente_da_reuniao_
+  endpoint` passou a chamar `obter_meeting_memory()` pro check de
+  ownership, o teste caiu no arquivo real `data/saleia.db` (sqlite
+  fallback local, schema desatualizado, faltando `opportunity_id` e
+  `usuario_id`) em vez de um banco isolado — corrigido adotando o
+  mesmo padrão `StaticPool`/`create_all()` dos outros dois arquivos.
+  Suite completa (1028 testes) sem regressão após os 3 fixes.
 - Versão: `1.4.104` → `1.4.105`.
-- **Pendente**: push + deploy na VPS. `client_profiles.usuario_id` é
-  self-migrating (roda sozinho no próximo restart). **`meeting_memory.
-  usuario_id` exige `ALTER TABLE meeting_memory ADD COLUMN usuario_id
-  VARCHAR(36) NULL` manual na VPS** (mesmo motivo de sempre —
-  `create_all()` não migra coluna em tabela já existente — mesmo
-  padrão do `opportunity_id`/Fase 2 e do fix `MEDIUMTEXT`/V.1.4.100),
-  com `reunioes_ativas: 0` confirmado antes. **Tarefas 18.2 (Prompt
+- **Push + deploy confirmados (17/09/2026)**: commit `ecfd028` no
+  GitHub. `reunioes_ativas: 0` confirmado 3x na VPS (antes do `git
+  pull`, antes do `ALTER TABLE`, antes do restart) — `git pull`
+  (fast-forward `8f35a07` → `ecfd028`) + `pip install`/`pip check`
+  limpo + `ALTER TABLE meeting_memory ADD COLUMN usuario_id
+  VARCHAR(36) NULL` (executado via engine da própria app, sem expor
+  credenciais MySQL; `DESCRIBE` confirmou a coluna) + `systemctl
+  restart saleia` — `active`, journal sem erros. Pós-restart: `/health`
+  = `versao 1.4.105`, `status online`, `reunioes_ativas 0`, 4
+  provedores `ok`; `/dashboard` = `200`. `client_profiles.usuario_id`
+  self-migrating confirmado no mesmo restart. **Tarefas 18.2 (Prompt
   Injection), 18.3 (PII) e 18.4 (Audit Trail) não começam sem nova
   confirmação explícita do usuário.**
 
