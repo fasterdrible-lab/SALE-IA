@@ -220,7 +220,9 @@ class MeetingLifecycleE2ETest(unittest.TestCase):
 
         # Recapitulação viva lê a MeetingMemory de verdade (não é uma
         # chamada desconectada) — precisa existir ANTES de poder chamar.
-        r_recap = self.client.post("/recapitulacao-viva", json={"meeting_id": meeting_id})
+        r_recap = self.client.post(
+            "/recapitulacao-viva", json={"meeting_id": meeting_id}, headers=self.headers
+        )
         self.assertEqual(r_recap.status_code, 200, r_recap.text)
         recap_data = r_recap.json()
         self.assertEqual(recap_data["meeting_id"], meeting_id)
@@ -246,15 +248,13 @@ class MeetingLifecycleE2ETest(unittest.TestCase):
         self.assertIn("fala da reuniao 1", mem1["transcript_full"])
 
     def test_ACHADO_recapitulacao_viva_sem_auth_nem_ownership(self):
-        """Achado de segurança documentado na Fase 0 (não corrigido nesta
-        rodada, ver docs/BASELINE_REPORT_FASE0.md): /recapitulacao-viva
-        não exige autenticação e MeetingMemory não tem coluna usuario_id
-        — qualquer pessoa que souber um meeting_id de outro vendedor
-        consegue ler a recapitulação viva daquela reunião. Este teste
-        documenta o comportamento ATUAL (200 sem token), não afirma que
-        isso é correto — serve pra detectar quando alguém corrigir isso
-        de propósito (aí este teste passa a falhar e deve ser atualizado
-        junto da correção, não silenciado)."""
+        """Achado de segurança documentado na Fase 0, CORRIGIDO na Fase 18
+        / Tarefa 18.1 (V.1.4.105, ver docs/BASELINE_REPORT_FASE0.md):
+        MeetingMemory agora tem `usuario_id` e /recapitulacao-viva exige
+        token do próprio dono (ou admin) quando a reunião tem dono
+        registrado — sem token nenhum, 401. Nome do teste mantido para
+        rastreabilidade com o achado original documentado no
+        BASELINE_REPORT_FASE0.md e no CHANGELOG (V.1.4.105)."""
         meeting_id = "e2e-achado-sem-auth"
         self.client.post(
             "/tempo-real",
@@ -262,10 +262,12 @@ class MeetingLifecycleE2ETest(unittest.TestCase):
             headers=self.headers,
         )
         r_sem_token = self.client.post("/recapitulacao-viva", json={"meeting_id": meeting_id})
-        self.assertEqual(
-            r_sem_token.status_code, 200,
-            "Se isso passou a exigir auth, ótimo — atualize este teste e o BASELINE_REPORT_FASE0.md.",
+        self.assertEqual(r_sem_token.status_code, 401)
+
+        r_com_token = self.client.post(
+            "/recapitulacao-viva", json={"meeting_id": meeting_id}, headers=self.headers
         )
+        self.assertEqual(r_com_token.status_code, 200, r_com_token.text)
 
     # ─────────────────────────────────────────────────────────
     # Degradação controlada quando a IA falha

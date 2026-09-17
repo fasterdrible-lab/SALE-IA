@@ -96,6 +96,15 @@ class MeetingMemory(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     meeting_id: str = Field(sa_column=Column(String(200), unique=True, index=True, nullable=False))
     opportunity_id: Optional[int] = Field(default=None, sa_column=Column(Integer, index=True))
+    # Fase 18 / Tarefa 18.1 (Tenant/User Isolation) — dono da reunião,
+    # carimbado uma única vez na primeira gravação com usuário logado
+    # (nunca sobrescrito depois). Nullable de propósito: reuniões
+    # criadas anonimamente (extensão sem login, V.1.4.49) ou anteriores
+    # a esta versão nunca tiveram dono e continuam acessíveis a
+    # qualquer usuário autenticado — só reuniões NOVAS com dono
+    # registrado passam a ser isoladas. Ver `_verificar_dono_ou_admin()`
+    # em api/main.py.
+    usuario_id: Optional[str] = Field(default=None, sa_column=Column(String(36), index=True))
     transcript_full: str = Field(default="", sa_column=Column(_LongText, nullable=False))
     transcript_buffer: str = Field(default="", sa_column=Column(_LongText, nullable=False))
     accumulated_summary: str = Field(default="", sa_column=Column(_LongText, nullable=False))
@@ -648,6 +657,7 @@ def _meeting_memory_to_dict(row: MeetingMemory) -> dict:
     return {
         "id": row.id,
         "meeting_id": row.meeting_id,
+        "usuario_id": row.usuario_id,
         "transcript_full": row.transcript_full or "",
         "transcript_buffer": row.transcript_buffer or "",
         "accumulated_summary": row.accumulated_summary or "",
@@ -718,8 +728,15 @@ def salvar_meeting_memory(meeting_id: str, **campos) -> dict:
         return _meeting_memory_to_dict(row)
 
 
-def registrar_transcricao_meeting(meeting_id: str, fragmento: str, substituir: bool = False) -> dict:
-    """Atualiza transcript_full e transcript_buffer da reuniao."""
+def registrar_transcricao_meeting(
+    meeting_id: str, fragmento: str, substituir: bool = False, usuario_id: Optional[str] = None
+) -> dict:
+    """Atualiza transcript_full e transcript_buffer da reuniao.
+
+    `usuario_id` (Fase 18 / Tarefa 18.1): carimba o dono da reunião na
+    criação da linha, ou faz backfill se a linha já existe mas ainda
+    não tem dono (ex.: reunião começou anônima e o vendedor logou no
+    meio) — nunca sobrescreve um dono já registrado."""
     if not meeting_id:
         raise ValueError("meeting_id e obrigatorio")
 
@@ -729,7 +746,9 @@ def registrar_transcricao_meeting(meeting_id: str, fragmento: str, substituir: b
         row = session.exec(stmt).first()
 
         if not row:
-            row = MeetingMemory(meeting_id=meeting_id)
+            row = MeetingMemory(meeting_id=meeting_id, usuario_id=usuario_id)
+        elif usuario_id and not row.usuario_id:
+            row.usuario_id = usuario_id
 
         if substituir:
             row.transcript_full = fragmento

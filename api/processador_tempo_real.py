@@ -471,7 +471,7 @@ async def analyzeRealtimeMeeting(
     fragmento_para_memoria = _limpar_transcricao((transcricao_nova or transcricao_parcial or "").strip())
     if fragmento_para_memoria:
         try:
-            registrar_transcricao_meeting(meeting_id, fragmento_para_memoria, substituir=False)
+            registrar_transcricao_meeting(meeting_id, fragmento_para_memoria, substituir=False, usuario_id=usuario_id)
         except Exception as _e:
             logger.warning("[MeetingMemory] Nao foi possivel salvar transcript: %s", _e)
 

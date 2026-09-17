@@ -1054,7 +1054,22 @@ Usuario confirmou avancar para a Fase 17. Regra explicita da propria fase ("aind
 - [x] Decisao deliberada de escopo: sem integracao com `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP, sem persistencia nova — nenhum nivel de autonomia e de fato ativado.
 - [x] **Fecha a Fase 17 (Preparacao para Autonomia)** completa.
 - [x] Versao: `1.4.103` -> `1.4.104`.
-- [x] Push + deploy confirmados (16/09/2026): commit `6d67db8` no GitHub. `reunioes_ativas: 0` checado antes/depois na VPS — `git pull` (fast-forward `a15781f` -> `6d67db8`) + `systemctl restart saleia` — `active`, journal sem erros. Pos-restart: `/health` = `versao 1.4.104`, `status online`, `reunioes_ativas 0`, 4 provedores `ok`. **Fase 18 (Seguranca) e qualquer fase seguinte nao comecam sem nova confirmacao explicita do usuario.**
+- [x] Push + deploy confirmados (16/09/2026): commit `6d67db8` no GitHub. `reunioes_ativas: 0` checado antes/depois na VPS — `git pull` (fast-forward `a15781f` -> `6d67db8`) + `systemctl restart saleia` — `active`, journal sem erros. Pos-restart: `/health` = `versao 1.4.104`, `status online`, `reunioes_ativas 0`, 4 provedores `ok`.
+
+## Concluido (V.1.4.105 — Tenant/User Isolation, Fase 18 / Tarefa 18.1 do "PROMPT MESTRE — SALE-IA V2")
+
+Usuario confirmou avancar para a Fase 18 (Seguranca), comecando pela Tarefa 18.1. Auditoria previa confirmou achado ja documentado desde a Fase 0 (V.1.4.72): `POST /recapitulacao-viva` sem autenticacao nenhuma, e revelou que nenhuma tabela do produto principal (MeetingMemory, sessoes, client_profiles) tinha coluna de dono — ~25 endpoints exigiam login mas nenhum verificava ownership.
+
+- [x] Decisoes confirmadas com o usuario: dado sem dono registrado (legado/anonimo) continua acessivel a qualquer autenticado, so dado NOVO fica isolado; `/cenario/{meeting_id}` continua publico por design (tela mostrada ao proprio cliente).
+- [x] `api/database.py::MeetingMemory.usuario_id` (nullable) — dono canonico da reuniao, estampado por `registrar_transcricao_meeting()` (nunca sobrescreve). `agent/client_intelligence.py::client_profiles.usuario_id` (self-migrating) — estampado por `criar_cliente()`.
+- [x] `api/main.py::_verificar_dono_ou_admin()` — portao unico: sem dono libera qualquer autenticado; com dono so libera o proprio dono ou admin; resto -> 404.
+- [x] Fix critico: `POST /recapitulacao-viva` — login continua opcional (extensao anonima e uso legitimo), mas reuniao COM dono exige token do proprio dono/admin.
+- [x] Ownership aplicado em ~15 endpoints: relatorios/status, followups (gerar/listar/patch/delete), historico/uso (lista+detalhe), sessoes (get/delete/exportar-base/lista), clientes (get/patch/lista/vincular-reuniao/desvincular/resumo-reuniao/por-reuniao).
+- [x] Achado de correcao: 2 endpoints sem `except HTTPException: raise` mascarariam o 404 de ownership como 500 — corrigido.
+- [x] Decisao deliberada de escopo (fora desta rodada): /relatorios (webhook Tactiq, sem usuario), /busca-semantica, /grafo/conexoes, /workspace/*, /playbooks*, /skills* (compartilhados por design), /cenario/*/conducao (nao le MeetingMemory), SellerDNA/Opportunity/SalesEvent/RecommendationEvent (sem endpoint HTTP ainda).
+- [x] `tests/test_tenant_isolation.py` — 20 testes novos (usuario A cria, usuario B recebe 404, admin acessa tudo, dado sem dono continua aberto). Suite completa sem regressao.
+- [x] Versao: `1.4.104` -> `1.4.105`.
+- [ ] Push + deploy na VPS pendente — `client_profiles.usuario_id` e self-migrating, mas `meeting_memory.usuario_id` exige `ALTER TABLE meeting_memory ADD COLUMN usuario_id VARCHAR(36) NULL` manual (create_all nao migra coluna em tabela existente, mesmo padrao do opportunity_id/MEDIUMTEXT), com reunioes_ativas:0 confirmado antes. **Tarefas 18.2 (Prompt Injection), 18.3 (PII) e 18.4 (Audit Trail) nao comecam sem nova confirmacao explicita do usuario.**
 
 ## Pendente
 - [ ] **Incidente de saldo (achado 15-16/09/2026, atualizado apos deploy V.1.4.98)**: DeepSeek `402 Insufficient Balance` desde `21:32:52` (15/09/2026, 1740 ocorrencias em 3h) — mesmo padrao do incidente de 31/08/2026. **Atualizacao ~01:13 UTC (16/09)**: OpenAI tambem confirmado sem credito real (`429 insufficient_quota`, "You have no credits remaining") numa reuniao nova, poucos minutos apos o restart do V.1.4.98 zerar os contadores em memoria. 2 dos 4 provedores centrais com cobranca confirmada esgotada, nao so 1. Fallback para Conta Claude pessoal do vendedor nao disparou (sem login na extensao, mesmo achado de antes). Decisao de saldo/financeira, fora do escopo tecnico desta sessao.

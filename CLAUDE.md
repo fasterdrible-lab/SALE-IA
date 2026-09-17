@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.104** (backend, local + GitHub + **VPS confirmada em produção**) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.105** (backend, local — ainda não deployada; produção confirmada em V.1.4.104) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -2266,9 +2266,90 @@ escopo claro sem precisar de pergunta de escopo (diferente das Fases
   GitHub. `reunioes_ativas: 0` checado antes/depois na VPS — `git
   pull` (fast-forward `a15781f` → `6d67db8`) + `systemctl restart
   saleia` — `active`, journal sem erros. Pós-restart: `/health` =
-  `versao 1.4.104`, `status online`, 4 provedores `ok`. **Fase 18
-  (Segurança) e qualquer fase seguinte não começam sem nova
-  confirmação explícita do usuário.**
+  `versao 1.4.104`, `status online`, 4 provedores `ok`.
+
+## Tenant/User Isolation — Fase 18 / Tarefa 18.1 do "PROMPT MESTRE — SALE-IA V2" (V.1.4.105)
+
+Usuário confirmou avançar para a Fase 18 (Segurança), começando pela
+Tarefa 18.1. **Diferente das Fases 14-17** (só módulos novos
+isolados), esta mexe em código de produção real — auth, ownership e
+~20 endpoints existentes. Auditoria prévia confirmou um achado já
+documentado desde a Fase 0 (V.1.4.72, `docs/BASELINE_REPORT_
+FASE0.md`): `POST /recapitulacao-viva` não tinha nenhum controle de
+autenticação. A auditoria revelou que isso não era um bug isolado —
+**nenhuma tabela do produto principal tinha coluna de dono**
+(`MeetingMemory`, `sessoes`, `client_profiles`), então ~25 endpoints
+exigiam login mas nenhum verificava se o recurso pertencia a quem
+pedia.
+
+**Decisões confirmadas com o usuário antes de codar**:
+- Dado sem dono registrado (legado, criado antes desta versão, ou
+  criado anonimamente) continua acessível a qualquer autenticado — só
+  dado NOVO passa a ser isolado. Evita quebrar acesso real já em uso.
+- `/cenario/{meeting_id}`/`/api/cenario/{meeting_id}` continuam
+  públicos, sem autenticação — é a tela mostrada ao próprio CLIENTE
+  (2ª pessoa, "Seu Perfil"), que nunca tem login no SALEIA. Deliberado,
+  documentado, não um acidente.
+
+- **`api/database.py::MeetingMemory.usuario_id`** (nullable, indexado)
+  — dono canônico de uma reunião. `registrar_transcricao_meeting()`
+  estampa o dono na criação da linha ou faz backfill se a reunião
+  começou anônima e o vendedor logou no meio (nunca sobrescreve um
+  dono já registrado). `api/processador_tempo_real.py` passa o
+  `usuario_id` já resolvido por `/tempo-real` (login opcional, mesmo
+  padrão da V.1.4.49).
+- **`agent/client_intelligence.py::client_profiles.usuario_id`**
+  (self-migrating, já hookado no startup via `migrar_colunas_client_
+  profiles()`) — `criar_cliente()` estampa o dono; `listar_clientes(
+  usuario_id=...)` filtra no próprio SQL.
+- **`api/main.py::_verificar_dono_ou_admin(payload, usuario_id_
+  recurso)`** — portão único: recurso sem dono libera qualquer
+  autenticado; recurso com dono só libera o próprio dono ou admin;
+  qualquer outro caso → `404` (não `403`, pra não confirmar a
+  existência do recurso a quem não é dono).
+- **Fix crítico — `POST /recapitulacao-viva`**: login continua
+  opcional (extensão anônima é uso legítimo, V.1.4.49), mas se a
+  reunião TEM dono registrado, exige token válido do próprio dono (ou
+  admin) — sem token nenhum, reunião com dono nunca é liberada.
+  Reunião sem dono continua acessível a qualquer chamador.
+- **Ownership aplicado** em: `/relatorios/{meeting_id}/status`
+  (GET+PATCH), `/relatorios/{meeting_id}/followups*` (GET+POST
+  gerar), `/followups/{fid}` (PATCH+DELETE, via meeting_id do
+  follow-up), `/historico/uso` (filtra lista) e `/historico/uso/
+  {meeting_id}`, `/sessoes/{sessao_id}` (GET+DELETE) e `/sessoes/
+  {sessao_id}/exportar-base` (via meeting_id da sessão — `sessoes`
+  não tem coluna própria, dono sempre resolvido via `MeetingMemory`),
+  `/sessoes` (filtra lista), `/clientes/{client_id}` (GET+PATCH),
+  `/clientes` (filtra lista), `/clientes/{client_id}/reunioes`
+  (POST+DELETE), `/clientes/resumo-reuniao/{meeting_id}`, `/clientes/
+  por-reuniao/{meeting_id}`.
+- **Achado de correção durante a implementação**: 2 endpoints só
+  tinham `except Exception: raise HTTPException(500)` sem `except
+  HTTPException: raise` antes — sem o guard, o `404` de ownership
+  seria mascarado como `500`. Corrigido em ambos.
+- **Decisão deliberada de escopo, fora desta rodada**: `/relatorios`
+  (tabela `Relatorio`, só alimentada pelo webhook Tactiq, sem contexto
+  de usuário). `/busca-semantica`, `/grafo/conexoes/*`, `/workspace/
+  *`, `/playbooks*`, `/skills*` — intencionalmente compartilhados pela
+  equipe (decisão de produto já documentada), não dado privado por
+  vendedor. `POST /cenario/{meeting_id}/conducao` — não lê
+  `MeetingMemory`, só reformata o `dados` que o próprio chamador
+  envia. `SellerDNA`/`Opportunity`/`SalesEvent`/`RecommendationEvent`
+  — sem endpoint HTTP ainda, nada pra isolar na camada HTTP.
+- **`tests/test_tenant_isolation.py`** (20 testes): usuário A cria
+  reunião/cliente, usuário B recebe `404` em cada endpoint protegido,
+  admin acessa tudo, dado sem dono continua aberto. Fim-a-fim via
+  TestClient real + SQLite em memória (mesmo padrão de
+  `test_e2e_meeting_lifecycle.py`).
+- Versão: `1.4.104` → `1.4.105`.
+- **Pendente**: push + deploy. `client_profiles.usuario_id` é
+  self-migrating. **`meeting_memory.usuario_id` exige `ALTER TABLE
+  meeting_memory ADD COLUMN usuario_id VARCHAR(36) NULL` manual na
+  VPS** (mesmo motivo de sempre — `create_all()` não migra coluna em
+  tabela existente — mesmo padrão do `opportunity_id`/Fase 2 e do fix
+  `MEDIUMTEXT`/V.1.4.100), com `reunioes_ativas: 0` confirmado antes.
+  **Tarefas 18.2 (Prompt Injection), 18.3 (PII) e 18.4 (Audit Trail)
+  não começam sem nova confirmação explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

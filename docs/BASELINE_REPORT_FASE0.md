@@ -63,21 +63,27 @@ a memória real da reunião → isolamento entre duas reuniões diferentes.
 
 ## Achados (por prioridade)
 
-### 🔴 Alta — Sem controle de ownership em `meeting_id`
-`MeetingMemory` não tem coluna `usuario_id`; `POST /recapitulacao-viva`
-não exige autenticação nenhuma; nenhum endpoint verifica se o
-`meeting_id` pertence ao usuário autenticado. **Qualquer pessoa que
-souber/adivinhar o `meeting_id` de outra reunião consegue ler a
-recapitulação viva daquela reunião.** Confirmado e documentado (não
-corrigido) em `tests/test_e2e_meeting_lifecycle.py::
-test_ACHADO_recapitulacao_viva_sem_auth_nem_ownership` — esse teste
-falha (de propósito) no dia em que alguém corrigir isso, servindo de
-lembrete pra atualizar este relatório.
+### 🔴 Alta — Sem controle de ownership em `meeting_id` (CORRIGIDO em V.1.4.105)
+`MeetingMemory` não tinha coluna `usuario_id`; `POST /recapitulacao-viva`
+não exigia autenticação nenhuma; nenhum endpoint verificava se o
+`meeting_id` pertencia ao usuário autenticado. **Qualquer pessoa que
+soubesse/adivinhasse o `meeting_id` de outra reunião conseguia ler a
+recapitulação viva daquela reunião.**
 
-**Risco real**: baixo-médio hoje (uso interno, uma empresa, vendedores
-confiáveis) — mas `meeting_id` circula em URLs/logs e não é
-criptograficamente aleatório em todos os casos. Recomendação: tratar
-como tarefa própria antes de qualquer exposição multi-tenant futura.
+**Corrigido na Fase 18 / Tarefa 18.1 (V.1.4.105, ver CHANGELOG.md)**:
+`MeetingMemory.usuario_id` (e `client_profiles.usuario_id`) somados ao
+portão único `_verificar_dono_ou_admin()` — `/recapitulacao-viva` e
+~15 outros endpoints agora exigem que o chamador seja o próprio dono
+(ou admin) quando o recurso tem dono registrado; dado sem dono
+(legado/anônimo) continua acessível a qualquer autenticado, decisão
+deliberada. `tests/test_e2e_meeting_lifecycle.py::
+test_ACHADO_recapitulacao_viva_sem_auth_nem_ownership` atualizado para
+confirmar o novo comportamento (401 sem token, 200 com o token do
+dono) em vez de documentar o achado em aberto.
+
+**Risco real hoje**: nenhum para dado novo (isolado). Dado histórico
+sem dono continua aberto a qualquer autenticado — decisão deliberada,
+não um gap.
 
 ### 🟡 Média — Extensão Chrome 100% sem teste automatizado
 Zero Jest/Mocha/Playwright configurado no repo. Toda a lógica de

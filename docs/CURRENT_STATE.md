@@ -1,7 +1,23 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-16 (V.1.4.104, **deployada e confirmada em
-produção**. V.1.4.104 **fecha a Fase 17 (Preparação para Autonomia)
+Atualizado em: 2026-09-17 (V.1.4.105, local — produção confirmada em
+`1.4.104`, ver "Deploy" abaixo — V.1.4.105 ainda não deployada.
+V.1.4.105 é a **Fase 18 / Tarefa 18.1 (Tenant/User Isolation) do
+"SALE-IA V2"** — fix crítico de segurança real (não módulo isolado
+como as Fases 14-17): `POST /recapitulacao-viva` não tinha
+autenticação alguma (achado já documentado desde a Fase 0,
+V.1.4.72); auditoria revelou que nenhuma tabela principal tinha
+coluna de dono. `MeetingMemory.usuario_id` e `client_profiles.
+usuario_id` (novos) + `_verificar_dono_ou_admin()` aplicado em ~15
+endpoints. Dado sem dono continua aberto a qualquer autenticado
+(decisão confirmada); `/cenario/*` continua público por design.
+20 testes novos (`tests/test_tenant_isolation.py`). Ver seção
+"Tenant/User Isolation — Fase 18" no CLAUDE.md e CHANGELOG.md
+V.1.4.105. **Deploy exige `ALTER TABLE meeting_memory ADD COLUMN
+usuario_id VARCHAR(36) NULL` manual na VPS** (`client_profiles` é
+self-migrating).
+
+V.1.4.104 **fecha a Fase 17 (Preparação para Autonomia)
 do "SALE-IA V2"** — `agent/autonomy_policy_rules.py` (conceito `AutonomyPolicy`
 com os 6 níveis literais + Decision Boundaries da Tarefa 17.1, com a
 garantia estrutural "nenhum LLM pode contornar políticas" —

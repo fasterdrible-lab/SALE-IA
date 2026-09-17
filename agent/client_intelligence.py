@@ -96,14 +96,21 @@ def criar_tabelas_clientes() -> None:
 
 
 def migrar_colunas_client_profiles():
-    """Adiciona as colunas de dia/mês de nascimento a client_profiles se
-    ainda não existirem (bases criadas antes desta versão). Dado usado só
-    para a camada opcional de astrologia (signo solar) — nunca perguntado
-    diretamente ao cliente, só extraído quando mencionado naturalmente na
-    conversa (ver PROMPT_RECAPITULACAO em api/main.py)."""
+    """Adiciona as colunas de dia/mês de nascimento e de dono (Fase 18)
+    a client_profiles se ainda não existirem (bases criadas antes
+    dessas versões). Nascimento é usado só pela camada opcional de
+    astrologia (signo solar) — nunca perguntado diretamente ao
+    cliente, só extraído quando mencionado naturalmente na conversa
+    (ver PROMPT_RECAPITULACAO em api/main.py). `usuario_id`
+    (Fase 18 / Tarefa 18.1, Tenant/User Isolation) é nullable de
+    propósito — clientes criados antes desta versão nunca tiveram
+    dono e continuam acessíveis a qualquer usuário autenticado, só
+    clientes NOVOS passam a ser isolados por dono."""
     alteracoes = [
         "ALTER TABLE client_profiles ADD COLUMN data_nascimento_dia TINYINT NULL DEFAULT NULL",
         "ALTER TABLE client_profiles ADD COLUMN data_nascimento_mes TINYINT NULL DEFAULT NULL",
+        "ALTER TABLE client_profiles ADD COLUMN usuario_id VARCHAR(36) NULL DEFAULT NULL",
+        "ALTER TABLE client_profiles ADD INDEX idx_usuario (usuario_id)",
     ]
     try:
         conn = _get_conn()
@@ -154,8 +161,14 @@ def criar_cliente(
     telefone: str = "",
     disc_profile: str = "",
     notas: str = "",
+    usuario_id: Optional[str] = None,
 ) -> str:
-    """Cria um perfil de cliente. Retorna UUID."""
+    """Cria um perfil de cliente. Retorna UUID.
+
+    `usuario_id` (Fase 18 / Tarefa 18.1, Tenant/User Isolation):
+    carimba o dono do cliente na criação — `None` quando não há
+    usuário autenticado disponível, mesmo padrão de tolerância de
+    `MeetingMemory.usuario_id`."""
     cid = str(uuid.uuid4())
     agora = datetime.now()
     conn = _get_conn()
@@ -166,11 +179,11 @@ def criar_cliente(
                 (id, nome, empresa, email, telefone, disc_profile,
                  objecoes_recorrentes, dores_recorrentes,
                  score_medio, ultimo_score, total_reunioes,
-                 status_negociacao, notas, created_at, updated_at)
-            VALUES (%s,%s,%s,%s,%s,%s,'[]','[]',0,0,0,'ativo',%s,%s,%s)
+                 status_negociacao, notas, usuario_id, created_at, updated_at)
+            VALUES (%s,%s,%s,%s,%s,%s,'[]','[]',0,0,0,'ativo',%s,%s,%s,%s)
             """,
             (cid, nome.strip()[:255], empresa[:255], email[:255],
-             telefone[:50], disc_profile[:20], notas, agora, agora),
+             telefone[:50], disc_profile[:20], notas, usuario_id, agora, agora),
         )
     conn.close()
     logger.info("[Clientes] Cliente '%s' criado (id=%s)", nome, cid)
@@ -205,8 +218,16 @@ def listar_clientes(
     status: str = "",
     limit: int = 50,
     offset: int = 0,
+    usuario_id: Optional[str] = None,
 ) -> list:
-    """Lista clientes com filtros opcionais."""
+    """Lista clientes com filtros opcionais.
+
+    `usuario_id` (Fase 18 / Tarefa 18.1, Tenant/User Isolation): quando
+    informado, restringe aos clientes do próprio usuário **mais** os
+    sem dono registrado (`usuario_id IS NULL` — clientes legados,
+    criados antes desta versão, continuam visíveis a qualquer
+    autenticado). `None` (admin, ou chamador que decide ver tudo) não
+    filtra — mesma semântica de `MeetingMemory.usuario_id`."""
     where, params = [], []
     if busca:
         where.append("(nome LIKE %s OR empresa LIKE %s OR email LIKE %s)")
@@ -215,6 +236,9 @@ def listar_clientes(
     if status:
         where.append("status_negociacao = %s")
         params.append(status)
+    if usuario_id:
+        where.append("(usuario_id = %s OR usuario_id IS NULL)")
+        params.append(usuario_id)
     clause = ("WHERE " + " AND ".join(where)) if where else ""
     try:
         conn = _get_conn()

@@ -3,6 +3,110 @@
 
 ---
 
+## V.1.4.105 — Tenant/User Isolation, Fase 18 do "PROMPT MESTRE — SALE-IA V2" (Tarefa 18.1)
+
+> Data: 17/09/2026 | Local, aguardando push/deploy
+
+### CONTEXTO
+Usuário confirmou avançar para a Fase 18 (Segurança), começando pela
+Tarefa 18.1 (Tenant/User Isolation) — diferente das Fases 14-17 (só
+módulos novos isolados), esta rodada mexe em código de produção real:
+auth, ownership e ~20 endpoints existentes. Auditoria prévia
+confirmou um achado crítico já documentado desde a Fase 0
+(V.1.4.72): `POST /recapitulacao-viva` não tinha **nenhum** controle
+de autenticação — qualquer um que soubesse o `meeting_id` (o código
+real da sala do Google Meet, compartilhado em convites/chat) lia a
+recapitulação viva de outra reunião, para sempre. A auditoria revelou
+que isso não era um bug isolado: **nenhuma tabela do produto principal
+tinha coluna de dono** (`MeetingMemory`, `sessoes`, `client_profiles`)
+— ~25 endpoints exigiam login, mas nenhum verificava se o recurso
+pertencia a quem pedia.
+
+### Decisões confirmadas com o usuário antes de codar
+- **Dado legado (sem dono registrado)**: continua acessível a
+  qualquer usuário autenticado — só dado NOVO (criado a partir desta
+  versão, com usuário logado) passa a ser isolado. Evita quebrar
+  acesso a reuniões/clientes reais já em uso.
+- **`/cenario/{meeting_id}` e `/api/cenario/{meeting_id}`**:
+  continuam públicos, sem autenticação — é a tela mostrada ao próprio
+  CLIENTE durante a reunião (2ª pessoa, "Seu Perfil"), que nunca tem
+  login no SALEIA. Decisão deliberada, documentada, não um acidente.
+
+### O que foi corrigido
+- **`api/database.py::MeetingMemory`** ganha `usuario_id` (nullable,
+  indexado) — dono canônico de uma reunião. `registrar_transcricao_
+  meeting()` estampa o dono na criação da linha (ou faz backfill se a
+  reunião começou anônima e o vendedor logou no meio — nunca
+  sobrescreve um dono já registrado). `api/processador_tempo_real.py`
+  passa o `usuario_id` já resolvido por `/tempo-real` (login opcional,
+  mesmo padrão da V.1.4.49) adiante.
+- **`agent/client_intelligence.py::client_profiles`** ganha
+  `usuario_id` (self-migrating via `migrar_colunas_client_profiles()`,
+  já chamada no startup) — `criar_cliente()` estampa o dono na
+  criação; `listar_clientes(usuario_id=...)` filtra no próprio SQL.
+- **`api/main.py::_verificar_dono_ou_admin(payload, usuario_id_
+  recurso)`** — portão único de decisão: recurso sem dono (`None`)
+  libera qualquer autenticado; recurso com dono só libera o próprio
+  dono ou admin; qualquer outro caso → `404` (não `403`, pra não
+  confirmar a existência do recurso a quem não é dono).
+- **`POST /recapitulacao-viva` (fix crítico)**: login continua
+  opcional (extensão anônima é uso legítimo, V.1.4.49), mas se a
+  reunião TEM dono registrado, exige token válido do próprio dono (ou
+  admin) — sem token nenhum, uma reunião com dono nunca é liberada.
+  Reunião sem dono continua acessível a qualquer chamador, como
+  sempre foi.
+- **Ownership aplicado** em: `GET/PATCH /relatorios/{meeting_id}/
+  status`, `POST /relatorios/{meeting_id}/followups/gerar`,
+  `GET /relatorios/{meeting_id}/followups`, `PATCH/DELETE /followups/
+  {fid}` (via meeting_id do follow-up), `GET /historico/uso` (filtra
+  lista) e `GET /historico/uso/{meeting_id}`, `GET/DELETE /sessoes/
+  {sessao_id}` e `POST /sessoes/{sessao_id}/exportar-base` (via
+  meeting_id da sessão — sessoes não tem coluna própria, dono é
+  sempre resolvido via `MeetingMemory`), `GET /sessoes` (filtra
+  lista), `GET/PATCH /clientes/{client_id}`, `GET /clientes` (filtra
+  lista), `POST /clientes/{client_id}/reunioes`, `DELETE /clientes/
+  {client_id}/reunioes/{meeting_id}`, `GET /clientes/resumo-reuniao/
+  {meeting_id}`, `GET /clientes/por-reuniao/{meeting_id}`.
+- **Achado de correção durante a implementação**: 2 endpoints
+  (`POST /relatorios/{meeting_id}/followups/gerar`,
+  `DELETE /clientes/{client_id}/reunioes/{meeting_id}`) tinham só
+  `except Exception: raise HTTPException(500)` sem `except
+  HTTPException: raise` antes — sem o guard, o `404` de ownership
+  seria mascarado como `500`. Corrigido nos dois.
+- **Decisão deliberada de escopo, fora desta rodada**: `/relatorios`
+  (lista/detalhe via tabela `Relatorio`) — só alimentada pelo webhook
+  Tactiq (integração externa sem contexto de usuário, sem conceito de
+  dono aplicável). `/busca-semantica`, `/grafo/conexoes/*`,
+  `/workspace/*`, `/playbooks*`, `/skills*` — ferramentas/bibliotecas
+  intencionalmente compartilhadas por toda a equipe (decisão de
+  produto já documentada em versões anteriores), não dado privado por
+  vendedor. `POST /cenario/{meeting_id}/conducao` — não lê
+  `MeetingMemory`, gera conteúdo só a partir do `dados` que o próprio
+  chamador envia, não expõe dado armazenado de outro usuário.
+  `SellerDNA`/`Opportunity`/`SalesEvent`/`RecommendationEvent` — sem
+  endpoint HTTP ainda (módulos puros das Fases 1, 2, 10, 15), nada
+  pra isolar na camada HTTP.
+- **`tests/test_tenant_isolation.py`** (20 testes novos): usuário A
+  cria reunião/consulta/cliente, usuário B recebe `404` em cada
+  endpoint protegido, admin acessa tudo, dado sem dono continua aberto
+  a qualquer autenticado (inclusive chamada anônima quando aplicável).
+  Núcleo: `VerificarDonoOuAdminUnitTest` (portão central) +
+  `RecapitulacaoVivaIsolationTest`/`HistoricoUsoIsolationTest`/
+  `RelatorioStatusIsolationTest` (fim-a-fim via TestClient real +
+  SQLite em memória, mesmo padrão de `test_e2e_meeting_lifecycle.py`).
+- Versão: `1.4.104` → `1.4.105`.
+- **Pendente**: push + deploy na VPS. `client_profiles.usuario_id` é
+  self-migrating (roda sozinho no próximo restart). **`meeting_memory.
+  usuario_id` exige `ALTER TABLE meeting_memory ADD COLUMN usuario_id
+  VARCHAR(36) NULL` manual na VPS** (mesmo motivo de sempre —
+  `create_all()` não migra coluna em tabela já existente — mesmo
+  padrão do `opportunity_id`/Fase 2 e do fix `MEDIUMTEXT`/V.1.4.100),
+  com `reunioes_ativas: 0` confirmado antes. **Tarefas 18.2 (Prompt
+  Injection), 18.3 (PII) e 18.4 (Audit Trail) não começam sem nova
+  confirmação explícita do usuário.**
+
+---
+
 ## V.1.4.104 — Preparação para Autonomia (AutonomyPolicy), Fase 17 do "PROMPT MESTRE — SALE-IA V2" (Tarefa 17.1, fecha a Fase 17)
 
 > Data: 16/09/2026 | Local, aguardando push/deploy

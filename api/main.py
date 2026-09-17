@@ -747,7 +747,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.104",
+        "versao":              "1.4.105",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -785,7 +785,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.104",
+        "versao":          "1.4.105",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -1076,9 +1076,17 @@ def recapitulacao_completa(req: RecapitulacaoRequest, background_tasks: Backgrou
 
 
 @app.post("/recapitulacao-viva")
-async def recapitulacao_viva(req: RecapitulacaoVivaRequest):
+async def recapitulacao_viva(req: RecapitulacaoVivaRequest, authorization: str | None = Header(default=None)):
     """
     Gera ou regenera a recapitulação guiada usando a MeetingMemory persistida.
+
+    Fase 18 / Tarefa 18.1 (Tenant/User Isolation): login continua
+    opcional aqui (mesmo padrão de /tempo-real — a extensão funciona
+    100% anônima por decisão da V.1.4.49), mas se a reunião TEM dono
+    registrado, só o próprio dono (ou um admin) pode ler a
+    recapitulação — sem token válido nenhum, uma reunião com dono
+    nunca é liberada. Reunião sem dono (criada/lida anonimamente)
+    continua acessível a qualquer chamador, como sempre foi.
     """
     if not req.meeting_id:
         raise HTTPException(status_code=400, detail="meeting_id é obrigatório")
@@ -1086,6 +1094,13 @@ async def recapitulacao_viva(req: RecapitulacaoVivaRequest):
     memoria = obter_meeting_memory(req.meeting_id)
     if not memoria:
         raise HTTPException(status_code=404, detail="MeetingMemory não encontrada para este meeting_id")
+
+    dono = memoria.get("usuario_id")
+    if dono:
+        if not authorization:
+            raise HTTPException(status_code=401, detail="Esta reunião tem um dono registrado — faça login para acessar.")
+        payload = _req_auth(authorization)
+        _verificar_dono_ou_admin(payload, dono)
 
     from agent.recapitulacao import generateLiveRecapMindMap
 
@@ -1206,7 +1221,8 @@ def atualizar_status_relatorio(
     authorization: str | None = Header(default=None),
 ):
     """Define o status de uma reunião: open | won | lost. Marcar como 'won' dispara geração de playbook."""
-    _req_auth(authorization)
+    payload = _req_auth(authorization)
+    _verificar_dono_ou_admin(payload, (obter_meeting_memory(meeting_id) or {}).get("usuario_id"))
     status = str(body.get("status") or "").strip().lower()
     if status not in ("open", "won", "lost"):
         raise HTTPException(status_code=400, detail="Status inválido. Use: open, won ou lost.")
@@ -1224,7 +1240,8 @@ def obter_status_relatorio(
     authorization: str | None = Header(default=None),
 ):
     """Retorna o status atual de uma reunião."""
-    _req_auth(authorization)
+    payload = _req_auth(authorization)
+    _verificar_dono_ou_admin(payload, (obter_meeting_memory(meeting_id) or {}).get("usuario_id"))
     try:
         from agent.playbook_generator import obter_status_reuniao
         return {"meeting_id": meeting_id, "status": obter_status_reuniao(meeting_id)}
@@ -1336,11 +1353,16 @@ def listar_clientes_endpoint(
     offset: int = 0,
     authorization: str | None = Header(default=None),
 ):
-    """Lista perfis de clientes com filtro por nome/empresa/email e status."""
-    _req_auth(authorization)
+    """Lista perfis de clientes com filtro por nome/empresa/email e status.
+
+    Fase 18 / Tarefa 18.1: filtra aos clientes do próprio usuário mais
+    os sem dono registrado (legado) — admin vê todos.
+    """
+    payload = _req_auth(authorization)
     try:
         from agent.client_intelligence import listar_clientes
-        items = listar_clientes(busca=busca, status=status, limit=limit, offset=offset)
+        filtro_uid = None if payload.get("perfil") == "admin" else payload.get("sub")
+        items = listar_clientes(busca=busca, status=status, limit=limit, offset=offset, usuario_id=filtro_uid)
         return {"total": len(items), "clientes": items}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1349,7 +1371,7 @@ def listar_clientes_endpoint(
 @app.post("/clientes")
 def criar_cliente_endpoint(body: dict, authorization: str | None = Header(default=None)):
     """Cria um perfil de cliente."""
-    _req_auth(authorization)
+    payload = _req_auth(authorization)
     nome = str(body.get("nome") or "").strip()
     if not nome:
         raise HTTPException(status_code=400, detail="Campo 'nome' é obrigatório.")
@@ -1362,6 +1384,7 @@ def criar_cliente_endpoint(body: dict, authorization: str | None = Header(defaul
             telefone=str(body.get("telefone") or ""),
             disc_profile=str(body.get("disc_profile") or ""),
             notas=str(body.get("notas") or ""),
+            usuario_id=payload.get("sub"),
         )
         return {"id": cid, "nome": nome}
     except Exception as e:
@@ -1371,12 +1394,13 @@ def criar_cliente_endpoint(body: dict, authorization: str | None = Header(defaul
 @app.get("/clientes/{client_id}")
 def obter_cliente_endpoint(client_id: str, authorization: str | None = Header(default=None)):
     """Retorna perfil completo do cliente com timeline."""
-    _req_auth(authorization)
+    payload = _req_auth(authorization)
     try:
         from agent.client_intelligence import obter_cliente
         item = obter_cliente(client_id)
         if not item:
             raise HTTPException(status_code=404, detail="Cliente não encontrado.")
+        _verificar_dono_ou_admin(payload, item.get("usuario_id"))
         return item
     except HTTPException:
         raise
@@ -1389,7 +1413,8 @@ def resumo_cliente_da_reuniao_endpoint(meeting_id: str, authorization: str | Non
     """Resumo interno do cliente vinculado a uma reunião — só para o
     vendedor (tela de detalhe da reunião no Dashboard). Nunca expor em
     cenario.html, que é a tela compartilhada com o próprio cliente."""
-    _req_auth(authorization)
+    payload = _req_auth(authorization)
+    _verificar_dono_ou_admin(payload, (obter_meeting_memory(meeting_id) or {}).get("usuario_id"))
     try:
         from agent.client_intelligence import buscar_cliente_por_reuniao, obter_cliente
         client_id = buscar_cliente_por_reuniao(meeting_id)
@@ -1410,9 +1435,13 @@ def atualizar_cliente_endpoint(
     authorization: str | None = Header(default=None),
 ):
     """Atualiza campos do perfil do cliente."""
-    _req_auth(authorization)
+    payload = _req_auth(authorization)
     try:
-        from agent.client_intelligence import atualizar_cliente
+        from agent.client_intelligence import atualizar_cliente, obter_cliente
+        existente = obter_cliente(client_id)
+        if not existente:
+            raise HTTPException(status_code=404, detail="Cliente não encontrado ou sem campos válidos.")
+        _verificar_dono_ou_admin(payload, existente.get("usuario_id"))
         ok = atualizar_cliente(client_id, body)
         if not ok:
             raise HTTPException(status_code=404, detail="Cliente não encontrado ou sem campos válidos.")
@@ -1446,7 +1475,12 @@ def vincular_reuniao_endpoint(
     authorization: str | None = Header(default=None),
 ):
     """Vincula uma reunião ao cliente e atualiza as estatísticas."""
-    _req_auth(authorization)
+    payload = _req_auth(authorization)
+    from agent.client_intelligence import obter_cliente as _obter_cliente_check
+    cliente_existente = _obter_cliente_check(client_id)
+    if not cliente_existente:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado.")
+    _verificar_dono_ou_admin(payload, cliente_existente.get("usuario_id"))
     meeting_id = str(body.get("meeting_id") or "").strip()
     if not meeting_id:
         raise HTTPException(status_code=400, detail="Campo 'meeting_id' é obrigatório.")
@@ -1481,11 +1515,17 @@ def desvincular_reuniao_endpoint(
     authorization: str | None = Header(default=None),
 ):
     """Remove o vínculo de uma reunião com o cliente."""
-    _req_auth(authorization)
+    payload = _req_auth(authorization)
     try:
-        from agent.client_intelligence import desvincular_reuniao
+        from agent.client_intelligence import desvincular_reuniao, obter_cliente
+        cliente_existente = obter_cliente(client_id)
+        if not cliente_existente:
+            raise HTTPException(status_code=404, detail="Cliente não encontrado.")
+        _verificar_dono_ou_admin(payload, cliente_existente.get("usuario_id"))
         ok = desvincular_reuniao(client_id, meeting_id)
         return {"ok": ok}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -1496,7 +1536,8 @@ def cliente_por_reuniao_endpoint(
     authorization: str | None = Header(default=None),
 ):
     """Retorna o cliente vinculado a uma reunião, ou null."""
-    _req_auth(authorization)
+    payload = _req_auth(authorization)
+    _verificar_dono_ou_admin(payload, (obter_meeting_memory(meeting_id) or {}).get("usuario_id"))
     try:
         from agent.client_intelligence import buscar_cliente_por_reuniao, obter_cliente
         cid = buscar_cliente_por_reuniao(meeting_id)
@@ -1845,12 +1886,13 @@ def gerar_followups_reuniao(
     authorization: str | None = Header(default=None),
 ):
     """Gera follow-ups para os 3 canais (WhatsApp, Email, LinkedIn) com agenda inteligente."""
-    _req_auth(authorization)
+    payload = _req_auth(authorization)
     try:
         from agent.followup_generator import gerar_e_salvar_followups
         from api.database import obter_meeting_memory
 
         mem = obter_meeting_memory(meeting_id) or {}
+        _verificar_dono_ou_admin(payload, mem.get("usuario_id"))
 
         # Extrai score
         score = 0
@@ -1908,6 +1950,8 @@ def gerar_followups_reuniao(
             client_id=client_id,
         )
         return {"meeting_id": meeting_id, "total": len(followups), "followups": followups}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -1918,7 +1962,8 @@ def listar_followups_reuniao(
     authorization: str | None = Header(default=None),
 ):
     """Lista todos os follow-ups de uma reunião."""
-    _req_auth(authorization)
+    payload = _req_auth(authorization)
+    _verificar_dono_ou_admin(payload, (obter_meeting_memory(meeting_id) or {}).get("usuario_id"))
     try:
         from agent.followup_generator import listar_followups
         items = listar_followups(meeting_id)
@@ -1934,9 +1979,15 @@ def atualizar_followup_endpoint(
     authorization: str | None = Header(default=None),
 ):
     """Atualiza mensagem ou status de um follow-up."""
-    _req_auth(authorization)
+    payload = _req_auth(authorization)
     try:
-        from agent.followup_generator import atualizar_followup
+        from agent.followup_generator import atualizar_followup, obter_followup
+        existente = obter_followup(fid)
+        if not existente:
+            raise HTTPException(status_code=404, detail="Follow-up não encontrado")
+        _verificar_dono_ou_admin(
+            payload, (obter_meeting_memory(existente.get("meeting_id")) or {}).get("usuario_id")
+        )
         updated = atualizar_followup(fid, **body)
         if not updated:
             raise HTTPException(status_code=404, detail="Follow-up não encontrado")
@@ -1955,9 +2006,15 @@ def deletar_followup_endpoint(
     authorization: str | None = Header(default=None),
 ):
     """Remove um follow-up."""
-    _req_auth(authorization)
+    payload = _req_auth(authorization)
     try:
-        from agent.followup_generator import deletar_followup
+        from agent.followup_generator import deletar_followup, obter_followup
+        existente = obter_followup(fid)
+        if not existente:
+            raise HTTPException(status_code=404, detail="Follow-up não encontrado")
+        _verificar_dono_ou_admin(
+            payload, (obter_meeting_memory(existente.get("meeting_id")) or {}).get("usuario_id")
+        )
         ok = deletar_followup(fid)
         if not ok:
             raise HTTPException(status_code=404, detail="Follow-up não encontrado")
@@ -1974,8 +2031,11 @@ def deletar_followup_endpoint(
 
 @app.get("/historico/uso")
 def historico_uso(authorization: str | None = Header(default=None)):
-    """Lista o histórico de uso e custo estimado por reunião (últimas 100)."""
-    _req_auth(authorization)
+    """Lista o histórico de uso e custo estimado por reunião (últimas 100).
+
+    Fase 18 / Tarefa 18.1: filtra às reuniões do próprio usuário mais
+    as sem dono registrado (legado) — admin vê tudo."""
+    payload = _req_auth(authorization)
 
     from sqlmodel import Session as _Session, select as _select
     from api.database import engine as _engine, MeetingMemory as _MM
@@ -1985,6 +2045,8 @@ def historico_uso(authorization: str | None = Header(default=None)):
         rows = session.exec(
             _select(_MM).order_by(_MM.updated_at.desc()).limit(100)
         ).all()
+        if payload.get("perfil") != "admin":
+            rows = [r for r in rows if not r.usuario_id or r.usuario_id == payload.get("sub")]
 
     sessoes_map: dict = {}
     try:
@@ -2031,7 +2093,7 @@ def historico_uso(authorization: str | None = Header(default=None)):
 @app.get("/historico/uso/{meeting_id}")
 def historico_uso_reuniao(meeting_id: str, authorization: str | None = Header(default=None)):
     """Retorna o detalhamento de uso e custo de uma reunião específica."""
-    _req_auth(authorization)
+    payload = _req_auth(authorization)
     import re as _re3
     if not _re3.match(r'^[a-z]{3}-[a-z]{4}-[a-z]{3}$', meeting_id, _re3.IGNORECASE):
         raise HTTPException(status_code=400, detail="meeting_id inválido")
@@ -2039,6 +2101,7 @@ def historico_uso_reuniao(meeting_id: str, authorization: str | None = Header(de
     memoria = obter_meeting_memory(meeting_id)
     if not memoria:
         raise HTTPException(status_code=404, detail="Reunião não encontrada.")
+    _verificar_dono_ou_admin(payload, memoria.get("usuario_id"))
 
     sessao_info: dict = {}
     try:
@@ -2191,11 +2254,26 @@ def listar_sessoes_endpoint(authorization: str | None = Header(default=None)):
     """
     Lista todas as sessões gravadas durante reuniões ao vivo.
     Cada sessão contém a transcrição acumulada e a última análise da IA.
+
+    Fase 18 / Tarefa 18.1: filtra às sessões cujo meeting_id pertence ao
+    próprio usuário ou não tem dono registrado (legado) — admin vê tudo.
+    Dono é resolvido via MeetingMemory (sessoes não tem coluna própria).
     """
-    _req_auth(authorization)
+    payload = _req_auth(authorization)
     try:
         from agent.sessao_manager import listar_sessoes
         sessoes = listar_sessoes(limite=200)
+        if payload.get("perfil") != "admin" and sessoes:
+            from sqlmodel import Session as _Session, select as _select
+            from api.database import engine as _engine, MeetingMemory as _MM
+            mids = [s["meeting_id"] for s in sessoes]
+            with _Session(_engine) as session:
+                donos = {
+                    r.meeting_id: r.usuario_id
+                    for r in session.exec(_select(_MM).where(_MM.meeting_id.in_(mids))).all()
+                }
+            uid = payload.get("sub")
+            sessoes = [s for s in sessoes if not donos.get(s["meeting_id"]) or donos.get(s["meeting_id"]) == uid]
         return {"total": len(sessoes), "sessoes": sessoes}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -2206,12 +2284,13 @@ def buscar_sessao_endpoint(sessao_id: int, authorization: str | None = Header(de
     """
     Retorna a sessão completa com transcrição e última análise da IA.
     """
-    _req_auth(authorization)
+    payload = _req_auth(authorization)
     try:
         from agent.sessao_manager import buscar_sessao
         s = buscar_sessao(sessao_id)
         if not s:
             raise HTTPException(status_code=404, detail="Sessão não encontrada")
+        _verificar_dono_ou_admin(payload, (obter_meeting_memory(s.get("meeting_id")) or {}).get("usuario_id"))
         return s
     except HTTPException:
         raise
@@ -2224,9 +2303,13 @@ def deletar_sessao_endpoint(sessao_id: int, authorization: str | None = Header(d
     """
     Remove uma sessão pelo ID.
     """
-    _req_auth(authorization)
+    payload = _req_auth(authorization)
     try:
-        from agent.sessao_manager import deletar_sessao
+        from agent.sessao_manager import buscar_sessao, deletar_sessao
+        s = buscar_sessao(sessao_id)
+        if not s:
+            raise HTTPException(status_code=404, detail="Sessão não encontrada")
+        _verificar_dono_ou_admin(payload, (obter_meeting_memory(s.get("meeting_id")) or {}).get("usuario_id"))
         ok = deletar_sessao(sessao_id)
         if not ok:
             raise HTTPException(status_code=404, detail="Sessão não encontrada")
@@ -2258,9 +2341,13 @@ def exportar_base_endpoint(sessao_id: int, req: ExportarBaseRequest, authorizati
     Exporta a transcrição de uma sessão para a base de conhecimento da IA.
     Gera embedding e insere na tabela base_conhecimento.
     """
-    _req_auth(authorization)
+    payload = _req_auth(authorization)
     try:
-        from agent.sessao_manager import exportar_para_base_conhecimento
+        from agent.sessao_manager import buscar_sessao, exportar_para_base_conhecimento
+        s = buscar_sessao(sessao_id)
+        if not s:
+            raise HTTPException(status_code=404, detail="Sessão não encontrada")
+        _verificar_dono_ou_admin(payload, (obter_meeting_memory(s.get("meeting_id")) or {}).get("usuario_id"))
         resultado = exportar_para_base_conhecimento(sessao_id, req.titulo or "", req.tipo or "reuniao")
         if not resultado.get("ok"):
             raise HTTPException(status_code=400, detail=resultado.get("erro", "Erro ao exportar"))
@@ -3506,6 +3593,19 @@ def _req_admin(authorization: str | None) -> dict:
     if payload.get("perfil") != "admin":
         raise HTTPException(status_code=403, detail="Apenas administradores têm acesso.")
     return payload
+
+
+def _verificar_dono_ou_admin(payload: dict, usuario_id_recurso: str | None) -> None:
+    """Fase 18 / Tarefa 18.1 (Tenant/User Isolation): recusa acesso a
+    um recurso (reunião, cliente, follow-up) que pertence a outro
+    usuário. `usuario_id_recurso` vem de `MeetingMemory.usuario_id`/
+    `client_profiles.usuario_id` — quando `None` (recurso sem dono
+    registrado: legado ou criado anonimamente antes desta versão), o
+    acesso continua liberado a qualquer usuário autenticado, decisão
+    confirmada em 16/09/2026. 404 em vez de 403 para não confirmar a
+    existência do recurso a quem não é dono."""
+    if usuario_id_recurso and payload.get("perfil") != "admin" and payload.get("sub") != usuario_id_recurso:
+        raise HTTPException(status_code=404, detail="Recurso não encontrado.")
 
 
 # ── Usuários ──────────────────────────────────

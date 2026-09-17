@@ -5,7 +5,13 @@ Dashboard — nunca em cenario.html, que é a tela do próprio cliente).
 
 Não requer MySQL: `agent.client_intelligence.buscar_cliente_por_reuniao`/
 `obter_cliente` são mockados (mesmo padrão de tests/test_admin_costs_endpoints.py
-para o TestClient).
+para o TestClient). `api.database.engine` é trocado por SQLite em
+memória (mesmo padrão de tests/test_e2e_meeting_lifecycle.py e
+tests/test_tenant_isolation.py) — desde a Fase 18 (V.1.4.105) este
+endpoint chama `obter_meeting_memory()` para o check de ownership, que
+exige o schema atual de `MeetingMemory` (coluna `usuario_id`); sem essa
+troca, o teste cairia no arquivo local `data/saleia.db` (sqlite
+fallback, schema desatualizado) em vez de um banco isolado.
 
 Run:
     python -m unittest tests.test_resumo_cliente_endpoint -v
@@ -15,6 +21,9 @@ import logging
 import unittest
 from unittest.mock import patch
 
+from sqlalchemy.pool import StaticPool
+from sqlmodel import SQLModel, create_engine
+
 logging.disable(logging.CRITICAL)
 
 
@@ -22,6 +31,7 @@ class ResumoClienteEndpointSuite(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         import api.main as _main
+        from api import database as _database
 
         cls._patches = []
         for target in (
@@ -37,6 +47,16 @@ class ResumoClienteEndpointSuite(unittest.TestCase):
                 cls._patches.append(p)
             except Exception:
                 pass
+
+        cls._engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        SQLModel.metadata.create_all(cls._engine)
+        cls._engine_patch = patch.object(_database, "engine", cls._engine)
+        cls._engine_patch.start()
+        cls._patches.append(cls._engine_patch)
 
         from fastapi.testclient import TestClient
         cls._ctx = TestClient(_main.app)
