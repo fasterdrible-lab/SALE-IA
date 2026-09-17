@@ -1,7 +1,7 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-17 (V.1.4.107 — **local + GitHub, deploy na VPS
-pendente**; produção confirmada em V.1.4.106).
+Atualizado em: 2026-09-17 (V.1.4.107 — **local + GitHub + produção
+confirmada** na VPS).
 V.1.4.107 é a **Fase 18 / Tarefa 18.3 (PII — Classificação de Dados +
 Redação de Segredos) do "SALE-IA V2"**. Usuário confirmou o escopo
 (pergunta direta de escopo): classificação (5 níveis literais) +
@@ -21,8 +21,13 @@ logger root (não só em `"saleia.*"`) — sem isso, módulos que usam
 claude_fallback.py`) caíam no handler de último recurso do Python,
 sem JSON e sem redação nenhuma. 20 testes novos. Ver seção "PII —
 Classificação de Dados + Redação de Segredos — Fase 18" no CLAUDE.md
-e CHANGELOG.md V.1.4.107. **Pendente**: push + deploy na VPS (sem
-tabela/coluna nova). Tarefa 18.4 (Audit Trail) não começa sem nova
+e CHANGELOG.md V.1.4.107. **Deploy confirmado (17/09/2026)**: commit
+`a16f0a5`. Reunião real bloqueou o restart por ~2h20min
+(`reunioes_ativas: 1`) — `git pull` já aplicado com segurança antes
+(só arquivos em disco); `systemctl restart saleia` executado assim
+que `reunioes_ativas` voltou a `0`. `/health` = `versao 1.4.107`,
+`status online`, 4 provedores `ok`; `/dashboard` = `200`; journal sem
+erros de aplicação. Tarefa 18.4 (Audit Trail) não começa sem nova
 confirmação explícita do usuário.
 
 V.1.4.106 é a **Fase 18 / Tarefa 18.2 (Prompt Injection Hardening) do

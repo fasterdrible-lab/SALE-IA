@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.107** (backend, local — ainda não deployada; produção confirmada em V.1.4.106) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.107** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -2485,9 +2485,15 @@ contrato de referência (sem job de expiração automática).
   logger fora da árvore `saleia.*` sem duplicar log). Suite completa
   sem regressão.
 - Versão: `1.4.106` → `1.4.107`.
-- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — só
-  código). **Tarefa 18.4 (Audit Trail) não começa sem nova confirmação
-  explícita do usuário.**
+- **Push + deploy confirmados (17/09/2026)**: commit `a16f0a5` no
+  GitHub. Na VPS, `reunioes_ativas: 1` (reunião real em andamento)
+  bloqueou o restart por ~2h20min — `git pull` feito com segurança
+  antes (só arquivos em disco, aditivo, sem tabela/coluna nova);
+  `systemctl restart saleia` executado assim que `reunioes_ativas`
+  voltou a `0`. Pós-restart: `/health` = `versao 1.4.107`, `status
+  online`, 4 provedores `ok`; `/dashboard` = `200`; journal sem erros
+  de aplicação. **Tarefa 18.4 (Audit Trail) não começa sem nova
+  confirmação explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

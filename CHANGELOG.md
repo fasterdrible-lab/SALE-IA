@@ -5,7 +5,7 @@
 
 ## V.1.4.107 — PII: Classificação de Dados + Redação de Segredos, Fase 18 do "PROMPT MESTRE — SALE-IA V2" (Tarefa 18.3)
 
-> Data: 17/09/2026 | Local + GitHub, deploy na VPS pendente
+> Data: 17/09/2026 | Local + GitHub + VPS confirmada em produção
 
 ### CONTEXTO
 Usuário confirmou avançar para a Tarefa 18.3 (PII), seguindo a Tarefa
@@ -97,9 +97,15 @@ sugerido, não vinculante, sem job de expiração automática).
   explicitamente).
 - Suite completa (1043 testes da V.1.4.106 + 20 novos) sem regressão.
 
-### Pendente
-- Push + deploy na VPS (sem tabela/coluna nova — só código, deploy
-  simples: `git pull` + `systemctl restart saleia`).
+### Deploy
+- **Push + deploy confirmados (17/09/2026)**: commit `a16f0a5` no
+  GitHub. Na VPS, `reunioes_ativas: 1` (reunião real em andamento)
+  bloqueou o restart por ~2h20min — `git pull` aplicado com segurança
+  antes (só arquivos em disco, sem tabela/coluna nova); `systemctl
+  restart saleia` executado assim que `reunioes_ativas` voltou a `0`.
+  Pós-restart: `/health` = `versao 1.4.107`, `status online`, 4
+  provedores `ok`; `/dashboard` = `200`; journal sem erros de
+  aplicação.
 - **Tarefa 18.4 (Audit Trail) não começa sem nova confirmação
   explícita do usuário.**
 
