@@ -3,6 +3,81 @@
 
 ---
 
+## V.1.4.108 — Audit Trail, Fase 18 do "PROMPT MESTRE — SALE-IA V2" (Tarefa 18.4, fecha a Fase 18)
+
+> Data: 17/09/2026 | Local + GitHub, deploy na VPS pendente
+
+### CONTEXTO
+Usuário confirmou avançar para a Tarefa 18.4, fechando a Fase 18
+(Segurança) completa: 18.1 (Tenant/User Isolation) → 18.2 (Prompt
+Injection) → 18.3 (PII) → 18.4 (Audit Trail). Texto literal do prompt
+mestre: registrar quem/quando/ação/motivo/dados usados/modelo/versão
+do prompt/versão da regra/resultado — "especialmente para
+recomendações autônomas futuras".
+
+Antes de codar, pergunta direta de escopo (mesma disciplina das Fases
+7/10/13/14/16 e das Tarefas 18.2/18.3): a `AutonomyPolicy` (Fase 17)
+continua dormente — nenhum nível de autonomia ativo em produção — e
+não existia nenhum conceito de "versão do prompt"/"versão da regra"
+no sistema. Usuário escolheu **só schema + CRUD, sem integração
+automática com nenhum fluxo real** — mesma disciplina "contrato
+primeiro" já usada na maioria das Fases 1-17, em vez de conectar ao
+`SalesReasoningEngine` (Fase 7) ou ao choke-point de IA (`chamar_ia`).
+
+### O que foi construído
+- **`api/database.py::AuditTrailEntry`** (tabela `audit_trail_entries`,
+  aditiva): schema literal do prompt mestre — `actor` ("quem"),
+  `timestamp` ("quando"), `action` ("ação"), `reason` ("motivo"),
+  `data_used_json` ("dados usados", serializado como JSON, mesmo
+  padrão de `SalesEvent.metadata_json`), `model` ("modelo"),
+  `prompt_version`/`rule_version` ("versão do prompt"/"versão da
+  regra"), `result` ("resultado"). `meeting_id`/`opportunity_id` ficam
+  soltos (sem FK), mesmo padrão de `SalesEvent`/`RecommendationEvent`
+  (Fases 1/10) — nem toda ação auditada está ligada a uma reunião ou
+  oportunidade específica.
+- **`agent/audit_trail_rules.py`** (novo, função pura — mesmo padrão
+  de `sales_event_rules.py`/`recommendation_rules.py`, zero IA/DB):
+  `validar_audit_trail_entry()` exige `actor`/`action`/`reason`/
+  `result` não vazios — sem esses 4 campos, a entrada não serve pra
+  auditoria nenhuma. `meeting_id`/`opportunity_id`/`data_used`/
+  `model`/`prompt_version`/`rule_version` são opcionais.
+- **`api/database.py::criar_audit_trail_entry()`/
+  `obter_audit_trail_entry()`/`listar_audit_trail_entries()`** — CRUD
+  completo, com filtro por `meeting_id`/`opportunity_id`/`actor`/
+  `action` na listagem.
+- **AuditTrailEntry é dado de domínio, não telemetria — decisão
+  deliberada, mesma disciplina de `SalesEvent`/`SalesEvidence`/
+  `RecommendationEvent`**: `criar_audit_trail_entry()` propaga
+  `ValueError` do chamador em dado inválido, nunca falha silenciosa
+  como `AiUsageEvent`/`KnowledgeItem`.
+- **Sem convenção formal de versionamento inventada**:
+  `prompt_version`/`rule_version` são strings livres fornecidas pelo
+  chamador (ex.: `"sales_reasoning_engine.v3"`), sem semver/hash
+  impostos — decisão desta rodada, não pedida pela Tarefa 18.4.
+
+### Decisão deliberada de escopo
+- Sem integração automática com `api/ai_router.py::chamar_ia`,
+  `agent/sales_reasoning_engine.py::raciocinar_async()` ou
+  `agent/autonomy_policy_rules.py` — quem decidir gravar uma entrada é
+  código futuro (ex.: quando a `AutonomyPolicy` for de fato ativada).
+- Sem endpoint HTTP novo.
+
+### Testes
+- 11 testes novos (`tests/test_audit_trail.py`), cobrindo validação
+  dos 4 campos obrigatórios, persistência com campos opcionais
+  completos/ausentes, filtros de listagem e dado inválido nunca
+  persistindo. Suite completa sem regressão.
+
+### Pendente
+- Push + deploy na VPS (tabela nova, aditiva via `create_all()` — sem
+  `ALTER TABLE` manual, diferente do `meeting_memory.usuario_id`/
+  V.1.4.105).
+- **Fase 19 (Observabilidade) e qualquer fase seguinte do "PROMPT
+  MESTRE — SALE-IA V2" não começam sem nova confirmação explícita do
+  usuário.**
+
+---
+
 ## V.1.4.107 — PII: Classificação de Dados + Redação de Segredos, Fase 18 do "PROMPT MESTRE — SALE-IA V2" (Tarefa 18.3)
 
 > Data: 17/09/2026 | Local + GitHub + VPS confirmada em produção

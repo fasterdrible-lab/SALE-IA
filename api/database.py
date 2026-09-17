@@ -3019,3 +3019,133 @@ def registrar_uso_recommendation_event(
         session.commit()
         session.refresh(row)
         return _recommendation_event_to_dict(row)
+
+
+class AuditTrailEntry(SQLModel, table=True):
+    """Registro de auditoria genérico ("PROMPT MESTRE — SALE-IA V2",
+    Fase 18 / Tarefa 18.4 — fecha a Fase 18, Segurança) — schema literal
+    do prompt mestre: quem (`actor`), quando (`timestamp`), ação
+    (`action`), motivo (`reason`), dados usados (`data_used_json`),
+    modelo (`model`), versão do prompt (`prompt_version`), versão da
+    regra (`rule_version`), resultado (`result`). "Especialmente para
+    recomendações autônomas futuras" — a `AutonomyPolicy` da Fase 17
+    continua dormente (nenhum nível de autonomia ativo em produção);
+    esta tabela só prepara o schema/persistência pra quando isso mudar.
+
+    `meeting_id`/`opportunity_id` ficam soltos (sem FK), mesmo padrão de
+    `SalesEvent`/`RecommendationEvent` — nem toda ação auditada está
+    ligada a uma reunião/oportunidade específica (ex.: uma ação
+    administrativa). `model`/`prompt_version`/`rule_version` são
+    opcionais — nem toda ação auditada envolve IA.
+
+    Dado de domínio: validação em
+    `agent/audit_trail_rules.py::validar_audit_trail_entry`,
+    `criar_audit_trail_entry()` propaga `ValueError` em dado inválido,
+    nunca falha silenciosamente como `AiUsageEvent`/`KnowledgeItem` —
+    um audit trail que falha silenciosamente não serve pra auditoria
+    nenhuma."""
+
+    __tablename__ = "audit_trail_entries"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    meeting_id: Optional[str] = Field(default=None, sa_column=Column(String(200), index=True))
+    opportunity_id: Optional[int] = Field(default=None, sa_column=Column(Integer, index=True))
+    actor: str = Field(sa_column=Column(String(120), index=True, nullable=False))
+    timestamp: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+    action: str = Field(sa_column=Column(String(120), index=True, nullable=False))
+    reason: str = Field(sa_column=Column(Text, nullable=False))
+    data_used_json: Optional[str] = Field(default=None, sa_column=Column(Text))
+    model: Optional[str] = Field(default=None, sa_column=Column(String(80)))
+    prompt_version: Optional[str] = Field(default=None, sa_column=Column(String(40)))
+    rule_version: Optional[str] = Field(default=None, sa_column=Column(String(40)))
+    result: str = Field(sa_column=Column(Text, nullable=False))
+    created_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+
+
+def _audit_trail_entry_to_dict(row: "AuditTrailEntry") -> dict:
+    return {
+        "id": row.id,
+        "meeting_id": row.meeting_id,
+        "opportunity_id": row.opportunity_id,
+        "actor": row.actor,
+        "timestamp": row.timestamp.isoformat() if row.timestamp else None,
+        "action": row.action,
+        "reason": row.reason,
+        "data_used": json.loads(row.data_used_json) if row.data_used_json else None,
+        "model": row.model,
+        "prompt_version": row.prompt_version,
+        "rule_version": row.rule_version,
+        "result": row.result,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
+def criar_audit_trail_entry(
+    *,
+    actor: str,
+    action: str,
+    reason: str,
+    result: str,
+    meeting_id: Optional[str] = None,
+    opportunity_id: Optional[int] = None,
+    data_used: Optional[dict] = None,
+    model: Optional[str] = None,
+    prompt_version: Optional[str] = None,
+    rule_version: Optional[str] = None,
+    timestamp: Optional[datetime] = None,
+) -> dict:
+    """Cria e persiste um AuditTrailEntry (Fase 18 / Tarefa 18.4). Valida
+    via agent/audit_trail_rules antes de tocar no banco — ValueError
+    propaga para o chamador (dado de domínio, nunca falha silenciosa
+    como AiUsageEvent/KnowledgeItem)."""
+    from agent.audit_trail_rules import validar_audit_trail_entry
+
+    dados = {"actor": actor, "action": action, "reason": reason, "result": result}
+    validar_audit_trail_entry(dados)
+
+    with Session(engine) as session:
+        row = AuditTrailEntry(
+            meeting_id=meeting_id,
+            opportunity_id=opportunity_id,
+            actor=actor,
+            timestamp=timestamp or datetime.now(),
+            action=action,
+            reason=reason,
+            data_used_json=json.dumps(data_used, ensure_ascii=False) if data_used else None,
+            model=model,
+            prompt_version=prompt_version,
+            rule_version=rule_version,
+            result=result,
+        )
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _audit_trail_entry_to_dict(row)
+
+
+def obter_audit_trail_entry(entry_id: int) -> Optional[dict]:
+    with Session(engine) as session:
+        row = session.get(AuditTrailEntry, entry_id)
+        return _audit_trail_entry_to_dict(row) if row else None
+
+
+def listar_audit_trail_entries(
+    meeting_id: Optional[str] = None,
+    opportunity_id: Optional[int] = None,
+    actor: Optional[str] = None,
+    action: Optional[str] = None,
+    limit: int = 200,
+) -> List[dict]:
+    with Session(engine) as session:
+        stmt = select(AuditTrailEntry)
+        if meeting_id:
+            stmt = stmt.where(AuditTrailEntry.meeting_id == meeting_id)
+        if opportunity_id is not None:
+            stmt = stmt.where(AuditTrailEntry.opportunity_id == opportunity_id)
+        if actor:
+            stmt = stmt.where(AuditTrailEntry.actor == actor)
+        if action:
+            stmt = stmt.where(AuditTrailEntry.action == action)
+        stmt = stmt.order_by(AuditTrailEntry.timestamp.asc()).limit(limit)
+        rows = session.exec(stmt).all()
+        return [_audit_trail_entry_to_dict(r) for r in rows]

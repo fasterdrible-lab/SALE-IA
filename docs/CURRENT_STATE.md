@@ -1,7 +1,30 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-17 (V.1.4.107 — **local + GitHub + produção
-confirmada** na VPS).
+Atualizado em: 2026-09-17 (V.1.4.108 — **local + GitHub, deploy na VPS
+pendente**; produção confirmada em V.1.4.107).
+V.1.4.108 é a **Fase 18 / Tarefa 18.4 (Audit Trail) do "SALE-IA V2"** —
+**fecha a Fase 18 (Segurança) completa** (Tarefas 18.1-18.4). Usuário
+confirmou o escopo (pergunta direta): só schema + CRUD do
+`AuditTrailEntry`, sem integração automática com nenhum fluxo real
+ainda (mesma disciplina "contrato primeiro" da maioria das Fases
+1-17) — texto literal do prompt mestre diz que é "especialmente para
+recomendações autônomas futuras", e a `AutonomyPolicy` da Fase 17
+continua dormente (nenhum nível de autonomia ativo em produção).
+`agent/audit_trail_rules.py` (novo): `validar_audit_trail_entry()`
+exige `actor`/`action`/`reason`/`result` (os 4 campos que dão sentido a
+uma entrada de auditoria); `meeting_id`/`opportunity_id`/`data_used`/
+`model`/`prompt_version`/`rule_version` são opcionais (nem toda ação
+auditada envolve IA ou está ligada a uma reunião específica).
+`api/database.py::AuditTrailEntry` (tabela `audit_trail_entries`, nova)
++ `criar_audit_trail_entry()`/`obter_audit_trail_entry()`/
+`listar_audit_trail_entries()` — dado de domínio, propaga `ValueError`
+em dado inválido, mesma disciplina de `SalesEvent`/`RecommendationEvent`
+(Fases 1/10). 11 testes novos. Ver seção "Audit Trail — Fase 18" no
+CLAUDE.md e CHANGELOG.md V.1.4.108. **Pendente**: push + deploy na VPS
+(tabela nova, aditiva via `create_all()` — sem `ALTER TABLE` manual).
+**Fase 19 (Observabilidade) e qualquer fase seguinte do "SALE-IA V2"
+não começam sem nova confirmação explícita do usuário.**
+
 V.1.4.107 é a **Fase 18 / Tarefa 18.3 (PII — Classificação de Dados +
 Redação de Segredos) do "SALE-IA V2"**. Usuário confirmou o escopo
 (pergunta direta de escopo): classificação (5 níveis literais) +

@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.107** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.108** (backend, local — ainda não deployada; produção confirmada em V.1.4.107) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -2492,8 +2492,72 @@ contrato de referência (sem job de expiração automática).
   `systemctl restart saleia` executado assim que `reunioes_ativas`
   voltou a `0`. Pós-restart: `/health` = `versao 1.4.107`, `status
   online`, 4 provedores `ok`; `/dashboard` = `200`; journal sem erros
-  de aplicação. **Tarefa 18.4 (Audit Trail) não começa sem nova
-  confirmação explícita do usuário.**
+  de aplicação.
+
+## Audit Trail — Fase 18 / Tarefa 18.4 do "PROMPT MESTRE — SALE-IA V2" (V.1.4.108, fecha a Fase 18 — Segurança)
+
+Usuário confirmou avançar para a Tarefa 18.4, fechando a Fase 18
+(Segurança) completa: 18.1 (Tenant/User Isolation) → 18.2 (Prompt
+Injection) → 18.3 (PII) → 18.4 (Audit Trail). Texto literal do prompt
+mestre: registrar quem/quando/ação/motivo/dados usados/modelo/versão
+do prompt/versão da regra/resultado — "especialmente para
+recomendações autônomas futuras".
+
+Escopo confirmado antes de codar (pergunta direta, mesma disciplina
+das Fases 7/10/13/14/16/18.2/18.3): a `AutonomyPolicy` (Fase 17)
+continua dormente — nenhum nível de autonomia ativo em produção — e
+não existia nenhum conceito de "versão do prompt"/"versão da regra"
+no sistema. Usuário escolheu **só schema + CRUD, sem integração
+automática** — mesma disciplina "contrato primeiro" da maioria das
+Fases 1-17 (schema/regra primeiro, integração é decisão de produto
+separada), em vez de conectar automaticamente ao
+`SalesReasoningEngine` (Fase 7) ou ao choke-point de IA (`chamar_ia`,
+já usado pelas Tarefas 18.2/18.3).
+
+- **`api/database.py::AuditTrailEntry`** (tabela `audit_trail_entries`,
+  aditiva): schema literal do prompt mestre — `actor` ("quem"),
+  `timestamp` ("quando"), `action` ("ação"), `reason` ("motivo"),
+  `data_used_json` ("dados usados", serializado como JSON — mesmo
+  padrão de `SalesEvent.metadata_json`), `model` ("modelo"),
+  `prompt_version`/`rule_version` ("versão do prompt"/"versão da
+  regra"), `result` ("resultado"). `meeting_id`/`opportunity_id` ficam
+  soltos (sem FK), mesmo padrão de `SalesEvent`/`RecommendationEvent`
+  (Fases 1/10) — nem toda ação auditada está ligada a uma reunião ou
+  oportunidade específica (ex.: uma ação administrativa).
+- **`agent/audit_trail_rules.py`** (novo, função pura — mesmo padrão de
+  `sales_event_rules.py`/`recommendation_rules.py`, zero IA/DB):
+  `validar_audit_trail_entry()` exige `actor`/`action`/`reason`/
+  `result` não vazios — sem esses 4 campos, a entrada não serve pra
+  auditoria nenhuma. `meeting_id`/`opportunity_id`/`data_used`/
+  `model`/`prompt_version`/`rule_version` são opcionais — nem toda
+  ação auditada envolve IA.
+- **AuditTrailEntry é dado de domínio, não telemetria — decisão
+  deliberada, mesma disciplina de `SalesEvent`/`SalesEvidence`/
+  `RecommendationEvent`**: `criar_audit_trail_entry()` propaga
+  `ValueError` do chamador em dado inválido, nunca falha silenciosa
+  como `AiUsageEvent`/`KnowledgeItem` — um audit trail que falha
+  silenciosamente não serve pra auditoria nenhuma.
+- **Sem conceito formal de "versão do prompt"/"versão da regra"
+  inventado** — decisão deliberada: `prompt_version`/`rule_version`
+  são strings livres fornecidas pelo chamador (ex.:
+  `"sales_reasoning_engine.v3"`, `"autonomy_policy_rules.v1"`), sem
+  nenhuma convenção de versionamento formal (semver, hash de arquivo,
+  etc.) imposta por este módulo — inventar essa convenção não foi
+  pedido pela Tarefa 18.4 e é decisão de produto/engenharia separada.
+- **Decisão deliberada de escopo**: sem integração automática com
+  `api/ai_router.py::chamar_ia`, `agent/sales_reasoning_engine.py::
+  raciocinar_async()` ou `agent/autonomy_policy_rules.py` — quem
+  decidir gravar uma entrada de audit trail (ex.: quando a
+  `AutonomyPolicy` for de fato ativada) chama
+  `criar_audit_trail_entry()` explicitamente. Sem endpoint HTTP novo.
+- 11 testes novos (`tests/test_audit_trail.py`). Suite completa sem
+  regressão.
+- Versão: `1.4.107` → `1.4.108`.
+- **Pendente**: push + deploy na VPS (tabela nova, aditiva via
+  `create_all()` — sem `ALTER TABLE` manual, diferente do
+  `meeting_memory.usuario_id`/V.1.4.105). **Fase 19 (Observabilidade)
+  e qualquer fase seguinte do "PROMPT MESTRE — SALE-IA V2" não começam
+  sem nova confirmação explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 
