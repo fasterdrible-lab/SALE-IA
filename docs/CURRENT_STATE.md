@@ -1,7 +1,33 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-17 (V.1.4.108 — **local + GitHub + produção
-confirmada** na VPS).
+Atualizado em: 2026-09-17 (V.1.4.109 — **local + GitHub, deploy na VPS
+pendente**; produção confirmada em V.1.4.108).
+V.1.4.109 é a **Fase 19 (Observabilidade) do "SALE-IA V2"**. Usuário
+confirmou o escopo (pergunta direta, investigação prévia): das 10
+métricas literais da fase (AI latency, recommendation latency, RAG
+latency, cost per meeting, cost per opportunity, tokens, fallback
+rate, error rate, recommendation acceptance rate, recommendation
+effectiveness), a maior parte já tinha dado bruto capturado desde o
+Cost Intelligence (Fase 1-2) e a Recommendation Fase 10 — só faltava
+agregação. **RAG latency** não tem nenhuma cronometragem hoje (fica
+documentada como gap — `agent/observability_metrics_rules.py::
+RAG_LATENCY_NAO_CAPTURADA`); **recommendation effectiveness** tem a
+fórmula pronta (Fase 10.3) mas nenhum dado real classificado
+alimentando-a (gap também documentado); **recommendation acceptance
+rate** é exposta como proxy barato (taxa de resposta do vendedor, não
+a classificação semântica real da Fase 10.2). Novo endpoint `GET
+/admin/observabilidade/metricas` (admin) consolida as 8 métricas reais
++ os 2 gaps explícitos. `agent/observability_metrics_rules.py` (novo,
+função pura) + 4 funções novas em `api/database.py`
+(`latencia_por_feature`/`custo_medio_por_reuniao`/
+`custo_medio_por_opportunity`/`taxa_resposta_recomendacoes`) —
+reaproveitam `ai_usage_events`/`recommendation_events` já existentes,
+sem tabela/coluna nova. 22 testes novos. Ver seção "Observabilidade —
+Fase 19" no CLAUDE.md e CHANGELOG.md V.1.4.109. **Pendente**: push +
+deploy na VPS (sem tabela/coluna nova — só código). **Tarefa 19.1
+(Quality Monitoring) e qualquer fase seguinte do "SALE-IA V2" não
+começam sem nova confirmação explícita do usuário.**
+
 V.1.4.108 é a **Fase 18 / Tarefa 18.4 (Audit Trail) do "SALE-IA V2"** —
 **fecha a Fase 18 (Segurança) completa** (Tarefas 18.1-18.4). Usuário
 confirmou o escopo (pergunta direta): só schema + CRUD do

@@ -1727,6 +1727,151 @@ def analise_custo_latencia_qualidade(date_from: Optional[datetime] = None, date_
     }
 
 
+# ── Fase 19 do "PROMPT MESTRE — SALE-IA V2" (Observabilidade) ──────────
+# Reaproveita ai_usage_events/recommendation_events já existentes — sem
+# tabela/coluna nova. Ver agent/observability_metrics_rules.py para o
+# porquê de RAG latency/recommendation effectiveness ficarem de fora.
+
+def latencia_por_feature(date_from: Optional[datetime] = None, date_to: Optional[datetime] = None) -> list[dict]:
+    """AI latency (Fase 19): média/mín/máx de latência real por feature,
+    a partir de `ai_usage_events.latency_ms` — só eventos com sucesso e
+    latência registrada (cache hit/bloqueio de loop caro nunca chamam o
+    provedor, então nunca têm `latency_ms`)."""
+    with Session(engine) as session:
+        stmt = _com_filtro_data(
+            select(
+                AiUsageEvent.feature,
+                func.count(AiUsageEvent.id),
+                func.avg(AiUsageEvent.latency_ms),
+                func.min(AiUsageEvent.latency_ms),
+                func.max(AiUsageEvent.latency_ms),
+            )
+            .where(AiUsageEvent.success, AiUsageEvent.latency_ms.is_not(None))
+            .group_by(AiUsageEvent.feature),
+            date_from, date_to,
+        )
+        linhas = session.exec(stmt).all()
+
+    return sorted(
+        (
+            {
+                "feature": feature,
+                "amostra": eventos,
+                "media_ms": round(media, 1) if media is not None else None,
+                "minimo_ms": minimo,
+                "maximo_ms": maximo,
+            }
+            for feature, eventos, media, minimo, maximo in linhas
+        ),
+        key=lambda r: r["amostra"], reverse=True,
+    )
+
+
+def custo_medio_por_reuniao(date_from: Optional[datetime] = None, date_to: Optional[datetime] = None) -> dict:
+    """Cost per meeting (Fase 19) — custo médio de IA por reunião no
+    período, agrupando `ai_usage_events` por `meeting_id`. Chamada sem
+    `meeting_id` (ex.: geração de playbook/skill, fora do fluxo de uma
+    reunião específica) fica de fora — nunca conta como "reunião
+    grátis"."""
+    with Session(engine) as session:
+        subquery = _com_filtro_data(
+            select(
+                AiUsageEvent.meeting_id,
+                func.sum(AiUsageEvent.cost_usd).label("custo_total"),
+            )
+            .where(AiUsageEvent.meeting_id.is_not(None))
+            .group_by(AiUsageEvent.meeting_id),
+            date_from, date_to,
+        ).subquery()
+
+        total_reunioes, custo_medio, custo_total = session.exec(
+            select(
+                func.count(),
+                func.avg(subquery.c.custo_total),
+                func.coalesce(func.sum(subquery.c.custo_total), 0.0),
+            )
+        ).one()
+
+    return {
+        "reunioes_com_custo": total_reunioes or 0,
+        "custo_medio_usd": round(custo_medio, 6) if custo_medio is not None else None,
+        "custo_total_usd": round(custo_total or 0.0, 6),
+    }
+
+
+def custo_medio_por_opportunity(date_from: Optional[datetime] = None, date_to: Optional[datetime] = None) -> dict:
+    """Cost per opportunity (Fase 19) — custo médio de IA por
+    oportunidade no período. Cruza `ai_usage_events` (por `meeting_id`)
+    com `meeting_memory` (`meeting_id` → `opportunity_id`) em Python,
+    **nunca via JOIN SQL direto entre as duas tabelas** — mesmo cuidado
+    já registrado em `agent/sales_memory.py` (Fase 6 do outro roadmap):
+    colunas `meeting_id` com collations diferentes entre tabelas já
+    causaram `Illegal mix of collations` neste projeto."""
+    with Session(engine) as session:
+        custo_por_meeting_stmt = _com_filtro_data(
+            select(AiUsageEvent.meeting_id, func.sum(AiUsageEvent.cost_usd))
+            .where(AiUsageEvent.meeting_id.is_not(None))
+            .group_by(AiUsageEvent.meeting_id),
+            date_from, date_to,
+        )
+        custo_por_meeting = dict(session.exec(custo_por_meeting_stmt).all())
+
+        if not custo_por_meeting:
+            return {"oportunidades_com_custo": 0, "custo_medio_usd": None, "custo_total_usd": 0.0}
+
+        mapa_stmt = (
+            select(MeetingMemory.meeting_id, MeetingMemory.opportunity_id)
+            .where(MeetingMemory.meeting_id.in_(list(custo_por_meeting.keys())))
+            .where(MeetingMemory.opportunity_id.is_not(None))
+        )
+        mapa_meeting_opportunity = dict(session.exec(mapa_stmt).all())
+
+    custo_por_opportunity: dict = {}
+    for meeting_id, custo in custo_por_meeting.items():
+        opportunity_id = mapa_meeting_opportunity.get(meeting_id)
+        if opportunity_id is None:
+            continue
+        custo_por_opportunity[opportunity_id] = custo_por_opportunity.get(opportunity_id, 0.0) + custo
+
+    if not custo_por_opportunity:
+        return {"oportunidades_com_custo": 0, "custo_medio_usd": None, "custo_total_usd": 0.0}
+
+    valores = list(custo_por_opportunity.values())
+    return {
+        "oportunidades_com_custo": len(valores),
+        "custo_medio_usd": round(sum(valores) / len(valores), 6),
+        "custo_total_usd": round(sum(valores), 6),
+    }
+
+
+def taxa_resposta_recomendacoes(date_from: Optional[datetime] = None, date_to: Optional[datetime] = None) -> dict:
+    """Recommendation acceptance rate (Fase 19) — PROXY barato: % de
+    `RecommendationEvent` com `used_at` preenchido (o vendedor disse
+    algo depois da recomendação), **não** a classificação semântica
+    real USED/PARTIALLY_USED/IGNORED (Fase 10.2, que exige 1 chamada de
+    embedding por evento e não roda automaticamente em produção hoje)."""
+    from agent.observability_metrics_rules import calcular_taxa
+
+    def _filtro(stmt):
+        if date_from is not None:
+            stmt = stmt.where(RecommendationEvent.shown_at >= date_from)
+        if date_to is not None:
+            stmt = stmt.where(RecommendationEvent.shown_at < date_to)
+        return stmt
+
+    with Session(engine) as session:
+        total = session.exec(_filtro(select(func.count(RecommendationEvent.id)))).one() or 0
+        respondidas = session.exec(
+            _filtro(select(func.count(RecommendationEvent.id)).where(RecommendationEvent.used_at.is_not(None)))
+        ).one() or 0
+
+    return {
+        "total_recomendacoes": total,
+        "com_resposta_do_vendedor": respondidas,
+        "taxa_resposta": calcular_taxa(respondidas, total),
+    }
+
+
 def _erro_tabela_ja_existe(exc: OperationalError) -> bool:
     """Detecta corrida benigna de create_all em apps com multiplos workers."""
     original = getattr(exc, "orig", None)

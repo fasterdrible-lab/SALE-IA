@@ -773,7 +773,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.108",
+        "versao":              "1.4.109",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -811,7 +811,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.108",
+        "versao":          "1.4.109",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -4312,6 +4312,68 @@ def admin_costs_metricas(
             **resumo_otimizacao_shadow(de, ate),
         },
         "anomalias": detectar_anomalias_custo(),
+    }
+
+
+# ── Observabilidade — Fase 19 do "PROMPT MESTRE — SALE-IA V2" ──────────
+# Reaproveita ai_usage_events/recommendation_events já existentes (Cost
+# Intelligence Fase 1, Recommendation Fase 10) — sem tabela/coluna nova.
+# RAG latency e recommendation effectiveness ficam documentados como
+# gap (ver agent/observability_metrics_rules.py) em vez de forçar um
+# número sem dado real por trás.
+
+from api.database import (
+    custo_medio_por_opportunity,
+    custo_medio_por_reuniao,
+    latencia_por_feature,
+    taxa_resposta_recomendacoes,
+)
+from agent.observability_metrics_rules import (
+    RAG_LATENCY_NAO_CAPTURADA,
+    RECOMMENDATION_EFFECTIVENESS_NAO_DISPONIVEL,
+    calcular_taxa,
+)
+
+# Features cujo AI latency conta como "recommendation latency" — as que
+# de fato produzem uma recomendação (next_best_action/next_best_question
+# ou a saída do SalesReasoningEngine). Convenção desta rodada, não um
+# campo formal em ai_features.py — nenhum outro lugar do sistema
+# categoriza "feature de recomendação" hoje.
+_FEATURES_RECOMENDACAO = (ai_features.REALTIME_COACH, ai_features.SALES_REASONING_RACIOCINIO)
+
+
+@app.get("/admin/observabilidade/metricas")
+def admin_observabilidade_metricas(
+    date_from: str | None = None,
+    date_to: str | None = None,
+    authorization: str | None = _Header(default=None),
+):
+    """Consolida as métricas literais da Fase 19 (Observabilidade). AI
+    latency/tokens/fallback rate/error rate/cost per meeting/cost per
+    opportunity/recommendation acceptance rate vêm de dado real já
+    capturado (Cost Intelligence Fase 1-2, Recommendation Fase 10). RAG
+    latency e recommendation effectiveness vêm com `disponivel`/
+    `capturado: False` e o motivo — nunca um número inventado."""
+    _req_admin(authorization)
+    de = _parse_data_custos(date_from, "date_from")
+    ate = _parse_data_custos(date_to, "date_to", fim_do_dia=True)
+
+    resumo = custos_resumo(de, ate)
+    latencias = latencia_por_feature(de, ate)
+    latencias_recomendacao = [l for l in latencias if l["feature"] in _FEATURES_RECOMENDACAO]
+
+    return {
+        "periodo": {"de": date_from, "ate": date_to},
+        "ai_latency_por_feature": latencias,
+        "recommendation_latency_por_feature": latencias_recomendacao,
+        "rag_latency": RAG_LATENCY_NAO_CAPTURADA,
+        "cost_per_meeting": custo_medio_por_reuniao(de, ate),
+        "cost_per_opportunity": custo_medio_por_opportunity(de, ate),
+        "tokens_por_provider": resumo["por_provider"],
+        "fallback_rate": calcular_taxa(resumo["fallback_eventos"], resumo["total_eventos"]),
+        "error_rate": calcular_taxa(resumo["eventos_falha"], resumo["total_eventos"]),
+        "recommendation_acceptance_rate": taxa_resposta_recomendacoes(de, ate),
+        "recommendation_effectiveness": RECOMMENDATION_EFFECTIVENESS_NAO_DISPONIVEL,
     }
 
 

@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.108** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.109** (backend, local — ainda não deployada; produção confirmada em V.1.4.108) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -2582,9 +2582,96 @@ já usado pelas Tarefas 18.2/18.3).
   `status online`, 4 provedores `ok`; `/dashboard` = `200`; tráfego
   real (`POST /tempo-real`) servido normalmente, sem nenhum erro novo
   no journal desde então.
-- **Fase 19 (Observabilidade) e qualquer fase seguinte do "PROMPT
-  MESTRE — SALE-IA V2" não começam sem nova confirmação explícita do
-  usuário.**
+## Observabilidade — Fase 19 do "PROMPT MESTRE — SALE-IA V2" (V.1.4.109)
+
+Usuário confirmou avançar para a Fase 19. Texto literal do prompt
+mestre pede 10 métricas: AI latency, recommendation latency, RAG
+latency, cost per meeting, cost per opportunity, tokens, fallback
+rate, error rate, recommendation acceptance rate, recommendation
+effectiveness (mais a Tarefa 19.1, Quality Monitoring, separada, não
+começada nesta rodada).
+
+**Investigação prévia (antes de perguntar escopo)**: a maior parte do
+dado bruto já existia — `AiUsageEvent.latency_ms`/`success`/
+`fallback_used` desde o Cost Intelligence Fase 1 (V.1.4.51),
+`RecommendationEvent` desde a Fase 10 — só faltava agregação. Duas
+métricas não têm dado real hoje:
+- **RAG latency**: nenhuma cronometragem existe nos pontos de busca de
+  RAG/Sales Memory — só o Langfuse Observability opcional (Fase 1 do
+  OUTRO roadmap "PROMPT MESTRE — EVOLUÇÃO DA SALEIA.txt",
+  `OBSERVABILITY_ENABLED=false` por padrão) rastreia isso como span.
+- **recommendation effectiveness**: `agent/
+  recommendation_effectiveness_rules.py::calcular_efetividade_por_
+  estrategia()` (Fase 10.3) já calcula certo, mas exige
+  `RecommendationEvent` classificado (`state` via `detectar_uso_
+  recomendacao()`, Fase 10.2, mais `stage_advanced`/`opportunity_
+  result`) — nenhuma dessas classificações roda automaticamente em
+  produção; a Fase 10.2 nunca foi plugada em nenhum fluxo real.
+
+Usuário escolheu **9 métricas reais + RAG latency como gap
+documentado** — na prática, ao implementar, ficou claro que
+**recommendation effectiveness também não tem dado real** (só a
+fórmula), então o resultado final é **8 métricas reais, 1 proxy
+(recommendation acceptance rate) e 2 gaps documentados** (RAG latency
++ recommendation effectiveness) — refinamento transparente do escopo
+original, mesma disciplina de honestidade já usada em
+`SUBMODULOS_PENDENTES` (Fase 13) e nos vários "decisão deliberada de
+escopo" do roadmap.
+
+- **`agent/observability_metrics_rules.py`** (novo, função pura — mesmo
+  padrão de `win_loss_rules.py`/`data_warehouse_rules.py`, zero
+  IA/banco): `calcular_estatisticas_latencia(latencias_ms)` (média/
+  mín/máx/p50/p95, ignora `None`, nunca inventa número pra amostra
+  vazia) + `calcular_taxa(numerador, denominador)` (razão genérica,
+  `None` se denominador for 0) + `RAG_LATENCY_NAO_CAPTURADA`/
+  `RECOMMENDATION_EFFECTIVENESS_NAO_DISPONIVEL` (dicts explícitos
+  sinalizando o gap, nunca um número forjado).
+- **`api/database.py`** (4 funções novas, reaproveitando
+  `ai_usage_events`/`recommendation_events` já existentes — sem
+  tabela/coluna nova):
+  - `latencia_por_feature()` — AI latency real por feature (só
+    eventos `success=True` com `latency_ms` não nulo — cache hit e
+    bloqueio de loop caro nunca chamam o provedor, nunca têm
+    latência).
+  - `custo_medio_por_reuniao()` — cost per meeting agregado (distinto
+    de `custo_por_reuniao(meeting_id)`, Fase 2, que é o lookup de UMA
+    reunião específica).
+  - `custo_medio_por_opportunity()` — cost per opportunity. **Cruza
+    `ai_usage_events` com `meeting_memory` em Python, nunca via JOIN
+    SQL direto entre as duas tabelas** — mesmo cuidado já registrado
+    em `agent/sales_memory.py` (Fase 6 do outro roadmap): colunas
+    `meeting_id` com collations diferentes entre tabelas já causaram
+    `Illegal mix of collations` neste projeto.
+  - `taxa_resposta_recomendacoes()` — recommendation acceptance rate
+    como **proxy barato**: % de `RecommendationEvent` com `used_at`
+    preenchido (vendedor respondeu depois), não a classificação
+    semântica USED/PARTIALLY_USED/IGNORED real (que exigiria 1
+    chamada de embedding por evento, Fase 10.2, não acionada
+    automaticamente).
+- **`GET /admin/observabilidade/metricas`** (novo endpoint, `_req_admin`):
+  consolida as 8 métricas reais + `recommendation_latency_por_feature`
+  (mesma agregação de AI latency, filtrada às features que produzem
+  recomendação — `REALTIME_COACH`/`SALES_REASONING_RACIOCINIO`,
+  convenção desta rodada, não um campo formal em `ai_features.py`) +
+  os 2 gaps (`rag_latency`/`recommendation_effectiveness`, sempre
+  `{"capturado"|"disponivel": False, "motivo": "..."}`, nunca omitidos
+  nem inventados). Reusa `custos_resumo()` (Cost Intelligence Fase 2)
+  pra tokens/fallback rate/error rate — sem duplicar a consulta.
+- **Decisão deliberada de escopo**: instrumentar RAG latency de
+  verdade (cronometrar `agent/base_conhecimento.py`/`agent/
+  sales_memory.py`) e rodar a classificação real da Fase 10.2 em
+  produção (pra alimentar recommendation effectiveness de verdade)
+  ficam fora desta rodada — decisões de escopo separadas,
+  explicitamente descartadas nas opções apresentadas ao usuário.
+- 22 testes novos (`tests/test_observability_metrics_rules.py` +
+  `tests/test_observability_endpoint.py`, incluindo autenticação/
+  autorização do endpoint e os gaps nunca virando número inventado).
+  Suite completa sem regressão.
+- Versão: `1.4.108` → `1.4.109`.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — só
+  código). **Tarefa 19.1 (Quality Monitoring) e qualquer fase
+  seguinte do "PROMPT MESTRE — SALE-IA V2" não começam sem nova
+  confirmação explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

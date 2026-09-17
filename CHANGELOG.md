@@ -3,6 +3,88 @@
 
 ---
 
+## V.1.4.109 — Observabilidade, Fase 19 do "PROMPT MESTRE — SALE-IA V2"
+
+> Data: 17/09/2026 | Local + GitHub, deploy na VPS pendente
+
+### CONTEXTO
+Usuário confirmou avançar para a Fase 19 (Observabilidade). Texto
+literal do prompt mestre pede 10 métricas: AI latency, recommendation
+latency, RAG latency, cost per meeting, cost per opportunity, tokens,
+fallback rate, error rate, recommendation acceptance rate,
+recommendation effectiveness (mais a Tarefa 19.1, Quality Monitoring,
+separada, não começada nesta rodada).
+
+Investigação prévia (antes de perguntar escopo, mesma disciplina das
+Fases 7/10/13/14/16/18.2-18.4): a maior parte do dado bruto já
+existia — `AiUsageEvent.latency_ms`/`success`/`fallback_used` desde o
+Cost Intelligence Fase 1 (V.1.4.51), `RecommendationEvent` desde a
+Fase 10 — só faltava agregação. Duas métricas não têm dado real hoje:
+RAG latency (nenhuma cronometragem existe nos pontos de busca de
+RAG/Sales Memory) e recommendation effectiveness (a fórmula existe,
+Fase 10.3, mas exige classificação de `RecommendationEvent` que nunca
+roda em produção, Fase 10.2 nunca plugada em fluxo real).
+
+Usuário escolheu "9 métricas reais + RAG latency como gap
+documentado" — na implementação, ficou claro que **recommendation
+effectiveness também não tem dado real** (só a fórmula pronta), então
+o resultado final é **8 métricas reais, 1 proxy (recommendation
+acceptance rate) e 2 gaps documentados** — refinamento transparente
+do escopo original, mesma disciplina de honestidade de
+`SUBMODULOS_PENDENTES` (Fase 13).
+
+### O que foi construído
+- **`agent/observability_metrics_rules.py`** (novo, função pura — mesmo
+  padrão de `win_loss_rules.py`/`data_warehouse_rules.py`, zero
+  IA/banco): `calcular_estatisticas_latencia(latencias_ms)` (média/
+  mín/máx/p50/p95, ignora `None`, nunca inventa número pra amostra
+  vazia) + `calcular_taxa(numerador, denominador)` (razão genérica,
+  `None` se denominador for 0) + `RAG_LATENCY_NAO_CAPTURADA`/
+  `RECOMMENDATION_EFFECTIVENESS_NAO_DISPONIVEL` (dicts explícitos
+  sinalizando o gap).
+- **`api/database.py`** (4 funções novas, reaproveitando
+  `ai_usage_events`/`recommendation_events` já existentes — sem
+  tabela/coluna nova): `latencia_por_feature()` (AI latency real por
+  feature); `custo_medio_por_reuniao()` (cost per meeting agregado);
+  `custo_medio_por_opportunity()` (cost per opportunity — cruza
+  `ai_usage_events` com `meeting_memory` **em Python, nunca via JOIN
+  SQL**, mesmo cuidado de collation já registrado em
+  `agent/sales_memory.py`); `taxa_resposta_recomendacoes()`
+  (recommendation acceptance rate como proxy: % de
+  `RecommendationEvent` com `used_at` preenchido).
+- **`GET /admin/observabilidade/metricas`** (novo endpoint,
+  `_req_admin`): consolida as 8 métricas reais + `recommendation_
+  latency_por_feature` (mesma agregação de AI latency, filtrada às
+  features `REALTIME_COACH`/`SALES_REASONING_RACIOCINIO` — convenção
+  desta rodada) + os 2 gaps, sempre `{"capturado"|"disponivel":
+  False, "motivo": "..."}`, nunca omitidos nem inventados. Reusa
+  `custos_resumo()` (Cost Intelligence Fase 2) pra tokens/fallback
+  rate/error rate.
+
+### Decisão deliberada de escopo
+- Instrumentar RAG latency de verdade (cronometrar
+  `agent/base_conhecimento.py`/`agent/sales_memory.py`) e rodar a
+  classificação real da Fase 10.2 em produção (pra alimentar
+  recommendation effectiveness de verdade) ficam fora desta rodada —
+  decisões de escopo separadas, explicitamente descartadas nas opções
+  apresentadas ao usuário.
+- Sem tabela/coluna nova.
+
+### Testes
+- 22 testes novos (`tests/test_observability_metrics_rules.py` +
+  `tests/test_observability_endpoint.py`), incluindo autenticação/
+  autorização do endpoint novo e a garantia de que os 2 gaps nunca
+  viram número inventado. Suite completa sem regressão.
+
+### Pendente
+- Push + deploy na VPS (sem tabela/coluna nova — só código, deploy
+  simples: `git pull` + `systemctl restart saleia`).
+- **Tarefa 19.1 (Quality Monitoring) e qualquer fase seguinte do
+  "PROMPT MESTRE — SALE-IA V2" não começam sem nova confirmação
+  explícita do usuário.**
+
+---
+
 ## V.1.4.108 — Audit Trail, Fase 18 do "PROMPT MESTRE — SALE-IA V2" (Tarefa 18.4, fecha a Fase 18)
 
 > Data: 17/09/2026 | Local + GitHub + VPS confirmada em produção
