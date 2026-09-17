@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.108** (backend, local — ainda não deployada; produção confirmada em V.1.4.107) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.108** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -2553,11 +2553,38 @@ já usado pelas Tarefas 18.2/18.3).
 - 11 testes novos (`tests/test_audit_trail.py`). Suite completa sem
   regressão.
 - Versão: `1.4.107` → `1.4.108`.
-- **Pendente**: push + deploy na VPS (tabela nova, aditiva via
-  `create_all()` — sem `ALTER TABLE` manual, diferente do
-  `meeting_memory.usuario_id`/V.1.4.105). **Fase 19 (Observabilidade)
-  e qualquer fase seguinte do "PROMPT MESTRE — SALE-IA V2" não começam
-  sem nova confirmação explícita do usuário.**
+- **Push + deploy confirmados (17/09/2026)**: commit `029ea73` no
+  GitHub. `reunioes_ativas: 0` checado antes do restart — `systemctl
+  restart saleia` executado.
+- **Incidente real durante o deploy — corrida de DDL entre os 2
+  workers do uvicorn (`--workers 2`) criando a tabela nova
+  simultaneamente**: o worker A criou `audit_trail_entries` via
+  `create_all()`; o worker B, rodando o mesmo `create_all()` quase ao
+  mesmo tempo, recebeu `pymysql.err.OperationalError (1684, "Table
+  ... was skipped since its definition is being modified by
+  concurrent DDL statement")` no `DESCRIBE` de verificação, o que
+  matou esse worker e — como um dos dois workers falhou ao subir — o
+  `uvicorn` derrubou o processo inteiro (`"Child process failed to
+  start, stopping the parent process"`), e o `systemd` reiniciou
+  automaticamente o `saleia.service` (~12s de indisponibilidade real,
+  18:05:00–18:05:12 UTC). Na segunda tentativa a tabela já existia
+  (criada pelo worker A na tentativa anterior), então os 2 workers
+  subiram limpos sem disputa de DDL. **Nenhuma ação manual foi
+  necessária** — `Restart=` do systemd já cobre esse cenário — mas é a
+  primeira vez que esse tipo de corrida se manifestou de verdade neste
+  projeto (tabelas novas anteriores, `SalesEvent`/`Opportunity`/etc.,
+  não bateram nessa janela de timing por sorte). **Risco conhecido pra
+  qualquer deploy futuro que crie tabela nova com `--workers 2`** —
+  não motivou mudança de código nesta rodada (mitigar de verdade
+  exigiria serializar a criação de tabela antes do `fork` dos workers,
+  fora do escopo desta tarefa), só documentação do achado.
+  Pós-recuperação (18:05:12 em diante): `/health` = `versao 1.4.108`,
+  `status online`, 4 provedores `ok`; `/dashboard` = `200`; tráfego
+  real (`POST /tempo-real`) servido normalmente, sem nenhum erro novo
+  no journal desde então.
+- **Fase 19 (Observabilidade) e qualquer fase seguinte do "PROMPT
+  MESTRE — SALE-IA V2" não começam sem nova confirmação explícita do
+  usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

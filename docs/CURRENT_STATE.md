@@ -1,7 +1,7 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-17 (V.1.4.108 — **local + GitHub, deploy na VPS
-pendente**; produção confirmada em V.1.4.107).
+Atualizado em: 2026-09-17 (V.1.4.108 — **local + GitHub + produção
+confirmada** na VPS).
 V.1.4.108 é a **Fase 18 / Tarefa 18.4 (Audit Trail) do "SALE-IA V2"** —
 **fecha a Fase 18 (Segurança) completa** (Tarefas 18.1-18.4). Usuário
 confirmou o escopo (pergunta direta): só schema + CRUD do
@@ -20,8 +20,16 @@ auditada envolve IA ou está ligada a uma reunião específica).
 `listar_audit_trail_entries()` — dado de domínio, propaga `ValueError`
 em dado inválido, mesma disciplina de `SalesEvent`/`RecommendationEvent`
 (Fases 1/10). 11 testes novos. Ver seção "Audit Trail — Fase 18" no
-CLAUDE.md e CHANGELOG.md V.1.4.108. **Pendente**: push + deploy na VPS
-(tabela nova, aditiva via `create_all()` — sem `ALTER TABLE` manual).
+CLAUDE.md e CHANGELOG.md V.1.4.108. **Deploy confirmado (17/09/2026)**:
+commit `029ea73`. **Incidente real durante o restart** — corrida de
+DDL entre os 2 workers do uvicorn criando `audit_trail_entries`
+simultaneamente derrubou um worker (`pymysql.err.OperationalError
+1684`), `systemd` reiniciou automaticamente (~12s de indisponibilidade
+real, 18:05:00–18:05:12 UTC); na 2ª tentativa a tabela já existia, sem
+disputa. Ver detalhe completo e risco pra futuros deploys com tabela
+nova em "Audit Trail — Fase 18" no CLAUDE.md. Pós-recuperação:
+`/health` = `versao 1.4.108`, `status online`, 4 provedores `ok`;
+`/dashboard` = `200`; tráfego real servido sem erro novo desde então.
 **Fase 19 (Observabilidade) e qualquer fase seguinte do "SALE-IA V2"
 não começam sem nova confirmação explícita do usuário.**
 

@@ -5,7 +5,7 @@
 
 ## V.1.4.108 — Audit Trail, Fase 18 do "PROMPT MESTRE — SALE-IA V2" (Tarefa 18.4, fecha a Fase 18)
 
-> Data: 17/09/2026 | Local + GitHub, deploy na VPS pendente
+> Data: 17/09/2026 | Local + GitHub + VPS confirmada em produção
 
 ### CONTEXTO
 Usuário confirmou avançar para a Tarefa 18.4, fechando a Fase 18
@@ -68,10 +68,30 @@ primeiro" já usada na maioria das Fases 1-17, em vez de conectar ao
   completos/ausentes, filtros de listagem e dado inválido nunca
   persistindo. Suite completa sem regressão.
 
-### Pendente
-- Push + deploy na VPS (tabela nova, aditiva via `create_all()` — sem
-  `ALTER TABLE` manual, diferente do `meeting_memory.usuario_id`/
-  V.1.4.105).
+### Deploy
+- **Push + deploy confirmados (17/09/2026)**: commit `029ea73` no
+  GitHub. `reunioes_ativas: 0` checado antes do restart.
+- **Incidente real durante o restart — corrida de DDL entre os 2
+  workers do uvicorn (`--workers 2`)**: ambos rodaram `create_all()`
+  quase simultaneamente pra criar `audit_trail_entries` (tabela nova);
+  um worker venceu e criou a tabela, o outro recebeu
+  `pymysql.err.OperationalError (1684, "Table ... was skipped since
+  its definition is being modified by concurrent DDL statement")` no
+  `DESCRIBE` de verificação, o que o matou — como um worker falhou ao
+  subir, o `uvicorn` derrubou o processo inteiro
+  (`"Child process failed to start, stopping the parent process"`).
+  `systemd` reiniciou automaticamente (~12s de indisponibilidade real,
+  18:05:00–18:05:12 UTC); na 2ª tentativa a tabela já existia (criada
+  na 1ª), sem disputa, os 2 workers subiram limpos. Nenhuma ação
+  manual foi necessária, mas é a primeira vez que essa corrida se
+  manifestou de verdade no projeto — risco conhecido pra qualquer
+  deploy futuro que crie tabela nova com múltiplos workers (mitigar de
+  verdade exigiria serializar a criação de tabela antes do `fork` dos
+  workers, fora do escopo desta tarefa; só documentação do achado).
+  Pós-recuperação: `/health` = `versao 1.4.108`, `status online`, 4
+  provedores `ok`; `/dashboard` = `200`; tráfego real (`POST
+  /tempo-real`) servido normalmente, sem erro novo no journal desde
+  então.
 - **Fase 19 (Observabilidade) e qualquer fase seguinte do "PROMPT
   MESTRE — SALE-IA V2" não começam sem nova confirmação explícita do
   usuário.**
