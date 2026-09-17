@@ -36,6 +36,7 @@ from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from agent.data_classification_rules import redigir_segredos
 from api.ai_router import chamar_ia, chamar_ia_async, definir_provedor_preferido, rotacionar_provedor_preferido, snapshot_provedores, snapshot_metricas, status_provedores
 from api import ai_features
 from api.database import (
@@ -57,17 +58,22 @@ _ext_ver_var: ContextVar[str] = ContextVar("ext_ver", default="-")
 
 
 class _JsonFormatter(logging.Formatter):
+    """Tarefa 18.3 ("PROMPT MESTRE — SALE-IA V2"): redigir_segredos()
+    mascara senha/token/Authorization header/API key antes de qualquer
+    mensagem ou traceback virar log — a garantia real de "nunca logar
+    segredo" fica aqui, não em cada call site individual."""
+
     def format(self, record: logging.LogRecord) -> str:
         doc: dict = {
             "ts":     self.formatTime(record, "%Y-%m-%dT%H:%M:%S"),
             "level":  record.levelname,
             "logger": record.name,
-            "msg":    record.getMessage(),
+            "msg":    redigir_segredos(record.getMessage()),
             "cid":    _cid_var.get("-"),
             "ext_ver": _ext_ver_var.get("-"),
         }
         if record.exc_info:
-            doc["exc"] = self.formatException(record.exc_info)
+            doc["exc"] = redigir_segredos(self.formatException(record.exc_info))
         return json.dumps(doc, ensure_ascii=False)
 
 
@@ -75,6 +81,10 @@ def _configurar_logging() -> None:
     fmt = _JsonFormatter()
     saleia_log = logging.getLogger("saleia")
     saleia_log.setLevel(logging.INFO)
+    # Tarefa 18.3: evita log duplicado quando o handler de root (abaixo)
+    # tambem for adicionado — "saleia.*" continua tratado so pelo proprio
+    # handler, uma unica vez.
+    saleia_log.propagate = False
     if not saleia_log.handlers:
         h = logging.StreamHandler()
         h.setFormatter(fmt)
@@ -82,6 +92,22 @@ def _configurar_logging() -> None:
     else:
         for h in saleia_log.handlers:
             h.setFormatter(fmt)
+
+    # Tarefa 18.3: muitos modulos usam logging.getLogger(__name__) (ex.:
+    # agent/multiagente/claude_fallback.py -> "agent.multiagente.
+    # claude_fallback"), fora da arvore "saleia.*" — sem um handler no
+    # root, essas mensagens caiam no handler de ultimo recurso do Python
+    # (stderr cru, sem JSON e sem redacao de segredo nenhuma). Anexar o
+    # mesmo _JsonFormatter (com redigir_segredos) no root garante que
+    # ~100% dos logs do processo passam pela mesma redacao.
+    root_log = logging.getLogger()
+    if not root_log.handlers:
+        rh = logging.StreamHandler()
+        rh.setFormatter(fmt)
+        root_log.addHandler(rh)
+    else:
+        for rh in root_log.handlers:
+            rh.setFormatter(fmt)
 
 
 logger = logging.getLogger("saleia.main")
@@ -747,7 +773,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.106",
+        "versao":              "1.4.107",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -785,7 +811,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.106",
+        "versao":          "1.4.107",
         "timestamp":       datetime.now().isoformat(),
     }
 

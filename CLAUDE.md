@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.106** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.107** (backend, local — ainda não deployada; produção confirmada em V.1.4.106) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -2413,8 +2413,81 @@ comando).
   `systemctl restart saleia` (deploy só de código, sem tabela/coluna
   nova) — `active`, journal sem erros. Pós-restart: `/health` =
   `versao 1.4.106`, `status online`, 4 provedores `ok`; `/dashboard` =
-  `200`. **Tarefa 18.3 (PII) e 18.4 (Audit Trail) não começam sem nova
-  confirmação explícita do usuário.**
+  `200`.
+
+## PII — Classificação de Dados + Redação de Segredos — Fase 18 / Tarefa 18.3 do "PROMPT MESTRE — SALE-IA V2" (V.1.4.107)
+
+Usuário confirmou avançar para a Tarefa 18.3. Texto literal do prompt
+mestre: criar classificação (`PUBLIC`/`INTERNAL`/`CONFIDENTIAL`/`PII`/
+`SENSITIVE`); aplicar redaction/retention/logging seguro; nunca logar
+senha, token, Authorization header, API key.
+
+Escopo confirmado antes de codar (pergunta direta, mesma disciplina das
+Fases 7/10/13/14/16/18.2): o logger JSON central (`_JsonFormatter`,
+`api/main.py`) logava a mensagem crua, sem nenhum filtro de segredo —
+"retention" (prazo real de guarda de cada tipo de dado) é decisão de
+produto/jurídica, não só técnica. Usuário escolheu **classificação +
+redação real conectada ao logger de produção**, com retenção só como
+contrato de referência (sem job de expiração automática).
+
+- **`agent/data_classification_rules.py`** (novo, função pura — mesmo
+  padrão de `*_rules.py`, zero IA/banco): três partes.
+  1. **`DATA_CLASSIFICATION_LEVELS`** — os 5 níveis literais.
+     **`CLASSIFICACAO_CAMPOS_PADRAO`** — tabela de referência (não
+     exaustiva) mapeando campos reais do SALEIA a um nível (ex.:
+     `transcript_full`/`mapa_financeiro` → `CONFIDENTIAL`; `email`/
+     `cpf`/`usuario_id` → `PII`; `senha`/`api_key`/
+     `oauth_token_encrypted` → `SENSITIVE`). `classificar_campo()`
+     nunca adivinha um nível pra campo não catalogado — retorna
+     `None`.
+  2. **`redigir_segredos(texto)`/`redigir_dict(dados)`** — a garantia
+     real de "nunca logar segredo". Regex por rótulo (`senha=`,
+     `token:`, `api_key=`, `Authorization:`) mascara só o valor,
+     mantendo o rótulo; padrões sem rótulo (`Bearer <token>`, chaves
+     `sk-`/`AIza` soltas no texto) também são reconhecidos. Nunca
+     levanta exceção, nunca falso-positiva em prosa comercial normal
+     (`"o vendedor esqueceu a senha"` sem `=`/`:` não é tocado — regex
+     exige o separador logo após o rótulo). `redigir_dict()` mascara
+     valor de qualquer chave reconhecida como secreta
+     (`_CHAVES_SECRETAS_EXATAS` + qualquer nome contendo "token"/
+     "senha"/"password"/"api_key"), recursivo em dict/list — mesmo
+     estilo de caminhada de `api/ai_router.py::_sanitize_ai_payload`.
+  3. **`RETENTION_SUGERIDA_DIAS_PADRAO`** — mapeamento nível → dias
+     sugeridos, **não vinculante**, sem nenhum job de expiração/limpeza
+     automática. `SENSITIVE` (credencial) fica `None` de propósito:
+     credencial se rotaciona/nunca deveria persistir em texto puro,
+     não "expira" como um dado de retenção.
+- **`api/main.py::_JsonFormatter.format()`**: `doc["msg"]` e
+  `doc["exc"]` agora passam por `redigir_segredos()` antes do
+  `json.dumps` — toda mensagem e todo traceback logado pelo sistema é
+  filtrado no mesmo ponto, não em cada call site.
+- **`api/main.py::_configurar_logging()`**: além do handler já
+  existente em `"saleia"` (mantido, `propagate = False` adicionado pra
+  nunca duplicar), passou a anexar o **mesmo** `_JsonFormatter` também
+  no logger **root** (`logging.getLogger()`). Achado que motivou isso:
+  vários módulos usam `logging.getLogger(__name__)`
+  (`agent/multiagente/claude_fallback.py` → logger
+  `"agent.multiagente.claude_fallback"`, por exemplo) — fora da árvore
+  `"saleia.*"`, essas mensagens caíam no handler de último recurso do
+  Python (stderr cru, sem JSON e **sem redação nenhuma**), mesmo já
+  aparecendo no `journalctl` (systemd captura stdout/stderr do
+  processo). Agora ~100% dos loggers do processo passam pela mesma
+  redação — mesmo princípio de choke-point único já usado na Tarefa
+  18.2 (`chamar_ia`), aplicado à infraestrutura de logging.
+- **Decisão deliberada de escopo**: sem job de expiração/anonimização
+  automática (Tarefa "retention" real) — exigiria decidir prazos reais
+  por decisão de produto/jurídica, fora do escopo técnico desta rodada.
+  Sem endpoint HTTP novo, sem tabela/coluna nova.
+- 20 testes novos (`tests/test_data_classification_rules.py`, 15
+  testes puros do módulo) + 5 testes novos em
+  `tests/test_extensao_versao_log.py` (`_JsonFormatter` redigindo
+  segredo em mensagem/exceção real + `_configurar_logging()` cobrindo
+  logger fora da árvore `saleia.*` sem duplicar log). Suite completa
+  sem regressão.
+- Versão: `1.4.106` → `1.4.107`.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — só
+  código). **Tarefa 18.4 (Audit Trail) não começa sem nova confirmação
+  explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

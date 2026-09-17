@@ -1,7 +1,30 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-17 (V.1.4.106 — **local + GitHub + produção
-confirmada** na VPS).
+Atualizado em: 2026-09-17 (V.1.4.107 — **local + GitHub, deploy na VPS
+pendente**; produção confirmada em V.1.4.106).
+V.1.4.107 é a **Fase 18 / Tarefa 18.3 (PII — Classificação de Dados +
+Redação de Segredos) do "SALE-IA V2"**. Usuário confirmou o escopo
+(pergunta direta de escopo): classificação (5 níveis literais) +
+redação real conectada ao logger de produção; retenção fica só como
+contrato de referência (prazos sugeridos, não vinculantes — decisão de
+produto/jurídica sobre prazo real fica pendente, sem job de expiração
+automática). `agent/data_classification_rules.py` (novo):
+`DATA_CLASSIFICATION_LEVELS` (`PUBLIC`/`INTERNAL`/`CONFIDENTIAL`/`PII`/
+`SENSITIVE`) + `CLASSIFICACAO_CAMPOS_PADRAO` (tabela de referência,
+não exaustiva) + `redigir_segredos()`/`redigir_dict()` (nunca logar
+senha/token/Authorization header/API key — nunca bloqueia, só mascara).
+Conectado de verdade ao logger de produção: `api/main.py::
+_JsonFormatter` agora redige toda mensagem/exceção antes de virar log,
+e `_configurar_logging()` passou a anexar o mesmo formatter também no
+logger root (não só em `"saleia.*"`) — sem isso, módulos que usam
+`logging.getLogger(__name__)` (ex.: `agent/multiagente/
+claude_fallback.py`) caíam no handler de último recurso do Python,
+sem JSON e sem redação nenhuma. 20 testes novos. Ver seção "PII —
+Classificação de Dados + Redação de Segredos — Fase 18" no CLAUDE.md
+e CHANGELOG.md V.1.4.107. **Pendente**: push + deploy na VPS (sem
+tabela/coluna nova). Tarefa 18.4 (Audit Trail) não começa sem nova
+confirmação explícita do usuário.
+
 V.1.4.106 é a **Fase 18 / Tarefa 18.2 (Prompt Injection Hardening) do
 "SALE-IA V2"** — documentos e transcrições são sempre dado, nunca
 instrução. `agent/prompt_injection_rules.py` (novo): detector por regex
