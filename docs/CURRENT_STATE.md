@@ -1,7 +1,7 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-17 (V.1.4.106 — **local + GitHub, deploy na VPS
-pendente**; produção confirmada em V.1.4.105).
+Atualizado em: 2026-09-17 (V.1.4.106 — **local + GitHub + produção
+confirmada** na VPS).
 V.1.4.106 é a **Fase 18 / Tarefa 18.2 (Prompt Injection Hardening) do
 "SALE-IA V2"** — documentos e transcrições são sempre dado, nunca
 instrução. `agent/prompt_injection_rules.py` (novo): detector por regex
@@ -13,8 +13,11 @@ chamar_ia`) e no caminho manual do fallback pra Conta Claude pessoal
 editar os ~20 templates de prompt individualmente. Detecção nunca
 bloqueia, só loga para auditoria futura (Tarefa 18.4). 15 testes novos.
 Ver seção "Prompt Injection Hardening — Fase 18" no CLAUDE.md e
-CHANGELOG.md V.1.4.106. **Pendente**: push + deploy na VPS (sem
-tabela/coluna nova). Tarefas 18.3 (PII) e 18.4 (Audit Trail) não
+CHANGELOG.md V.1.4.106. **Deploy confirmado (17/09/2026)**: commit
+`1289b0b`, `reunioes_ativas: 0` checado antes do `git pull` e do
+restart (deploy só de código), `systemctl restart saleia` — `/health`
+= `versao 1.4.106`, `status online`, `/dashboard` = `200`, journal sem
+erros. Tarefas 18.3 (PII) e 18.4 (Audit Trail) não
 começam sem nova confirmação explícita do usuário.
 
 V.1.4.105 é a **Fase 18 / Tarefa 18.1 (Tenant/User Isolation) do

@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.106** (backend, local — ainda não deployada; produção confirmada em V.1.4.105) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.106** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -2408,9 +2408,13 @@ comando).
   (guarda presente no prompt do fallback). Suite completa sem
   regressão.
 - Versão: `1.4.105` → `1.4.106`.
-- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — só
-  código). **Tarefa 18.3 (PII) e 18.4 (Audit Trail) não começam sem
-  nova confirmação explícita do usuário.**
+- **Push + deploy confirmados (17/09/2026)**: commit `1289b0b` no
+  GitHub. `reunioes_ativas: 0` checado antes do `git pull` e antes do
+  `systemctl restart saleia` (deploy só de código, sem tabela/coluna
+  nova) — `active`, journal sem erros. Pós-restart: `/health` =
+  `versao 1.4.106`, `status online`, 4 provedores `ok`; `/dashboard` =
+  `200`. **Tarefa 18.3 (PII) e 18.4 (Audit Trail) não começam sem nova
+  confirmação explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

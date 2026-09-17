@@ -5,7 +5,7 @@
 
 ## V.1.4.106 — Prompt Injection Hardening, Fase 18 do "PROMPT MESTRE — SALE-IA V2" (Tarefa 18.2)
 
-> Data: 17/09/2026 | Local + GitHub, deploy na VPS pendente
+> Data: 17/09/2026 | Local + GitHub + VPS confirmada em produção
 
 ### CONTEXTO
 Usuário confirmou avançar para a Tarefa 18.2 (Prompt Injection),
@@ -96,9 +96,13 @@ alguém tentou).
   guarda presente no prompt montado pro fallback da Conta Claude.
 - Suite completa (925 testes da V.1.4.105 + 15 novos) sem regressão.
 
-### Pendente
-- Push + deploy na VPS (sem tabela/coluna nova — só código, deploy
-  simples: `git pull` + `systemctl restart saleia`).
+### Deploy
+- **Push + deploy confirmados (17/09/2026)**: commit `1289b0b` no
+  GitHub. Na VPS, `reunioes_ativas: 0` checado antes do `git pull` e
+  antes do `systemctl restart saleia` (deploy só de código, sem
+  tabela/coluna nova) — `active`, journal sem erros. Pós-restart:
+  `/health` = `versao 1.4.106`, `status online`, 4 provedores `ok`;
+  `/dashboard` = `200`.
 - **Tarefa 18.3 (PII) e 18.4 (Audit Trail) não começam sem nova
   confirmação explícita do usuário.**
 
