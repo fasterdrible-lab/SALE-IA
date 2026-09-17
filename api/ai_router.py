@@ -25,6 +25,7 @@ from typing import Callable
 from dotenv import load_dotenv
 from fastapi import HTTPException
 
+from agent.prompt_injection_rules import PROMPT_INJECTION_GUARD_TEXT, detectar_tentativas_injection
 from api.cost_engine import ProviderUsage, calcular_custo, estimar_usage
 
 load_dotenv()
@@ -518,9 +519,26 @@ def chamar_ia(
     (Cost Intelligence Fase 1) e pelas otimizacoes ativas da Fase 5 (cache
     de resposta, corte de contexto, bloqueio de loop caro por reuniao) —
     nao afetam a ordem/escolha de provedor nem o circuit breaker.
+
+    Tarefa 18.2 ("PROMPT MESTRE — SALE-IA V2"): PROMPT_INJECTION_GUARD_TEXT
+    e anexado a todo system_prompt aqui, unico choke-point por onde passa
+    ~100% do trafego dos 4 provedores centrais — documentos/transcricao sao
+    sempre dado, nunca comando, sem precisar editar cada template em
+    agent/prompt_templates/.
     """
     attempts: list[dict] = []
-    system_prompt = f"{system_prompt or ''}{FORBIDDEN_TRIGGER_RULE}"
+    system_prompt = f"{system_prompt or ''}{FORBIDDEN_TRIGGER_RULE}{PROMPT_INJECTION_GUARD_TEXT}"
+
+    try:
+        if detectar_tentativas_injection(user_content):
+            logger.warning(
+                "[PromptInjection] Padrao suspeito detectado no conteudo de entrada "
+                "(feature=%s, meeting_id=%s) — tratado apenas como dado da conversa, "
+                "nao como comando; nenhuma acao bloqueada ou alterada.",
+                feature, meeting_id,
+            )
+    except Exception as exc:
+        logger.warning("Erro ao verificar tentativa de prompt injection (ignorado): %s", exc)
 
     with _counters_lock:
         _counters["chamadas_total"] += 1

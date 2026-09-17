@@ -1,7 +1,22 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-17 (V.1.4.105 — **local + GitHub + produção
-confirmada** na VPS, ver "Deploy" abaixo).
+Atualizado em: 2026-09-17 (V.1.4.106 — **local + GitHub, deploy na VPS
+pendente**; produção confirmada em V.1.4.105).
+V.1.4.106 é a **Fase 18 / Tarefa 18.2 (Prompt Injection Hardening) do
+"SALE-IA V2"** — documentos e transcrições são sempre dado, nunca
+instrução. `agent/prompt_injection_rules.py` (novo): detector por regex
+(generaliza o que já existia só para upload de documento no Knowledge
+Compiler, Fase 1) + `PROMPT_INJECTION_GUARD_TEXT`, anexado a todo
+`system_prompt` no único choke-point de IA (`api/ai_router.py::
+chamar_ia`) e no caminho manual do fallback pra Conta Claude pessoal
+(`agent/multiagente/claude_fallback.py`) — cobre ~100% do tráfego sem
+editar os ~20 templates de prompt individualmente. Detecção nunca
+bloqueia, só loga para auditoria futura (Tarefa 18.4). 15 testes novos.
+Ver seção "Prompt Injection Hardening — Fase 18" no CLAUDE.md e
+CHANGELOG.md V.1.4.106. **Pendente**: push + deploy na VPS (sem
+tabela/coluna nova). Tarefas 18.3 (PII) e 18.4 (Audit Trail) não
+começam sem nova confirmação explícita do usuário.
+
 V.1.4.105 é a **Fase 18 / Tarefa 18.1 (Tenant/User Isolation) do
 "SALE-IA V2"** — fix crítico de segurança real (não módulo isolado
 como as Fases 14-17): `POST /recapitulacao-viva` não tinha
