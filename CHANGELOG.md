@@ -5,7 +5,7 @@
 
 ## V.1.4.113 — Testes de Adversarial Sales, Fase 21 do "PROMPT MESTRE — SALE-IA V2"
 
-> Data: 18/09/2026 | Local + GitHub, deploy na VPS pendente
+> Data: 18/09/2026 | Local + GitHub + VPS confirmada em produção
 
 ### CONTEXTO
 Usuário confirmou avançar para a Fase 21. Texto literal do prompt
@@ -49,8 +49,12 @@ Tarefa 18.2) + os 4 cenários como testes Promptfoo".
   Claude Account, 4 estrutura do YAML — nunca chamam IA). Suite
   completa sem regressão.
 
-### Pendente
-- Push + deploy na VPS (sem tabela/coluna nova — só código).
+### Deploy
+- **Push + deploy confirmados (18/09/2026)**: commit `a0d1daf` no
+  GitHub. `reunioes_ativas: 0` checado antes do `git pull` e antes do
+  `systemctl restart saleia` — `active`, journal sem erros.
+  Pós-restart: `/health` = `versao 1.4.113`, `status online`, 4
+  provedores `ok`; `/dashboard` = `200`.
 - **Fase 22 (Frontend) ou qualquer outra tarefa pendente do "PROMPT
   MESTRE — SALE-IA V2" não começa sem nova confirmação explícita do
   usuário.**

@@ -1,7 +1,7 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-18 (V.1.4.113 — **local + GitHub, deploy na VPS
-pendente**; produção confirmada em V.1.4.112).
+Atualizado em: 2026-09-18 (V.1.4.113 — **local + GitHub + produção
+confirmada** na VPS).
 V.1.4.113 é a **Fase 21 (Testes de Adversarial Sales) do "SALE-IA V2"**.
 Investigação prévia: dos 4 casos literais (falar mal do concorrente,
 desconto "que o chefe não precisa saber", garantir 200% de retorno,
@@ -21,9 +21,12 @@ literais (agora 10 no total), nunca rodados nesta rodada (custo real
 de IA). 13 testes novos (2 módulo puro + 2 choke-point + 1 fallback +
 4 estrutura YAML + os que já existiam ajustados). Ver seção "Testes de
 Adversarial Sales — Fase 21" no CLAUDE.md e CHANGELOG.md V.1.4.113.
-**Pendente**: push + deploy na VPS (sem tabela/coluna nova — só
-código). **Fase 22 (Frontend) ou qualquer outra tarefa pendente do
-"SALE-IA V2" não começa sem nova confirmação explícita do usuário.**
+**Deploy confirmado (18/09/2026)**: commit `a0d1daf`, `reunioes_ativas:
+0` checado antes do `git pull` e do restart — `/health` = `versao
+1.4.113`, `status online`, 4 provedores `ok`; `/dashboard` = `200`;
+journal sem erros. **Fase 22 (Frontend) ou qualquer outra tarefa
+pendente do "SALE-IA V2" não começa sem nova confirmação explícita do
+usuário.**
 
 V.1.4.112 é a **Fase 20 (Golden Sales Dataset) do "SALE-IA V2"**.
 Usuário confirmou o escopo (pergunta direta): só o dataset em
