@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.110** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.111** (backend, local — ainda não deployada; produção confirmada em V.1.4.110) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -2729,6 +2729,68 @@ column 'key_moments_json'")` numa reunião real em andamento em
   saleia` — `active`, journal sem erros. Pós-restart: `/health` =
   `versao 1.4.110`, `status online`, 4 provedores `ok`; `/dashboard` =
   `200`.
+
+## Quality Monitoring — Fase 19 / Tarefa 19.1 do "PROMPT MESTRE — SALE-IA V2" (V.1.4.111)
+
+Usuário confirmou avançar para a Tarefa 19.1. Texto literal do prompt
+mestre pede 6 métricas comerciais: `event_precision`,
+`objection_precision`, `framework_accuracy`,
+`recommendation_relevance`, `hallucination_rate`,
+`evidence_coverage`.
+
+**Investigação prévia (antes de perguntar escopo, mesma disciplina das
+Fases 7/10/13/14/16/18.2-18.4/19)**: nenhuma das 6 tem cálculo algum
+hoje (`grep` confirmou). Diferente da maioria das métricas da Fase 19
+(que já tinham dado bruto capturado, só faltava agregação), estas 6
+são fundamentalmente diferentes — todas exigem comparar a saída da IA
+contra um **gabarito rotulado** (qual era o `SalesEvent`/objeção/
+framework CORRETO de verdade), que é exatamente o que a **Fase 20
+("Golden Sales Dataset")**, próxima do roadmap e ainda não construída,
+deveria fornecer. Existe um mecanismo adjacente já pronto
+(`evals/datasets/sales_reasoning/`, 57 cenários Promptfoo com
+`llm-rubric`, Fase 7/V.1.4.85) — mas é avaliação subjetiva por
+LLM-judge rodada manualmente (custo real de IA), não as métricas de
+precisão/acurácia determinísticas pedidas aqui, e sem o formato
+literal de gabarito (`EXPECTED FACTS`/`EXPECTED EVENTS`/`EXPECTED
+FRAMEWORK`/etc.) que a Fase 20 define.
+
+Usuário escolheu **só as fórmulas corretas de cada métrica, como
+funções puras testáveis, sem dado real** — mesma disciplina de
+honestidade já usada nos 2 gaps da Fase 19
+(`RAG_LATENCY_NAO_CAPTURADA`/
+`RECOMMENDATION_EFFECTIVENESS_NAO_DISPONIVEL`). Não construiu a Fase
+20.
+
+- **`agent/quality_monitoring_rules.py`** (novo, função pura — mesmo
+  padrão de `*_rules.py`, zero IA/banco): 6 funções nomeadas pelas
+  métricas literais — `calcular_event_precision()`/
+  `calcular_objection_precision()` (mesma fórmula VP/(VP+FP), domínios
+  diferentes — a que conta como "verdadeiro positivo" depende do
+  gabarito de cada domínio, fornecido pelo chamador),
+  `calcular_framework_accuracy()` (corretos/total),
+  `calcular_recommendation_relevance()` (relevantes/avaliadas),
+  `calcular_hallucination_rate()` (afirmações sem evidência/total),
+  `calcular_evidence_coverage()` (afirmações com evidência/total —
+  complementar a hallucination_rate, mas medida independentemente).
+  Reaproveita `agent/observability_metrics_rules.py::calcular_taxa()`
+  (Fase 19) pra aritmética comum, em vez de duplicá-la.
+- **`QUALITY_METRIC_SEM_GABARITO`** — dict explícito
+  (`{"disponivel": False, "motivo": "..."}`) documentando o gap, mesmo
+  padrão dos 2 gaps da Fase 19 — nenhuma das 6 funções é chamada com
+  dado real hoje em nenhum lugar do sistema; existem prontas, testadas
+  e corretas, esperando o gabarito da Fase 20.
+- **Decisão deliberada de escopo**: sem endpoint HTTP novo desta
+  rodada (diferente da Fase 19, que teve endpoint) — as 6 métricas
+  retornariam só o gap hoje, então um endpoint não agregaria valor
+  real ainda; melhor esperar a Fase 20 e então decidir a forma de
+  exposição junto com o dado de verdade. Sem tabela/coluna nova.
+- 16 testes novos (`tests/test_quality_monitoring_rules.py`). Suite
+  completa sem regressão.
+- Versão: `1.4.110` → `1.4.111`.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — só
+  código). **Fase 20 (Golden Sales Dataset) e qualquer fase seguinte
+  do "PROMPT MESTRE — SALE-IA V2" não começam sem nova confirmação
+  explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

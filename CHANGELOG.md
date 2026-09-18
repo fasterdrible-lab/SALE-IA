@@ -3,6 +3,65 @@
 
 ---
 
+## V.1.4.111 — Quality Monitoring, Fase 19 / Tarefa 19.1 do "PROMPT MESTRE — SALE-IA V2"
+
+> Data: 18/09/2026 | Local + GitHub, deploy na VPS pendente
+
+### CONTEXTO
+Usuário confirmou avançar para a Tarefa 19.1. Texto literal do prompt
+mestre pede 6 métricas comerciais: `event_precision`,
+`objection_precision`, `framework_accuracy`,
+`recommendation_relevance`, `hallucination_rate`,
+`evidence_coverage`.
+
+Investigação prévia (antes de perguntar escopo, mesma disciplina das
+Fases 7/10/13/14/16/18.2-18.4/19): nenhuma das 6 tem cálculo algum
+hoje. Diferente da maioria das métricas da Fase 19 (dado bruto já
+existia, só faltava agregação), estas 6 exigem comparar a saída da IA
+contra um gabarito rotulado — exatamente o que a Fase 20 ("Golden
+Sales Dataset"), próxima do roadmap e ainda não construída, deveria
+fornecer. Existe um mecanismo adjacente (`evals/datasets/
+sales_reasoning/`, 57 cenários Promptfoo com `llm-rubric`, Fase
+7/V.1.4.85) mas é avaliação subjetiva por LLM-judge manual, não as
+métricas determinísticas pedidas aqui.
+
+Usuário escolheu "só as fórmulas corretas, sem dado real" — mesma
+disciplina de honestidade dos 2 gaps da Fase 19. Não construiu a Fase
+20.
+
+### O que foi construído
+- **`agent/quality_monitoring_rules.py`** (novo, função pura — mesmo
+  padrão de `*_rules.py`, zero IA/banco): 6 funções nomeadas pelas
+  métricas literais — `calcular_event_precision()`/
+  `calcular_objection_precision()` (VP/(VP+FP)),
+  `calcular_framework_accuracy()` (corretos/total),
+  `calcular_recommendation_relevance()` (relevantes/avaliadas),
+  `calcular_hallucination_rate()` (sem evidência/total),
+  `calcular_evidence_coverage()` (com evidência/total). Reaproveita
+  `agent/observability_metrics_rules.py::calcular_taxa()` (Fase 19)
+  pra aritmética comum.
+- **`QUALITY_METRIC_SEM_GABARITO`** — dict explícito documentando o
+  gap, mesmo padrão dos 2 gaps da Fase 19 — nenhuma das 6 funções tem
+  dado real alimentando-a hoje; existem prontas, testadas e corretas,
+  esperando o gabarito da Fase 20.
+
+### Decisão deliberada de escopo
+- Sem endpoint HTTP novo desta rodada (diferente da Fase 19) — as 6
+  métricas retornariam só o gap hoje.
+- Sem tabela/coluna nova.
+
+### Testes
+- 16 testes novos (`tests/test_quality_monitoring_rules.py`). Suite
+  completa sem regressão.
+
+### Pendente
+- Push + deploy na VPS (sem tabela/coluna nova — só código).
+- **Fase 20 (Golden Sales Dataset) e qualquer fase seguinte do
+  "PROMPT MESTRE — SALE-IA V2" não começam sem nova confirmação
+  explícita do usuário.**
+
+---
+
 ## V.1.4.110 — Fix: MeetingMemory.score_history_json/key_moments_json/events_json estourando TEXT (64KB)
 
 > Data: 18/09/2026 | Local + GitHub + VPS confirmada em produção

@@ -1,7 +1,30 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-18 (V.1.4.110 — **local + GitHub + produção
-confirmada** na VPS).
+Atualizado em: 2026-09-18 (V.1.4.111 — **local + GitHub, deploy na VPS
+pendente**; produção confirmada em V.1.4.110).
+V.1.4.111 é a **Tarefa 19.1 (Quality Monitoring) do "SALE-IA V2"**.
+Investigação prévia (antes de perguntar escopo): as 6 métricas
+literais (event_precision, objection_precision, framework_accuracy,
+recommendation_relevance, hallucination_rate, evidence_coverage)
+exigem comparar a saída da IA contra um gabarito rotulado — exatamente
+o que a Fase 20 ("Golden Sales Dataset"), ainda não construída,
+deveria fornecer. Sem gabarito real, nenhuma pode gerar número
+verdadeiro hoje. Usuário escolheu **só as fórmulas corretas, sem dado
+real** — mesma disciplina de honestidade dos 2 gaps da Fase 19.
+`agent/quality_monitoring_rules.py` (novo, função pura): 6 funções
+nomeadas pelas métricas literais (`calcular_event_precision`/
+`calcular_objection_precision`/`calcular_framework_accuracy`/
+`calcular_recommendation_relevance`/`calcular_hallucination_rate`/
+`calcular_evidence_coverage`), reaproveitando `calcular_taxa()` (Fase
+19) pra aritmética comum, + `QUALITY_METRIC_SEM_GABARITO` (dict
+explícito documentando o gap). **Sem endpoint HTTP** (decisão
+deliberada desta rodada — as 6 métricas retornariam só o gap hoje).
+16 testes novos. Ver seção "Quality Monitoring — Tarefa 19.1" no
+CLAUDE.md e CHANGELOG.md V.1.4.111. **Pendente**: push + deploy na VPS
+(sem tabela/coluna nova — só código). **Fase 20 (Golden Sales
+Dataset) e qualquer fase seguinte do "SALE-IA V2" não começam sem
+nova confirmação explícita do usuário.**
+
 V.1.4.110 é um **fix de bug ativo em produção**, achado incidental
 durante a checagem pós-deploy da Fase 19 (não faz parte do roadmap
 "SALE-IA V2"): `MeetingMemory.score_history_json`/`key_moments_json`/
