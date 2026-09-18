@@ -5,7 +5,7 @@
 
 ## V.1.4.110 — Fix: MeetingMemory.score_history_json/key_moments_json/events_json estourando TEXT (64KB)
 
-> Data: 18/09/2026 | Local + GitHub, deploy na VPS pendente
+> Data: 18/09/2026 | Local + GitHub + VPS confirmada em produção
 
 ### CONTEXTO
 Achado incidental durante a checagem pós-deploy da Fase 19 (não faz
@@ -44,10 +44,18 @@ isso — igual já aconteceu com `transcript_full`.
 
 ### Deploy
 - `create_all()` não migra coluna em tabela já existente (mesmo motivo
-  de sempre) — precisa de `ALTER TABLE meeting_memory MODIFY
+  de sempre) — precisou de `ALTER TABLE meeting_memory MODIFY
   score_history_json MEDIUMTEXT, MODIFY key_moments_json MEDIUMTEXT,
-  MODIFY events_json MEDIUMTEXT` manual na VPS, com `reunioes_ativas:
-  0` confirmado antes, mesma disciplina de V.1.4.54/V.1.4.100.
+  MODIFY events_json MEDIUMTEXT` manual na VPS, mesma disciplina de
+  V.1.4.54/V.1.4.100.
+- **Push + deploy confirmados (18/09/2026)**: commit `1d2cdeb` no
+  GitHub. `reunioes_ativas: 0` checado antes do `ALTER TABLE`
+  (aplicado via script Python/pymysql lendo credenciais do `.env` da
+  VPS — `DESCRIBE meeting_memory` confirmou as 3 colunas em
+  `mediumtext`) e de novo antes do `git pull` + `systemctl restart
+  saleia` — `active`, journal sem erros. Pós-restart: `/health` =
+  `versao 1.4.110`, `status online`, 4 provedores `ok`; `/dashboard` =
+  `200`.
 
 ### Testes
 - 1 teste novo. Suite completa sem regressão.

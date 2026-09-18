@@ -1,7 +1,7 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-18 (V.1.4.110 — **local + GitHub, deploy na VPS
-pendente**; produção confirmada em V.1.4.109).
+Atualizado em: 2026-09-18 (V.1.4.110 — **local + GitHub + produção
+confirmada** na VPS).
 V.1.4.110 é um **fix de bug ativo em produção**, achado incidental
 durante a checagem pós-deploy da Fase 19 (não faz parte do roadmap
 "SALE-IA V2"): `MeetingMemory.score_history_json`/`key_moments_json`/
@@ -13,8 +13,11 @@ column 'key_moments_json'")` no journal de 18/09/2026 numa reunião
 longa. Corrigido pra `_LongText` (MEDIUMTEXT), mesmo padrão de sempre.
 1 teste novo (`tests/test_meeting_memory_mediumtext.py`) confirmando
 as 7 colunas (4 já corrigidas + 3 novas) compilam pra MEDIUMTEXT. Ver
-CLAUDE.md/CHANGELOG.md V.1.4.110. **Pendente**: push + `ALTER TABLE`
-manual (com `reunioes_ativas: 0` confirmado antes) + deploy na VPS.
+CLAUDE.md/CHANGELOG.md V.1.4.110. **Deploy confirmado (18/09/2026)**:
+commit `1d2cdeb`. `reunioes_ativas: 0` checado antes do `ALTER TABLE`
+(`DESCRIBE meeting_memory` confirmou as 3 colunas em `mediumtext`) e
+de novo antes do restart — `/health` = `versao 1.4.110`, `status
+online`, 4 provedores `ok`; `/dashboard` = `200`; journal sem erros.
 
 V.1.4.109 é a **Fase 19 (Observabilidade) do "SALE-IA V2"**. Usuário
 confirmou o escopo (pergunta direta, investigação prévia): das 10
