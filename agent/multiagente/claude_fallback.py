@@ -13,6 +13,7 @@ import time
 
 from fastapi import HTTPException
 
+from agent.adversarial_sales_rules import ADVERSARIAL_SALES_GUARD_TEXT
 from agent.prompt_injection_rules import PROMPT_INJECTION_GUARD_TEXT
 from api.ai_router import chamar_ia_async
 
@@ -48,13 +49,17 @@ async def chamar_ia_com_fallback_claude(
 
         inicio = time.monotonic()
         try:
-            # Tarefa 18.2 ("PROMPT MESTRE — SALE-IA V2"): este e o unico
-            # caminho de chamada de IA que nao passa por api.ai_router
-            # .chamar_ia (onde PROMPT_INJECTION_GUARD_TEXT ja e anexado
-            # automaticamente) — precisa do mesmo reforco aqui.
+            # Tarefas 18.2/21 ("PROMPT MESTRE — SALE-IA V2"): este e o
+            # unico caminho de chamada de IA que nao passa por api.ai_router
+            # .chamar_ia (onde PROMPT_INJECTION_GUARD_TEXT/
+            # ADVERSARIAL_SALES_GUARD_TEXT ja sao anexados automaticamente)
+            # — precisa do mesmo reforco aqui.
             resultado = await claude_account_executor.execute(
                 usuario_id=usuario_id,
-                prompt=f"{system_prompt}{PROMPT_INJECTION_GUARD_TEXT}\n\n{user_content}",
+                prompt=(
+                    f"{system_prompt}{PROMPT_INJECTION_GUARD_TEXT}"
+                    f"{ADVERSARIAL_SALES_GUARD_TEXT}\n\n{user_content}"
+                ),
                 timeout=45.0,
             )
         except Exception as fallback_exc:

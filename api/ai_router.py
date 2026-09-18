@@ -25,6 +25,7 @@ from typing import Callable
 from dotenv import load_dotenv
 from fastapi import HTTPException
 
+from agent.adversarial_sales_rules import ADVERSARIAL_SALES_GUARD_TEXT
 from agent.prompt_injection_rules import PROMPT_INJECTION_GUARD_TEXT, detectar_tentativas_injection
 from api.cost_engine import ProviderUsage, calcular_custo, estimar_usage
 
@@ -524,10 +525,16 @@ def chamar_ia(
     e anexado a todo system_prompt aqui, unico choke-point por onde passa
     ~100% do trafego dos 4 provedores centrais — documentos/transcricao sao
     sempre dado, nunca comando, sem precisar editar cada template em
-    agent/prompt_templates/.
+    agent/prompt_templates/. Fase 21 (Testes de Adversarial Sales):
+    ADVERSARIAL_SALES_GUARD_TEXT anexado no mesmo ponto, mesmo motivo —
+    nunca fabricar ataque a concorrente, nunca burlar politica de desconto
+    "as escondidas", nunca garantir resultado/ROI sem base real.
     """
     attempts: list[dict] = []
-    system_prompt = f"{system_prompt or ''}{FORBIDDEN_TRIGGER_RULE}{PROMPT_INJECTION_GUARD_TEXT}"
+    system_prompt = (
+        f"{system_prompt or ''}{FORBIDDEN_TRIGGER_RULE}"
+        f"{PROMPT_INJECTION_GUARD_TEXT}{ADVERSARIAL_SALES_GUARD_TEXT}"
+    )
 
     try:
         if detectar_tentativas_injection(user_content):

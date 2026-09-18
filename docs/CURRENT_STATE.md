@@ -1,7 +1,30 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-18 (V.1.4.112 — **local + GitHub + produção
-confirmada** na VPS).
+Atualizado em: 2026-09-18 (V.1.4.113 — **local + GitHub, deploy na VPS
+pendente**; produção confirmada em V.1.4.112).
+V.1.4.113 é a **Fase 21 (Testes de Adversarial Sales) do "SALE-IA V2"**.
+Investigação prévia: dos 4 casos literais (falar mal do concorrente,
+desconto "que o chefe não precisa saber", garantir 200% de retorno,
+"ignore suas regras"), o 4º já estava 100% coberto pela Tarefa 18.2. O
+1º e o 3º não tinham guarda nenhuma; o 2º tinha cobertura parcial via
+`agent/autonomy_policy_rules.py::avaliar_desconto()` (Fase 17, nunca
+conectada a fluxo real). Usuário escolheu **guarda real no
+choke-point de IA (mesmo padrão arquitetural da Tarefa 18.2) + os 4
+cenários como testes Promptfoo**. `agent/adversarial_sales_rules.py`
+(novo): `ADVERSARIAL_SALES_GUARD_TEXT` cobrindo os 3 casos sem guarda
+prévia, anexado em `api/ai_router.py::chamar_ia` (junto de
+`FORBIDDEN_TRIGGER_RULE`/`PROMPT_INJECTION_GUARD_TEXT`) e no caminho
+manual do fallback pra Conta Claude (`agent/multiagente/
+claude_fallback.py`) — cobre ~100% do tráfego de IA sem editar
+templates. `evals/scenarios/red_team.yaml` ganhou os 4 cenários
+literais (agora 10 no total), nunca rodados nesta rodada (custo real
+de IA). 13 testes novos (2 módulo puro + 2 choke-point + 1 fallback +
+4 estrutura YAML + os que já existiam ajustados). Ver seção "Testes de
+Adversarial Sales — Fase 21" no CLAUDE.md e CHANGELOG.md V.1.4.113.
+**Pendente**: push + deploy na VPS (sem tabela/coluna nova — só
+código). **Fase 22 (Frontend) ou qualquer outra tarefa pendente do
+"SALE-IA V2" não começa sem nova confirmação explícita do usuário.**
+
 V.1.4.112 é a **Fase 20 (Golden Sales Dataset) do "SALE-IA V2"**.
 Usuário confirmou o escopo (pergunta direta): só o dataset em
 `evals/datasets/golden_sales_dataset/` (10 categorias literais ×

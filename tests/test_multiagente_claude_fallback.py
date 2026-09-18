@@ -190,6 +190,33 @@ class ChamarIaComFallbackClaudeTest(unittest.TestCase):
         _, kwargs = mock_execute.call_args
         self.assertIn(PROMPT_INJECTION_GUARD_TEXT, kwargs["prompt"])
 
+    def test_prompt_do_fallback_inclui_guarda_de_adversarial_sales(self):
+        """Fase 21 ("PROMPT MESTRE — SALE-IA V2"): mesmo motivo do teste
+        acima (Tarefa 18.2) — este e o unico caminho de IA que nao passa
+        por api.ai_router.chamar_ia, precisa do mesmo reforco."""
+        from agent.adversarial_sales_rules import ADVERSARIAL_SALES_GUARD_TEXT
+
+        conexao = {"status": "ativo", "oauth_token_encrypted": "cripto"}
+        with patch(
+            "agent.multiagente.claude_fallback.chamar_ia_async",
+            new=AsyncMock(side_effect=HTTPException(status_code=503, detail="fora do ar")),
+        ):
+            with patch("agent.claude_account.claude_pilot_habilitado", return_value=True):
+                with patch("api.database.obter_claude_connection", return_value=conexao):
+                    with patch(
+                        "agent.claude_account.claude_account_executor.execute",
+                        new=AsyncMock(return_value={"ok": True, "_custo_real_usd": 0.01}),
+                    ) as mock_execute:
+                        with patch("api.database.registrar_evento_uso_ia"):
+                            with patch(
+                                "services.observability.factory.get_observability_provider",
+                                return_value=MagicMock(),
+                            ):
+                                self._run(usuario_id="user-a")
+
+        _, kwargs = mock_execute.call_args
+        self.assertIn(ADVERSARIAL_SALES_GUARD_TEXT, kwargs["prompt"])
+
 
 if __name__ == "__main__":
     unittest.main()
