@@ -3,6 +3,60 @@
 
 ---
 
+## V.1.4.112 — Golden Sales Dataset, Fase 20 do "PROMPT MESTRE — SALE-IA V2"
+
+> Data: 18/09/2026 | Local + GitHub, deploy na VPS pendente
+
+### CONTEXTO
+Usuário confirmou avançar para a Fase 20. Texto literal do prompt
+mestre pede um dataset versionado de avaliação, 10 categorias
+(`discovery`/`qualification`/`pricing`/`objections`/`negotiation`/
+`closing`/`lost deal`/`won deal`/`bad seller behavior`/`good seller
+behavior`) e 6 campos por cenário (`INPUT`/`EXPECTED FACTS`/
+`EXPECTED EVENTS`/`EXPECTED FRAMEWORK`/`ACCEPTABLE ACTIONS`/`FORBIDDEN
+ACTIONS`), nunca com dado pessoal real desnecessário.
+
+Investigação prévia: já existe um Golden Dataset
+(`evals/datasets/sales_reasoning/`, Fase 7/V.1.4.85, 52 cenários) —
+schema diferente (`context` + Promptfoo `llm-rubric`) e propósito mais
+estreito (só o `SalesReasoningEngine`). Usuário escolheu "só o dataset
+(3-5 cenários/categoria), sem conectar a nenhum Promptfoo
+provider/runner" — mesma disciplina "contrato primeiro" do resto do
+roadmap.
+
+### O que foi construído
+- **`evals/datasets/golden_sales_dataset/`** (novo diretório): 10
+  arquivos YAML (1 por categoria literal) + `README.md` com schema
+  completo e versionamento (**v1.0.0**). 4 cenários por categoria —
+  40 no total, todos sintéticos (nenhum dado pessoal real).
+- `expected_events` usa só os 14 tipos de `SALES_EVENT_TYPES` (Fase
+  1); `expected_framework` usa só os 9 valores de
+  `SALES_REASONING_FRAMEWORKS` (Fase 7) ou `null`; `objections.yaml`
+  referencia as 13 categorias de `OBJECTION_TIPOS` (Fase 6.1),
+  incluindo o exemplo de espelhamento-sem-investigação (objeção falada
+  `PRICE`, causa raiz real `ADOPTION`).
+- **`tests/test_golden_sales_dataset.py`** (novo, 12 testes): valida
+  estrutura via `yaml.safe_load` — categorias/contagem/campos
+  obrigatórios/IDs únicos/vocabulário fechado. Nunca chama IA.
+- `PyYAML` adicionado ao `requirements.txt` (pinado explicitamente).
+
+### Decisão deliberada de escopo
+- Sem provider/config Promptfoo novo, sem custo de IA, sem alimentar
+  as 6 métricas da Tarefa 19.1 com dado real ainda — decisão de escopo
+  separada.
+
+### Testes
+- 12 testes novos. Suite completa sem regressão.
+
+### Pendente
+- Push + deploy na VPS (sem tabela/coluna nova — `pip install` pega o
+  `PyYAML` novo).
+- **Qualquer fase seguinte do "PROMPT MESTRE — SALE-IA V2" (Fase 21 —
+  Testes de Adversarial Sales, ou voltar à Tarefa 19.1 com dado real)
+  não começa sem nova confirmação explícita do usuário.**
+
+---
+
 ## V.1.4.111 — Quality Monitoring, Fase 19 / Tarefa 19.1 do "PROMPT MESTRE — SALE-IA V2"
 
 > Data: 18/09/2026 | Local + GitHub + VPS confirmada em produção

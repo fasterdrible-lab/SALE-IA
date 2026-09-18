@@ -1,0 +1,74 @@
+# Golden Sales Dataset (Fase 20) — categoria "pricing"
+# Ver README.md do diretório para o schema completo e as taxonomias
+# fechadas (SALES_EVENT_TYPES / SALES_REASONING_FRAMEWORKS).
+
+- id: "pricing-01"
+  description: "Cliente pergunta preço cedo demais, antes de qualquer dor mapeada — deve redirecionar sem ignorar a pergunta"
+  input: |
+    Cliente: "Antes da gente continuar, só me diz de cara quanto custa isso."
+  expected_facts:
+    - campo: "estagio_da_conversa"
+      valor: "ainda em discovery, sem dor/impacto mapeado"
+      evidence_quote: "Antes da gente continuar, só me diz de cara quanto custa isso"
+  expected_events:
+    - "PRICE_DISCUSSION"
+  expected_framework: "SPIN_PROBLEM"
+  acceptable_actions:
+    - "Reconhecer a pergunta com transparência (nunca fingir não ouvir) e explicar que o valor varia conforme escopo, propondo entender a necessidade primeiro para dar um número que faça sentido"
+  forbidden_actions:
+    - "Ignorar a pergunta do cliente completamente"
+    - "Inventar um preço genérico só para não perder a venda, sem contexto nenhum"
+
+- id: "pricing-02"
+  description: "Preço apresentado após dor/impacto mapeados — deve ancorar no valor, não só no número"
+  input: |
+    Vendedor: "Com base no que conversamos, o investimento fica em R$ 4.500 por mês."
+    Cliente: "Ok, entendi o valor."
+  expected_facts:
+    - campo: "ticket"
+      valor: "R$ 4.500/mês"
+      evidence_quote: "o investimento fica em R$ 4.500 por mês"
+  expected_events:
+    - "PRICE_DISCUSSION"
+  expected_framework: "RISK_MITIGATION"
+  acceptable_actions:
+    - "Reconectar o valor ao impacto financeiro já quantificado antes pelo próprio cliente (ex.: 'isso é menos do que a oportunidade perdida que vocês mencionaram')"
+  forbidden_actions:
+    - "Deixar o preço solto sem nenhuma conexão com o impacto discutido antes"
+    - "Oferecer desconto de forma proativa sem o cliente ter manifestado objeção"
+
+- id: "pricing-03"
+  description: "Objeção de preço logo após apresentar o valor — nunca virar desconto automático (regra central do prompt mestre)"
+  input: |
+    Vendedor: "Fica R$ 4.500 por mês, considerando tudo que conversamos."
+    Cliente: "Está caro."
+  expected_facts:
+    - campo: "objecao_levantada"
+      valor: "preço percebido como alto, sem detalhamento do motivo ainda"
+      evidence_quote: "Está caro"
+  expected_events:
+    - "OBJECTION_RAISED"
+  expected_framework: "OBJECTION_INVESTIGATION"
+  acceptable_actions:
+    - "Investigar a causa raiz antes de reagir com concessão: comparado com o quê, falta de orçamento, falta de percepção de valor, etc."
+  forbidden_actions:
+    - "Oferecer desconto imediato (ex.: 'posso fazer 20% agora') como primeira resposta"
+    - "Assumir sem investigar que o motivo é falta de orçamento"
+
+- id: "pricing-04"
+  description: "Causa raiz da objeção de preço já investigada — agora pode negociar de verdade"
+  input: |
+    Cliente: "Na real não é o valor em si, é que a gente não tem certeza se a equipe vai realmente usar isso no dia a dia."
+    Vendedor: "Entendi, então o risco real é adoção interna, não o investimento."
+  expected_facts:
+    - campo: "root_cause_objecao"
+      valor: "risco de adoção pela equipe, não o valor do investimento"
+      evidence_quote: "não é o valor em si, é que a gente não tem certeza se a equipe vai realmente usar isso no dia a dia"
+  expected_events:
+    - "OBJECTION_RESOLVED"
+  expected_framework: "RISK_MITIGATION"
+  acceptable_actions:
+    - "Propor mitigar o risco de adoção (ex.: onboarding assistido, período de teste) em vez de mexer só no preço"
+  forbidden_actions:
+    - "Voltar a oferecer desconto para um problema que não é sobre preço"
+    - "Ignorar o risco de adoção real levantado pelo cliente"

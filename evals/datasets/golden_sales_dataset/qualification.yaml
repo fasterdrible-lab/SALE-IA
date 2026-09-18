@@ -1,0 +1,79 @@
+# Golden Sales Dataset (Fase 20) — categoria "qualification"
+# Ver README.md do diretório para o schema completo e as taxonomias
+# fechadas (SALES_EVENT_TYPES / SALES_REASONING_FRAMEWORKS).
+
+- id: "qualification-01"
+  description: "Economic buyer não identificado — deve investigar quem decide, não assumir que é o interlocutor"
+  input: |
+    Vendedor: "E pra fechar algo assim, além de você, mais alguém participa da decisão?"
+    Cliente: "Eu levanto a demanda, mas quem assina o contrato de fato é o meu sócio."
+  expected_facts:
+    - campo: "economic_buyer"
+      valor: "sócio do interlocutor, não o próprio interlocutor"
+      evidence_quote: "quem assina o contrato de fato é o meu sócio"
+  expected_events:
+    - "DECISION_MAKER_IDENTIFIED"
+  expected_framework: "MEDDPICC_QUALIFICATION"
+  acceptable_actions:
+    - "Perguntar se é possível incluir o sócio numa próxima conversa"
+    - "Perguntar quais critérios o sócio costuma usar para aprovar esse tipo de investimento"
+  forbidden_actions:
+    - "Tratar o interlocutor atual como se fosse o decisor final"
+    - "Avançar para proposta de fechamento sem envolver quem realmente aprova"
+
+- id: "qualification-02"
+  description: "Champion identificado, mas métricas de sucesso ainda não mapeadas"
+  input: |
+    Cliente: "Eu realmente acho que isso resolveria nosso problema, vou defender internamente com o financeiro."
+    Vendedor: "Perfeito. E hoje, como vocês medem se uma iniciativa desse tipo deu certo?"
+    Cliente: "Boa pergunta... acho que nunca definimos isso formalmente."
+  expected_facts:
+    - campo: "champion"
+      valor: "interlocutor se colocou como defensor interno da solução"
+      evidence_quote: "vou defender internamente com o financeiro"
+    - campo: "metrics"
+      valor: "ainda não definidas pelo cliente"
+      evidence_quote: "acho que nunca definimos isso formalmente"
+  expected_events:
+    - "CHAMPION_IDENTIFIED"
+  expected_framework: "MEDDPICC_QUALIFICATION"
+  acceptable_actions:
+    - "Ajudar o cliente a definir 1-2 métricas objetivas de sucesso antes de seguir para proposta"
+  forbidden_actions:
+    - "Inventar uma métrica de sucesso em nome do cliente sem ele confirmar"
+    - "Assumir que o champion tem autoridade de compra só por estar disposto a defender a solução"
+
+- id: "qualification-03"
+  description: "Orçamento mencionado de forma vaga — deve confirmar faixa real, não travar a conversa nem inflar expectativa"
+  input: |
+    Vendedor: "Vocês já têm uma verba reservada pra esse tipo de investimento esse trimestre?"
+    Cliente: "Não é um valor fechado, mas o financeiro já sinalizou que tem espaço se fizer sentido."
+  expected_facts:
+    - campo: "budget"
+      valor: "sem valor fechado, mas espaço orçamentário sinalizado pelo financeiro"
+      evidence_quote: "o financeiro já sinalizou que tem espaço se fizer sentido"
+  expected_events:
+    - "BUDGET_IDENTIFIED"
+  expected_framework: "MEDDPICC_QUALIFICATION"
+  acceptable_actions:
+    - "Perguntar qual costuma ser a faixa de investimento aprovada para iniciativas parecidas, sem exigir número exato"
+  forbidden_actions:
+    - "Tratar 'tem espaço' como orçamento confirmado e formal"
+    - "Pressionar o cliente a comprometer um valor específico nesse momento"
+
+- id: "qualification-04"
+  description: "Processo de decisão desconhecido — MEDDPICC incompleto mesmo com champion e budget mapeados"
+  input: |
+    Vendedor: "E depois que o financeiro aprova, como costuma ser o passo seguinte até assinar?"
+    Cliente: "Aí não sei te dizer certo, acho que passa por jurídico também, mas nunca acompanhei esse fluxo de perto."
+  expected_facts:
+    - campo: "decision_process"
+      valor: "desconhecido pelo próprio interlocutor, possivelmente envolve jurídico"
+      evidence_quote: "acho que passa por jurídico também, mas nunca acompanhei esse fluxo de perto"
+  expected_events: []
+  expected_framework: "MEDDPICC_QUALIFICATION"
+  acceptable_actions:
+    - "Sugerir buscar, junto com o champion, quem no jurídico/financeiro poderia confirmar o processo real de aprovação"
+  forbidden_actions:
+    - "Assumir um processo de decisão padrão (ex.: 'geralmente é rápido') sem confirmação"
+    - "Recomendar avançar para fechamento com o processo de decisão ainda desconhecido"

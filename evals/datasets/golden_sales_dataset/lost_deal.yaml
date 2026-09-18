@@ -1,0 +1,74 @@
+# Golden Sales Dataset (Fase 20) — categoria "lost deal"
+# Ver README.md do diretório para o schema completo e as taxonomias
+# fechadas (SALES_EVENT_TYPES / SALES_REASONING_FRAMEWORKS).
+
+- id: "lost-deal-01"
+  description: "Cliente comunica perda explícita para concorrente — registrar motivo real, nunca especular"
+  input: |
+    Cliente: "Vamos seguir com o outro fornecedor, eles tinham um módulo que vocês não tinham."
+  expected_facts:
+    - campo: "loss_reason"
+      valor: "gap de funcionalidade (módulo específico ausente)"
+      evidence_quote: "eles tinham um módulo que vocês não tinham"
+    - campo: "competitor"
+      valor: "mencionado, mas nome não identificado nesta fala"
+      evidence_quote: "Vamos seguir com o outro fornecedor"
+  expected_events:
+    - "DEAL_LOST"
+  expected_framework: null
+  acceptable_actions:
+    - "Agradecer a transparência, registrar o motivo real (gap de funcionalidade) e perguntar se pode manter contato para o futuro"
+  forbidden_actions:
+    - "Inventar um motivo de perda diferente do que o cliente disse (ex.: assumir que foi preço, sem confirmação)"
+    - "Insistir/pressionar depois que a decisão já foi comunicada como final"
+
+- id: "lost-deal-02"
+  description: "Oportunidade parada há muito tempo sem resposta — deal estagnado antes de ser oficialmente perdido"
+  input: |
+    Histórico: última interação registrada há 45 dias, 3 tentativas de contato sem resposta do cliente desde então.
+  expected_facts:
+    - campo: "dias_desde_ultima_atividade"
+      valor: "45 dias, 3 tentativas de follow-up sem resposta"
+      evidence_quote: "3 tentativas de contato sem resposta do cliente desde então"
+  expected_events:
+    - "DEAL_STALLED"
+  expected_framework: null
+  acceptable_actions:
+    - "Registrar DEAL_STALLED (não DEAL_LOST ainda — não houve comunicação explícita de recusa)"
+    - "Tentar um último contato de baixo esforço para o cliente (ex.: pergunta objetiva de sim/não)"
+  forbidden_actions:
+    - "Classificar como DEAL_LOST sem uma comunicação explícita de recusa do cliente"
+    - "Continuar follow-up insistente e frequente sem variar a abordagem"
+
+- id: "lost-deal-03"
+  description: "Perda por falta de orçamento real, não por insatisfação com a proposta"
+  input: |
+    Cliente: "A proposta de vocês era a que eu mais gostei, mas simplesmente não temos verba esse ano."
+  expected_facts:
+    - campo: "loss_reason"
+      valor: "falta de orçamento, não insatisfação com a solução"
+      evidence_quote: "não temos verba esse ano"
+  expected_events:
+    - "DEAL_LOST"
+  expected_framework: null
+  acceptable_actions:
+    - "Perguntar se faz sentido reabrir a conversa no próximo ciclo orçamentário e registrar isso como follow-up futuro"
+  forbidden_actions:
+    - "Registrar o motivo de perda como 'não gostou da proposta' quando o cliente disse o contrário"
+    - "Oferecer desconto agressivo na hora para tentar reverter uma restrição orçamentária real da empresa do cliente"
+
+- id: "lost-deal-04"
+  description: "Perda por decisão interna de não fazer nada (status quo), não por perder para concorrente"
+  input: |
+    Cliente: "No fim, decidimos não mudar nada por enquanto, vamos continuar como está."
+  expected_facts:
+    - campo: "loss_reason"
+      valor: "decisão de manter status quo, sem concorrente envolvido"
+      evidence_quote: "decidimos não mudar nada por enquanto, vamos continuar como está"
+  expected_events:
+    - "DEAL_LOST"
+  expected_framework: null
+  acceptable_actions:
+    - "Registrar o motivo real (status quo) — distinto de perder para concorrente, informação útil para análise futura de win/loss"
+  forbidden_actions:
+    - "Classificar automaticamente como perda para concorrente quando não houve nenhuma menção a um concorrente"

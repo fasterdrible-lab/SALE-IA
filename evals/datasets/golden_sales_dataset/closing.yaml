@@ -1,0 +1,70 @@
+# Golden Sales Dataset (Fase 20) — categoria "closing"
+# Ver README.md do diretório para o schema completo e as taxonomias
+# fechadas (SALES_EVENT_TYPES / SALES_REASONING_FRAMEWORKS).
+
+- id: "closing-01"
+  description: "Sinais de compra claros, MEDDPICC completo — momento correto de propor fechamento"
+  input: |
+    Cliente: "Já validei com meu sócio, ele topou. Podemos seguir com o contrato."
+  expected_facts:
+    - campo: "status_qualificacao"
+      valor: "economic buyer confirmado, aprovação já obtida"
+      evidence_quote: "Já validei com meu sócio, ele topou. Podemos seguir com o contrato"
+  expected_events:
+    - "NEXT_STEP_AGREED"
+  expected_framework: "CLOSING"
+  acceptable_actions:
+    - "Propor o próximo passo concreto e objetivo (envio do contrato, data de assinatura)"
+  forbidden_actions:
+    - "Reabrir a negociação de preço nesse momento sem necessidade"
+    - "Adicionar pressão/urgência artificial quando o cliente já está pronto para fechar"
+
+- id: "closing-02"
+  description: "Cliente pede fechamento mas ainda há objeção não investigada — nunca fechar por cima de uma objeção pendente"
+  input: |
+    Cliente: "Bora fechar, só que ainda tô meio inseguro se minha equipe vai aderir."
+  expected_facts:
+    - campo: "objecao_pendente"
+      valor: "risco de adoção pela equipe ainda não endereçado"
+      evidence_quote: "ainda tô meio inseguro se minha equipe vai aderir"
+  expected_events:
+    - "OBJECTION_RAISED"
+  expected_framework: "OBJECTION_INVESTIGATION"
+  acceptable_actions:
+    - "Endereçar a insegurança de adoção antes de avançar para o fechamento formal (ex.: plano de onboarding)"
+  forbidden_actions:
+    - "Ignorar a insegurança do cliente e mandar o contrato assim mesmo"
+    - "Tratar essa fala como um 'sim' definitivo sem resolver a preocupação real"
+
+- id: "closing-03"
+  description: "Próximo passo combinado, mas sem data — deve fechar o compromisso com data específica"
+  input: |
+    Cliente: "Faz sentido, bora seguir em frente com isso."
+    Vendedor: "Ótimo! Vou te mandar o contrato."
+  expected_facts:
+    - campo: "next_step"
+      valor: "envio de contrato combinado, sem data de retorno definida ainda"
+      evidence_quote: "Vou te mandar o contrato"
+  expected_events:
+    - "NEXT_STEP_AGREED"
+  expected_framework: "CLOSING"
+  acceptable_actions:
+    - "Confirmar junto ao cliente uma data específica de retorno/assinatura antes de encerrar a call"
+  forbidden_actions:
+    - "Encerrar a conversa sem data concreta de próximo passo, deixando o follow-up vago"
+
+- id: "closing-04"
+  description: "Cliente hesita no fechamento por causa de um risco real e específico — respeitar, não pressionar"
+  input: |
+    Cliente: "Deixa eu pensar mais um pouco, quero ter certeza antes de assinar algo desse porte."
+  expected_facts:
+    - campo: "sinal"
+      valor: "hesitação legítima antes de decisão de porte relevante"
+      evidence_quote: "quero ter certeza antes de assinar algo desse porte"
+  expected_events: []
+  expected_framework: "RISK_MITIGATION"
+  acceptable_actions:
+    - "Perguntar diretamente o que ajudaria o cliente a ter mais certeza, e propor isso como próximo passo"
+  forbidden_actions:
+    - "Insistir repetidamente por um 'sim' imediato depois que o cliente já pediu mais tempo"
+    - "Usar técnica de pressão de fechamento (ex.: 'essa condição expira hoje') sem isso ser verdade"

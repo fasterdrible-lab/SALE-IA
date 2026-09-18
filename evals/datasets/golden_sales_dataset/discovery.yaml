@@ -1,0 +1,84 @@
+# Golden Sales Dataset (Fase 20) — categoria "discovery"
+# Ver README.md do diretório para o schema completo e as taxonomias
+# fechadas (SALES_EVENT_TYPES / SALES_REASONING_FRAMEWORKS).
+
+- id: "discovery-01"
+  description: "Abertura de call — nenhum dado estruturado ainda, vendedor não deve presumir dor"
+  input: |
+    Vendedor: "Antes de mais nada, me conta um pouco de como funciona o processo comercial de vocês hoje?"
+    Cliente: "Olha, a gente é uma distribuidora de peças, tem uns 8 vendedores externos, cada um com sua carteira."
+    Vendedor: "Entendi. E como vocês acompanham as oportunidades em aberto?"
+    Cliente: "Hoje é mais ou menos no boca a boca mesmo, cada vendedor sabe da carteira dele."
+  expected_facts:
+    - campo: "team_size"
+      valor: "8 vendedores externos"
+      evidence_quote: "tem uns 8 vendedores externos, cada um com sua carteira"
+    - campo: "crm_tool"
+      valor: "nenhuma ferramenta formal, controle informal por vendedor"
+      evidence_quote: "é mais ou menos no boca a boca mesmo, cada vendedor sabe da carteira dele"
+  expected_events: []
+  expected_framework: "SPIN_SITUATION"
+  acceptable_actions:
+    - "Continuar mapeando a situação atual (tamanho de equipe, processo, ferramentas) antes de qualquer outra coisa"
+    - "Perguntar como as informações de cada vendedor são compartilhadas com a liderança"
+  forbidden_actions:
+    - "Presumir que a ausência de CRM já é uma dor confirmada sem o cliente verbalizar isso"
+    - "Pular para apresentação de proposta/preço nesta fase"
+
+- id: "discovery-02"
+  description: "Situação já mapeada, dor ainda não verbalizada — deve investigar problema, não implicação"
+  input: |
+    Vendedor: "Já entendi como funciona hoje. E teve algum caso recente de oportunidade que vocês perderam o timing?"
+    Cliente: "Teve sim, mês passado um vendedor esqueceu de retornar um cliente grande e a gente só ficou sabendo quando o cliente já tinha fechado com concorrente."
+  expected_facts:
+    - campo: "main_pain"
+      valor: "follow-up perdido por falta de controle centralizado"
+      evidence_quote: "um vendedor esqueceu de retornar um cliente grande e a gente só ficou sabendo quando o cliente já tinha fechado com concorrente"
+  expected_events:
+    - "PAIN_DETECTED"
+  expected_framework: "SPIN_PROBLEM"
+  acceptable_actions:
+    - "Aprofundar o problema: perguntar com que frequência isso acontece, não só o caso único"
+    - "Registrar PAIN_DETECTED com a evidência literal da fala do cliente"
+  forbidden_actions:
+    - "Pular direto para SPIN_IMPLICATION/custo financeiro sem primeiro confirmar que o problema é recorrente"
+    - "Inventar uma frequência (\"isso deve acontecer toda semana\") que o cliente não disse"
+
+- id: "discovery-03"
+  description: "Problema confirmado, impacto financeiro ainda não quantificado — deve investigar implicação"
+  input: |
+    Cliente: "Isso acontece bem mais do que eu gostaria, acho que uns 2 ou 3 casos por mês só nessa equipe."
+    Vendedor: "E vocês já pararam pra calcular quanto isso representa em oportunidades perdidas?"
+    Cliente: "Nunca calculei certinho, mas imagino que seja bastante coisa."
+  expected_facts:
+    - campo: "financial_impact"
+      valor: "ainda não quantificado pelo cliente"
+      evidence_quote: "Nunca calculei certinho, mas imagino que seja bastante coisa"
+  expected_events:
+    - "IMPACT_IDENTIFIED"
+  expected_framework: "SPIN_IMPLICATION"
+  acceptable_actions:
+    - "Ajudar o cliente a estimar o impacto (ex.: ticket médio × 2-3 casos/mês) para tornar o custo tangível"
+  forbidden_actions:
+    - "Afirmar um valor financeiro específico que o próprio cliente não calculou nem confirmou"
+    - "Avançar para apresentação de solução antes do cliente sentir o peso do problema"
+
+- id: "discovery-04"
+  description: "Impacto já sentido pelo cliente — deve investigar need-payoff (valor da solução), não repetir a dor"
+  input: |
+    Cliente: "Pensando bem, só esse mês perdemos pelo menos uns 15 mil em vendas que a gente sabe que existiam."
+    Vendedor: "Se vocês tivessem um jeito de nunca perder o rastro de uma oportunidade, o que isso mudaria pra equipe?"
+    Cliente: "Ia mudar tudo, a gente ia conseguir vender muito mais sem precisar contratar mais gente."
+  expected_facts:
+    - campo: "solution_value"
+      valor: "crescer vendas sem aumentar quadro de vendedores"
+      evidence_quote: "a gente ia conseguir vender muito mais sem precisar contratar mais gente"
+  expected_events:
+    - "BUYING_SIGNAL"
+  expected_framework: "SPIN_NEED_PAYOFF"
+  acceptable_actions:
+    - "Deixar o próprio cliente articular o valor da solução, sem o vendedor entregar pronto"
+    - "Registrar o sinal de compra e começar a mapear próximos passos de qualificação (decisor, orçamento)"
+  forbidden_actions:
+    - "Voltar a insistir no problema já confirmado em vez de avançar"
+    - "Tratar essa fala como fechamento — ainda falta qualificação (MEDDPICC) antes de propor fechamento"

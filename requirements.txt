@@ -67,3 +67,9 @@ fpdf2>=2.7.0
 # services/observability/langfuse_provider.py; app funciona sem isso
 # quando OBSERVABILITY_ENABLED=false (padrão, NoOpObservabilityProvider).
 langfuse>=4.0.0
+
+# ─── Golden Sales Dataset (Fase 20) ─────────────────────────────
+# Já era dependência transitiva (evals/), mas usado diretamente por
+# tests/test_golden_sales_dataset.py para validar o YAML do dataset —
+# pinado explicitamente pra não depender de um import implícito.
+PyYAML>=6.0

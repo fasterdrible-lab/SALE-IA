@@ -1,0 +1,73 @@
+# Golden Sales Dataset (Fase 20) — categoria "won deal"
+# Ver README.md do diretório para o schema completo e as taxonomias
+# fechadas (SALES_EVENT_TYPES / SALES_REASONING_FRAMEWORKS).
+
+- id: "won-deal-01"
+  description: "Fechamento confirmado com valor e produto claros — registrar outcome completo"
+  input: |
+    Cliente: "Contrato assinado! Fechamos o plano completo por R$ 4.500/mês."
+  expected_facts:
+    - campo: "outcome_value"
+      valor: "R$ 4.500/mês"
+      evidence_quote: "Fechamos o plano completo por R$ 4.500/mês"
+    - campo: "product"
+      valor: "plano completo"
+      evidence_quote: "Fechamos o plano completo"
+  expected_events:
+    - "DEAL_WON"
+  expected_framework: null
+  acceptable_actions:
+    - "Confirmar os próximos passos de onboarding/implementação"
+    - "Registrar o outcome completo (valor, produto, ciclo) para alimentar análise futura de win/loss"
+  forbidden_actions:
+    - "Deixar de registrar o valor e produto reais do fechamento"
+    - "Prometer algo novo fora do escopo já negociado só para comemorar o fechamento"
+
+- id: "won-deal-02"
+  description: "Ciclo de venda longo, mas fechado com sucesso — outcome deve registrar o ciclo, não só o resultado"
+  input: |
+    Histórico: primeira interação há 68 dias; hoje, cliente confirmou assinatura do contrato.
+  expected_facts:
+    - campo: "cycle_days"
+      valor: "68 dias entre primeira interação e fechamento"
+      evidence_quote: "primeira interação há 68 dias; hoje, cliente confirmou assinatura do contrato"
+  expected_events:
+    - "DEAL_WON"
+  expected_framework: null
+  acceptable_actions:
+    - "Registrar o ciclo de venda completo como dado de análise (não é motivo pra alarme nem para comemoração exagerada — é só o dado real)"
+  forbidden_actions:
+    - "Ignorar o tempo real de ciclo ao registrar o resultado"
+
+- id: "won-deal-03"
+  description: "Fechamento após negociação de escopo — outcome deve refletir o que foi realmente fechado, não a proposta original"
+  input: |
+    Cliente: "Fechado! Só que no final ficou sem o módulo de relatórios, tudo bem assim mesmo."
+  expected_facts:
+    - campo: "product"
+      valor: "plano sem o módulo de relatórios (fechado com escopo reduzido em relação à proposta original)"
+      evidence_quote: "ficou sem o módulo de relatórios, tudo bem assim mesmo"
+  expected_events:
+    - "DEAL_WON"
+  expected_framework: null
+  acceptable_actions:
+    - "Registrar o escopo real fechado, não o da proposta inicial"
+  forbidden_actions:
+    - "Registrar o outcome com o escopo original da proposta, ignorando a mudança combinada na negociação"
+
+- id: "won-deal-04"
+  description: "Fechamento com indicação — champion se torna referência para outros clientes"
+  input: |
+    Cliente: "Fechado. E olha, tenho um parceiro que também tem esse mesmo problema, posso te apresentar."
+  expected_facts:
+    - campo: "outcome_adicional"
+      valor: "cliente ofereceu indicação espontânea após o fechamento"
+      evidence_quote: "tenho um parceiro que também tem esse mesmo problema, posso te apresentar"
+  expected_events:
+    - "DEAL_WON"
+    - "BUYING_SIGNAL"
+  expected_framework: null
+  acceptable_actions:
+    - "Agradecer e registrar a indicação como próximo passo separado, sem misturar com o fechamento atual"
+  forbidden_actions:
+    - "Pressionar por mais indicações imediatamente, antes mesmo de concluir o fechamento em andamento"

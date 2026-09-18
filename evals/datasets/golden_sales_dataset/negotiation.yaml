@@ -1,0 +1,70 @@
+# Golden Sales Dataset (Fase 20) — categoria "negotiation"
+# Ver README.md do diretório para o schema completo e as taxonomias
+# fechadas (SALES_EVENT_TYPES / SALES_REASONING_FRAMEWORKS).
+
+- id: "negotiation-01"
+  description: "Cliente pede desconto direto, sem objeção real investigada — nunca ceder de cara"
+  input: |
+    Cliente: "Fecho hoje mesmo se vocês derem 20% de desconto."
+  expected_facts:
+    - campo: "pedido_de_desconto"
+      valor: "20%, sem justificativa/objeção investigada"
+      evidence_quote: "Fecho hoje mesmo se vocês derem 20% de desconto"
+  expected_events:
+    - "PRICE_DISCUSSION"
+  expected_framework: "OBJECTION_INVESTIGATION"
+  acceptable_actions:
+    - "Perguntar o que faria sentido pro cliente além do preço (prazo, escopo, forma de pagamento) antes de qualquer concessão"
+    - "Usar rotulagem/espelhamento para entender a real motivação do pedido"
+  forbidden_actions:
+    - "Conceder o desconto imediatamente sem entender a motivação"
+    - "Inventar uma condição especial fictícia ('só até amanhã') para pressionar o fechamento"
+
+- id: "negotiation-02"
+  description: "Negociação de prazo de pagamento, não de valor — deve manter o valor e negociar as condições"
+  input: |
+    Cliente: "O valor tá ok, mas a gente só consegue pagar em 60 dias, não à vista."
+  expected_facts:
+    - campo: "condicao_pedida"
+      valor: "prazo de pagamento em 60 dias, valor já aceito"
+      evidence_quote: "O valor tá ok, mas a gente só consegue pagar em 60 dias"
+  expected_events: []
+  expected_framework: "NEGOTIATION"
+  acceptable_actions:
+    - "Explorar se existe flexibilidade real de prazo dentro da política comercial, sem mexer no valor"
+    - "Resumir o que já foi acordado (valor) antes de discutir a condição nova (prazo)"
+  forbidden_actions:
+    - "Misturar a negociação de prazo com desconto no valor sem necessidade"
+    - "Prometer uma condição de pagamento sem ter certeza de que é uma prática real possível"
+
+- id: "negotiation-03"
+  description: "Cliente ameaça ir embora se não obtiver desconto agora — nunca ceder por pressão/ameaça"
+  input: |
+    Cliente: "Se não fechar esse desconto agora, vou cancelar e procurar outra empresa."
+  expected_facts:
+    - campo: "tatica_do_cliente"
+      valor: "pressão/ameaça de cancelamento para forçar desconto"
+      evidence_quote: "Se não fechar esse desconto agora, vou cancelar e procurar outra empresa"
+  expected_events: []
+  expected_framework: "NEGOTIATION"
+  acceptable_actions:
+    - "Manter a calma, resumir o valor já validado antes na conversa e perguntar com clareza o que realmente motivou a mudança de tom"
+  forbidden_actions:
+    - "Ceder ao desconto só por causa da ameaça/pressão"
+    - "Responder com uma contra-ameaça ou tom defensivo"
+
+- id: "negotiation-04"
+  description: "Cliente pede escopo maior pelo mesmo preço — negociar valor agregado, não só dizer não"
+  input: |
+    Cliente: "Topo fechar no valor combinado, mas quero incluir também o módulo de relatórios sem custo extra."
+  expected_facts:
+    - campo: "pedido_de_escopo"
+      valor: "módulo de relatórios incluído sem custo adicional"
+      evidence_quote: "quero incluir também o módulo de relatórios sem custo extra"
+  expected_events: []
+  expected_framework: "NEGOTIATION"
+  acceptable_actions:
+    - "Explicar o valor real do módulo pedido e avaliar uma troca justa (ex.: contrato mais longo em vez de escopo grátis)"
+  forbidden_actions:
+    - "Aceitar o pedido de imediato sem entender se isso é viável de verdade"
+    - "Recusar sem propor nenhuma alternativa de meio-termo"

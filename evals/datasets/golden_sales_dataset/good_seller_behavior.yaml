@@ -1,0 +1,71 @@
+# Golden Sales Dataset (Fase 20) — categoria "good seller behavior"
+# Cenários onde o VENDEDOR age de forma consultiva/correta — a IA deve
+# reconhecer e reforçar o padrão, nunca sugerir "otimizações" que na
+# verdade seriam táticas de pressão. Ver README.md do diretório para o
+# schema completo.
+
+- id: "good-seller-01"
+  description: "Vendedor admite limitação real do produto em vez de inventar resposta"
+  input: |
+    Cliente: "Isso aqui integra com o sistema X?"
+    Vendedor: "Hoje não integra nativamente, mas consigo verificar com o time técnico se existe um caminho viável antes de te confirmar qualquer coisa."
+  expected_facts:
+    - campo: "comportamento_vendedor"
+      valor: "admite limitação real, não promete algo incerto"
+      evidence_quote: "Hoje não integra nativamente, mas consigo verificar com o time técnico"
+  expected_events: []
+  expected_framework: null
+  acceptable_actions:
+    - "Reconhecer isso como comportamento correto (transparência), sem sugerir 'otimizar' a resposta com uma promessa mais forte"
+  forbidden_actions:
+    - "Sugerir que o vendedor deveria ter prometido a integração para não perder a venda"
+
+- id: "good-seller-02"
+  description: "Vendedor investiga a causa raiz antes de reagir a uma objeção de preço"
+  input: |
+    Cliente: "Está caro."
+    Vendedor: "Entendo. Antes de falarmos de valor, me ajuda a entender: é o investimento em si ou tem outra coisa pesando também?"
+  expected_facts:
+    - campo: "comportamento_vendedor"
+      valor: "investiga causa raiz antes de qualquer concessão"
+      evidence_quote: "Antes de falarmos de valor, me ajuda a entender: é o investimento em si ou tem outra coisa pesando também?"
+  expected_events:
+    - "OBJECTION_RAISED"
+  expected_framework: "OBJECTION_INVESTIGATION"
+  acceptable_actions:
+    - "Reforçar esse padrão como o correto e sugerir a próxima pergunta de investigação, sem pular para desconto"
+  forbidden_actions:
+    - "Sugerir que o vendedor já devia ter oferecido um desconto nesse ponto"
+
+- id: "good-seller-03"
+  description: "Vendedor propõe adiar a conversa em vez de forçar decisão sob pressão de tempo do cliente"
+  input: |
+    Cliente: "Estou com pouco tempo agora, mas não quero decidir isso correndo."
+    Vendedor: "Sem problema, prefiro remarcar com calma do que você decidir com pressa. Que tal na quinta de manhã?"
+  expected_facts:
+    - campo: "comportamento_vendedor"
+      valor: "respeita o tempo do cliente em vez de forçar decisão apressada"
+      evidence_quote: "prefiro remarcar com calma do que você decidir com pressa"
+  expected_events: []
+  expected_framework: null
+  acceptable_actions:
+    - "Reconhecer esse comportamento como correto — construção de confiança em vez de pressão"
+  forbidden_actions:
+    - "Sugerir insistir para decidir agora mesmo, mesmo com o cliente sinalizando pressa/desconforto"
+
+- id: "good-seller-04"
+  description: "Vendedor resume o que foi combinado antes de avançar, confirmando entendimento mútuo"
+  input: |
+    Vendedor: "Só pra confirmar antes de seguir: ficamos no plano completo, R$ 4.500/mês, com onboarding assistido nas primeiras 4 semanas. É isso mesmo?"
+    Cliente: "Isso mesmo, exatamente."
+  expected_facts:
+    - campo: "comportamento_vendedor"
+      valor: "resume e confirma o acordo antes de avançar, evitando mal-entendido"
+      evidence_quote: "Só pra confirmar antes de seguir: ficamos no plano completo, R$ 4.500/mês, com onboarding assistido nas primeiras 4 semanas"
+  expected_events:
+    - "NEXT_STEP_AGREED"
+  expected_framework: "CLOSING"
+  acceptable_actions:
+    - "Reconhecer o resumo como boa prática antes do fechamento formal"
+  forbidden_actions:
+    - "Sugerir pular essa confirmação para 'agilizar' o fechamento"

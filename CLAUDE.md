@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.111** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.112** (backend, local — ainda não deployada; produção confirmada em V.1.4.111) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -2791,9 +2791,74 @@ honestidade já usada nos 2 gaps da Fase 19
   GitHub. `reunioes_ativas: 0` checado antes do `git pull` e antes do
   `systemctl restart saleia` — `active`, journal sem erros.
   Pós-restart: `/health` = `versao 1.4.111`, `status online`, 4
-  provedores `ok`; `/dashboard` = `200`. **Fase 20 (Golden Sales
-  Dataset) e qualquer fase seguinte do "PROMPT MESTRE — SALE-IA V2"
-  não começam sem nova confirmação explícita do usuário.**
+  provedores `ok`; `/dashboard` = `200`.
+
+## Golden Sales Dataset — Fase 20 do "PROMPT MESTRE — SALE-IA V2" (V.1.4.112)
+
+Usuário confirmou avançar para a Fase 20. Texto literal do prompt
+mestre pede um dataset versionado de avaliação, com 10 categorias
+(`discovery`/`qualification`/`pricing`/`objections`/`negotiation`/
+`closing`/`lost deal`/`won deal`/`bad seller behavior`/`good seller
+behavior`) e 6 campos por cenário (`INPUT`/`EXPECTED FACTS`/
+`EXPECTED EVENTS`/`EXPECTED FRAMEWORK`/`ACCEPTABLE ACTIONS`/`FORBIDDEN
+ACTIONS`), nunca com dado pessoal real desnecessário.
+
+**Investigação prévia (antes de perguntar escopo)**: já existe um
+Golden Dataset (`evals/datasets/sales_reasoning/`, Fase 7/V.1.4.85, 52
+cenários) — mas com schema diferente (`context` + campos estruturados
++ `llm-rubric` via Promptfoo) e propósito mais estreito (avaliar só o
+`SalesReasoningEngine`). A Fase 20 pede algo mais amplo, com o schema
+literal próprio. Usuário escolheu **só o dataset (3-5 cenários por
+categoria), sem conectar a nenhum Promptfoo provider/runner** — mesma
+disciplina "contrato primeiro" do resto do roadmap; nenhum custo de IA
+nesta rodada.
+
+- **`evals/datasets/golden_sales_dataset/`** (novo diretório): 10
+  arquivos YAML (1 por categoria literal) + `README.md` com o schema
+  completo e versionamento (**v1.0.0**, 18/09/2026) — 4 cenários por
+  categoria (não um mínimo definido pelo prompt mestre, diferente da
+  Fase 7 que tinha "mínimo 50" explícito; decisão desta rodada: cobrir
+  o caso comum + pelo menos 1 caso de risco/`FORBIDDEN ACTIONS`
+  realista por categoria, sem inflar com cenários rasos). **40
+  cenários no total**, todos sintéticos (nomes/empresas fictícios,
+  nenhum dado pessoal real).
+- **Vocabulário fechado reaproveitado, nunca reinventado**:
+  `expected_events` usa só os 14 tipos literais de
+  `agent/sales_event_rules.py::SALES_EVENT_TYPES` (Fase 1);
+  `expected_framework` usa só os 9 valores de
+  `agent/sales_reasoning_engine.py::SALES_REASONING_FRAMEWORKS` (Fase
+  7) ou `null` quando o cenário é sobre resultado/comportamento (não
+  sobre qual pergunta fazer a seguir — ex.: `lost_deal`/`won_deal`/
+  `bad_seller_behavior`); `objections.yaml` referencia as 13
+  categorias de `agent/objection_rules.py::OBJECTION_TIPOS` (Fase 6.1)
+  dentro de `expected_facts`, incluindo o exemplo do
+  espelhamento-sem-investigação já usado em `objection_investigation.
+  yaml` (Fase 7): objeção falada como `PRICE`, causa raiz real
+  `ADOPTION`.
+- **`tests/test_golden_sales_dataset.py`** (novo, 12 testes): valida
+  estrutura via `yaml.safe_load` — as 10 categorias existem, 4
+  cenários cada, 40 no total, todos os 8 campos presentes em cada
+  cenário, IDs únicos no dataset inteiro, `expected_events`/
+  `expected_framework` só usam vocabulário fechado,
+  `acceptable_actions`/`forbidden_actions`/`input` nunca vazios.
+  **Nunca chama IA nem roda Promptfoo** — validação puramente
+  estrutural, mesmo espírito de "YAML validado com `yaml.safe_load`"
+  já usado pro dataset da Fase 7.
+- **`PyYAML` adicionado ao `requirements.txt`** — já era dependência
+  transitiva (via `evals/`), pinada explicitamente porque agora é
+  importada diretamente pelo teste novo.
+- **Decisão deliberada de escopo**: sem provider/config Promptfoo
+  novo, sem custo de IA, sem alimentar as 6 métricas da Tarefa 19.1
+  com dado real ainda — isso ficou marcado como decisão de escopo
+  separada nas opções apresentadas ao usuário; quando alguém decidir
+  rodar isto de verdade, vai precisar de um provider novo que traduza
+  este schema pra chamadas reais contra o pipeline.
+- Versão: `1.4.111` → `1.4.112`.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — `pip
+  install` pega o `PyYAML` novo). **Qualquer fase seguinte do "PROMPT
+  MESTRE — SALE-IA V2" (Fase 21 — Testes de Adversarial Sales, ou
+  voltar à Tarefa 19.1 com dado real) não começa sem nova confirmação
+  explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

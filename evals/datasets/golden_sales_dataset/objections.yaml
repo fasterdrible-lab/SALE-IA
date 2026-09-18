@@ -1,0 +1,74 @@
+# Golden Sales Dataset (Fase 20) — categoria "objections"
+# Referencia as 13 categorias de agent/objection_rules.py::OBJECTION_TIPOS.
+# Ver README.md do diretório para o schema completo.
+
+- id: "objections-01"
+  description: "Objeção de confiança (TRUST) — cliente nunca ouviu falar da empresa"
+  input: |
+    Cliente: "Olha, sinceramente eu nunca ouvi falar de vocês antes, isso me deixa meio receoso."
+  expected_facts:
+    - campo: "objection_spoken"
+      valor: "categoria TRUST"
+      evidence_quote: "nunca ouvi falar de vocês antes, isso me deixa meio receoso"
+  expected_events:
+    - "OBJECTION_RAISED"
+  expected_framework: "OBJECTION_INVESTIGATION"
+  acceptable_actions:
+    - "Oferecer prova social concreta (cases, clientes parecidos com ele) em vez de só afirmar que a empresa é confiável"
+    - "Perguntar o que especificamente traria mais segurança pra ele"
+  forbidden_actions:
+    - "Inventar cases ou números que não foram fornecidos como dado real ao vendedor/IA"
+    - "Minimizar a preocupação do cliente ('pode confiar, é tranquilo') sem endereçar o motivo real"
+
+- id: "objections-02"
+  description: "Objeção de concorrente (COMPETITOR) — cliente já está em negociação com outro fornecedor"
+  input: |
+    Cliente: "A gente já está conversando com outro fornecedor também, então vamos comparar."
+  expected_facts:
+    - campo: "objection_spoken"
+      valor: "categoria COMPETITOR"
+      evidence_quote: "já está conversando com outro fornecedor também, então vamos comparar"
+  expected_events:
+    - "COMPETITOR_MENTIONED"
+  expected_framework: "OBJECTION_INVESTIGATION"
+  acceptable_actions:
+    - "Perguntar o que é mais importante para o cliente na comparação, sem atacar diretamente o concorrente"
+  forbidden_actions:
+    - "Falar mal do concorrente sem ter informação real sobre ele"
+    - "Prometer verbalmente algo que o produto não faz só para vencer a comparação"
+
+- id: "objections-03"
+  description: "Objeção de timing (TIMING) — momento errado, não recusa real"
+  input: |
+    Cliente: "Sinceramente, adorei a proposta, mas agora não é uma boa hora, estamos no meio de outro projeto."
+  expected_facts:
+    - campo: "objection_spoken"
+      valor: "categoria TIMING"
+      evidence_quote: "agora não é uma boa hora, estamos no meio de outro projeto"
+  expected_events:
+    - "OBJECTION_RAISED"
+  expected_framework: "OBJECTION_INVESTIGATION"
+  acceptable_actions:
+    - "Entender quando o outro projeto termina e propor um próximo passo concreto pra essa data, sem pressionar pra fechar agora"
+  forbidden_actions:
+    - "Criar senso de urgência falso ('essa condição só vale hoje') para forçar decisão imediata"
+    - "Desistir do lead sem agendar um próximo contato real"
+
+- id: "objections-04"
+  description: "Falsa objeção de preço mascarando risco de implementação (ADOPTION) — regra central: nunca aceitar rótulo literal sem investigar"
+  input: |
+    Cliente: "Está caro pra gente agora."
+    Vendedor: "Entendi. Só pra eu entender melhor, é o valor mesmo ou tem mais alguma coisa pesando na decisão?"
+    Cliente: "Na real, tenho medo da minha equipe não usar isso no dia a dia."
+  expected_facts:
+    - campo: "objection_spoken"
+      valor: "categoria PRICE (fala literal), mas root cause é ADOPTION"
+      evidence_quote: "tenho medo da minha equipe não usar isso no dia a dia"
+  expected_events:
+    - "OBJECTION_RAISED"
+    - "OBJECTION_RESOLVED"
+  expected_framework: "RISK_MITIGATION"
+  acceptable_actions:
+    - "Tratar a causa raiz real (adoção) com plano de onboarding/acompanhamento, não descontar o preço"
+  forbidden_actions:
+    - "Aceitar 'está caro' pelo valor de face e já oferecer desconto sem investigar (exemplo PROIBIDO literal do prompt mestre)"
