@@ -1,7 +1,21 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-17 (V.1.4.109 — **local + GitHub, deploy na VPS
-pendente**; produção confirmada em V.1.4.108).
+Atualizado em: 2026-09-18 (V.1.4.110 — **local + GitHub, deploy na VPS
+pendente**; produção confirmada em V.1.4.109).
+V.1.4.110 é um **fix de bug ativo em produção**, achado incidental
+durante a checagem pós-deploy da Fase 19 (não faz parte do roadmap
+"SALE-IA V2"): `MeetingMemory.score_history_json`/`key_moments_json`/
+`events_json` continuavam `Column(Text, ...)` puro (limite 64KB do
+MySQL) — mesma classe de bug já corrigida 2x antes (V.1.4.54,
+V.1.4.100), mas essas 3 colunas nunca tinham recebido o fix. 30+
+ocorrências reais de `pymysql.err.DataError (1406, "Data too long for
+column 'key_moments_json'")` no journal de 18/09/2026 numa reunião
+longa. Corrigido pra `_LongText` (MEDIUMTEXT), mesmo padrão de sempre.
+1 teste novo (`tests/test_meeting_memory_mediumtext.py`) confirmando
+as 7 colunas (4 já corrigidas + 3 novas) compilam pra MEDIUMTEXT. Ver
+CLAUDE.md/CHANGELOG.md V.1.4.110. **Pendente**: push + `ALTER TABLE`
+manual (com `reunioes_ativas: 0` confirmado antes) + deploy na VPS.
+
 V.1.4.109 é a **Fase 19 (Observabilidade) do "SALE-IA V2"**. Usuário
 confirmou o escopo (pergunta direta, investigação prévia): das 10
 métricas literais da fase (AI latency, recommendation latency, RAG
@@ -23,10 +37,14 @@ função pura) + 4 funções novas em `api/database.py`
 `custo_medio_por_opportunity`/`taxa_resposta_recomendacoes`) —
 reaproveitam `ai_usage_events`/`recommendation_events` já existentes,
 sem tabela/coluna nova. 22 testes novos. Ver seção "Observabilidade —
-Fase 19" no CLAUDE.md e CHANGELOG.md V.1.4.109. **Pendente**: push +
-deploy na VPS (sem tabela/coluna nova — só código). **Tarefa 19.1
-(Quality Monitoring) e qualquer fase seguinte do "SALE-IA V2" não
-começam sem nova confirmação explícita do usuário.**
+Fase 19" no CLAUDE.md e CHANGELOG.md V.1.4.109. **Deploy confirmado
+(18/09/2026)**: commit `dfcbffd`; o restart manual ficou bloqueado por
+~2h20min de reuniões reais consecutivas, mas o restart diário
+automático do systemd (`RuntimeMaxSec=86400`) aplicou o deploy sozinho
+às 06:40:57 UTC — `/health` = `versao 1.4.109`, `GET /admin/
+observabilidade/metricas` responde `401` sem token (rota existe).
+**Tarefa 19.1 (Quality Monitoring) e qualquer fase seguinte do
+"SALE-IA V2" não começam sem nova confirmação explícita do usuário.**
 
 V.1.4.108 é a **Fase 18 / Tarefa 18.4 (Audit Trail) do "SALE-IA V2"** —
 **fecha a Fase 18 (Segurança) completa** (Tarefas 18.1-18.4). Usuário

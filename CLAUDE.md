@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.109** (backend, local — ainda não deployada; produção confirmada em V.1.4.108) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.110** (backend, local — ainda não deployada; produção confirmada em V.1.4.109) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -2668,10 +2668,60 @@ escopo" do roadmap.
   autorização do endpoint e os gaps nunca virando número inventado).
   Suite completa sem regressão.
 - Versão: `1.4.108` → `1.4.109`.
-- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — só
-  código). **Tarefa 19.1 (Quality Monitoring) e qualquer fase
-  seguinte do "PROMPT MESTRE — SALE-IA V2" não começam sem nova
-  confirmação explícita do usuário.**
+- **Push + deploy confirmados (18/09/2026)**: commit `dfcbffd` no
+  GitHub. `git pull` aplicado com `reunioes_ativas: 1` (seguro, só
+  arquivos em disco); o `systemctl restart saleia` manual ficou
+  bloqueado por ~2h20min de reuniões reais consecutivas, mas o
+  **restart diário automático** do systemd (`RuntimeMaxSec=86400`, já
+  documentado desde V.1.4.27) aplicou o deploy sozinho às 06:40:57 UTC
+  de 18/09/2026. Pós-restart: `/health` = `versao 1.4.109`, `status
+  online`; `GET /admin/observabilidade/metricas` responde `401` sem
+  token (confirma que a rota nova existe e a app carregou certo);
+  `/dashboard` = `200`.
+- **Tarefa 19.1 (Quality Monitoring) e qualquer fase seguinte do
+  "PROMPT MESTRE — SALE-IA V2" não começam sem nova confirmação
+  explícita do usuário.**
+
+## Fix: key_moments_json/score_history_json/events_json estourando TEXT (V.1.4.110)
+
+Achado incidental durante a checagem pós-deploy da Fase 19 (não parte
+do roadmap "SALE-IA V2") — `journalctl` das últimas 4h mostrou 30+
+ocorrências de `pymysql.err.DataError (1406, "Data too long for
+column 'key_moments_json'")` numa reunião real em andamento em
+18/09/2026. Usuário confirmou corrigir imediatamente.
+
+- **Causa raiz — mesma classe de bug já corrigida 2x neste projeto**
+  (V.1.4.54 `texto_extraido`/`sections_json`; V.1.4.100
+  `transcript_full`/`transcript_buffer`/`accumulated_summary`/
+  `current_diagnosis`): colunas `TEXT` do MySQL truncam em 64KB.
+  `api/database.py::MeetingMemory.score_history_json`/
+  `key_moments_json`/`events_json` continuavam `Column(Text, ...)`
+  puro — nunca tinham recebido o fix `_LongText`
+  (`Text().with_variant(MEDIUMTEXT, "mysql")`) aplicado às outras 4
+  colunas da mesma tabela em V.1.4.100. Uma reunião comum nunca
+  acumulava JSON longo o bastante (score/momentos-chave/eventos
+  crescem 1 entrada por análise), mas reuniões muito longas conseguem
+  estourar isso, igual já aconteceu com `transcript_full`.
+  `score_history_json`/`events_json` nunca chegaram a estourar de
+  verdade ainda (só `key_moments_json` apareceu no journal), mas usam
+  exatamente o mesmo padrão de crescimento — corrigidas juntas,
+  preventivamente, em vez de esperar cada uma estourar separadamente.
+- **`api/database.py::MeetingMemory`**: as 3 colunas passam a usar
+  `_LongText` — mesmo símbolo já definido no topo do arquivo desde
+  V.1.4.54, reaproveitado, não redefinido.
+- **`tests/test_meeting_memory_mediumtext.py`** (novo): confirma que
+  as 7 colunas JSON longas de `MeetingMemory` (as 4 já corrigidas +
+  as 3 novas) compilam para `MEDIUMTEXT` sob o dialeto MySQL — nunca
+  reproduz o bug de verdade (SQLite não tem o limite de 64KB), só
+  impede uma edição futura de reintroduzir `Text` puro sem perceber.
+- **Decisão deliberada**: `create_all()` não migra coluna em tabela
+  já existente (mesmo motivo de sempre) — precisa de `ALTER TABLE
+  meeting_memory MODIFY score_history_json MEDIUMTEXT, MODIFY
+  key_moments_json MEDIUMTEXT, MODIFY events_json MEDIUMTEXT` manual
+  na VPS, com `reunioes_ativas: 0` confirmado antes, mesma disciplina
+  de V.1.4.54/V.1.4.100.
+- Versão: `1.4.109` → `1.4.110`.
+- **Pendente**: push + `ALTER TABLE` manual + deploy na VPS.
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

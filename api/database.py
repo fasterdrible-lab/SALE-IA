@@ -109,9 +109,15 @@ class MeetingMemory(SQLModel, table=True):
     transcript_buffer: str = Field(default="", sa_column=Column(_LongText, nullable=False))
     accumulated_summary: str = Field(default="", sa_column=Column(_LongText, nullable=False))
     current_diagnosis: str = Field(default="", sa_column=Column(_LongText, nullable=False))
-    score_history_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
-    key_moments_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
-    events_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    # Mesmo fix ja aplicado 2x neste projeto (V.1.4.54, V.1.4.100): TEXT do
+    # MySQL trunca em 64KB. Achado real em producao (18/09/2026) — uma
+    # reuniao longa estourou key_moments_json ("Data too long for column
+    # 'key_moments_json'"); score_history_json/events_json crescem pelo
+    # mesmo mecanismo (acumulam 1 entrada por analise da reuniao) e nunca
+    # tinham recebido o fix, so descobertos junto nesta rodada.
+    score_history_json: str = Field(default="[]", sa_column=Column(_LongText, nullable=False))
+    key_moments_json: str = Field(default="[]", sa_column=Column(_LongText, nullable=False))
+    events_json: str = Field(default="[]", sa_column=Column(_LongText, nullable=False))
     last_ai_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
     last_recap_trigger_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
     provider_cost_estimate: float = Field(default=0.0, sa_column=Column(Float, nullable=False))
