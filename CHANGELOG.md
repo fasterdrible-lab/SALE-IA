@@ -5,7 +5,7 @@
 
 ## V.1.4.112 — Golden Sales Dataset, Fase 20 do "PROMPT MESTRE — SALE-IA V2"
 
-> Data: 18/09/2026 | Local + GitHub, deploy na VPS pendente
+> Data: 18/09/2026 | Local + GitHub + VPS confirmada em produção
 
 ### CONTEXTO
 Usuário confirmou avançar para a Fase 20. Texto literal do prompt
@@ -48,9 +48,13 @@ roadmap.
 ### Testes
 - 12 testes novos. Suite completa sem regressão.
 
-### Pendente
-- Push + deploy na VPS (sem tabela/coluna nova — `pip install` pega o
-  `PyYAML` novo).
+### Deploy
+- **Push + deploy confirmados (18/09/2026)**: commit `d4cff17` no
+  GitHub. `reunioes_ativas: 0` checado antes do `git pull`/`pip
+  install` e antes do `systemctl restart saleia` (`PyYAML` já estava
+  satisfeito como dependência transitiva, `pip check` limpo) —
+  `active`, journal sem erros. Pós-restart: `/health` = `versao
+  1.4.112`, `status online`, 4 provedores `ok`; `/dashboard` = `200`.
 - **Qualquer fase seguinte do "PROMPT MESTRE — SALE-IA V2" (Fase 21 —
   Testes de Adversarial Sales, ou voltar à Tarefa 19.1 com dado real)
   não começa sem nova confirmação explícita do usuário.**

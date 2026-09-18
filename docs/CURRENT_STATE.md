@@ -1,7 +1,7 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-18 (V.1.4.112 — **local + GitHub, deploy na VPS
-pendente**; produção confirmada em V.1.4.111).
+Atualizado em: 2026-09-18 (V.1.4.112 — **local + GitHub + produção
+confirmada** na VPS).
 V.1.4.112 é a **Fase 20 (Golden Sales Dataset) do "SALE-IA V2"**.
 Usuário confirmou o escopo (pergunta direta): só o dataset em
 `evals/datasets/golden_sales_dataset/` (10 categorias literais ×
@@ -17,11 +17,13 @@ pessoal real). `expected_events` usa só o vocabulário fechado de
 via `yaml.safe_load` — nunca chamam IA. `PyYAML` adicionado ao
 `requirements.txt` (pinado explicitamente, antes só dependência
 transitiva). Ver seção "Golden Sales Dataset — Fase 20" no CLAUDE.md e
-CHANGELOG.md V.1.4.112. **Pendente**: push + deploy na VPS (sem
-tabela/coluna nova — `pip install` pega o `PyYAML` novo). **Qualquer
-fase seguinte do "SALE-IA V2" (Fase 21 — Testes de Adversarial Sales,
-ou voltar à Tarefa 19.1 com dado real) não começa sem nova confirmação
-explícita do usuário.**
+CHANGELOG.md V.1.4.112. **Deploy confirmado (18/09/2026)**: commit
+`d4cff17`, `reunioes_ativas: 0` checado antes do `git pull`/`pip
+install` e antes do restart — `/health` = `versao 1.4.112`, `status
+online`, 4 provedores `ok`; `/dashboard` = `200`; journal sem erros.
+**Qualquer fase seguinte do "SALE-IA V2" (Fase 21 — Testes de
+Adversarial Sales, ou voltar à Tarefa 19.1 com dado real) não começa
+sem nova confirmação explícita do usuário.**
 
 V.1.4.111 é a **Tarefa 19.1 (Quality Monitoring) do "SALE-IA V2"**.
 Investigação prévia (antes de perguntar escopo): as 6 métricas

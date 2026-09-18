@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.112** (backend, local — ainda não deployada; produção confirmada em V.1.4.111) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.112** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -2854,11 +2854,15 @@ nesta rodada.
   rodar isto de verdade, vai precisar de um provider novo que traduza
   este schema pra chamadas reais contra o pipeline.
 - Versão: `1.4.111` → `1.4.112`.
-- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — `pip
-  install` pega o `PyYAML` novo). **Qualquer fase seguinte do "PROMPT
-  MESTRE — SALE-IA V2" (Fase 21 — Testes de Adversarial Sales, ou
-  voltar à Tarefa 19.1 com dado real) não começa sem nova confirmação
-  explícita do usuário.**
+- **Push + deploy confirmados (18/09/2026)**: commit `d4cff17` no
+  GitHub. `reunioes_ativas: 0` checado antes do `git pull`/`pip
+  install` e de novo antes do `systemctl restart saleia` (`PyYAML` já
+  estava satisfeito como dependência transitiva, `pip check` limpo) —
+  `active`, journal sem erros. Pós-restart: `/health` = `versao
+  1.4.112`, `status online`, 4 provedores `ok`; `/dashboard` = `200`.
+  **Qualquer fase seguinte do "PROMPT MESTRE — SALE-IA V2" (Fase 21 —
+  Testes de Adversarial Sales, ou voltar à Tarefa 19.1 com dado real)
+  não começa sem nova confirmação explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 
