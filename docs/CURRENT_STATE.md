@@ -1,7 +1,7 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-18 (V.1.4.111 — **local + GitHub, deploy na VPS
-pendente**; produção confirmada em V.1.4.110).
+Atualizado em: 2026-09-18 (V.1.4.111 — **local + GitHub + produção
+confirmada** na VPS).
 V.1.4.111 é a **Tarefa 19.1 (Quality Monitoring) do "SALE-IA V2"**.
 Investigação prévia (antes de perguntar escopo): as 6 métricas
 literais (event_precision, objection_precision, framework_accuracy,
@@ -20,9 +20,12 @@ nomeadas pelas métricas literais (`calcular_event_precision`/
 explícito documentando o gap). **Sem endpoint HTTP** (decisão
 deliberada desta rodada — as 6 métricas retornariam só o gap hoje).
 16 testes novos. Ver seção "Quality Monitoring — Tarefa 19.1" no
-CLAUDE.md e CHANGELOG.md V.1.4.111. **Pendente**: push + deploy na VPS
-(sem tabela/coluna nova — só código). **Fase 20 (Golden Sales
-Dataset) e qualquer fase seguinte do "SALE-IA V2" não começam sem
+CLAUDE.md e CHANGELOG.md V.1.4.111. **Deploy confirmado (18/09/2026)**:
+commit `c1f5cf2`, `reunioes_ativas: 0` checado antes do `git pull` e
+do restart — `/health` = `versao 1.4.111`, `status online`, 4
+provedores `ok`; `/dashboard` = `200`; journal sem erros. **Fase 20
+(Golden Sales Dataset) e qualquer fase seguinte do "SALE-IA V2" não
+começam sem
 nova confirmação explícita do usuário.**
 
 V.1.4.110 é um **fix de bug ativo em produção**, achado incidental

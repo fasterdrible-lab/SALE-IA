@@ -5,7 +5,7 @@
 
 ## V.1.4.111 — Quality Monitoring, Fase 19 / Tarefa 19.1 do "PROMPT MESTRE — SALE-IA V2"
 
-> Data: 18/09/2026 | Local + GitHub, deploy na VPS pendente
+> Data: 18/09/2026 | Local + GitHub + VPS confirmada em produção
 
 ### CONTEXTO
 Usuário confirmou avançar para a Tarefa 19.1. Texto literal do prompt
@@ -54,8 +54,12 @@ disciplina de honestidade dos 2 gaps da Fase 19. Não construiu a Fase
 - 16 testes novos (`tests/test_quality_monitoring_rules.py`). Suite
   completa sem regressão.
 
-### Pendente
-- Push + deploy na VPS (sem tabela/coluna nova — só código).
+### Deploy
+- **Push + deploy confirmados (18/09/2026)**: commit `c1f5cf2` no
+  GitHub. `reunioes_ativas: 0` checado antes do `git pull` e antes do
+  `systemctl restart saleia` — `active`, journal sem erros.
+  Pós-restart: `/health` = `versao 1.4.111`, `status online`, 4
+  provedores `ok`; `/dashboard` = `200`.
 - **Fase 20 (Golden Sales Dataset) e qualquer fase seguinte do
   "PROMPT MESTRE — SALE-IA V2" não começam sem nova confirmação
   explícita do usuário.**

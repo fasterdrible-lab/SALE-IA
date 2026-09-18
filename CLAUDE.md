@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.111** (backend, local — ainda não deployada; produção confirmada em V.1.4.110) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.111** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.14** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -2787,10 +2787,13 @@ honestidade já usada nos 2 gaps da Fase 19
 - 16 testes novos (`tests/test_quality_monitoring_rules.py`). Suite
   completa sem regressão.
 - Versão: `1.4.110` → `1.4.111`.
-- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — só
-  código). **Fase 20 (Golden Sales Dataset) e qualquer fase seguinte
-  do "PROMPT MESTRE — SALE-IA V2" não começam sem nova confirmação
-  explícita do usuário.**
+- **Push + deploy confirmados (18/09/2026)**: commit `c1f5cf2` no
+  GitHub. `reunioes_ativas: 0` checado antes do `git pull` e antes do
+  `systemctl restart saleia` — `active`, journal sem erros.
+  Pós-restart: `/health` = `versao 1.4.111`, `status online`, 4
+  provedores `ok`; `/dashboard` = `200`. **Fase 20 (Golden Sales
+  Dataset) e qualquer fase seguinte do "PROMPT MESTRE — SALE-IA V2"
+  não começam sem nova confirmação explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 
