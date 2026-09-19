@@ -143,6 +143,83 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   // ─────────────────────────────────────────────
+  // CAPTURA DE ÁUDIO DA ABA (Whisper) — Fase 3 do PROMPT MESTRE
+  // Precisa ser disparada daqui: abrir o popup é o gesto que o Chrome
+  // reconhece como "invocar a extensão", liberando chrome.tabCapture
+  // pra aba ativa. Um botão dentro da própria página do Meet (content
+  // script) nunca satisfaz esse requisito — achado real, 19/09/2026.
+  // ─────────────────────────────────────────────
+  const capturaSecao = document.getElementById('popup-captura-secao');
+  const btnCapturaAudio = document.getElementById('btn-captura-audio');
+  const capturaFeedback = document.getElementById('captura-feedback');
+
+  function extrairMeetingId(url) {
+    var m = (url || '').match(/\/([a-z]{3}-[a-z]{4}-[a-z]{3})/i);
+    return m ? m[1] : null;
+  }
+
+  function atualizarBotaoCaptura(ativo) {
+    if (!btnCapturaAudio) return;
+    btnCapturaAudio.dataset.ativo = ativo ? '1' : '0';
+    btnCapturaAudio.textContent = ativo ? 'Parar captura de áudio' : 'Iniciar captura de áudio';
+  }
+
+  var abaMeetId = null;
+  var meetingIdAtual = null;
+
+  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+    var tab = tabs && tabs[0];
+    if (!tab || !tab.url || tab.url.indexOf('https://meet.google.com/') !== 0) return;
+    var meetingId = extrairMeetingId(tab.url);
+    if (!meetingId || !capturaSecao) return;
+
+    abaMeetId = tab.id;
+    meetingIdAtual = meetingId;
+    capturaSecao.style.display = 'block';
+
+    chrome.runtime.sendMessage({ tipo: 'statusCaptura' }, function (resp) {
+      if (chrome.runtime.lastError) return;
+      atualizarBotaoCaptura(!!(resp && resp.ativo));
+    });
+  });
+
+  if (btnCapturaAudio) {
+    btnCapturaAudio.addEventListener('click', function () {
+      var jaAtiva = btnCapturaAudio.dataset.ativo === '1';
+      btnCapturaAudio.disabled = true;
+      capturaFeedback.textContent = jaAtiva ? 'Parando...' : 'Iniciando...';
+      capturaFeedback.className = 'popup-feedback';
+
+      if (jaAtiva) {
+        chrome.runtime.sendMessage({ tipo: 'pararCaptura' }, function () {
+          btnCapturaAudio.disabled = false;
+          atualizarBotaoCaptura(false);
+          capturaFeedback.textContent = 'Captura parada.';
+          capturaFeedback.className = 'popup-feedback popup-feedback-success';
+        });
+        return;
+      }
+
+      chrome.runtime.sendMessage(
+        { tipo: 'iniciarCaptura', meeting_id: meetingIdAtual, tabId: abaMeetId },
+        function (resp) {
+          btnCapturaAudio.disabled = false;
+          if (chrome.runtime.lastError || !resp || !resp.ok) {
+            var erro = chrome.runtime.lastError ? chrome.runtime.lastError.message : (resp && resp.error);
+            capturaFeedback.textContent = 'Não foi possível iniciar: ' + (erro || 'erro desconhecido');
+            capturaFeedback.className = 'popup-feedback popup-feedback-error';
+            atualizarBotaoCaptura(false);
+            return;
+          }
+          atualizarBotaoCaptura(true);
+          capturaFeedback.textContent = 'Captura de áudio da aba ativa.';
+          capturaFeedback.className = 'popup-feedback popup-feedback-success';
+        }
+      );
+    });
+  }
+
+  // ─────────────────────────────────────────────
   // TOGGLE LIGAR/DESLIGAR API
   // ─────────────────────────────────────────────
   toggleAtivo.addEventListener('change', function () {

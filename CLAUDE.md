@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.114** (backend, local + GitHub — deploy na VPS pendente) · extensão Chrome **V.1.4.15** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.114** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -3008,6 +3008,18 @@ Steps.
   sem token (confirma que a rota nova existe).
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
+
+> **Fix real na V.1.4.16 (19/09/2026)**: o botão da sidebar pra
+> **iniciar** a captura da aba nunca funcionava de verdade em produção
+> — `chrome.tabCapture` exige que a extensão seja "invocada" por um
+> gesto que o Chrome reconhece (ícone da barra de ferramentas), e um
+> clique num botão injetado pela própria página do Meet nunca conta
+> como esse gesto. Corrigido movendo o início da captura pro
+> `popup.html` (abrir o popup já é o gesto válido); a sidebar continua
+> controlando o microfone e, ao parar, também encerra a captura da
+> aba. Ver seção própria da V.1.4.16 no CHANGELOG.md — texto abaixo
+> descreve a arquitetura original da Fase 3, ainda válida, exceto pelo
+> ponto de início.
 
 Complementa o Whisper Local: até V.1.4.6, o pipeline de áudio só
 capturava o **microfone do vendedor**; agora também captura o **áudio da

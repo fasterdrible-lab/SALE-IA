@@ -178,14 +178,25 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   // CAPTURA DE ÁUDIO — Whisper via tabCapture + offscreen
   // ─────────────────────────────────────────────
 
-  // Content script → iniciar captura de áudio da aba
+  // Popup → iniciar captura de áudio da aba. Precisa vir do popup (não
+  // de um content script) — só abrir o popup satisfaz o gesto que o
+  // Chrome exige pra liberar chrome.tabCapture (activeTab), achado real
+  // de 19/09/2026. sender.tab não existe quando a mensagem vem do
+  // popup, por isso msg.tabId é explícito nesse caso.
   if (msg.tipo === 'iniciarCaptura') {
-    const tabId = sender.tab ? sender.tab.id : null;
+    const tabId = (sender.tab && sender.tab.id) || msg.tabId || null;
     if (!tabId) { sendResponse({ ok: false, error: 'sem tabId' }); return true; }
     captaMeetingId = msg.meeting_id || 'default';
     handleIniciarCaptura(tabId).then(sendResponse).catch(function (e) {
       sendResponse({ ok: false, error: e.message });
     });
+    return true;
+  }
+
+  // Popup → status atual da captura de áudio da aba (pra restaurar o
+  // texto do botão ao reabrir o popup).
+  if (msg.tipo === 'statusCaptura') {
+    sendResponse({ ativo: capturaAtiva });
     return true;
   }
 

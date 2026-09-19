@@ -201,20 +201,14 @@
 
     // Fase 3 do PROMPT MESTRE ("Meetily") — captura o áudio da ABA
     // (participantes), via background.js + offscreen.js (chrome.tabCapture).
-    // Best-effort: se falhar, o microfone continua funcionando normalmente,
-    // só a voz do cliente não é coberta pelo Whisper (ainda coberta pelas
-    // legendas do Google, se o CC estiver ligado).
-    function iniciarCapturaAba() {
-      if (!chrome.runtime || !chrome.runtime.id) return;
-      chrome.runtime.sendMessage({ tipo: 'iniciarCaptura', meeting_id: MEETING_ID }, function (resp) {
-        if (chrome.runtime.lastError || !resp || !resp.ok) {
-          console.warn('[SALEIA] Captura do áudio da aba indisponível:', chrome.runtime.lastError ? chrome.runtime.lastError.message : (resp && resp.error));
-          return;
-        }
-        console.log('[SALEIA] Captura do áudio da aba iniciada.');
-      });
-    }
-
+    // Achado real (19/09/2026): chrome.tabCapture só libera acesso à aba
+    // quando a extensão é "invocada" por um gesto que o Chrome reconhece
+    // (ícone da barra de ferramentas) — um clique num botão injetado pela
+    // própria página (aqui) nunca satisfaz esse requisito e sempre falha
+    // com "Extension has not been invoked for the current page". Por
+    // isso INICIAR a captura da aba agora só acontece pelo popup.html
+    // (popup.js); a sidebar continua controlando só o microfone e, ao
+    // parar, também encerra a captura da aba se ela estiver ativa.
     function pararCapturaAba() {
       if (!chrome.runtime || !chrome.runtime.id) return;
       chrome.runtime.sendMessage({ tipo: 'pararCaptura' }, function () {
@@ -238,7 +232,6 @@
             btn.style.background = '#2d0a0a'; btn.style.borderColor = '#ff4444'; btn.style.color = '#ff4444';
             setAudioStatus('🎤 Whisper ativo — gravando...', '#00d4aa');
             iniciarCicloWhisper(); // ciclos de 15s com WebM completo a cada ciclo
-            iniciarCapturaAba(); // Fase 3: também captura o áudio da aba (participantes)
           })
           .catch(function (err) {
             btn.disabled = false;

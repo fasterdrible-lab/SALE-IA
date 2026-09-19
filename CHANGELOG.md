@@ -3,6 +3,74 @@
 
 ---
 
+## Extensão Chrome V.1.4.16 — fix: captura de áudio da aba nunca funcionava (tabCapture/activeTab)
+> Data: 19/09/2026 | Local, aguardando reinstalação manual da extensão
+
+Usuário reportou o erro real via DevTools numa reunião ativa: `[SALEIA]
+Captura do áudio da aba indisponível: tabCapture indisponível:
+Extension has not been invoked for the current page (see activeTab
+permission). Chrome pages cannot be captured.` — `content.js:211`.
+
+**Causa raiz (não era bug de código, é o modelo de segurança do
+Chrome)**: o botão "🎤 Capturar áudio (Whisper)" fica dentro da
+sidebar, um elemento HTML injetado pelo *content script* na própria
+página do Meet. Clicar nele mandava uma mensagem pro `background.js`,
+que chamava `chrome.tabCapture.getMediaStreamId({targetTabId})`. O
+Chrome só libera `tabCapture`/`activeTab` pra uma aba quando a
+extensão é "invocada" por um gesto que a plataforma reconhece — clicar
+no ícone da extensão na barra de ferramentas, um item de menu de
+contexto criado por ela, ou um atalho de teclado registrado por ela.
+Um clique num botão **dentro da página** nunca conta como esse gesto
+(por design — senão qualquer site poderia falsificar o clique). Essa
+era a primeira vez que essa feature (V.1.4.7, "Captura de áudio da
+aba", parte da Fase 3 do PROMPT MESTRE) era testada numa reunião real
+— o `CLAUDE.md` já registrava que só tinha sido validada
+estaticamente (`node --check`), nunca ao vivo.
+
+Usuário confirmou o caminho de correção: **mover o gatilho de início
+para o `popup.html`** (abrir o popup — clicar no ícone da extensão —
+já é o gesto que o Chrome reconhece, então `tabCapture` funciona a
+partir dali). A sidebar continua controlando o microfone e, ao
+"parar", também encerra a captura da aba se ela estiver ativa.
+
+- **`chrome-extension/popup.html`**: nova seção "🎤 Áudio da aba
+  (participantes)" — botão único que alterna entre "Iniciar captura de
+  áudio"/"Parar captura de áudio", oculta por padrão (`display:none`),
+  só aparece quando a aba ativa é uma reunião real do Meet.
+- **`chrome-extension/popup.js`**: ao abrir o popup, `chrome.tabs.
+  query({active:true, currentWindow:true})` identifica a aba ativa;
+  se for `meet.google.com` com um ID de reunião válido (mesmo regex
+  `/([a-z]{3}-[a-z]{4}-[a-z]{3})/i` que `content.js::obterMeetingId()`
+  já usava), a seção aparece e consulta `statusCaptura` (novo, ver
+  abaixo) pra restaurar o texto certo do botão ao reabrir o popup.
+  Clique envia `{tipo:'iniciarCaptura', meeting_id, tabId}` — `tabId`
+  explícito porque, vindo do popup, `sender.tab` não existe em
+  `background.js` (só existe quando a mensagem vem de um content
+  script).
+- **`chrome-extension/background.js`**: handler de `'iniciarCaptura'`
+  agora aceita `msg.tabId` como fallback de `sender.tab.id` (mesma
+  função `handleIniciarCaptura()`, sem mudança de lógica interna — só
+  de onde o `tabId` pode vir). Novo handler `'statusCaptura'` retorna
+  `{ativo: capturaAtiva}` (variável já existia, só nunca fora exposta).
+- **`chrome-extension/content.js`**: removida a chamada
+  `iniciarCapturaAba()` do clique do botão da sidebar (sempre falhava,
+  gerava o warning todo ciclo) — a função inteira foi removida, ficou
+  100% órfã. `pararCapturaAba()` foi mantida e continua chamada ao
+  clicar "parar" na sidebar, então um único botão ainda encerra
+  microfone + aba juntos, mesmo a aba tendo sido iniciada por outro
+  lugar (o popup).
+- Validado com `node --check` nos 3 arquivos — **fluxo do popup ainda
+  não testado ao vivo numa reunião real** (o achado original só foi
+  possível porque o usuário já estava numa reunião; o fix precisa da
+  mesma validação).
+- Versão: `1.4.15` → `1.4.16`.
+- **Pendente**: reinstalação manual da extensão + teste real numa
+  reunião do Meet (abrir o popup, clicar "Iniciar captura de áudio",
+  confirmar que `chrome.tabCapture.getMediaStreamId` não lança mais o
+  erro de `activeTab`).
+
+---
+
 ## V.1.4.114 — Opportunity Intelligence, Fase 22 (Frontend, bloco 2) do "PROMPT MESTRE — SALE-IA V2"
 > Data: 19/09/2026 | Local + GitHub, deploy na VPS pendente de confirmação
 

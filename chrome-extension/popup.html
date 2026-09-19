@@ -60,6 +60,15 @@
       <span id="conexao-status" class="popup-conexao popup-conexao-conectando">Conectando...</span>
     </div>
 
+    <!-- Captura de áudio da aba (participantes) — precisa ser iniciada
+         daqui: o Chrome só libera tabCapture quando a extensão é
+         invocada por este ícone, nunca por um botão dentro da página. -->
+    <div class="popup-secao" id="popup-captura-secao" style="display:none">
+      <div class="popup-secao-titulo">🎤 Áudio da aba (participantes)</div>
+      <button type="button" id="btn-captura-audio" class="popup-login-btn">Iniciar captura de áudio</button>
+      <div id="captura-feedback" class="popup-feedback"></div>
+    </div>
+
     <!-- Rodapé -->
     <div class="popup-footer">
       <span id="versao">v1.4.1</span>
