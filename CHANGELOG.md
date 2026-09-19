@@ -3,6 +3,68 @@
 
 ---
 
+## Extensão Chrome V.1.4.15 — sidebar simplificada, Fase 22 (Frontend, bloco 1) do "PROMPT MESTRE — SALE-IA V2"
+> Data: 19/09/2026 | Local, aguardando reinstalação manual da extensão
+
+Usuário confirmou avançar para a Fase 22 (Frontend). Texto literal do
+prompt mestre: "Não sobrecarregar a sidebar. Durante reunião mostrar
+apenas: ALERTA / PRÓXIMA AÇÃO / PRÓXIMA PERGUNTA / POR QUÊ / EVITE.
+Informações analíticas profundas devem ficar no Dashboard." Escopo
+confirmado com o usuário antes de codar (a fase tem 4 blocos grandes —
+sidebar + 3 seções de Dashboard que dependem de ~10 endpoints
+agregadores ainda não construídos pelas Fases 3-13; só o bloco 1,
+autocontido em `chrome-extension/`, foi feito nesta rodada).
+
+- **`chrome-extension/content.js`**: removidas da sidebar ao vivo as 7
+  seções de leitura analítica passiva — Perfil DISC, Temperatura,
+  Estágio/KARE, Maturidade da Oportunidade, Objeção Detectada, Dado
+  Esquecido, Propensão de Compra. O backend continua calculando e
+  persistindo todos esses dados normalmente (nenhuma mudança em
+  `api/`/`agent/`) — só o *render* ao vivo foi removido. Recapitulação
+  Guiada, status de conexão e captura de áudio foram mantidos (são
+  ferramentas de ação disparadas pelo vendedor, não leitura analítica
+  passiva).
+- **Caixa única remanescente** (`#saleia-nbq`, renomeada "🎯 PRÓXIMA
+  AÇÃO / PERGUNTA"): já cobria `message` (ação ou pergunta, conforme
+  `next_best_action.type`) e `reason` ("POR QUÊ", já existia como
+  "motivo"). Ganhou um bloco novo **EVITE**
+  (`#saleia-nbq-evite`, lido de `next_best_action.evite`) — **nunca
+  inventado no cliente**: o campo só aparece quando o backend enviar
+  `evite` de verdade; hoje nenhum agente em produção preenche esse
+  campo (`agent/next_best_action_v2_rules.py`, Fase 16, já define
+  `evite` no contrato, mas não está integrado a `orquestrador.py`
+  ainda), então o bloco fica sempre oculto até essa integração futura
+  — mesma disciplina de nunca fabricar dado do resto do roadmap.
+- **Limpeza de código morto**: `renderizarStageKare()`,
+  `renderizarMaturity()`, `renderizarPropensao()` e as constantes que
+  só elas usavam (`_STAGE_LABEL`, `_KARE_LABEL`, `_KARE_COLOR`,
+  `_MATURITY_LABELS`, `_MATURITY_MAX`, `_PROPENSAO_LABEL`,
+  `_PROPENSAO_COR`) removidas — ficaram 100% órfãs (confirmado via
+  grep) após a seção que elas alimentavam sumir da sidebar. Os blocos
+  de DISC/Temperatura/Objeção/Dado Esquecido no handler principal
+  (sem guarda `if (!el) return`, diferente dos três acima) também
+  removidos. Seletores CSS órfãos correspondentes removidos de
+  `content.css` (Stage/KARE, Maturity) e `sidebar.css` (Badge DISC,
+  Objeções, Ação/Temperatura, Dado Esquecido, Como Tratar).
+- Validado com `node --check content.js` (sintaxe válida) — **não
+  testado ao vivo ainda numa reunião real do Meet**, mesma ressalva já
+  usada em outras mudanças de extensão só validadas estaticamente.
+- **Decisão deliberada de escopo**: os 3 blocos de Dashboard da Fase
+  22 (Opportunity Intelligence, Sales Science, Seller Coaching) não
+  começaram — cada um exigiria antes decidir o contrato de vários
+  endpoints agregadores novos (SPIN/MEDDPICC/Win-Loss/Seasonality/
+  Seller Benchmark/etc., Fases 3-13, hoje só funções puras sem rota
+  HTTP). Fica para rodada(s) futuras, com nova confirmação de escopo.
+- Extensão: `1.4.14` → `1.4.15` (`chrome-extension/manifest.json`).
+  Backend (`V.1.4.113`) inalterado — nenhum arquivo fora de
+  `chrome-extension/` foi tocado.
+- **Pendente**: reinstalação manual da extensão no navegador do
+  vendedor (padrão de sempre); teste real numa reunião do Meet;
+  **os 3 blocos de Dashboard da Fase 22 não começam sem nova
+  confirmação explícita do usuário.**
+
+---
+
 ## V.1.4.113 — Testes de Adversarial Sales, Fase 21 do "PROMPT MESTRE — SALE-IA V2"
 
 > Data: 18/09/2026 | Local + GitHub + VPS confirmada em produção

@@ -291,17 +291,6 @@
   100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
 
-/* ── Badges DISC ── */
-.saleia-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-weight: 700;
-  font-size: 13px;
-  color: #111;
-  margin-right: 4px;
-}
-
 /* ── Próxima fala ── */
 #saleia-proxima-fala {
   background: rgba(212,175,55,0.08);
@@ -330,32 +319,6 @@
 #saleia-produto {
   background: rgba(212,175,55,0.08);
   border-left: 3px solid #D4AF37;
-}
-
-/* ── Objeções ── */
-.saleia-objecao {
-  margin-bottom: 8px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid rgba(212,175,55,0.18);
-  line-height: 1.4;
-}
-
-.saleia-objecao:last-child {
-  border-bottom: none;
-  margin-bottom: 0;
-}
-
-.saleia-resposta {
-  color: #888;
-  font-size: 12px;
-}
-
-.saleia-acao {
-  display: block;
-  margin-top: 4px;
-  color: #F5C542;
-  font-size: 12px;
-  font-weight: 600;
 }
 
 /* ── Aviso de legenda desativada ── */
@@ -487,48 +450,6 @@
   padding-top: 4px;
   border-top: 1px solid rgba(212,175,55,0.18);
   border-bottom: none;
-}
-
-/* ── Temperatura ── */
-.saleia-temperatura {
-  background: rgba(17,17,17,0.9);
-  border-left: 3px solid #555;
-  transition: border-color 0.3s, background 0.3s;
-}
-
-.saleia-temperatura-alta {
-  background: rgba(212,175,55,0.1);
-  border-left-color: #D4AF37;
-}
-
-.saleia-temperatura-media {
-  background: rgba(245,158,11,0.08);
-  border-left-color: #F59E0B;
-}
-
-.saleia-temperatura-baixa {
-  background: rgba(17,17,17,0.88);
-  border-left-color: #555;
-}
-
-/* ── Dado Esquecido ── */
-.saleia-dado-esquecido {
-  background: rgba(245,158,11,0.1);
-  border-left: 3px solid #F59E0B;
-}
-
-.saleia-dado-esquecido .saleia-secao-titulo {
-  color: #F5C542;
-}
-
-/* ── Como Tratar (DISC) ── */
-.saleia-como-tratar {
-  display: block;
-  margin-top: 4px;
-  color: #D4AF37;
-  font-style: italic;
-  font-size: 12px;
-  line-height: 1.4;
 }
 
 /* ── Próxima Melhor Pergunta ── */

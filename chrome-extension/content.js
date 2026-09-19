@@ -453,49 +453,17 @@
           </div>
         </div>
 
-        <div id="saleia-disc" class="saleia-secao">
-          <div class="saleia-secao-titulo">🎯 PERFIL DISC</div>
-          <div id="saleia-disc-texto">Aguardando análise...</div>
-        </div>
-
-        <div id="saleia-temperatura" class="saleia-secao saleia-temperatura">
-          <div class="saleia-secao-titulo">🌡️ TEMPERATURA</div>
-          <div id="saleia-temperatura-texto">Aguardando análise...</div>
-        </div>
-
-        <div id="saleia-stage-kare" class="saleia-stage-kare" style="display:none"></div>
-
         <div id="saleia-nbq" class="saleia-secao saleia-nbq-box">
-          <div class="saleia-secao-titulo">🎯 PRÓXIMA MELHOR AÇÃO</div>
+          <div class="saleia-secao-titulo">🎯 PRÓXIMA AÇÃO / PERGUNTA</div>
           <div id="saleia-nbq-badges"></div>
           <div id="saleia-nbq-objetivo" class="saleia-nbq-objetivo"></div>
           <div id="saleia-nbq-pergunta" class="saleia-nbq-pergunta">Aguardando análise...</div>
           <div id="saleia-nbq-motivo" class="saleia-nbq-motivo"></div>
+          <div id="saleia-nbq-evite" class="saleia-nbq-evite" style="display:none"></div>
           <div id="saleia-nbq-risco" class="saleia-nbq-risco" style="display:none"></div>
           <div id="saleia-nbq-followup" class="saleia-nbq-followup" style="display:none"></div>
           <div id="saleia-nbq-impacto" class="saleia-nbq-impacto"></div>
           <button id="saleia-nbq-copiar" class="saleia-discreto-btn" style="margin-top:6px;display:none">📋 Copiar</button>
-        </div>
-
-        <div id="saleia-maturity" class="saleia-secao saleia-maturity-box" style="display:none">
-          <div class="saleia-secao-titulo">📊 MATURIDADE DA OPORTUNIDADE</div>
-          <div id="saleia-maturity-total" class="saleia-maturity-total"></div>
-          <div id="saleia-maturity-grid" class="saleia-maturity-grid"></div>
-        </div>
-
-        <div id="saleia-objecao" class="saleia-secao" style="display:none">
-          <div class="saleia-secao-titulo">🛡️ OBJEÇÃO DETECTADA</div>
-          <div id="saleia-objecao-texto"></div>
-        </div>
-
-        <div id="saleia-dado-esquecido" class="saleia-secao saleia-dado-esquecido" style="display:none">
-          <div class="saleia-secao-titulo">🔔 DADO ESQUECIDO</div>
-          <div id="saleia-dado-esquecido-texto"></div>
-        </div>
-
-        <div id="saleia-propensao" class="saleia-secao" style="display:none">
-          <div class="saleia-secao-titulo">🎯 PROPENSÃO DE COMPRA</div>
-          <div id="saleia-propensao-valor" style="font-size:1.3rem;font-weight:700;color:#00d4aa">--</div>
         </div>
 
         <div id="saleia-legenda-aviso" class="saleia-secao saleia-aviso" style="display:none">
@@ -1279,62 +1247,8 @@
       alertaBox.classList.remove('saleia-pulse');
     }
 
-    // 🎯 PERFIL DISC
-    if (dados.perfil_disc) {
-      const disc = dados.perfil_disc;
-      const corDisc = { D: '#ff4444', I: '#f0c040', S: '#4caf50', C: '#42a5f5' };
-      const cor = corDisc[disc.tipo] || '#ffffff';
-      document.getElementById('saleia-disc-texto').innerHTML =
-        '<span class="saleia-badge" style="background:' + cor + '">' + escaparHtml(disc.tipo) + '</span> ' +
-        '<strong>' + escaparHtml(disc.confianca) + '</strong><br>' +
-        '<em>' + escaparHtml(disc.evidencia) + '</em>' +
-        (disc.como_tratar ? '<br><span class="saleia-como-tratar">' + escaparHtml(disc.como_tratar) + '</span>' : '');
-    }
-
-    // 🌡️ TEMPERATURA
-    if (dados.temperatura) {
-      var temp = dados.temperatura;
-      var tempEl = document.getElementById('saleia-temperatura');
-      var nivelClasse = { alta: 'saleia-temperatura-alta', media: 'saleia-temperatura-media', baixa: 'saleia-temperatura-baixa' };
-      tempEl.className = 'saleia-secao saleia-temperatura ' + (nivelClasse[temp.nivel] || '');
-      document.getElementById('saleia-temperatura-texto').innerHTML =
-        '<strong>' + escaparHtml(temp.nivel) + '</strong> · ' + escaparHtml(temp.entonacao) + '<br>' +
-        '<em>' + escaparHtml(temp.sinal) + '</em><br>' +
-        '<span class="saleia-acao">' + escaparHtml(temp.acao) + '</span>';
-    }
-
-    // 🏷️ ESTÁGIO + KARE
-    renderizarStageKare(dados);
-
-    // 🎯 PRÓXIMA MELHOR AÇÃO
+    // 🎯 PRÓXIMA AÇÃO / PRÓXIMA PERGUNTA / POR QUÊ / EVITE
     renderizarNBQ(dados);
-
-    // 📊 MATURITY SCORE
-    renderizarMaturity(dados);
-
-    // 🛡️ OBJEÇÃO DETECTADA
-    const objecaoEl = document.getElementById('saleia-objecao');
-    if (dados.objecao_detectada && dados.objecao_detectada.objecao) {
-      var obj = dados.objecao_detectada;
-      document.getElementById('saleia-objecao-texto').innerHTML =
-        '<strong>' + escaparHtml(obj.objecao) + '</strong>' +
-        (obj.resposta_pronta ? '<br><span class="saleia-resposta">↳ ' + escaparHtml(obj.resposta_pronta) + '</span>' : '');
-      objecaoEl.style.display = 'block';
-    } else {
-      objecaoEl.style.display = 'none';
-    }
-
-    // 🔔 DADO ESQUECIDO
-    const dadoEsquecidoEl = document.getElementById('saleia-dado-esquecido');
-    if (dados.dado_esquecido) {
-      document.getElementById('saleia-dado-esquecido-texto').textContent = dados.dado_esquecido;
-      dadoEsquecidoEl.style.display = 'block';
-    } else {
-      dadoEsquecidoEl.style.display = 'none';
-    }
-
-    // 🎯 PROPENSÃO DE COMPRA
-    renderizarPropensao(dados);
 
     animarAtualizacao();
   }
@@ -1365,36 +1279,6 @@
 
   var _NBA_CONF_COLOR = { high: '#EF4444', medium: '#F59E0B', low: '#888' };
 
-  var _STAGE_LABEL = {
-    abertura:            'Abertura',
-    situacao:            'Situação',
-    problema:            'Problema',
-    implicacao:          'Implicação',
-    necessidade_solucao: 'Necessidade',
-    qualificacao:        'Qualificação',
-    proposta:            'Proposta',
-    compromisso:         'Compromisso',
-  };
-
-  var _KARE_LABEL = { keep: 'Keep', attain: 'Attain', recapture: 'Recapture', expand: 'Expand' };
-  var _KARE_COLOR = { keep: '#22C55E', attain: '#C9A227', recapture: '#F97316', expand: '#3B82F6' };
-
-  function renderizarStageKare(dados) {
-    var el = document.getElementById('saleia-stage-kare');
-    if (!el) return;
-    var stage = dados.conversation_stage;
-    var kare = dados.kare_type;
-    if (!stage && !kare) { el.style.display = 'none'; return; }
-    var html = '';
-    if (stage) html += '<span class="saleia-stage-badge">' + escaparHtml(_STAGE_LABEL[stage] || stage) + '</span>';
-    if (kare) {
-      var kColor = _KARE_COLOR[kare] || '#888';
-      html += '<span class="saleia-kare-badge" style="color:' + kColor + ';border-color:' + kColor + '44">' + escaparHtml(_KARE_LABEL[kare] || kare) + '</span>';
-    }
-    el.innerHTML = html;
-    el.style.display = 'flex';
-  }
-
   function renderizarNBQ(dados) {
     // Prefere next_best_action (novo), cai em next_best_question (legacy)
     var nba = dados.next_best_action;
@@ -1403,6 +1287,7 @@
     var badgesEl   = document.getElementById('saleia-nbq-badges');
     var objetivoEl = document.getElementById('saleia-nbq-objetivo');
     var motivoEl   = document.getElementById('saleia-nbq-motivo');
+    var eviteEl    = document.getElementById('saleia-nbq-evite');
     var riscoEl    = document.getElementById('saleia-nbq-risco');
     var followupEl = document.getElementById('saleia-nbq-followup');
     var impactoEl  = document.getElementById('saleia-nbq-impacto');
@@ -1417,6 +1302,7 @@
       badgesEl.innerHTML = '';
       objetivoEl.textContent = '';
       motivoEl.textContent = '';
+      if (eviteEl)    { eviteEl.textContent = ''; eviteEl.style.display = 'none'; }
       if (riscoEl)    { riscoEl.textContent = ''; riscoEl.style.display = 'none'; }
       if (followupEl) { followupEl.textContent = ''; followupEl.style.display = 'none'; }
       impactoEl.textContent = '';
@@ -1448,6 +1334,18 @@
     // --- Motivo (por que agora) ---
     var motivo = (nba && nba.reason) || (nbq && nbq.reason) || '';
     motivoEl.textContent = motivo ? '↳ ' + motivo : '';
+
+    // --- Evite (só quando o backend enviar; nunca inferido) ---
+    if (eviteEl) {
+      var evite = nba && nba.evite;
+      if (evite) {
+        eviteEl.textContent = '🚫 ' + evite;
+        eviteEl.style.display = 'block';
+      } else {
+        eviteEl.textContent = '';
+        eviteEl.style.display = 'none';
+      }
+    }
 
     // --- Risco se ignorado ---
     if (riscoEl) {
@@ -1486,56 +1384,6 @@
     }
   }
 
-  var _MATURITY_LABELS = {
-    dor_identificada:          'Dor',
-    impacto_quantificado:      'Impacto',
-    urgencia_identificada:     'Urgência',
-    budget_identificado:       'Budget',
-    decisores_mapeados:        'Decisor',
-    valor_verbalizado_cliente: 'Valor',
-    proximo_passo_claro:       'Próx.Passo',
-  };
-  var _MATURITY_MAX = {
-    dor_identificada: 20, impacto_quantificado: 20, urgencia_identificada: 15,
-    budget_identificado: 15, decisores_mapeados: 10, valor_verbalizado_cliente: 10, proximo_passo_claro: 10,
-  };
-
-  function renderizarMaturity(dados) {
-    var el = document.getElementById('saleia-maturity');
-    var totalEl = document.getElementById('saleia-maturity-total');
-    var gridEl  = document.getElementById('saleia-maturity-grid');
-    if (!el || !gridEl) return;
-    var ms = dados.maturity_score;
-    if (!ms || typeof ms.total === 'undefined') { el.style.display = 'none'; return; }
-    el.style.display = 'block';
-    var total = ms.total || 0;
-    var cor = total >= 70 ? '#22C55E' : total >= 40 ? '#F59E0B' : '#EF4444';
-    totalEl.innerHTML = 'Score: <strong style="color:' + cor + '">' + total + '/100</strong>';
-    var html = '';
-    Object.keys(_MATURITY_LABELS).forEach(function (k) {
-      var val = ms[k] || 0;
-      var max = _MATURITY_MAX[k] || 10;
-      var pct = Math.round((val / max) * 100);
-      var chipCor = val >= max ? '#22C55E' : val > 0 ? '#F59E0B' : '#444';
-      html += '<div class="saleia-maturity-chip" style="border-color:' + chipCor + ';color:' + chipCor + '" title="' + _MATURITY_LABELS[k] + ': ' + val + '/' + max + '">' +
-              escaparHtml(_MATURITY_LABELS[k]) + (val > 0 ? ' ✓' : '') + '</div>';
-    });
-    gridEl.innerHTML = html;
-  }
-
-  var _PROPENSAO_LABEL = { alta: 'Alta', media: 'Média', baixa: 'Baixa', nao_determinada: 'Não determinada' };
-  var _PROPENSAO_COR = { alta: '#00d4aa', media: '#ffaa00', baixa: '#ff4444', nao_determinada: '#888' };
-
-  function renderizarPropensao(dados) {
-    var el = document.getElementById('saleia-propensao');
-    var valorEl = document.getElementById('saleia-propensao-valor');
-    if (!el || !valorEl) return;
-    var nivel = dados.propensao && dados.propensao.nivel;
-    if (!nivel) { el.style.display = 'none'; return; }
-    valorEl.textContent = _PROPENSAO_LABEL[nivel] || nivel;
-    valorEl.style.color = _PROPENSAO_COR[nivel] || '#fff';
-    el.style.display = 'block';
-  }
 
   function animarAtualizacao() {
     const body = document.getElementById('saleia-body');

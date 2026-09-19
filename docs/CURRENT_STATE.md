@@ -1,7 +1,35 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-18 (V.1.4.113 — **local + GitHub + produção
-confirmada** na VPS).
+Atualizado em: 2026-09-19 — Extensão Chrome **V.1.4.15** (sidebar
+simplificada, Fase 22 / bloco 1 do "PROMPT MESTRE — SALE-IA V2"):
+usuário confirmou avançar para a Fase 22 (Frontend); texto literal
+pede sidebar mínima ao vivo (`ALERTA/PRÓXIMA AÇÃO/PRÓXIMA
+PERGUNTA/POR QUÊ/EVITE`) + 3 blocos de Dashboard (Opportunity
+Intelligence, Sales Science, Seller Coaching) que dependem de ~10
+endpoints agregadores ainda não construídos pelas Fases 3-13.
+Escopo confirmado com o usuário: **só o bloco 1 (sidebar) nesta
+rodada** — autocontido em `chrome-extension/`, sem tocar em
+backend. `chrome-extension/content.js` removeu as 7 seções de
+leitura analítica passiva da tela ao vivo (DISC, Temperatura,
+Estágio/KARE, Maturidade, Objeção Detectada, Dado Esquecido,
+Propensão) — o backend continua calculando/persistindo tudo
+normalmente, só o *render* ao vivo mudou. Caixa única remanescente
+("🎯 PRÓXIMA AÇÃO / PERGUNTA") ganhou o bloco **EVITE**, ligado a
+`next_best_action.evite` — campo que nenhum agente em produção
+preenche hoje (só definido no contrato de `next_best_action_v2_rules.py`,
+Fase 16, não integrado ao orquestrador), então fica sempre oculto
+até essa integração futura — nunca inventado no cliente. Limpeza de
+3 funções JS + constantes + seletores CSS que ficaram 100% órfãos.
+Validado com `node --check` (sintaxe), **não testado ao vivo numa
+reunião real ainda**. Extensão `1.4.14` → `1.4.15`
+(`chrome-extension/manifest.json`); backend inalterado, `V.1.4.113`
+continua a versão de produção. Detalhe completo em CHANGELOG.md.
+**Os 3 blocos de Dashboard da Fase 22 (Opportunity Intelligence,
+Sales Science, Seller Coaching) não começam sem nova confirmação
+explícita do usuário** — cada um exige antes decidir o contrato de
+vários endpoints agregadores novos.
+
+V.1.4.113 é a **Fase 21 (Testes de Adversarial Sales) do "SALE-IA V2"**.
 V.1.4.113 é a **Fase 21 (Testes de Adversarial Sales) do "SALE-IA V2"**.
 Investigação prévia: dos 4 casos literais (falar mal do concorrente,
 desconto "que o chefe não precisa saber", garantir 200% de retorno,
