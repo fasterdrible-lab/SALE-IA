@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.113** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.15** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.114** (backend, local + GitHub — deploy na VPS pendente) · extensão Chrome **V.1.4.15** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -2928,6 +2928,72 @@ cenários como testes Promptfoo** (nunca rodados nesta rodada).
   provedores `ok`; `/dashboard` = `200`. **Fase 22 (Frontend) ou
   qualquer outra tarefa pendente do "PROMPT MESTRE — SALE-IA V2" não
   começa sem nova confirmação explícita do usuário.**
+
+## Fase 22 (Frontend) — bloco 1: sidebar simplificada (extensão V.1.4.15)
+
+Usuário confirmou avançar para a Fase 22. Texto literal: "Não
+sobrecarregar a sidebar. Durante reunião mostrar apenas: ALERTA /
+PRÓXIMA AÇÃO / PRÓXIMA PERGUNTA / POR QUÊ / EVITE." Escopo do bloco 1
+(sidebar, extensão) vs. blocos 2-4 (Dashboard: Opportunity Intelligence/
+Sales Science/Seller Coaching) confirmado com o usuário — cada um exige
+decisão de escopo própria. Detalhe completo (achado do `content.css`
+órfão incluído) em CHANGELOG.md, extensão V.1.4.15.
+
+## Opportunity Intelligence — Fase 22 (Frontend) / bloco 2 do "PROMPT MESTRE — SALE-IA V2" (V.1.4.114)
+
+Usuário confirmou avançar para o bloco 2 (Dashboard → Opportunity
+Intelligence). Texto literal do prompt mestre pede 12 campos:
+Opportunity Health, SPIN Coverage, MEDDPICC, Pain, Impact, Champion,
+Economic Buyer, Decision Process, Objections, Competitors, Risks, Next
+Steps.
+
+- **Achado central (investigação prévia)**: `OpportunityMemory` (Fase 2)
+  guarda insights genéricos por categoria de negócio (`pain_points`/
+  `champion`/`economic_buyer`/etc.), mas **SPIN Coverage e MEDDPICC
+  exigem um formato de fato totalmente diferente** — SPIN precisa de
+  `stage`/`campo` no vocabulário SPIN (situation/problem/implication/
+  need_payoff, Fase 3); MEDDPICC precisa de `status`
+  (UNKNOWN/PARTIAL/CONFIRMED) por item (Fase 4). **Não existe nenhuma
+  função no código que traduza um formato para o outro.**
+  `calcular_riscos()` (`deal_risk_rules.py`, Fase 4.2) tem o mesmo
+  problema: os sinais que recebe (próximo passo, objeções de preço,
+  concorrente em vantagem, dias parado) não são calculados em lugar
+  nenhum do sistema — já documentado como gap no próprio módulo desde a
+  Fase 4.2. Usuário escolheu **só expor dado real, documentar os 3 como
+  gap explícito** — mesma disciplina de `RAG_LATENCY_NAO_CAPTURADA`
+  (Fase 19) e `QUALITY_METRIC_SEM_GABARITO` (Fase 19.1).
+- **`agent/opportunity_intelligence_rules.py`** (novo, função pura, sem
+  IA/banco): `montar_opportunity_intelligence(opportunity,
+  opportunity_memory)`. **9 dos 12 campos são pass-through direto** de
+  categorias já existentes de `OpportunityMemory` — dado real, nunca
+  transformado. **Risks vira 2 campos**: `risks_relatados`
+  (categoria `risks` real) e `risks_calculados` (gap explícito do
+  `deal_risk_rules`) — nunca confundir "risco relatado na conversa" com
+  "risco detectado automaticamente". **Opportunity Health** é composto
+  só de campos reais de `Opportunity` (`stage`/`status`/
+  `estimated_value`/`outcome_value`/`cycle_days`), sem score inventado.
+  As 4 categorias de `OpportunityMemory` que existem no banco mas não
+  fazem parte dos 12 campos literais (`goals`/`stakeholders`/`metrics`/
+  `unknowns`) nunca vazam na resposta.
+- **`GET /opportunities/{opportunity_id}/intelligence`** (novo
+  endpoint): JWT + ownership via `_verificar_dono_ou_admin`, mesmo
+  padrão de `GET /clientes/{client_id}` (Fase 18.1). Diferente de
+  `MeetingMemory.usuario_id` (nullable, com exceção pra recurso sem
+  dono legado): `Opportunity.seller_id` é `NOT NULL` desde a criação
+  (Fase 2) — toda oportunidade sempre tem dono, sem exceção de acesso
+  aberto. 404 (não 403) pra oportunidade de outro vendedor.
+- 16 testes novos (9 módulo puro + 7 endpoint via TestClient real +
+  SQLite em memória, mesmo padrão de `tests/test_observability_
+  endpoint.py`). Suite completa: **1156 testes, 0 falhas**, 1 skip
+  pré-existente — sem regressão.
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`/`processador_tempo_real.py`, sem UI no Dashboard
+  ainda (só o endpoint agregador). **Sales Science e Seller Coaching
+  (os outros 2 blocos de Dashboard da Fase 22) e a tela HTML/JS do
+  Opportunity Intelligence não começam sem nova confirmação explícita
+  do usuário.**
+- Versão: `1.4.113` → `1.4.114`.
+- **Pendente**: push + deploy na VPS.
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

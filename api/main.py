@@ -4377,6 +4377,37 @@ def admin_observabilidade_metricas(
     }
 
 
+# ── Opportunity Intelligence (Fase 22 — Frontend) ─────
+
+@app.get("/opportunities/{opportunity_id}/intelligence")
+def obter_opportunity_intelligence_endpoint(
+    opportunity_id: int,
+    authorization: str | None = _Header(default=None),
+):
+    """Fase 22 (Frontend) / bloco Opportunity Intelligence: consolida os 12
+    campos literais (Opportunity Health, SPIN Coverage, MEDDPICC, Pain,
+    Impact, Champion, Economic Buyer, Decision Process, Objections,
+    Competitors, Risks, Next Steps) a partir de `Opportunity` +
+    `OpportunityMemory` (Fase 2) já persistidas. SPIN Coverage, MEDDPICC e
+    os riscos *calculados* (`deal_risk_rules.calcular_riscos`) vêm como gap
+    explícito, nunca número inventado — ver
+    `agent/opportunity_intelligence_rules.py`."""
+    payload = _req_auth(authorization)
+    try:
+        from api.database import obter_opportunity, obter_opportunity_memory
+        from agent.opportunity_intelligence_rules import montar_opportunity_intelligence
+        opp = obter_opportunity(opportunity_id)
+        if not opp:
+            raise HTTPException(status_code=404, detail="Oportunidade não encontrada.")
+        _verificar_dono_ou_admin(payload, opp.get("seller_id"))
+        memoria = obter_opportunity_memory(opportunity_id, criar_se_ausente=False) or {}
+        return montar_opportunity_intelligence(opp, memoria)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ── APIs / Provedores ─────────────────────────
 
 _ultimo_teste: dict[str, dict] = {}  # {pid: {"ok": bool, "ts": float, "detalhe": str}} — cache local do worker

@@ -3,6 +3,93 @@
 
 ---
 
+## V.1.4.114 — Opportunity Intelligence, Fase 22 (Frontend, bloco 2) do "PROMPT MESTRE — SALE-IA V2"
+> Data: 19/09/2026 | Local + GitHub, deploy na VPS pendente de confirmação
+
+Usuário confirmou avançar para o bloco 2 da Fase 22 (o bloco 1, sidebar
+simplificada, fechou na extensão V.1.4.15). Texto literal do prompt mestre
+pede um card "Opportunity Health" e 11 campos analíticos no Dashboard:
+SPIN Coverage, MEDDPICC, Pain, Impact, Champion, Economic Buyer, Decision
+Process, Objections, Competitors, Risks, Next Steps.
+
+**Investigação prévia (antes de perguntar escopo)**: nenhum dos 8 motores
+das Fases 2-6/17 que alimentariam esses campos tem endpoint HTTP nem
+integração com o orquestrador — `Opportunity`/`OpportunityMemory`/
+`OpportunityGraphEdge` (Fase 2) têm tabela e CRUD prontos, mas **zero
+linhas em produção** (nenhum fluxo real cria uma oportunidade ainda).
+Achado mais importante: `OpportunityMemory` guarda insights genéricos por
+categoria de negócio (`pain_points`/`champion`/`economic_buyer`/etc.), mas
+**SPIN Coverage e MEDDPICC exigem um formato de fato completamente
+diferente** — SPIN precisa de `stage`/`campo` no vocabulário SPIN
+(situation/problem/implication/need_payoff); MEDDPICC precisa de `status`
+(UNKNOWN/PARTIAL/CONFIRMED) por item — e **não existe no código nenhuma
+função que traduza** um insight genérico para esses formatos.
+`calcular_riscos()` (`deal_risk_rules.py`, Fase 4.2) tem o mesmo problema:
+os sinais que recebe (próximo passo, objeções de preço, concorrente em
+vantagem, dias parado) não são calculados em lugar nenhum do sistema.
+Usuário escolheu **só expor o que é real; documentar os 3 como gap
+explícito** — mesma disciplina de `RAG_LATENCY_NAO_CAPTURADA`/
+`RECOMMENDATION_EFFECTIVENESS_NAO_DISPONIVEL` (Fase 19) e
+`QUALITY_METRIC_SEM_GABARITO` (Fase 19.1): nunca um número/objeto
+fabricado.
+
+- **`agent/opportunity_intelligence_rules.py`** (novo, função pura, sem
+  IA/banco): `montar_opportunity_intelligence(opportunity, opportunity_memory)`
+  monta os 12 campos literais a partir de dicts já buscados no banco.
+  **9 campos são pass-through direto** de categorias já existentes de
+  `OpportunityMemory` (dado real, nunca transformado): Pain
+  (`pain_points`), Impact (`business_impact`), Champion (`champion`),
+  Economic Buyer (`economic_buyer`), Decision Process
+  (`decision_process`), Objections (`objections`), Competitors
+  (`competitors`), Next Steps (`next_steps`) e **Risks vira dois campos
+  separados** — `risks_relatados` (categoria `risks` de `OpportunityMemory`,
+  dado real) e `risks_calculados` (gap explícito do `deal_risk_rules`,
+  para não confundir "risco que alguém relatou na conversa" com "risco
+  detectado automaticamente pelo sistema"). **Opportunity Health** é
+  composto só de campos reais de `Opportunity` (`stage`/`status`/
+  `estimated_value`/`outcome_value`/`cycle_days`) — sem score inventado.
+  `SPIN_COVERAGE_NAO_DISPONIVEL`/`MEDDPICC_NAO_DISPONIVEL`/
+  `RISCOS_CALCULADOS_NAO_DISPONIVEL` são os 3 gaps, cada um
+  `{"disponivel": False, "motivo": "..."}`. **4 categorias de
+  `OpportunityMemory` que existem no banco mas não fazem parte dos 12
+  campos literais da Fase 22** (`goals`, `stakeholders`, `metrics`,
+  `unknowns`) **nunca vazam na resposta** — só as 9 pedidas.
+- **`GET /opportunities/{opportunity_id}/intelligence`** (novo endpoint,
+  `api/main.py`): JWT obrigatório (`_req_auth`), ownership via
+  `_verificar_dono_ou_admin(payload, opp["seller_id"])` — mesmo padrão de
+  `GET /clientes/{client_id}` (Fase 18.1). **Diferente de `MeetingMemory.
+  usuario_id`/`client_profiles.usuario_id`** (nullable, com exceção para
+  "recurso sem dono" legado): `Opportunity.seller_id` é `NOT NULL` desde
+  a criação (Fase 2), então toda oportunidade sempre tem dono — sem
+  exceção de acesso aberto. 404 (não 403) pra oportunidade de outro
+  vendedor, mesma disciplina de nunca confirmar a existência do recurso a
+  quem não é dono. `try/except HTTPException: raise` antes do
+  `except Exception: 500` — mesmo guard cuja ausência causou o bug
+  encontrado na Fase 18.1.
+- 16 testes novos: 9 em `tests/test_opportunity_intelligence_rules.py`
+  (módulo puro — estrutura completa, gaps nunca mudam, pass-through
+  correto, categorias não pedidas nunca vazam) + 7 em
+  `tests/test_opportunity_intelligence_endpoint.py` (TestClient real +
+  SQLite em memória, mesmo padrão de
+  `tests/test_observability_endpoint.py` — 401 sem token, 404 pra
+  oportunidade inexistente, 404 pra vendedor que não é dono, 200 pra
+  dono/admin, payload real vs. gaps).
+- Suite completa: **1156 testes** (antes: ~925 na V.1.4.99, mais
+  crescimento das Fases 14-21), **0 falhas**, 1 skip pré-existente — sem
+  regressão.
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`/`processador_tempo_real.py`, sem UI no Dashboard
+  ainda (só o endpoint) — a Fase 22 pede "criar" os cards do Dashboard,
+  não necessariamente nesta mesma rodada; construir a tela HTML/JS fica
+  para confirmação separada. Sales Science e Seller Coaching (os outros
+  2 blocos de Dashboard da Fase 22) não começam sem nova confirmação.
+- Versão: `1.4.113` → `1.4.114`.
+- **Pendente**: push + deploy na VPS (aditivo — nenhuma tabela/coluna
+  nova, `Opportunity`/`OpportunityMemory` já existiam desde a Fase 2;
+  deploy é só `git pull` + `systemctl restart saleia`).
+
+---
+
 ## Extensão Chrome V.1.4.15 — sidebar simplificada, Fase 22 (Frontend, bloco 1) do "PROMPT MESTRE — SALE-IA V2"
 > Data: 19/09/2026 | Local, aguardando reinstalação manual da extensão
 

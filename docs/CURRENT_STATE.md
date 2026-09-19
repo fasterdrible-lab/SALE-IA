@@ -1,6 +1,36 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-19 — Extensão Chrome **V.1.4.15** (sidebar
+Atualizado em: 2026-09-19 — Backend **V.1.4.114** (local + GitHub,
+deploy na VPS pendente de confirmação): Fase 22 (Frontend) / bloco 2
+("Opportunity Intelligence" no Dashboard). Usuário confirmou avançar
+para este bloco após o bloco 1 (sidebar, extensão V.1.4.15, abaixo).
+Investigação prévia achou o problema central: `OpportunityMemory`
+(Fase 2) guarda insights genéricos por categoria de negócio
+(`pain_points`/`champion`/etc.), mas SPIN Coverage e MEDDPICC exigem
+formatos de fato completamente diferentes (vocabulário SPIN/status
+UNKNOWN-PARTIAL-CONFIRMED) que nenhuma função no código traduz ainda
+— mesmo problema para os riscos *calculados* de `deal_risk_rules.py`
+(sinais não computados em lugar nenhum). Usuário escolheu **só expor
+dado real; documentar os 3 como gap explícito**, mesma disciplina de
+`RAG_LATENCY_NAO_CAPTURADA` (Fase 19). Novo
+`agent/opportunity_intelligence_rules.py` (função pura,
+`montar_opportunity_intelligence`) + `GET /opportunities/{id}/
+intelligence` (novo endpoint, JWT + ownership via
+`_verificar_dono_ou_admin`, mesmo padrão de `GET /clientes/{id}`) — 9
+dos 12 campos literais são pass-through direto de `OpportunityMemory`,
+Opportunity Health é composto de campos reais de `Opportunity`, 3
+ficam como gap (`spin_coverage`/`meddpicc`/`risks_calculados`). 16
+testes novos (9 módulo puro + 7 endpoint). **Suite completa: 1156
+testes, 0 falhas**, 1 skip pré-existente — sem regressão. Sem UI no
+Dashboard ainda (só o endpoint agregador). Detalhe completo em
+CHANGELOG.md e CLAUDE.md. **Sales Science e Seller Coaching (os
+outros 2 blocos de Dashboard da Fase 22) e a tela HTML/JS do
+Opportunity Intelligence não começam sem nova confirmação explícita
+do usuário.**
+
+## Bloco 1 — sidebar simplificada (extensão V.1.4.15)
+
+Extensão Chrome **V.1.4.15** (sidebar
 simplificada, Fase 22 / bloco 1 do "PROMPT MESTRE — SALE-IA V2"):
 usuário confirmou avançar para a Fase 22 (Frontend); texto literal
 pede sidebar mínima ao vivo (`ALERTA/PRÓXIMA AÇÃO/PRÓXIMA
