@@ -21,7 +21,14 @@ Fase 16, não integrado ao orquestrador), então fica sempre oculto
 até essa integração futura — nunca inventado no cliente. Limpeza de
 3 funções JS + constantes + seletores CSS que ficaram 100% órfãos.
 Validado com `node --check` (sintaxe), **não testado ao vivo numa
-reunião real ainda**. Extensão `1.4.14` → `1.4.15`
+reunião real ainda**. **Achado + fix nesta mesma rodada**:
+`chrome-extension/content.css` nunca é injetado em produção
+(`manifest.json` só carrega `sidebar.css`) — o bloco de estilos
+`.saleia-nbq-evite`/`-risco`/`-followup`/`-type` estava lá e nunca era
+aplicado na sidebar real; movido para `sidebar.css`. `content.css`
+continua no repo, mas hoje é 100% código morto — decisão de remover
+o arquivo por completo não foi tomada, fica para o usuário decidir.
+Extensão `1.4.14` → `1.4.15`
 (`chrome-extension/manifest.json`); backend inalterado, `V.1.4.113`
 continua a versão de produção. Detalhe completo em CHANGELOG.md.
 **Os 3 blocos de Dashboard da Fase 22 (Opportunity Intelligence,

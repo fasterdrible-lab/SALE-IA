@@ -46,6 +46,21 @@ autocontido em `chrome-extension/`, foi feito nesta rodada).
   removidos. Seletores CSS órfãos correspondentes removidos de
   `content.css` (Stage/KARE, Maturity) e `sidebar.css` (Badge DISC,
   Objeções, Ação/Temperatura, Dado Esquecido, Como Tratar).
+- **Achado durante a montagem de um preview visual da sidebar (pedido
+  do usuário)**: `content.css` **nunca é injetado em produção** —
+  `manifest.json::content_scripts` só carrega `sidebar.css`
+  (`"css": ["sidebar.css"]`), e nenhum outro arquivo referencia
+  `content.css` (confirmado via grep no diretório inteiro). O bloco
+  "NBA extras" (`.saleia-nbq-type`/`-risco`/`-followup`, já existentes
+  antes desta versão, mais o `.saleia-nbq-evite` novo desta rodada)
+  estava só em `content.css` — nunca chegava a ser aplicado na sidebar
+  real, mesmo com o HTML/JS funcionando corretamente. Corrigido
+  movendo o bloco inteiro para `sidebar.css` (o arquivo de fato
+  injetado) e removendo o duplicado de `content.css`. Bug
+  pré-existente (risco/followup) que só apareceu porque o EVITE novo
+  reusava o mesmo arquivo errado — `content.css` continua no repo mas
+  hoje é 100% código morto; decisão de removê-lo por completo fica
+  para o usuário, não tomada nesta rodada.
 - Validado com `node --check content.js` (sintaxe válida) — **não
   testado ao vivo ainda numa reunião real do Meet**, mesma ressalva já
   usada em outras mudanças de extensão só validadas estaticamente.
