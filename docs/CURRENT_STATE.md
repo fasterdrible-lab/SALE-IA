@@ -1,7 +1,8 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-19 — Backend **V.1.4.114** (local + GitHub,
-deploy na VPS pendente de confirmação): Fase 22 (Frontend) / bloco 2
+Atualizado em: 2026-09-19 — Backend **V.1.4.114** (local + GitHub +
+**produção confirmada** na VPS, `/health` = `versao 1.4.114`): Fase 22
+(Frontend) / bloco 2
 ("Opportunity Intelligence" no Dashboard). Usuário confirmou avançar
 para este bloco após o bloco 1 (sidebar, extensão V.1.4.15, abaixo).
 Investigação prévia achou o problema central: `OpportunityMemory`

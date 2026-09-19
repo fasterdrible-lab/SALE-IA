@@ -2993,7 +2993,19 @@ Steps.
   Opportunity Intelligence não começam sem nova confirmação explícita
   do usuário.**
 - Versão: `1.4.113` → `1.4.114`.
-- **Pendente**: push + deploy na VPS.
+- **Achado no deploy — versão hardcoded em 2 lugares**: `GET /health`
+  e `GET /monitor/metricas` tinham a string `"1.4.113"` escrita
+  diretamente em cada handler (não derivada de nenhuma fonte única) —
+  mesma classe de bug já corrigida uma vez antes (V.1.4.17). Corrigido
+  em commit separado (`1df3abf`) antes de reaplicar o deploy.
+- **Push + deploy confirmados (19/09/2026)**: commits `db2e7c5` +
+  `1df3abf`. `reunioes_ativas: 0` checado antes do `git pull` e antes
+  do `systemctl restart saleia` (aditivo — `Opportunity`/
+  `OpportunityMemory` já existiam desde a Fase 2, sem tabela/coluna
+  nova) — `active`, journal sem erros, os 2 workers subiram limpos.
+  Pós-restart: `/health` = `versao 1.4.114`, `status online`, 4
+  provedores `ok`; `GET /opportunities/1/intelligence` responde `401`
+  sem token (confirma que a rota nova existe).
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 
