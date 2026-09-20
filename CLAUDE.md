@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.122** (backend, local + GitHub, aguardando deploy na VPS) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.122** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -3354,6 +3354,9 @@ arquivo antes de assumir o que já foi feito ou não).
   patterns`). 46 testes novos. Suite completa: 1303 testes, 0 falhas,
   1 skip pré-existente — sem regressão. Versão: `1.4.121` →
   `1.4.122`.
+- **Deploy confirmado (20/09/2026)**: commit `0c0967e`, `reunioes_
+  ativas: 0` checado antes do `git pull`/restart — `/health` = `versao
+  1.4.122`, `status online`; `/dashboard` = `200`.
 - **Bloco 4 (extração real de SPIN/comportamento/motivação/causa raiz
   de objeção via IA) não começa sem nova confirmação explícita do
   usuário** — mesma disciplina de toda fase/tarefa anterior do

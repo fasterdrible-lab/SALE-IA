@@ -1,7 +1,8 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-20 — Backend **V.1.4.122** (local + GitHub,
-aguardando deploy na VPS): Tarefas 3.1 (vínculo automático
+Atualizado em: 2026-09-20 — Backend **V.1.4.122** (local + GitHub +
+**produção confirmada**, `/health` = `versao 1.4.122`): Tarefas 3.1
+(vínculo automático
 meeting↔opportunity) + 2.1 (historical_patterns via Sales Science).
 Investigação prévia confirmou que 2.1 dependia de 3.1, nunca
 resolvida (`vincular_meeting_opportunity()` existia mas nunca era
@@ -16,7 +17,10 @@ engine` sem recalcular estatística inteira a cada ciclo). Wiring em
 `orquestrador.py`. **4 dos 11 campos do SalesReasoningEngine agora
 têm dado real** (`meeting_memory`, `rag_context`, `objections`,
 `historical_patterns`). 46 testes novos, suite completa: **1303
-testes, 0 falhas**, 1 skip pré-existente. Detalhe completo em
+testes, 0 falhas**, 1 skip pré-existente. **Deploy confirmado
+(20/09/2026, ~21h59 UTC)**: commit `0c0967e`, `reunioes_ativas: 0`
+checado antes do `git pull`/restart — `/health` = `versao 1.4.122`,
+`status online`; `/dashboard` = `200`. Detalhe completo em
 CHANGELOG.md. **Bloco 4 (extração real via IA) não começa sem nova
 confirmação explícita do usuário.**
 

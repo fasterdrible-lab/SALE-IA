@@ -4,7 +4,7 @@
 ---
 
 ## V.1.4.122 — Tarefas 3.1 (vínculo automático meeting↔opportunity) + 2.1 (historical_patterns)
-> Data: 20/09/2026 | Local + GitHub, aguardando deploy na VPS
+> Data: 20/09/2026 | Local + GitHub + **produção confirmada** (`/health` = `versao 1.4.122`)
 
 Usuário confirmou avançar pra Tarefa 2.1 (`docs/tasks-sales-
 reasoning-engine-completo.md`). Investigação prévia confirmou que 2.1
@@ -58,10 +58,14 @@ criado um módulo que filtra a 1 categoria só.
   reconfirmados). Suite completa: **1303 testes, 0 falhas**, 1 skip
   pré-existente — sem regressão.
 - Versão: `1.4.121` → `1.4.122`.
-- **Pendente**: push + deploy na VPS (aditiva — sem tabela/coluna
-  nova, só código). **Bloco 4 (extração real de SPIN/comportamento/
-  motivação/causa raiz de objeção via IA) não começa sem nova
-  confirmação explícita do usuário.**
+- **Push + deploy confirmados (20/09/2026, ~21h59 UTC)**: commit
+  `0c0967e`. `reunioes_ativas: 0` checado antes do `git pull`
+  (fast-forward `d5b59e9` → `0c0967e`) e antes do `systemctl restart
+  saleia` — `active`, os 2 workers subiram limpos, journal sem erros.
+  Pós-restart: `/health` = `versao 1.4.122`, `status online`, 4
+  provedores `ok`; `/dashboard` = `200`. **Bloco 4 (extração real de
+  SPIN/comportamento/motivação/causa raiz de objeção via IA) não
+  começa sem nova confirmação explícita do usuário.**
 
 ---
 
