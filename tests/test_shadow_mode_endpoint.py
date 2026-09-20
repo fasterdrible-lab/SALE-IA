@@ -108,6 +108,29 @@ class ShadowModeEndpointTest(unittest.TestCase):
         self.assertAlmostEqual(body["error_rate"], 0.25)
         self.assertAlmostEqual(body["cost_usd_total"], 0.006, places=6)
 
+    def test_filtro_por_origem(self):
+        self._database.criar_shadow_mode_comparison(
+            meeting_id="m1", usuario_id="s1",
+            recomendacao_atual={"type": "question"}, recomendacao_nova={"next_best_question": "X?"},
+            concordancia=True, atual_e_pergunta=True, novo_e_pergunta=True,
+            latency_ms=800, cost_usd=0.002, erro=None, origem="shadow",
+        )
+        self._database.criar_shadow_mode_comparison(
+            meeting_id="m2", usuario_id="s2",
+            recomendacao_atual={"type": "question"}, recomendacao_nova={"next_best_question": "Y?"},
+            concordancia=True, atual_e_pergunta=True, novo_e_pergunta=True,
+            latency_ms=900, cost_usd=0.003, erro=None, origem="piloto",
+        )
+
+        r_shadow = self.client.get("/admin/shadow-mode/resumo?origem=shadow", headers=self.admin_headers)
+        self.assertEqual(r_shadow.json()["total_comparacoes"], 1)
+
+        r_piloto = self.client.get("/admin/shadow-mode/resumo?origem=piloto", headers=self.admin_headers)
+        self.assertEqual(r_piloto.json()["total_comparacoes"], 1)
+
+        r_todos = self.client.get("/admin/shadow-mode/resumo", headers=self.admin_headers)
+        self.assertEqual(r_todos.json()["total_comparacoes"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()

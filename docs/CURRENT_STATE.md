@@ -1,6 +1,30 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-20 — Backend **V.1.4.119** (local + GitHub +
+Atualizado em: 2026-09-20 — Backend **V.1.4.120** (local + GitHub,
+aguardando deploy na VPS): **Fase 24 (Piloto)** do "PROMPT MESTRE —
+SALE-IA V2" — infraestrutura de rollout gradual (1 vendedor → 5% → 20%
+→ 50% → 100%, feature flag `PILOT_MODE`, rollback sem deploy) +
+adaptador que converte a saída do `SalesReasoningEngine` pro schema
+que a extensão já renderiza. **Achado crítico antes de codar**: a
+Fase 23 (Shadow Mode) terminava com "só liberar após avaliação", mas
+`SHADOW_MODE_ENABLED` seguia `false` em produção — zero dado real
+coletado. Usuário confirmou construir a Fase 24 (desligada por padrão,
+`PILOT_MODE=off`) **e** ligar `SHADOW_MODE_ENABLED=true` em produção
+nesta mesma rodada, já que é a única forma de a avaliação começar a
+existir. `agent/pilot_rollout_rules.py` (novo) — bucket determinístico
+por vendedor (sha256, sempre superconjunto ao subir percentual),
+`mapear_para_next_best_action()` nunca traduz `category` inventando
+mapeamento, mesmo princípio de honestidade da Fase 23. Wiring em
+`agent/multiagente/orquestrador.py`: piloto sempre `await`ado (soma
+latência real só pra quem está dentro do rollout), fail-open, mutuamente
+exclusivo com Shadow Mode. `ShadowModeComparison` ganha coluna `origem`
+(`shadow`/`piloto`). 32+4 testes novos. Suite completa: **1267 testes,
+0 falhas**, 1 skip pré-existente. **`PILOT_MODE` continua `off`** —
+nenhum vendedor real entra no rollout ainda; ativar é decisão separada,
+só depois de avaliar dado real de Shadow Mode. Detalhe completo em
+CHANGELOG.md.
+
+Backend **V.1.4.119** (local + GitHub +
 **produção confirmada**, `/health` = `versao 1.4.119`): **Fase 23
 (Teste em Shadow Mode)** do
 "PROMPT MESTRE — SALE-IA V2". Investigação prévia achou que só 2 dos 11

@@ -46,6 +46,122 @@ def shadow_mode_ativo() -> bool:
     return os.getenv("SHADOW_MODE_ENABLED", "false").strip().lower() == "true"
 
 
+def pilot_mode_atual() -> str:
+    """Feature flag obrigatória da Fase 24 ("PROMPT MESTRE — SALE-IA
+    V2", Piloto) — controla se `raciocinar_async()` (Fase 7) passa a
+    **influenciar de verdade** a recomendação que um vendedor real vê
+    (diferente de `shadow_mode_ativo()`, que nunca influencia nada).
+    `PILOT_MODE` no `.env`: `off` (padrão) / `pilot_user` / `5pct` /
+    `20pct` / `50pct` / `100pct` — ver `agent/pilot_rollout_rules.py`.
+    Rollback funciona sem deploy: `PILOT_MODE=off` + restart volta
+    100% pro modelo atual pra todo mundo, mesmo padrão de todo
+    kill-switch já usado no projeto. Valor desconhecido no `.env` cai
+    em `off` (fail-safe — nunca arrisca interpretar um typo como
+    rollout maior do que o pretendido)."""
+    from agent.pilot_rollout_rules import PILOT_MODES
+    modo = os.getenv("PILOT_MODE", "off").strip().lower()
+    return modo if modo in PILOT_MODES else "off"
+
+
+def pilot_usuarios() -> frozenset:
+    """Allowlist usada só quando `pilot_mode_atual() == "pilot_user"` —
+    `PILOT_USER_IDS` no `.env`, `usuario_id` separados por vírgula
+    (o primeiro vendedor do rollout gradual da Fase 24: "liberar
+    inicialmente para 1 vendedor")."""
+    bruto = os.getenv("PILOT_USER_IDS", "")
+    return frozenset(x.strip() for x in bruto.split(",") if x.strip())
+
+
+async def _aplicar_piloto_sales_reasoning(
+    resultado: dict,
+    transcricao_parcial: str,
+    historico: str,
+    resumo_vivo: str,
+    diagnostico_atual: dict,
+    mapa_financeiro: dict,
+    historico_scores: list,
+    eventos: list,
+    client_context: str,
+    usuario_id: str | None,
+    meeting_id: str | None,
+) -> None:
+    """Fase 24 (Piloto): para um `usuario_id` dentro do rollout,
+    substitui de verdade `resultado["next_best_action"]`/`next_best_
+    question` pela saída de `raciocinar_async()` (Fase 7) — só aqui o
+    motor novo passa a influenciar um vendedor real; em qualquer outro
+    ciclo (Shadow Mode ou nenhum dos dois), `resultado` nunca é tocado
+    por este módulo. **Fail open**: qualquer falha (da IA ou do
+    mapeamento) preserva a recomendação do modelo atual — `resultado`
+    só é sobrescrito depois de `raciocinar_async()` retornar com
+    sucesso E `mapear_para_next_best_action()` não levantar.
+
+    Diferente de `_rodar_shadow_mode()` (fire-and-forget), esta função
+    é sempre `await`ada — o vendedor piloto espera a resposta real do
+    motor novo antes de receber o ciclo, então soma latência real de
+    +1 chamada de IA aqui (aceito só pra quem está no rollout).
+
+    Reaproveita `agent/shadow_mode_rules.py::montar_registro_shadow()`
+    pra persistir a mesma comparação de agreement/latency/cost do
+    Shadow Mode, marcada `origem="piloto"` — nunca chama
+    `raciocinar_async()` duas vezes no mesmo ciclo pro mesmo vendedor
+    (piloto e shadow são mutuamente exclusivos, ver
+    `analisar_fragmento_multi()`)."""
+    import time as _time
+
+    from agent.pilot_rollout_rules import mapear_para_next_best_action
+    from agent.sales_reasoning_engine import raciocinar_async
+    from agent.shadow_mode_rules import montar_registro_shadow
+
+    recomendacao_atual = resultado.get("next_best_action") or {}
+    entrada = {
+        "meeting_memory": {
+            "transcricao_parcial": transcricao_parcial,
+            "historico": historico,
+            "resumo_vivo": resumo_vivo,
+            "diagnostico_atual": diagnostico_atual,
+            "mapa_financeiro": mapa_financeiro,
+            "historico_scores": historico_scores,
+            "eventos": eventos,
+        },
+        "rag_context": client_context or None,
+    }
+
+    inicio = _time.monotonic()
+    recomendacao_nova = None
+    erro = None
+    try:
+        recomendacao_nova = await raciocinar_async(entrada, usuario_id=usuario_id, meeting_id=meeting_id)
+    except Exception as e:
+        erro = f"{type(e).__name__}: {e}"
+        logger.warning("[Piloto] raciocinar_async falhou, mantendo modelo atual: %s", erro)
+    latency_ms = int((_time.monotonic() - inicio) * 1000)
+
+    if recomendacao_nova is not None:
+        try:
+            nova_nba = mapear_para_next_best_action(recomendacao_nova)
+            resultado["next_best_action"] = nova_nba
+            resultado["next_best_question"] = _nba_para_nbq(nova_nba)
+        except Exception as _e:
+            logger.warning("[Piloto] Falha ao aplicar recomendação nova, mantendo modelo atual: %s", _e)
+
+    cost_usd = None
+    try:
+        from api import ai_features
+        from api.database import obter_ultimo_ai_usage_event
+        evento = obter_ultimo_ai_usage_event(ai_features.SALES_REASONING_RACIOCINIO, meeting_id)
+        if evento:
+            cost_usd = evento.get("cost_usd")
+    except Exception:
+        pass
+
+    registro = montar_registro_shadow(recomendacao_atual, recomendacao_nova, latency_ms, cost_usd, erro)
+    try:
+        from api.database import criar_shadow_mode_comparison
+        criar_shadow_mode_comparison(meeting_id=meeting_id, usuario_id=usuario_id, origem="piloto", **registro)
+    except Exception as _e:
+        logger.debug("[Piloto] Falha ao persistir comparação (melhor esforço): %s", _e)
+
+
 # Referencias fortes das tasks de shadow mode em voo — sem isso, o
 # event loop do asyncio pode coletar a Task antes dela terminar (nao ha
 # nenhuma outra referencia viva depois que analisar_fragmento_multi
@@ -162,7 +278,7 @@ async def _rodar_shadow_mode(
     registro = montar_registro_shadow(recomendacao_atual, recomendacao_nova, latency_ms, cost_usd, erro)
     try:
         from api.database import criar_shadow_mode_comparison
-        criar_shadow_mode_comparison(meeting_id=meeting_id, usuario_id=usuario_id, **registro)
+        criar_shadow_mode_comparison(meeting_id=meeting_id, usuario_id=usuario_id, origem="shadow", **registro)
     except Exception as _e:
         logger.debug("[ShadowMode] Falha ao persistir comparação (melhor esforço): %s", _e)
 
@@ -426,16 +542,37 @@ async def analisar_fragmento_multi(
     )
     resultado["_custo_ciclo_ia_usd"] = round(custo_ciclo, 6)
 
-    # Fase 23 ("PROMPT MESTRE — SALE-IA V2") — Teste em Shadow Mode:
-    # fire-and-forget, nunca aguardado, nunca pode atrasar o retorno
-    # abaixo nem mudar `resultado`. Kill-switch SHADOW_MODE_ENABLED
-    # (default false) — ver shadow_mode_ativo().
+    # Fase 24 ("PROMPT MESTRE — SALE-IA V2") — Piloto: se este
+    # usuario_id está dentro do rollout, o modelo novo passa a
+    # influenciar de verdade `resultado` (await real, soma latência) —
+    # mutuamente exclusivo com o Shadow Mode abaixo (nunca chama
+    # raciocinar_async() 2x no mesmo ciclo pro mesmo vendedor).
+    usar_piloto = False
     try:
-        _agendar_shadow_mode(
-            resultado, transcricao_parcial, historico, rv, diag, mapa,
-            scores, evts, client_context, usuario_id, meeting_id,
-        )
+        from agent.pilot_rollout_rules import deve_usar_modelo_novo
+        usar_piloto = deve_usar_modelo_novo(usuario_id, pilot_mode_atual(), pilot_usuarios())
     except Exception as _e:
-        logger.debug("[ShadowMode] Falha ao agendar (melhor esforço): %s", _e)
+        logger.debug("[Piloto] Falha ao avaliar rollout (fail-safe, modelo atual mantido): %s", _e)
+
+    if usar_piloto:
+        try:
+            await _aplicar_piloto_sales_reasoning(
+                resultado, transcricao_parcial, historico, rv, diag, mapa,
+                scores, evts, client_context, usuario_id, meeting_id,
+            )
+        except Exception as _e:
+            logger.warning("[Piloto] Falha inesperada, modelo atual preservado: %s", _e)
+    else:
+        # Fase 23 — Teste em Shadow Mode: fire-and-forget, nunca
+        # aguardado, nunca pode atrasar o retorno abaixo nem mudar
+        # `resultado`. Kill-switch SHADOW_MODE_ENABLED (default false)
+        # — ver shadow_mode_ativo().
+        try:
+            _agendar_shadow_mode(
+                resultado, transcricao_parcial, historico, rv, diag, mapa,
+                scores, evts, client_context, usuario_id, meeting_id,
+            )
+        except Exception as _e:
+            logger.debug("[ShadowMode] Falha ao agendar (melhor esforço): %s", _e)
 
     return resultado

@@ -773,7 +773,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.119",
+        "versao":              "1.4.120",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -811,7 +811,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.119",
+        "versao":          "1.4.120",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -4555,22 +4555,29 @@ def seller_coaching_endpoint(
 
 
 @app.get("/admin/shadow-mode/resumo")
-def admin_shadow_mode_resumo(authorization: str | None = _Header(default=None)):
-    """Fase 23 ("PROMPT MESTRE — SALE-IA V2") — Teste em Shadow Mode:
+def admin_shadow_mode_resumo(
+    origem: str | None = None,
+    authorization: str | None = _Header(default=None),
+):
+    """Fase 23/24 ("PROMPT MESTRE — SALE-IA V2") — Shadow Mode + Piloto:
     agrega as comparações já persistidas (`ShadowModeComparison`) nas
-    métricas literais da fase (agreement/disagreement/latency/errors/
+    métricas literais da Fase 23 (agreement/disagreement/latency/errors/
     cost) — `quality` continua gap explícito (exigiria LLM-judge,
-    decisão de custo separada). Admin-only — a mesma disciplina de
-    `GET /sales-science/insights`: visão agregada de todo o tráfego,
-    não filtrada por vendedor. Kill-switch `SHADOW_MODE_ENABLED`
-    (default `false`) controla se alguma linha é gerada — com o
-    kill-switch desligado, este endpoint sempre responde
+    decisão de custo separada). `origem=shadow`/`origem=piloto`
+    (query param opcional) filtra por origem — nunca misturar as duas
+    leituras: agreement/latency/cost do piloto são dado real de
+    produto (influenciou o vendedor), do shadow é só observação
+    silenciosa. Sem filtro, agrega as duas juntas (visão geral). Admin
+    -only — mesma disciplina de `GET /sales-science/insights`: visão
+    agregada de todo o tráfego, não filtrada por vendedor. Com os dois
+    kill-switches desligados (`SHADOW_MODE_ENABLED=false`,
+    `PILOT_MODE=off`, ambos default), este endpoint sempre responde
     `total_comparacoes: 0`."""
     _req_admin(authorization)
     try:
         from api.database import listar_shadow_mode_comparisons
         from agent.shadow_mode_rules import resumir_comparacoes
-        comparacoes = listar_shadow_mode_comparisons(limit=5000)
+        comparacoes = listar_shadow_mode_comparisons(limit=5000, origem=origem)
         return resumir_comparacoes(comparacoes)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

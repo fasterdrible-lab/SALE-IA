@@ -3,6 +3,101 @@
 
 ---
 
+## V.1.4.120 — Fase 24 do "PROMPT MESTRE — SALE-IA V2" (Piloto) — infraestrutura + ativação do Shadow Mode em produção
+> Data: 20/09/2026 | Local + GitHub, aguardando deploy na VPS
+
+Usuário confirmou avançar para a Fase 24. Texto literal: "Liberar
+inicialmente para 1 vendedor, depois 5%, depois 20%, depois 50%, e
+somente então 100%. Feature flag obrigatória. Rollback precisa
+funcionar sem deploy."
+
+**Achado crítico antes de codar**: a própria Fase 23 (Shadow Mode)
+termina com "só liberar após avaliação" — mas `SHADOW_MODE_ENABLED`
+continuava `false` em produção desde o deploy da V.1.4.119, então
+**zero dado real de agreement/latency/cost havia sido coletado** pra
+basear qualquer decisão de liberação. Usuário confirmou a recomendação:
+**construir a infraestrutura da Fase 24 agora (desligada por padrão) +
+ligar `SHADOW_MODE_ENABLED=true` em produção**, já que o mecanismo é
+reversível/seguro e é a única forma de a avaliação da Fase 23 começar a
+existir.
+
+- **`agent/pilot_rollout_rules.py`** (novo, função pura, sem IA/banco):
+  `PILOT_MODES` (`off`/`pilot_user`/`5pct`/`20pct`/`50pct`/`100pct`).
+  `usuario_no_percentual(usuario_id, percentual)` — bucket
+  determinístico via `sha256(usuario_id) % 100` — o mesmo vendedor
+  sempre cai no mesmo bucket entre ciclos (nunca sorteado de novo, o
+  que alternaria modelo atual/novo de forma confusa), e subir o
+  percentual é sempre **superconjunto** (ninguém que já estava dentro
+  de 5% sai ao subir pra 20%/50%/100%) — testado com 500 vendedores
+  sintéticos confirmando a propriedade de superconjunto e a
+  distribuição aproximada de 5%. `deve_usar_modelo_novo(usuario_id,
+  modo, usuarios_piloto)` — `usuario_id=None` (extensão anônima) nunca
+  entra (sem identidade estável pra reconectar o vendedor entre
+  ciclos); modo desconhecido no `.env` cai em `off` (fail-safe).
+- **`mapear_para_next_best_action(saida_raciocinio)`**: converte a
+  saída de 10 campos de `raciocinar_async()` (Fase 7) pro schema antigo
+  que a extensão já renderiza (`type`/`category`/`title`/`message`/
+  `objective`/`reason`/`expected_effect`/`risk_if_ignored`/`follow_up`/
+  `evite`/`confidence`). **`category` nunca é traduzida** —
+  `recommended_framework` (9 valores fechados) vai direto, sem forçar
+  tradução pro vocabulário de 12 valores livres do modelo atual (a
+  extensão trata categoria desconhecida como texto simples,
+  `_NBA_CATEGORY_LABEL[catKey] || catKey`, nunca quebra) — mesmo
+  princípio de honestidade de `avaliar_concordancia_estrutural()`
+  (Fase 23). `type` é derivado da presença de `next_best_question`
+  (`question` ou `insight`, nunca `warning`/`next_step` — o motor novo
+  não distingue esses 2 hoje).
+- **`api/database.py::ShadowModeComparison`** ganha coluna `origem`
+  (`"shadow"`/`"piloto"`, default `"shadow"`, aditiva) — nunca misturar
+  as duas leituras: agreement/latency/cost do piloto são dado real de
+  produto (influenciou o vendedor de verdade), do shadow é só
+  observação silenciosa. `criar_shadow_mode_comparison()`/`listar_
+  shadow_mode_comparisons()` ganham parâmetro `origem`.
+- **Wiring em `agent/multiagente/orquestrador.py`**: `pilot_mode_
+  atual()` (feature flag `PILOT_MODE`, **default `off`**) + `pilot_
+  usuarios()` (`PILOT_USER_IDS`, allowlist do modo `pilot_user`).
+  `_aplicar_piloto_sales_reasoning()` — **sempre `await`ada** (diferente
+  do Shadow Mode, fire-and-forget), pois o vendedor piloto precisa da
+  resposta real do motor novo antes do ciclo terminar — soma latência
+  real de +1 chamada de IA só pra quem está no rollout. **Fail open**:
+  `resultado["next_best_action"]`/`next_best_question` só são
+  sobrescritos depois de `raciocinar_async()` retornar com sucesso E
+  `mapear_para_next_best_action()` não levantar — qualquer falha
+  preserva a recomendação do modelo atual, nunca quebra o ciclo real.
+  **Mutuamente exclusivo com o Shadow Mode**: `analisar_fragmento_
+  multi()` decide uma vez por ciclo — piloto vence quando aplicável,
+  nunca chama `raciocinar_async()` 2x no mesmo ciclo pro mesmo
+  vendedor (testado explicitamente com os 2 kill-switches ligados ao
+  mesmo tempo). A comparação é sempre persistida (`origem="piloto"`),
+  reaproveitando `montar_registro_shadow()` sem duplicar lógica.
+- 32 testes novos (22 módulo puro em `tests/test_pilot_rollout_
+  rules.py` + 10 integração no orquestrador em `tests/
+  test_orquestrador_piloto.py` — allowlist dentro/fora, 100%, fail-open,
+  exclusão mútua com shadow mode) + 4 testes novos em `tests/
+  test_shadow_mode_persistencia.py`/`test_shadow_mode_endpoint.py`
+  (coluna/filtro `origem`). Suite completa sem regressão.
+- **`GET /admin/shadow-mode/resumo`** ganha query param opcional
+  `?origem=shadow|piloto` (sem filtro, agrega as duas juntas).
+- Versão: `1.4.119` → `1.4.120`.
+- **Decisão deliberada de escopo**: `PILOT_MODE` continua `off` — nenhum
+  vendedor real entra no rollout nesta rodada. A infraestrutura fica
+  pronta e testada, mas **ativar de fato (mesmo pra 1 vendedor) é
+  decisão separada**, só depois de avaliar dado real de Shadow Mode
+  (que começa a ser coletado só agora, com `SHADOW_MODE_ENABLED=true`
+  em produção). Sem UI no Dashboard — mesma decisão de `GET /admin/
+  observabilidade/metricas` (Fase 19) e `GET /admin/shadow-mode/resumo`
+  (Fase 23).
+- **Pendente**: push + deploy na VPS (aditiva — 1 coluna nova em
+  `shadow_mode_comparisons`, exige `ALTER TABLE ... ADD COLUMN origem
+  VARCHAR(20) NOT NULL DEFAULT 'shadow'` manual — `create_all()` não
+  migra tabela já existente, mesmo padrão de sempre) + `SHADOW_MODE_
+  ENABLED=true` no `.env` da VPS (ativação confirmada com o usuário,
+  parte desta mesma rodada). **Fase 24 de fato (liberar pra 1 vendedor)
+  não começa sem nova confirmação explícita do usuário, depois de haver
+  dado real de Shadow Mode pra avaliar.**
+
+---
+
 ## V.1.4.119 — Fase 23 do "PROMPT MESTRE — SALE-IA V2" (Teste em Shadow Mode)
 > Data: 20/09/2026 | Local + GitHub + **produção confirmada** (`/health` = `versao 1.4.119`)
 

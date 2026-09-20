@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.119** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.120** (backend, local + GitHub, aguardando deploy na VPS) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -3210,6 +3210,77 @@ atual, comparar `agreement`/`disagreement`/`latency`/`errors`/`cost`/
   nenhuma comparação real sendo coletada; ligar em produção é decisão
   separada, não tomada nesta rodada. **Fase 24 (Piloto) não começa sem
   nova confirmação explícita do usuário.**
+
+## Fase 24 — Piloto (V.1.4.120)
+
+Usuário confirmou avançar para a Fase 24. Texto literal: rollout
+gradual (1 vendedor → 5% → 20% → 50% → 100%), feature flag obrigatória,
+rollback sem deploy.
+
+- **Achado crítico antes de codar**: a Fase 23 (Shadow Mode) termina
+  com "só liberar após avaliação", mas `SHADOW_MODE_ENABLED` continuava
+  `false` em produção — zero dado real coletado desde o deploy da
+  V.1.4.119. Usuário confirmou a recomendação: **construir a
+  infraestrutura da Fase 24 agora (desligada por padrão) + ligar
+  `SHADOW_MODE_ENABLED=true` em produção**, já que o mecanismo é
+  reversível e é a única forma de a avaliação da Fase 23 começar a
+  existir.
+- **`agent/pilot_rollout_rules.py`** (novo, função pura, sem IA/banco):
+  `usuario_no_percentual(usuario_id, percentual)` — bucket
+  determinístico via `sha256(usuario_id) % 100`, o mesmo vendedor
+  sempre no mesmo bucket entre ciclos (nunca sorteado de novo, evita
+  alternar modelo atual/novo de forma confusa); subir o percentual é
+  sempre **superconjunto** (testado com 500 vendedores sintéticos).
+  `deve_usar_modelo_novo(usuario_id, modo, usuarios_piloto)` —
+  `usuario_id=None` (extensão anônima) nunca entra; modo desconhecido
+  cai em `off` (fail-safe).
+- **`mapear_para_next_best_action(saida_raciocinio)`**: converte a
+  saída de 10 campos de `raciocinar_async()` (Fase 7) pro schema
+  antigo que a extensão já renderiza (`agent/prompt_templates/
+  multiagente_coach.txt::next_best_action`). **`category` nunca é
+  traduzida** — `recommended_framework` (9 valores fechados) vai
+  direto como `category`, sem forçar tradução pro vocabulário de 12
+  valores livres do modelo atual (a extensão trata categoria
+  desconhecida como texto simples, nunca quebra) — mesmo princípio de
+  honestidade de `avaliar_concordancia_estrutural()` (Fase 23). `type`
+  é derivado da presença de `next_best_question` (`question`/
+  `insight` — o motor novo não distingue `warning`/`next_step` hoje).
+- **`api/database.py::ShadowModeComparison`** ganha coluna `origem`
+  (`"shadow"`/`"piloto"`, default `"shadow"`) — nunca misturar as duas
+  leituras: agreement/latency/cost do piloto são dado real de produto
+  (influenciou o vendedor de verdade), do shadow é só observação.
+- **Wiring em `agent/multiagente/orquestrador.py`**: `pilot_mode_
+  atual()` (`PILOT_MODE`, **default `off`**) + `pilot_usuarios()`
+  (`PILOT_USER_IDS`, allowlist do modo `pilot_user`).
+  `_aplicar_piloto_sales_reasoning()` — **sempre `await`ada**
+  (diferente do Shadow Mode, fire-and-forget) — o vendedor piloto
+  espera a resposta real do motor novo, soma latência real só pra
+  quem está no rollout. **Fail open**: `resultado["next_best_
+  action"]`/`next_best_question` só são sobrescritos depois de
+  `raciocinar_async()` retornar com sucesso E `mapear_para_next_
+  best_action()` não levantar — qualquer falha preserva a
+  recomendação do modelo atual. **Mutuamente exclusivo com o Shadow
+  Mode**: `analisar_fragmento_multi()` decide uma vez por ciclo —
+  piloto vence quando aplicável, nunca chama `raciocinar_async()` 2x
+  no mesmo ciclo pro mesmo vendedor (testado com os 2 kill-switches
+  ligados ao mesmo tempo).
+- **`GET /admin/shadow-mode/resumo`** ganha `?origem=shadow|piloto`
+  (sem filtro, agrega as duas juntas).
+- 36 testes novos (22 módulo puro + 10 integração no orquestrador + 4
+  em persistência/endpoint pra coluna `origem`). Suite completa: 1267
+  testes, 0 falhas, 1 skip pré-existente — sem regressão.
+- **Decisão deliberada de escopo**: `PILOT_MODE` continua `off` —
+  nenhum vendedor real entra no rollout nesta rodada. Ativar (mesmo
+  pra 1 vendedor) é decisão separada, só depois de avaliar dado real
+  de Shadow Mode. Sem UI no Dashboard.
+- Versão: `1.4.119` → `1.4.120`.
+- **Pendente**: push + deploy na VPS (`ALTER TABLE shadow_mode_
+  comparisons ADD COLUMN origem VARCHAR(20) NOT NULL DEFAULT 'shadow'`
+  manual — `create_all()` não migra tabela já existente) +
+  `SHADOW_MODE_ENABLED=true` no `.env` da VPS (ativação confirmada
+  com o usuário, parte desta mesma rodada). **Fase 24 de fato (liberar
+  pra 1 vendedor) não começa sem nova confirmação explícita do
+  usuário, depois de haver dado real de Shadow Mode pra avaliar.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

@@ -3332,6 +3332,13 @@ class ShadowModeComparison(SQLModel, table=True):
     `agent/shadow_mode_rules.py`. Escrita é sempre melhor esforço (mesmo
     padrão de `AiUsageEvent`) — uma falha aqui nunca pode derrubar o
     ciclo real de `/tempo-real`.
+
+    `origem` (Fase 24, Piloto — coluna aditiva desde V.1.4.120) distingue
+    `"shadow"` (nunca influenciou o vendedor, fire-and-forget) de
+    `"piloto"` (o vendedor estava dentro do rollout da Fase 24 e
+    `recomendacao_nova`, quando bem-sucedida, é literalmente o que ele
+    viu) — nunca misturar as duas leituras: agreement/latency/cost do
+    piloto são o dado real de produto, do shadow é só observação.
     """
 
     __tablename__ = "shadow_mode_comparisons"
@@ -3340,6 +3347,7 @@ class ShadowModeComparison(SQLModel, table=True):
     criado_em: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False, index=True))
     meeting_id: Optional[str] = Field(default=None, sa_column=Column(String(200), index=True))
     usuario_id: Optional[str] = Field(default=None, sa_column=Column(String(36), index=True))
+    origem: str = Field(default="shadow", sa_column=Column(String(20), nullable=False, index=True))
     recomendacao_atual_json: str = Field(default="{}", sa_column=Column(_LongText, nullable=False))
     recomendacao_nova_json: Optional[str] = Field(default=None, sa_column=Column(_LongText))
     concordancia: Optional[bool] = Field(default=None, sa_column=Column(Boolean))
@@ -3356,6 +3364,7 @@ def _shadow_mode_comparison_to_dict(row: "ShadowModeComparison") -> dict:
         "criado_em": row.criado_em.isoformat() if row.criado_em else None,
         "meeting_id": row.meeting_id,
         "usuario_id": row.usuario_id,
+        "origem": row.origem,
         "recomendacao_atual": json.loads(row.recomendacao_atual_json) if row.recomendacao_atual_json else {},
         "recomendacao_nova": json.loads(row.recomendacao_nova_json) if row.recomendacao_nova_json else None,
         "concordancia": row.concordancia,
@@ -3379,10 +3388,13 @@ def criar_shadow_mode_comparison(
     latency_ms: Optional[int],
     cost_usd: Optional[float],
     erro: Optional[str],
+    origem: str = "shadow",
     **_ignorados,
 ) -> dict:
     """Persiste um registro de `agent/shadow_mode_rules.py::
-    montar_registro_shadow()`. `**_ignorados` absorve o campo `quality`
+    montar_registro_shadow()`. `origem` (`"shadow"`/`"piloto"`, Fase 24)
+    marca se a recomendação nova só foi observada ou se de fato
+    influenciou o vendedor. `**_ignorados` absorve o campo `quality`
     do registro (nunca persistido — é sempre o mesmo gap explícito,
     recomputado em `resumo_shadow_mode()`, não faz sentido gravar em
     milhares de linhas). Escrita melhor esforço — chamador decide se
@@ -3391,6 +3403,7 @@ def criar_shadow_mode_comparison(
         row = ShadowModeComparison(
             meeting_id=meeting_id,
             usuario_id=usuario_id,
+            origem=origem,
             recomendacao_atual_json=json.dumps(recomendacao_atual or {}, ensure_ascii=False),
             recomendacao_nova_json=json.dumps(recomendacao_nova, ensure_ascii=False) if recomendacao_nova else None,
             concordancia=concordancia,
@@ -3406,9 +3419,12 @@ def criar_shadow_mode_comparison(
         return _shadow_mode_comparison_to_dict(row)
 
 
-def listar_shadow_mode_comparisons(limit: int = 5000) -> List[dict]:
+def listar_shadow_mode_comparisons(limit: int = 5000, origem: Optional[str] = None) -> List[dict]:
     with Session(engine) as session:
-        stmt = select(ShadowModeComparison).order_by(ShadowModeComparison.criado_em.desc()).limit(limit)
+        stmt = select(ShadowModeComparison)
+        if origem:
+            stmt = stmt.where(ShadowModeComparison.origem == origem)
+        stmt = stmt.order_by(ShadowModeComparison.criado_em.desc()).limit(limit)
         rows = session.exec(stmt).all()
         return [_shadow_mode_comparison_to_dict(r) for r in rows]
 

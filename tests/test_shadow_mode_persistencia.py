@@ -71,6 +71,25 @@ class ShadowModeComparisonPersistenciaTest(unittest.TestCase):
         listados = database.listar_shadow_mode_comparisons()
         self.assertEqual(listados[0]["meeting_id"], "reuniao-2")
 
+    def test_origem_default_e_shadow(self):
+        criado = database.criar_shadow_mode_comparison(**self._registro())
+        self.assertEqual(criado["origem"], "shadow")
+
+    def test_origem_piloto_persiste_e_filtra(self):
+        database.criar_shadow_mode_comparison(**self._registro(meeting_id="m-shadow"), origem="shadow")
+        database.criar_shadow_mode_comparison(**self._registro(meeting_id="m-piloto"), origem="piloto")
+
+        todos = database.listar_shadow_mode_comparisons()
+        self.assertEqual(len(todos), 2)
+
+        so_piloto = database.listar_shadow_mode_comparisons(origem="piloto")
+        self.assertEqual(len(so_piloto), 1)
+        self.assertEqual(so_piloto[0]["meeting_id"], "m-piloto")
+
+        so_shadow = database.listar_shadow_mode_comparisons(origem="shadow")
+        self.assertEqual(len(so_shadow), 1)
+        self.assertEqual(so_shadow[0]["meeting_id"], "m-shadow")
+
     def test_obter_ultimo_ai_usage_event_sem_meeting_id_retorna_none(self):
         self.assertIsNone(database.obter_ultimo_ai_usage_event("qualquer.feature", None))
 
