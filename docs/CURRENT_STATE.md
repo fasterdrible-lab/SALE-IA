@@ -1,7 +1,8 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-20 — Backend **V.1.4.119** (local + GitHub,
-aguardando deploy na VPS): **Fase 23 (Teste em Shadow Mode)** do
+Atualizado em: 2026-09-20 — Backend **V.1.4.119** (local + GitHub +
+**produção confirmada**, `/health` = `versao 1.4.119`): **Fase 23
+(Teste em Shadow Mode)** do
 "PROMPT MESTRE — SALE-IA V2". Investigação prévia achou que só 2 dos 11
 campos de entrada do `SalesReasoningEngine` (Fase 7) têm dado real hoje
 no ciclo de `/tempo-real` (`meeting_memory` parcial + `rag_context`) —
@@ -16,10 +17,16 @@ ShadowModeComparison` (tabela nova) + wiring fire-and-forget em
 `agent/multiagente/orquestrador.py` (kill-switch `SHADOW_MODE_ENABLED`,
 **default `false`** — liga soma 1 chamada real de IA por ciclo, opt-in
 explícito) + `GET /admin/shadow-mode/resumo` (admin-only). 34 testes
-novos. **Fecha o contrato + wiring da Fase 23** — falta só a decisão
-separada de ligar `SHADOW_MODE_ENABLED=true` em produção pra começar a
-coletar dado real, e a Fase 24 (Piloto) não começa sem nova confirmação
-explícita do usuário. Detalhe completo em CHANGELOG.md.
+novos. **Deploy confirmado (20/09/2026, ~18h17 UTC)**: commit
+`4d8a5dc`, `reunioes_ativas: 0` checado antes do `git pull`/restart —
+corrida de DDL conhecida entre os 2 workers ao criar
+`shadow_mode_comparisons` (mesmo padrão desde V.1.4.108) desta vez
+tratada sem derrubar o processo; `/health` = `versao 1.4.119`, `status
+online`; `/dashboard` = `200`. `SHADOW_MODE_ENABLED` continua `false`
+— nenhuma comparação real coletada ainda, ligar em produção é decisão
+separada não tomada nesta rodada. **Fecha o contrato + wiring da Fase
+23**; a Fase 24 (Piloto) não começa sem nova confirmação explícita do
+usuário. Detalhe completo em CHANGELOG.md.
 
 Backend **V.1.4.118** (local + GitHub +
 **produção confirmada**, `/health` = `versao 1.4.118`): Seller Coaching

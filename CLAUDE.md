@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.119** (backend, local + GitHub, aguardando deploy na VPS) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.119** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -3200,12 +3200,16 @@ atual, comparar `agreement`/`disagreement`/`latency`/`errors`/`cost`/
   mecanismo silencioso por definição. Sem UI no Dashboard (mesma
   decisão de `GET /admin/observabilidade/metricas`, Fase 19).
 - Versão: `1.4.118` → `1.4.119`.
-- **Pendente**: push + deploy na VPS (aditiva — 1 tabela nova via
-  `create_all()`, sem flag obrigatório — `SHADOW_MODE_ENABLED` segue
-  `false` até o usuário decidir ligar). **Fase 24 (Piloto) não começa
-  sem nova confirmação explícita do usuário — nem ligar
-  `SHADOW_MODE_ENABLED=true` em produção, decisão separada de "a fase
-  foi construída".**
+- **Deploy confirmado (20/09/2026)**: commit `4d8a5dc`, `reunioes_
+  ativas: 0` checado antes do `git pull`/restart. Corrida de DDL entre
+  os 2 workers ao criar `shadow_mode_comparisons` (mesmo padrão desde
+  V.1.4.108) desta vez tratada sem derrubar o processo (`WARNING`
+  "Tabela ja existia durante startup concorrente", ambos os workers
+  subiram limpos). `/health` = `versao 1.4.119`, `status online`;
+  `/dashboard` = `200`. `SHADOW_MODE_ENABLED` continua `false` —
+  nenhuma comparação real sendo coletada; ligar em produção é decisão
+  separada, não tomada nesta rodada. **Fase 24 (Piloto) não começa sem
+  nova confirmação explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

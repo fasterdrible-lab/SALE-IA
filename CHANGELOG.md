@@ -4,7 +4,7 @@
 ---
 
 ## V.1.4.119 — Fase 23 do "PROMPT MESTRE — SALE-IA V2" (Teste em Shadow Mode)
-> Data: 20/09/2026 | Local + GitHub, aguardando deploy na VPS
+> Data: 20/09/2026 | Local + GitHub + **produção confirmada** (`/health` = `versao 1.4.119`)
 
 Usuário confirmou avançar para a Fase 23. Texto literal: "Antes de
 permitir que o novo Sales Reasoning Engine influencie vendedores reais:
@@ -99,12 +99,22 @@ mesmo com input parcial em vez de esperar as 9 extrações futuras.
   definição). Sem UI no Dashboard nesta rodada — mesma decisão já
   tomada pra `GET /admin/observabilidade/metricas` (Fase 19, "sem UI
   nova, decisão de reuso").
-- **Pendente**: push + deploy na VPS (aditiva — 1 tabela nova, criada
-  automaticamente via `create_all()` no startup, sem `.env`/flag
-  obrigatório — `SHADOW_MODE_ENABLED` continua `false` até o usuário
-  decidir ligar). **Fase 24 (Piloto) não começa sem nova confirmação
-  explícita do usuário — nem ligar `SHADOW_MODE_ENABLED=true` em
-  produção, que é decisão separada de "a fase foi construída".**
+- **Push + deploy confirmados (20/09/2026, ~18h17 UTC)**: commit
+  `4d8a5dc`. `reunioes_ativas: 0` checado antes do `git pull`
+  (fast-forward `0d2196e` → `4d8a5dc`) e antes do `systemctl restart
+  saleia`. **Corrida de DDL entre os 2 workers do uvicorn ao criar
+  `shadow_mode_comparisons`** (mesmo padrão já documentado desde a
+  V.1.4.108, Fase 18.4) — desta vez tratada sem derrubar o processo:
+  journal mostrou `"Tabela ja existia durante startup concorrente;
+  seguindo normalmente"` (`WARNING`), os 2 workers subiram limpos, sem
+  reinício automático do systemd necessário. Pós-restart: `/health` =
+  `versao 1.4.119`, `status online`, 4 provedores `ok`; `/dashboard` =
+  `200`; `GET /admin/shadow-mode/resumo` responde `401` sem token
+  (confirma que a rota nova existe). **`SHADOW_MODE_ENABLED` continua
+  `false`** — nenhuma comparação real está sendo coletada ainda; ligar
+  em produção é decisão separada, que **não** foi tomada nesta rodada.
+  **Fase 24 (Piloto) não começa sem nova confirmação explícita do
+  usuário.**
 
 ---
 
