@@ -1,6 +1,27 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-20 — Backend **V.1.4.118** (local + GitHub +
+Atualizado em: 2026-09-20 — Backend **V.1.4.119** (local + GitHub,
+aguardando deploy na VPS): **Fase 23 (Teste em Shadow Mode)** do
+"PROMPT MESTRE — SALE-IA V2". Investigação prévia achou que só 2 dos 11
+campos de entrada do `SalesReasoningEngine` (Fase 7) têm dado real hoje
+no ciclo de `/tempo-real` (`meeting_memory` parcial + `rag_context`) —
+os outros 9 têm o mesmo gap de extração já documentado nas
+investigações da Fase 22. Usuário confirmou a ordem: **contrato de
+comparação primeiro, wiring real no ciclo em seguida**, aceitando
+`quality` limitado. `agent/shadow_mode_rules.py` (novo) — único sinal
+de concordância calculável sem IA extra é estrutural (os dois modelos
+recomendam uma pergunta agora, ou não?), nunca inventa tradução de
+`category`↔`recommended_framework`. `api/database.py::
+ShadowModeComparison` (tabela nova) + wiring fire-and-forget em
+`agent/multiagente/orquestrador.py` (kill-switch `SHADOW_MODE_ENABLED`,
+**default `false`** — liga soma 1 chamada real de IA por ciclo, opt-in
+explícito) + `GET /admin/shadow-mode/resumo` (admin-only). 34 testes
+novos. **Fecha o contrato + wiring da Fase 23** — falta só a decisão
+separada de ligar `SHADOW_MODE_ENABLED=true` em produção pra começar a
+coletar dado real, e a Fase 24 (Piloto) não começa sem nova confirmação
+explícita do usuário. Detalhe completo em CHANGELOG.md.
+
+Backend **V.1.4.118** (local + GitHub +
 **produção confirmada**, `/health` = `versao 1.4.118`): Seller Coaching
 (Fase 22 / bloco 4) — **fecha
 a Fase 22 (Frontend) por completo**. Investigação prévia (mesmo padrão

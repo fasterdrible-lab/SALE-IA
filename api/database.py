@@ -3316,3 +3316,122 @@ def listar_audit_trail_entries(
         stmt = stmt.order_by(AuditTrailEntry.timestamp.asc()).limit(limit)
         rows = session.exec(stmt).all()
         return [_audit_trail_entry_to_dict(r) for r in rows]
+
+
+class ShadowModeComparison(SQLModel, table=True):
+    """Fase 23 do "PROMPT MESTRE — SALE-IA V2" — Teste em Shadow Mode.
+    Um registro por ciclo de `/tempo-real` em que o
+    `agent/sales_reasoning_engine.py::raciocinar_async()` (Fase 7) rodou
+    silenciosamente em paralelo ao modelo atual (`agent/multiagente/
+    orquestrador.py`), sem nunca influenciar o que o vendedor viu.
+    Aditiva.
+
+    `recomendacao_nova_json`/`concordancia`/`latency_ms`/`cost_usd`
+    nulos significam que o modelo novo falhou nesse ciclo (`erro`
+    preenchido) — erro nunca vira discordância, ver
+    `agent/shadow_mode_rules.py`. Escrita é sempre melhor esforço (mesmo
+    padrão de `AiUsageEvent`) — uma falha aqui nunca pode derrubar o
+    ciclo real de `/tempo-real`.
+    """
+
+    __tablename__ = "shadow_mode_comparisons"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    criado_em: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False, index=True))
+    meeting_id: Optional[str] = Field(default=None, sa_column=Column(String(200), index=True))
+    usuario_id: Optional[str] = Field(default=None, sa_column=Column(String(36), index=True))
+    recomendacao_atual_json: str = Field(default="{}", sa_column=Column(_LongText, nullable=False))
+    recomendacao_nova_json: Optional[str] = Field(default=None, sa_column=Column(_LongText))
+    concordancia: Optional[bool] = Field(default=None, sa_column=Column(Boolean))
+    atual_e_pergunta: Optional[bool] = Field(default=None, sa_column=Column(Boolean))
+    novo_e_pergunta: Optional[bool] = Field(default=None, sa_column=Column(Boolean))
+    latency_ms: Optional[int] = Field(default=None, sa_column=Column(Integer))
+    cost_usd: Optional[float] = Field(default=None, sa_column=Column(Float))
+    erro: Optional[str] = Field(default=None, sa_column=Column(String(500)))
+
+
+def _shadow_mode_comparison_to_dict(row: "ShadowModeComparison") -> dict:
+    return {
+        "id": row.id,
+        "criado_em": row.criado_em.isoformat() if row.criado_em else None,
+        "meeting_id": row.meeting_id,
+        "usuario_id": row.usuario_id,
+        "recomendacao_atual": json.loads(row.recomendacao_atual_json) if row.recomendacao_atual_json else {},
+        "recomendacao_nova": json.loads(row.recomendacao_nova_json) if row.recomendacao_nova_json else None,
+        "concordancia": row.concordancia,
+        "atual_e_pergunta": row.atual_e_pergunta,
+        "novo_e_pergunta": row.novo_e_pergunta,
+        "latency_ms": row.latency_ms,
+        "cost_usd": row.cost_usd,
+        "erro": row.erro,
+    }
+
+
+def criar_shadow_mode_comparison(
+    *,
+    meeting_id: Optional[str],
+    usuario_id: Optional[str],
+    recomendacao_atual: dict,
+    recomendacao_nova: Optional[dict],
+    concordancia: Optional[bool],
+    atual_e_pergunta: Optional[bool],
+    novo_e_pergunta: Optional[bool],
+    latency_ms: Optional[int],
+    cost_usd: Optional[float],
+    erro: Optional[str],
+    **_ignorados,
+) -> dict:
+    """Persiste um registro de `agent/shadow_mode_rules.py::
+    montar_registro_shadow()`. `**_ignorados` absorve o campo `quality`
+    do registro (nunca persistido — é sempre o mesmo gap explícito,
+    recomputado em `resumo_shadow_mode()`, não faz sentido gravar em
+    milhares de linhas). Escrita melhor esforço — chamador decide se
+    envolve em try/except (ver `agent/multiagente/orquestrador.py`)."""
+    with Session(engine) as session:
+        row = ShadowModeComparison(
+            meeting_id=meeting_id,
+            usuario_id=usuario_id,
+            recomendacao_atual_json=json.dumps(recomendacao_atual or {}, ensure_ascii=False),
+            recomendacao_nova_json=json.dumps(recomendacao_nova, ensure_ascii=False) if recomendacao_nova else None,
+            concordancia=concordancia,
+            atual_e_pergunta=atual_e_pergunta,
+            novo_e_pergunta=novo_e_pergunta,
+            latency_ms=latency_ms,
+            cost_usd=cost_usd,
+            erro=erro,
+        )
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _shadow_mode_comparison_to_dict(row)
+
+
+def listar_shadow_mode_comparisons(limit: int = 5000) -> List[dict]:
+    with Session(engine) as session:
+        stmt = select(ShadowModeComparison).order_by(ShadowModeComparison.criado_em.desc()).limit(limit)
+        rows = session.exec(stmt).all()
+        return [_shadow_mode_comparison_to_dict(r) for r in rows]
+
+
+def obter_ultimo_ai_usage_event(feature: str, meeting_id: Optional[str]) -> Optional[dict]:
+    """Melhor esforço: última linha de `ai_usage_events` pra uma
+    `feature`+`meeting_id`, usada pelo Shadow Mode (Fase 23) pra
+    recuperar o custo real de uma chamada de `raciocinar_async()`
+    (que não retorna custo diretamente ao chamador — só
+    `api/ai_router.py::chamar_ia` grava em `AiUsageEvent`). Correlação
+    por "mais recente pra essa feature+reunião", não por id exato —
+    mesmo princípio de melhor esforço já usado em
+    `custo_medio_por_opportunity()` (Fase 19)."""
+    if not meeting_id:
+        return None
+    with Session(engine) as session:
+        stmt = (
+            select(AiUsageEvent)
+            .where(AiUsageEvent.feature == feature, AiUsageEvent.meeting_id == meeting_id)
+            .order_by(AiUsageEvent.criado_em.desc())
+            .limit(1)
+        )
+        row = session.exec(stmt).first()
+        if not row:
+            return None
+        return {"cost_usd": row.cost_usd, "latency_ms": row.latency_ms, "success": row.success}

@@ -29,6 +29,143 @@ def bigfive_agent_ativo() -> bool:
     Compiler)."""
     return os.getenv("BIGFIVE_AGENT_ENABLED", "true").strip().lower() != "false"
 
+
+def shadow_mode_ativo() -> bool:
+    """Kill-switch da Fase 23 ("PROMPT MESTRE — SALE-IA V2") — Teste em
+    Shadow Mode: roda `agent/sales_reasoning_engine.py::raciocinar_
+    async()` (Fase 7) silenciosamente em paralelo ao modelo atual, sem
+    nunca influenciar o que o vendedor vê (`resultado` já foi calculado
+    e devolvido antes da task de shadow mode sequer começar). `false`
+    por padrão, diferente do Big Five — liga soma **1 chamada real de
+    IA por ciclo de tempo real** (mesma ordem de grandeza de custo do
+    Big Five, mas aqui o objetivo é só medir, não entregar valor
+    imediato ao vendedor), então é opt-in explícito, não default
+    ligado. `true` no `.env` + restart ativa; `false` volta a nada
+    rodar, sem reverter deploy — mesmo padrão de todo kill-switch já
+    usado no projeto."""
+    return os.getenv("SHADOW_MODE_ENABLED", "false").strip().lower() == "true"
+
+
+# Referencias fortes das tasks de shadow mode em voo — sem isso, o
+# event loop do asyncio pode coletar a Task antes dela terminar (nao ha
+# nenhuma outra referencia viva depois que analisar_fragmento_multi
+# retorna). Removida do set assim que a task termina (add_done_callback).
+_SHADOW_MODE_TASKS: set = set()
+
+
+def _agendar_shadow_mode(
+    resultado: dict,
+    transcricao_parcial: str,
+    historico: str,
+    resumo_vivo: str,
+    diagnostico_atual: dict,
+    mapa_financeiro: dict,
+    historico_scores: list,
+    eventos: list,
+    client_context: str,
+    usuario_id: str | None,
+    meeting_id: str | None,
+) -> None:
+    """Dispara a comparação Shadow Mode (Fase 23) como fire-and-forget —
+    nunca aguardada pelo ciclo real, nunca pode atrasar a resposta que
+    o vendedor recebe. `resultado` já é o dict final que será retornado
+    ao chamador; só a recomendação atual (`next_best_action`) é lida
+    daqui, nunca mutada."""
+    if not shadow_mode_ativo():
+        return
+    task = asyncio.create_task(_rodar_shadow_mode(
+        recomendacao_atual=resultado.get("next_best_action") or {},
+        transcricao_parcial=transcricao_parcial,
+        historico=historico,
+        resumo_vivo=resumo_vivo,
+        diagnostico_atual=diagnostico_atual,
+        mapa_financeiro=mapa_financeiro,
+        historico_scores=historico_scores,
+        eventos=eventos,
+        client_context=client_context,
+        usuario_id=usuario_id,
+        meeting_id=meeting_id,
+    ))
+    _SHADOW_MODE_TASKS.add(task)
+    task.add_done_callback(_SHADOW_MODE_TASKS.discard)
+
+
+async def _rodar_shadow_mode(
+    recomendacao_atual: dict,
+    transcricao_parcial: str,
+    historico: str,
+    resumo_vivo: str,
+    diagnostico_atual: dict,
+    mapa_financeiro: dict,
+    historico_scores: list,
+    eventos: list,
+    client_context: str,
+    usuario_id: str | None,
+    meeting_id: str | None,
+) -> None:
+    """Roda `raciocinar_async()` (Fase 7) silenciosamente e persiste a
+    comparação (Fase 23). Melhor esforço absoluto — qualquer exceção
+    aqui (inclusive de persistência) nunca pode aparecer pro vendedor
+    nem para o ciclo real, que já terminou antes desta função começar
+    (chamada via `asyncio.create_task`, nunca `await`ada por
+    `analisar_fragmento_multi`)."""
+    import time as _time
+
+    from agent.sales_reasoning_engine import raciocinar_async
+    from agent.shadow_mode_rules import montar_registro_shadow
+
+    # Só 2 dos 11 campos do contrato têm dado real hoje no ciclo de
+    # tempo real — meeting_memory (subconjunto do estado ao vivo da
+    # reunião, nunca o registro completo do banco) e rag_context (o
+    # mesmo client_context — RAG + Sales Memory + Knowledge Compiler —
+    # já usado pelos 4-5 agentes reais). Os outros 9
+    # (opportunity_memory/graph, spin_state, meddpicc_state,
+    # buyer_motivation, objections, behavioral_signals, seller_context,
+    # historical_patterns) ficam `None` — mesmo gap já documentado em
+    # agent/opportunity_intelligence_rules.py/agent/
+    # seller_coaching_rules.py (Fase 22): nenhuma função extrai isso de
+    # transcrição livre ainda. Decisão confirmada com o usuário: rodar
+    # o Shadow Mode hoje mesmo com input parcial, em vez de esperar.
+    entrada = {
+        "meeting_memory": {
+            "transcricao_parcial": transcricao_parcial,
+            "historico": historico,
+            "resumo_vivo": resumo_vivo,
+            "diagnostico_atual": diagnostico_atual,
+            "mapa_financeiro": mapa_financeiro,
+            "historico_scores": historico_scores,
+            "eventos": eventos,
+        },
+        "rag_context": client_context or None,
+    }
+
+    inicio = _time.monotonic()
+    recomendacao_nova = None
+    erro = None
+    try:
+        recomendacao_nova = await raciocinar_async(entrada, usuario_id=usuario_id, meeting_id=meeting_id)
+    except Exception as e:
+        erro = f"{type(e).__name__}: {e}"
+        logger.debug("[ShadowMode] raciocinar_async falhou (esperado, melhor esforço): %s", erro)
+    latency_ms = int((_time.monotonic() - inicio) * 1000)
+
+    cost_usd = None
+    try:
+        from api import ai_features
+        from api.database import obter_ultimo_ai_usage_event
+        evento = obter_ultimo_ai_usage_event(ai_features.SALES_REASONING_RACIOCINIO, meeting_id)
+        if evento:
+            cost_usd = evento.get("cost_usd")
+    except Exception:
+        pass
+
+    registro = montar_registro_shadow(recomendacao_atual, recomendacao_nova, latency_ms, cost_usd, erro)
+    try:
+        from api.database import criar_shadow_mode_comparison
+        criar_shadow_mode_comparison(meeting_id=meeting_id, usuario_id=usuario_id, **registro)
+    except Exception as _e:
+        logger.debug("[ShadowMode] Falha ao persistir comparação (melhor esforço): %s", _e)
+
 _FALLBACK_NBA = {
     "type": "question",
     "category": "descoberta_dor",
@@ -288,4 +425,17 @@ async def analisar_fragmento_multi(
         _safe(bigfive_r),
     )
     resultado["_custo_ciclo_ia_usd"] = round(custo_ciclo, 6)
+
+    # Fase 23 ("PROMPT MESTRE — SALE-IA V2") — Teste em Shadow Mode:
+    # fire-and-forget, nunca aguardado, nunca pode atrasar o retorno
+    # abaixo nem mudar `resultado`. Kill-switch SHADOW_MODE_ENABLED
+    # (default false) — ver shadow_mode_ativo().
+    try:
+        _agendar_shadow_mode(
+            resultado, transcricao_parcial, historico, rv, diag, mapa,
+            scores, evts, client_context, usuario_id, meeting_id,
+        )
+    except Exception as _e:
+        logger.debug("[ShadowMode] Falha ao agendar (melhor esforço): %s", _e)
+
     return resultado

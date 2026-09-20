@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.118** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.119** (backend, local + GitHub, aguardando deploy na VPS) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -3128,6 +3128,84 @@ Steps.
   provedores `ok`; `/dashboard` = `200`. **Nenhuma fase seguinte do
   "PROMPT MESTRE — SALE-IA V2" começa sem nova confirmação explícita
   do usuário.**
+
+## Fase 23 — Teste em Shadow Mode (V.1.4.119)
+
+Usuário confirmou avançar para a Fase 23. Texto literal: rodar o
+`SalesReasoningEngine` (Fase 7) silenciosamente em paralelo ao modelo
+atual, comparar `agreement`/`disagreement`/`latency`/`errors`/`cost`/
+`quality`, só liberar depois da avaliação.
+
+- **Investigação prévia**: `agent/sales_reasoning_engine.py::
+  raciocinar_async()` espera 11 campos de entrada; só 2
+  (`meeting_memory` parcial, `rag_context`) têm dado real no ciclo de
+  `/tempo-real` hoje — os outros 9 têm o mesmo gap de extração já
+  documentado nas investigações da Fase 22 (blocos 2-4). Usuário
+  confirmou a ordem: **contrato de comparação primeiro, wiring real no
+  ciclo em seguida**, aceitando que `quality` fique limitado — Shadow
+  Mode é silencioso por definição, então o risco de rodar com input
+  parcial é baixo.
+- **`agent/shadow_mode_rules.py`** (novo, função pura, sem IA/banco):
+  `avaliar_concordancia_estrutural(recomendacao_atual,
+  recomendacao_nova)` — o único sinal de concordância calculável sem
+  chamar IA de novo é binário: os dois modelos recomendam uma PERGUNTA
+  ao cliente agora, ou não? (`next_best_action.type == "question"` do
+  modelo atual, vocabulário fechado `question|insight|warning|
+  next_step` de `agent/prompt_templates/multiagente_coach.txt`, vs.
+  `next_best_question` presente do modelo novo). **Nunca mapeia**
+  `category` (12 valores livres da IA) pra `recommended_framework` (9
+  valores fechados) — inventar essa tradução seria fabricar
+  concordância, mesmo princípio de `agent/
+  opportunity_intelligence_rules.py` (SPIN/MEDDPICC vs. categorias de
+  `OpportunityMemory`). `recomendacao_nova=None` (modelo novo falhou)
+  nunca vira discordância — `concordancia=None`, erro ≠ desacordo.
+  `montar_registro_shadow()`/`resumir_comparacoes()` — `quality` sempre
+  `QUALITY_NAO_DISPONIVEL` (exigiria LLM-judge, mesmo mecanismo de
+  `evals/promptfooconfig.*.yaml`, custo real por comparação, decisão de
+  produto separada).
+- **`api/database.py::ShadowModeComparison`** (tabela
+  `shadow_mode_comparisons`, aditiva) + `criar_shadow_mode_comparison()`/
+  `listar_shadow_mode_comparisons()` + `obter_ultimo_ai_usage_event(
+  feature, meeting_id)` (novo helper — `raciocinar_async()` não retorna
+  custo ao chamador, só `chamar_ia` grava em `AiUsageEvent`; correlação
+  por "mais recente pra essa feature+reunião", mesmo princípio de
+  `custo_medio_por_opportunity()`, Fase 19).
+- **Wiring em `agent/multiagente/orquestrador.py`**:
+  `shadow_mode_ativo()` — kill-switch `SHADOW_MODE_ENABLED`, **default
+  `false`** (diferente do Big Five, `true` por padrão) — ligar soma 1
+  chamada real de IA por ciclo (~mesma ordem de custo do Big Five),
+  decisão de custo explícita, opt-in nunca automático.
+  `_agendar_shadow_mode()`/`_rodar_shadow_mode()`: fire-and-forget via
+  `asyncio.create_task()`, referência forte mantida em
+  `_SHADOW_MODE_TASKS` até terminar (`add_done_callback` remove) — sem
+  isso o event loop pode coletar a Task antes dela rodar. Nunca
+  `await`ado por `analisar_fragmento_multi()` — não atrasa nem muda
+  `resultado`, chamado só depois de `resultado = _mesclar(...)`, lendo
+  `resultado["next_best_action"]` como recomendação atual e
+  reaproveitando `client_context` (já enriquecido nesse mesmo ciclo com
+  RAG/Sales Memory/Knowledge Compiler) como `rag_context` — zero
+  chamada extra de RAG. Melhor esforço absoluto em toda a cadeia
+  (agendamento, `raciocinar_async()`, persistência) — nenhuma exceção
+  aqui pode aparecer pro vendedor.
+- **`GET /admin/shadow-mode/resumo`** (novo, admin-only, mesma
+  disciplina de `GET /sales-science/insights`) — com o kill-switch
+  desligado (padrão), sempre `total_comparacoes: 0`.
+- 34 testes novos (16 módulo puro + 8 persistência + 8 integração no
+  orquestrador, incluindo "resultado real nunca muda mesmo com shadow
+  ligado" e "falha do modelo novo/de persistência nunca derruba o
+  ciclo" + 4 endpoint). Suite completa sem regressão.
+- **Decisão deliberada de escopo**: fechar os 9 gaps de extração
+  (SPIN/MEDDPICC/objeção/etc. real a partir da transcrição) fica fora
+  desta rodada — esforço muito maior, não deveria bloquear um
+  mecanismo silencioso por definição. Sem UI no Dashboard (mesma
+  decisão de `GET /admin/observabilidade/metricas`, Fase 19).
+- Versão: `1.4.118` → `1.4.119`.
+- **Pendente**: push + deploy na VPS (aditiva — 1 tabela nova via
+  `create_all()`, sem flag obrigatório — `SHADOW_MODE_ENABLED` segue
+  `false` até o usuário decidir ligar). **Fase 24 (Piloto) não começa
+  sem nova confirmação explícita do usuário — nem ligar
+  `SHADOW_MODE_ENABLED=true` em produção, decisão separada de "a fase
+  foi construída".**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 
