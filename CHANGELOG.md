@@ -4,7 +4,7 @@
 ---
 
 ## V.1.4.120 — Fase 24 do "PROMPT MESTRE — SALE-IA V2" (Piloto) — infraestrutura + ativação do Shadow Mode em produção
-> Data: 20/09/2026 | Local + GitHub, aguardando deploy na VPS
+> Data: 20/09/2026 | Local + GitHub + **produção confirmada** (`/health` = `versao 1.4.120`)
 
 Usuário confirmou avançar para a Fase 24. Texto literal: "Liberar
 inicialmente para 1 vendedor, depois 5%, depois 20%, depois 50%, e
@@ -87,14 +87,24 @@ existir.
   em produção). Sem UI no Dashboard — mesma decisão de `GET /admin/
   observabilidade/metricas` (Fase 19) e `GET /admin/shadow-mode/resumo`
   (Fase 23).
-- **Pendente**: push + deploy na VPS (aditiva — 1 coluna nova em
-  `shadow_mode_comparisons`, exige `ALTER TABLE ... ADD COLUMN origem
-  VARCHAR(20) NOT NULL DEFAULT 'shadow'` manual — `create_all()` não
-  migra tabela já existente, mesmo padrão de sempre) + `SHADOW_MODE_
-  ENABLED=true` no `.env` da VPS (ativação confirmada com o usuário,
-  parte desta mesma rodada). **Fase 24 de fato (liberar pra 1 vendedor)
-  não começa sem nova confirmação explícita do usuário, depois de haver
-  dado real de Shadow Mode pra avaliar.**
+- **Push + deploy confirmados (20/09/2026, ~19h23 UTC)**: commit
+  `1c8663a`. `reunioes_ativas: 0` checado 3x (antes do `git pull`, antes
+  da migração, antes do restart). Migração aplicada via script Python
+  subido por SFTP e executado com o venv da app (reaproveita `api.
+  database.engine`, nunca expõe credenciais MySQL) — `ALTER TABLE
+  shadow_mode_comparisons ADD COLUMN origem VARCHAR(20) NOT NULL
+  DEFAULT 'shadow'` confirmado via `DESCRIBE`, e `SHADOW_MODE_
+  ENABLED=true` adicionado ao `.env` da VPS (linha não existia ainda).
+  `systemctl restart saleia` — `active`, os 2 workers subiram limpos,
+  journal sem erros. Pós-restart: `/health` = `versao 1.4.120`, `status
+  online`, 4 provedores `ok`; `/dashboard` = `200`;
+  `GET /admin/shadow-mode/resumo?origem=piloto` responde `401` sem
+  token (confirma que o filtro por query param está no ar). **Shadow
+  Mode agora coletando dado real em produção** (`SHADOW_MODE_ENABLED=
+  true`) — `PILOT_MODE` continua `off`, nenhum vendedor real influenciado
+  ainda. **Fase 24 de fato (liberar pra 1 vendedor) não começa sem
+  nova confirmação explícita do usuário, depois de haver dado real de
+  Shadow Mode pra avaliar.**
 
 ---
 

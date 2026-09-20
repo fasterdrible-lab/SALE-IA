@@ -1,7 +1,8 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-20 — Backend **V.1.4.120** (local + GitHub,
-aguardando deploy na VPS): **Fase 24 (Piloto)** do "PROMPT MESTRE —
+Atualizado em: 2026-09-20 — Backend **V.1.4.120** (local + GitHub +
+**produção confirmada**, `/health` = `versao 1.4.120`): **Fase 24
+(Piloto)** do "PROMPT MESTRE —
 SALE-IA V2" — infraestrutura de rollout gradual (1 vendedor → 5% → 20%
 → 50% → 100%, feature flag `PILOT_MODE`, rollback sem deploy) +
 adaptador que converte a saída do `SalesReasoningEngine` pro schema
@@ -19,10 +20,15 @@ mapeamento, mesmo princípio de honestidade da Fase 23. Wiring em
 latência real só pra quem está dentro do rollout), fail-open, mutuamente
 exclusivo com Shadow Mode. `ShadowModeComparison` ganha coluna `origem`
 (`shadow`/`piloto`). 32+4 testes novos. Suite completa: **1267 testes,
-0 falhas**, 1 skip pré-existente. **`PILOT_MODE` continua `off`** —
-nenhum vendedor real entra no rollout ainda; ativar é decisão separada,
-só depois de avaliar dado real de Shadow Mode. Detalhe completo em
-CHANGELOG.md.
+0 falhas**, 1 skip pré-existente. **Deploy confirmado (20/09/2026,
+~19h23 UTC)**: commit `1c8663a`, `reunioes_ativas: 0` checado 3x —
+`ALTER TABLE` (coluna `origem`) confirmado via `DESCRIBE` +
+`SHADOW_MODE_ENABLED=true` adicionado ao `.env` da VPS + restart —
+`/health` = `versao 1.4.120`, `status online`; `/dashboard` = `200`.
+**Shadow Mode agora coletando dado real em produção.** `PILOT_MODE`
+continua `off` — nenhum vendedor real entra no rollout ainda; ativar
+é decisão separada, só depois de avaliar dado real de Shadow Mode.
+Detalhe completo em CHANGELOG.md.
 
 Backend **V.1.4.119** (local + GitHub +
 **produção confirmada**, `/health` = `versao 1.4.119`): **Fase 23

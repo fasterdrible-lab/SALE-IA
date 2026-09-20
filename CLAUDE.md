@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.120** (backend, local + GitHub, aguardando deploy na VPS) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.120** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -3274,13 +3274,17 @@ rollback sem deploy.
   pra 1 vendedor) é decisão separada, só depois de avaliar dado real
   de Shadow Mode. Sem UI no Dashboard.
 - Versão: `1.4.119` → `1.4.120`.
-- **Pendente**: push + deploy na VPS (`ALTER TABLE shadow_mode_
+- **Deploy confirmado (20/09/2026)**: commit `1c8663a`, `reunioes_
+  ativas: 0` checado 3x. Migração via script Python subido por SFTP e
+  executado com o venv da app (reaproveita `api.database.engine`,
+  nunca expõe credenciais MySQL) — `ALTER TABLE shadow_mode_
   comparisons ADD COLUMN origem VARCHAR(20) NOT NULL DEFAULT 'shadow'`
-  manual — `create_all()` não migra tabela já existente) +
-  `SHADOW_MODE_ENABLED=true` no `.env` da VPS (ativação confirmada
-  com o usuário, parte desta mesma rodada). **Fase 24 de fato (liberar
-  pra 1 vendedor) não começa sem nova confirmação explícita do
-  usuário, depois de haver dado real de Shadow Mode pra avaliar.**
+  confirmado via `DESCRIBE`, `SHADOW_MODE_ENABLED=true` adicionado ao
+  `.env`. `/health` = `versao 1.4.120`, `status online`; `/dashboard`
+  = `200`. **Shadow Mode agora coletando dado real em produção.**
+  `PILOT_MODE` continua `off`. **Fase 24 de fato (liberar pra 1
+  vendedor) não começa sem nova confirmação explícita do usuário,
+  depois de haver dado real de Shadow Mode pra avaliar.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 
