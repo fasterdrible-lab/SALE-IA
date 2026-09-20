@@ -4,7 +4,7 @@
 ---
 
 ## V.1.4.123 — Bloco 4 / Tarefa 4.4 — investigação de causa raiz de objeção
-> Data: 20/09/2026 | Local + GitHub, aguardando deploy na VPS
+> Data: 20/09/2026 | Local + GitHub + **produção confirmada** (`/health` = `versao 1.4.123`)
 
 Usuário confirmou avançar pro Bloco 4 (`docs/tasks-sales-reasoning-
 engine-completo.md`) — o bloco de extração real por IA, mais caro do
@@ -63,8 +63,12 @@ própria fala da objeção.
   contrato (continuam os mesmos 4 reais) — só aprofunda a qualidade de
   `objections`, que ganha `root_cause_hypothesis` real em vez de
   sempre `None`.
-- **Pendente**: push + deploy na VPS (aditiva — sem tabela/coluna
-  nova, só código + 1 prompt template novo). **Tarefa 4.1 (extrator de
+- **Push + deploy confirmados (20/09/2026, ~23h07 UTC)**: commit
+  `c972383`. `reunioes_ativas: 0` checado antes do `git pull`
+  (fast-forward `0c0967e` → `c972383`) e antes do `systemctl restart
+  saleia` — `active`, os 2 workers subiram limpos, journal sem erros.
+  Pós-restart: `/health` = `versao 1.4.123`, `status online`, 4
+  provedores `ok`; `/dashboard` = `200`. **Tarefa 4.1 (extrator de
   SPIN) não começa sem nova confirmação explícita do usuário.**
 
 ---

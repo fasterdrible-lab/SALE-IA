@@ -1,7 +1,8 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-20 — Backend **V.1.4.123** (local + GitHub,
-aguardando deploy na VPS): usuário confirmou avançar pro **Bloco 4**
+Atualizado em: 2026-09-20 — Backend **V.1.4.123** (local + GitHub +
+**produção confirmada**, `/health` = `versao 1.4.123`): usuário
+confirmou avançar pro **Bloco 4**
 do plano (extração real por IA, mais cara), uma tarefa de cada vez.
 **Tarefa 4.4 (causa raiz de objeção)**: já garantida estruturalmente
 por `agent/objection_rules.py::precisa_investigar()` desde a Fase 6.1
@@ -17,9 +18,11 @@ de persistir. Sem sinal claro, retorna `None` (nunca fabrica).
 Não adiciona campo novo aos 11 do contrato (continuam 4 reais) — só
 aprofunda `objections` com `root_cause_hypothesis` real. 20 testes
 novos, suite completa: **1316 testes, 0 falhas**, 1 skip
-pré-existente. Detalhe completo em CHANGELOG.md. **Tarefa 4.1
-(extrator de SPIN) não começa sem nova confirmação explícita do
-usuário.**
+pré-existente. **Deploy confirmado (20/09/2026, ~23h07 UTC)**: commit
+`c972383`, `reunioes_ativas: 0` checado antes do `git pull`/restart —
+`/health` = `versao 1.4.123`, `status online`; `/dashboard` = `200`.
+Detalhe completo em CHANGELOG.md. **Tarefa 4.1 (extrator de SPIN) não
+começa sem nova confirmação explícita do usuário.**
 
 Backend **V.1.4.122** (local + GitHub +
 **produção confirmada**, `/health` = `versao 1.4.122`): Tarefas 3.1
