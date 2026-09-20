@@ -1,7 +1,8 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-20 — Backend **V.1.4.117** (local + GitHub,
-deploy na VPS pendente): Sales Science (Fase 22 / bloco 3). Só
+Atualizado em: 2026-09-20 — Backend **V.1.4.117** (local + GitHub +
+**produção confirmada**, `/health` = `versao 1.4.117`): Sales Science
+(Fase 22 / bloco 3). Só
 Win/Loss, Seasonality e Conversion Drivers dão pra alimentar com dado
 real hoje (via `Opportunity.stage`/`product`/`competitor`/
 `close_date`/`created_at`) — Seller Benchmark, Best Strategies/

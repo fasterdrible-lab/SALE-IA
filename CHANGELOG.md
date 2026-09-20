@@ -4,7 +4,7 @@
 ---
 
 ## V.1.4.117 — Sales Science, Fase 22 (Frontend, bloco 3) do "PROMPT MESTRE — SALE-IA V2"
-> Data: 20/09/2026 | Local + GitHub, deploy na VPS pendente de confirmação
+> Data: 20/09/2026 | Local + GitHub + **produção confirmada** (`/health` = `versao 1.4.117`)
 
 Usuário confirmou avançar com Sales Science (Win/Loss, Seasonality,
 Objection Trends, Best Strategies, Seller Benchmark, Conversion
@@ -91,7 +91,13 @@ diferente por natureza) fica fora desta rodada.
   não é questão de esperar dado). **Seller Coaching (o último bloco
   de Dashboard da Fase 22) não começa sem nova confirmação explícita
   do usuário.**
-- **Pendente**: push + deploy na VPS.
+- **Push + deploy confirmados (20/09/2026, ~02h03 UTC)**: commit
+  `8afc8ab`. `reunioes_ativas: 0` checado antes do `git pull`
+  (fast-forward `35ad769` → `8afc8ab`) e antes do `systemctl restart
+  saleia` — `active`, os 2 workers subiram limpos, journal sem erros.
+  Pós-restart: `/health` = `versao 1.4.117`, `status online`, 4
+  provedores `ok`; `GET /sales-science/insights` responde `401` sem
+  token (confirma que a rota existe).
 
 ---
 
