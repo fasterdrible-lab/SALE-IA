@@ -1,7 +1,8 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-20 — Backend **V.1.4.116** (local + GitHub,
-deploy na VPS pendente): `PATCH /opportunities/{id}` fecha o CRUD
+Atualizado em: 2026-09-20 — Backend **V.1.4.116** (local + GitHub +
+**produção confirmada**, `/health` = `versao 1.4.116`): `PATCH
+/opportunities/{id}` fecha o CRUD
 básico de `Opportunity` — `stage`/`status` independentes no mesmo
 body; won/lost exigem os mesmos dados de sempre (`value`/`product`/
 `loss_reason`, `agent/outcome_rules.py`, sem duplicação). Dashboard:

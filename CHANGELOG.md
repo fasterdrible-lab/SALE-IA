@@ -4,7 +4,7 @@
 ---
 
 ## V.1.4.116 — PATCH /opportunities/{id} (mudar stage/status), fecha o CRUD básico de Opportunity
-> Data: 20/09/2026 | Local + GitHub, deploy na VPS pendente de confirmação
+> Data: 20/09/2026 | Local + GitHub + **produção confirmada** (`/health` = `versao 1.4.116`)
 
 Usuário confirmou continuar com `PATCH /opportunities/{id}` — fecha o
 CRUD básico de `Opportunity` (criar/listar/ler/atualizar) antes de
@@ -58,7 +58,13 @@ partir pros blocos maiores de Sales Science/Seller Coaching.
   existe desde a Fase 18.4, mas conectá-lo aqui é decisão separada).
   Sales Science e Seller Coaching não começam sem nova confirmação
   explícita do usuário.
-- **Pendente**: push + deploy na VPS.
+- **Push + deploy confirmados (20/09/2026, ~01h22 UTC)**: commit
+  `35ad769`. `reunioes_ativas: 0` checado antes do `git pull`
+  (fast-forward `1e0af6b` → `35ad769`) e antes do `systemctl restart
+  saleia` — `active`, os 2 workers subiram limpos, journal sem erros.
+  Pós-restart: `/health` = `versao 1.4.116`, `status online`, 4
+  provedores `ok`; `PATCH /opportunities/1` responde `401` sem token
+  (confirma que a rota existe).
 
 ---
 
