@@ -1,7 +1,8 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-19 — Backend **V.1.4.115** (local + GitHub,
-deploy na VPS pendente): `GET`/`POST /opportunities` (lista/criação),
+Atualizado em: 2026-09-20 — Backend **V.1.4.115** (local + GitHub +
+**produção confirmada**, `/health` = `versao 1.4.115`): `GET`/`POST
+/opportunities` (lista/criação),
 pré-requisito real que faltava pra Opportunity Intelligence virar
 utilizável (sem isso, a ficha só funcionava com ID digitado a mão e
 nada criava uma `Opportunity` de verdade). `seller_id` sempre do

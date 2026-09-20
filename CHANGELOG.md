@@ -4,7 +4,7 @@
 ---
 
 ## V.1.4.115 — Lista/criação de oportunidades, sequência do bloco 2 da Fase 22 do "PROMPT MESTRE — SALE-IA V2"
-> Data: 19/09/2026 | Local + GitHub, deploy na VPS pendente de confirmação
+> Data: 19-20/09/2026 | Local + GitHub + **produção confirmada** (`/health` = `versao 1.4.115`)
 
 Usuário confirmou avançar com `GET`/`POST /opportunities` — pré-requisito
 real pra Opportunity Intelligence virar utilizável (sem lista/criação,
@@ -78,7 +78,14 @@ criava uma `Opportunity` de verdade).
   em `api/database.py`, sem endpoint). Sales Science e Seller Coaching
   (os outros 2 blocos de Dashboard da Fase 22) não começam sem nova
   confirmação explícita do usuário.
-- **Pendente**: push + deploy na VPS.
+- **Push + deploy confirmados (20/09/2026, ~00h43 UTC)**: commit
+  `1e0af6b`. `reunioes_ativas: 0` checado antes do `git pull`
+  (fast-forward `36353bb` → `1e0af6b`) e antes do `systemctl restart
+  saleia` — `active`, os 2 workers subiram limpos, journal sem erros.
+  Pós-restart: `/health` = `versao 1.4.115`, `status online`, 4
+  provedores `ok`; `GET /opportunities` responde `401` sem token
+  (confirma que a rota existe); `GET /dashboard` contém "Nova
+  Oportunidade" (confirma que a UI nova está no ar).
 
 ---
 
