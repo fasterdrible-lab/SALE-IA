@@ -3,6 +3,82 @@
 
 ---
 
+## Dashboard — tela "Oportunidades" (Opportunity Intelligence), Fase 22 do "PROMPT MESTRE — SALE-IA V2" (sem bump de versão — só frontend)
+> Data: 19/09/2026 | Local + GitHub, deploy na VPS pendente de confirmação
+
+Usuário confirmou avançar com a UI que consome `GET /opportunities/{id}/
+intelligence` (backend já existia desde V.1.4.114). Sem bump de versão
+do backend — nenhum arquivo `api/`/`agent/` foi tocado, só
+`frontend/dashboard.html`.
+
+**Achado antes de codar**: não existe hoje nenhuma lista/criação de
+oportunidades em lugar nenhum do Dashboard (nem endpoint `GET
+/opportunities`, nem referência a `opportunity_id`) — nenhum fluxo real
+cria uma `Opportunity` em produção ainda. Usuário escolheu a opção mais
+enxuta: aba nova "Oportunidades" com campo de ID manual + botão "Ver",
+sem construir lista/criação (ficaria pra rodada futura).
+
+- **Nav item novo** "🎯 Oportunidades" (`frontend/dashboard.html`, logo
+  após "Clientes") + página `#page-oportunidades`, sem função de
+  `carregarX()` chamada automaticamente em `mostrarPagina()` (não tem
+  lista pra carregar — só o campo de ID).
+- **`verOpportunityIntelligence(id)`**: busca via
+  `fetchJsonWithFallback` com `Authorization: Bearer` (token de
+  `localStorage.saleia_token`, mesmo padrão de Custos) — 404 mostra
+  mensagem específica ("não encontrada ou sem acesso"), mesma
+  disciplina de nunca confirmar existência de recurso de outro dono
+  (Fase 18.1).
+- **`renderOpportunityIntelligence(d)`**: Opportunity Health em
+  `.metrics`/`.metric` (mesmo grid usado em Clientes); os 3 gaps
+  (`spin_coverage`/`meddpicc`/`risks_calculados`) em cards com opacity
+  reduzida + texto do `motivo` do backend, nunca reinterpretado nem
+  preenchido no front; os 9 campos de dado real (`pain`/`impact`/
+  `champion`/`economic_buyer`/`decision_process`/`objections`/
+  `competitors`/`risks_relatados`/`next_steps`) em cards
+  `.info-card` com cada insight mostrando `valor` + `evidence`
+  (aspas, itálico) + badge de `confidence` (%) + aviso de `contradiz`
+  quando presente — reaproveita classes CSS já existentes
+  (`.info-card`, `.metric`, `.badge-alta`, `var(--muted)` pra
+  "indisponível"), nenhuma classe nova inventada.
+- **Testado de ponta a ponta com dado real, não só sintaticamente**:
+  subiu o backend localmente forçando SQLite (nunca o MySQL de
+  produção — achado à parte: o `.env` local tem `DB_HOST` apontando
+  pra VPS de produção; qualquer variável `DB_*` vazia já é suficiente
+  pra forçar o fallback SQLite, sem tocar no arquivo `.env`), criou uma
+  `Opportunity` + 9 insights reais via `api.database` diretamente (sem
+  endpoint de criação, mesma disciplina "contrato primeiro" do
+  backend), gerou um JWT válido com `api.main._gerar_token()` (mesma
+  função usada pelos testes automatizados) e dirigiu um Chromium real
+  via Playwright: login simulado (token no `localStorage`), clique na
+  aba, digitação do ID, clique em "Ver", captura de tela confirmando
+  as 12 seções renderizadas corretamente com os dados reais — sem erro
+  de console na chamada nova (os 3 avisos de console capturados vieram
+  de comportamento pré-existente do carregamento inicial da página,
+  antes da URL da API local ser configurada, não do código novo).
+- **Achado secundário durante o teste**: o fallback de API do
+  `dashboard.html` (`obterApiSalva()`) assume `http://localhost:8000`
+  como padrão local — como o teste rodou noutra porta, o primeiro
+  `fetchJsonWithFallback` caiu automaticamente pro `API_CANONICAL_PROD`
+  (`https://api.saleia.app.br`, produção) antes de eu fixar a URL local
+  certa no `localStorage`. Só afetou chamadas `GET` (sem risco de
+  escrita), mas é um lembrete de que esse fallback automático existe e
+  pode silenciosamente bater na produção durante testes locais em porta
+  diferente de 8000.
+- Ambiente de teste limpo depois: servidor local encerrado, SQLite
+  local restaurado ao estado anterior (arquivo renomeado antes de
+  qualquer escrita, nunca apagado), `playwright`/dependências
+  removidas do venv (não fazem parte de `requirements.txt`).
+- **Decisão deliberada de escopo**: sem lista/criação de oportunidades,
+  sem link a partir da ficha de Cliente/Reunião — fica pra rodada
+  futura, com nova confirmação. Sales Science e Seller Coaching (os
+  outros 2 blocos de Dashboard da Fase 22) também não começam sem
+  confirmação.
+- **Pendente**: nenhum deploy na VPS necessário além do `git pull`
+  usual — `frontend/dashboard.html` é servido direto do disco pelo
+  backend (`GET /dashboard`), sem build/bundle.
+
+---
+
 ## Extensão Chrome V.1.4.16 — fix: captura de áudio da aba nunca funcionava (tabCapture/activeTab)
 > Data: 19/09/2026 | Local, aguardando reinstalação manual da extensão
 

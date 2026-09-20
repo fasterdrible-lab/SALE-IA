@@ -1,6 +1,28 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-19 — Extensão Chrome **V.1.4.16**: usuário
+Atualizado em: 2026-09-19 — Dashboard: tela **"Oportunidades"**
+(Opportunity Intelligence) nova em `frontend/dashboard.html` — consome
+`GET /opportunities/{id}/intelligence` (backend já existia desde
+V.1.4.114). Sem lista/criação de oportunidades ainda (não existe em
+lugar nenhum do Dashboard) — usuário escolheu aba com campo de ID
+manual + botão "Ver", mais enxuto. Renderiza Opportunity Health (dado
+real de `Opportunity`), os 3 gaps explícitos (SPIN Coverage/MEDDPICC/
+riscos calculados) e os 9 campos de dado real de `OpportunityMemory`
+(Pain/Impact/Champion/Economic Buyer/Decision Process/Objections/
+Competitors/Risks relatados/Next Steps), reaproveitando classes CSS já
+existentes (`.info-card`, `.metric`, `.badge-alta`). **Testado de
+ponta a ponta com dado real**: backend local forçado pra SQLite (nunca
+tocou a produção — achado: `.env` local tem `DB_HOST` apontando pra
+VPS de produção; qualquer `DB_*` vazio força o fallback SQLite),
+oportunidade + 9 insights reais criados via `api.database` direto,
+Chromium real via Playwright confirmando as 12 seções renderizadas
+sem erro. Sem bump de versão de backend (só `frontend/dashboard.html`
+mudou). Detalhe completo em CHANGELOG.md. **Sales Science e Seller
+Coaching (os outros 2 blocos de Dashboard da Fase 22) e lista/criação
+de oportunidades não começam sem nova confirmação explícita do
+usuário.**
+
+Extensão Chrome **V.1.4.16**: usuário
 reportou via DevTools que a captura de áudio da aba (V.1.4.7) nunca
 funcionava de verdade — `chrome.tabCapture` recusava com "Extension
 has not been invoked for the current page (see activeTab permission)"

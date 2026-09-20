@@ -1012,6 +1012,9 @@
       <button class="nav-item" data-page="clientes" onclick="mostrarPagina('clientes', this)">
         <span class="nav-icon">👤</span><span class="nav-label">Clientes</span>
       </button>
+      <button class="nav-item" data-page="oportunidades" onclick="mostrarPagina('oportunidades', this)">
+        <span class="nav-icon">🎯</span><span class="nav-label">Oportunidades</span>
+      </button>
       <button class="nav-item" data-page="base" onclick="mostrarPagina('base', this)">
         <span class="nav-icon">📚</span><span class="nav-label">Base de IA</span>
       </button>
@@ -1515,6 +1518,21 @@
           <h2 id="cd-nome" style="margin:0">Cliente</h2>
         </div>
         <div id="cd-conteudo"></div>
+      </div>
+
+      <!-- OPORTUNIDADES (Opportunity Intelligence — Fase 22 / bloco 2) -->
+      <div class="page" id="page-oportunidades">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:20px">
+          <div>
+            <h2 style="margin:0">Oportunidades</h2>
+            <p style="color:var(--muted);font-size:.85rem;margin:4px 0 0">Opportunity Health, SPIN, MEDDPICC, dores, impacto e mais — por oportunidade.</p>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input type="text" id="opp-id-input" placeholder="ID da oportunidade..." style="padding:6px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.85rem;width:200px" onkeydown="if(event.key==='Enter') verOpportunityIntelligence(document.getElementById('opp-id-input').value)"/>
+            <button class="btn" onclick="verOpportunityIntelligence(document.getElementById('opp-id-input').value)">Ver</button>
+          </div>
+        </div>
+        <div id="opp-conteudo"><div style="color:var(--muted)">Digite o ID de uma oportunidade e clique em "Ver" (ou Enter). Ainda não há fluxo de criação/lista de oportunidades no Dashboard — esta tela só consulta uma oportunidade já existente no banco pelo ID.</div></div>
       </div>
 
       <!-- MONITOR -->
@@ -4220,6 +4238,114 @@
 
   function voltarParaClientes() {
     mostrarPagina('clientes', document.querySelector('[data-page="clientes"]'));
+  }
+
+  /* ─── Oportunidades — Opportunity Intelligence (Fase 22 / bloco 2) ──
+     Sem lista/criação de oportunidades no Dashboard ainda (nenhum
+     fluxo real cria uma Opportunity em produção hoje) — esta tela só
+     consulta GET /opportunities/{id}/intelligence por ID digitado.
+     SPIN Coverage/MEDDPICC/riscos calculados vêm como gap explícito
+     do backend ({disponivel:false, motivo:"..."}) — nunca inventados
+     aqui no front. */
+  const OPP_STATUS_LABEL = { open: 'Aberta', won: '✅ Ganha', lost: '❌ Perdida', abandoned: 'Abandonada' };
+  const OPP_STATUS_COLOR = { open: '#2dd4bf', won: '#22c55e', lost: '#f87171', abandoned: '#888' };
+
+  async function verOpportunityIntelligence(idBruto) {
+    const id = String(idBruto || '').trim();
+    const conteudo = document.getElementById('opp-conteudo');
+    if (!id) {
+      conteudo.innerHTML = '<div style="color:var(--muted)">Digite o ID de uma oportunidade e clique em "Ver".</div>';
+      return;
+    }
+    conteudo.innerHTML = '<div style="color:var(--muted)">Carregando...</div>';
+    try {
+      const r = await fetchJsonWithFallback(`/opportunities/${encodeURIComponent(id)}/intelligence`, {
+        headers: { Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') },
+      });
+      if (r.status === 404) {
+        conteudo.innerHTML = '<div style="color:#f87171">Oportunidade não encontrada (ou você não tem acesso a ela).</div>';
+        return;
+      }
+      if (!r.ok) {
+        conteudo.innerHTML = `<div style="color:#f87171">Erro ${r.status} ao carregar a oportunidade.</div>`;
+        return;
+      }
+      const dados = await r.json();
+      conteudo.innerHTML = renderOpportunityIntelligence(dados);
+    } catch (e) {
+      conteudo.innerHTML = '<div style="color:#f87171">Erro de conexão: ' + escHtml(e.message) + '</div>';
+    }
+  }
+
+  function oppGapCard(titulo, gap) {
+    return `<div class="info-card" style="opacity:.75">
+      <h3 style="color:var(--muted)">${titulo}</h3>
+      <div style="font-size:.85rem;color:var(--muted)">⏳ Indisponível — ${escHtml(gap && gap.motivo || 'sem dado real ainda.')}</div>
+    </div>`;
+  }
+
+  function oppInsightsCard(titulo, insights) {
+    const lista = insights || [];
+    let corpo;
+    if (!lista.length) {
+      corpo = '<div style="color:var(--muted);font-size:.85rem">Nenhum dado registrado ainda.</div>';
+    } else {
+      corpo = '<div style="display:flex;flex-direction:column;gap:10px">' + lista.map(function (it) {
+        const conf = it.confidence != null ? Math.round(Number(it.confidence) * 100) + '%' : null;
+        return `<div style="padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:8px">
+          <div style="font-size:.88rem;color:var(--text)">${escHtml(it.valor)}</div>
+          ${it.evidence ? `<div style="font-size:.78rem;color:var(--muted);font-style:italic;margin-top:4px">"${escHtml(it.evidence)}"</div>` : ''}
+          <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+            ${conf ? `<span class="badge badge-alta" style="padding:1px 8px;font-size:.7rem">${conf}</span>` : ''}
+            ${it.contradiz ? `<span style="font-size:.7rem;color:#fbbf24">⚠ contradiz insight #${escHtml(it.contradiz)}</span>` : ''}
+          </div>
+        </div>`;
+      }).join('') + '</div>';
+    }
+    return `<div class="info-card"><h3>${titulo}</h3>${corpo}</div>`;
+  }
+
+  function renderOpportunityIntelligence(d) {
+    const h = d.opportunity_health || {};
+    const statusLabel = OPP_STATUS_LABEL[h.status] || h.status || '–';
+    const statusColor = OPP_STATUS_COLOR[h.status] || '#888';
+    const valorFmt = h.estimated_value != null ? 'R$ ' + Number(h.estimated_value).toLocaleString('pt-BR') : '–';
+    const outcomeFmt = h.outcome_value != null ? 'R$ ' + Number(h.outcome_value).toLocaleString('pt-BR') : '–';
+
+    let html = `<div class="metrics" style="margin-bottom:20px">
+      <div class="metric"><div class="metric-val" style="color:${statusColor}">${escHtml(statusLabel)}</div><div class="metric-lbl">Status</div></div>
+      <div class="metric"><div class="metric-val">${escHtml(h.stage || '–')}</div><div class="metric-lbl">Estágio</div></div>
+      <div class="metric"><div class="metric-val">${valorFmt}</div><div class="metric-lbl">Valor estimado</div></div>
+      <div class="metric"><div class="metric-val">${h.cycle_days != null ? h.cycle_days : outcomeFmt}</div><div class="metric-lbl">${h.cycle_days != null ? 'Ciclo (dias)' : 'Valor fechado'}</div></div>
+    </div>`;
+
+    html += `<div class="grid-2">
+      ${oppGapCard('🧭 SPIN Coverage', d.spin_coverage)}
+      ${oppGapCard('📋 MEDDPICC', d.meddpicc)}
+    </div>`;
+
+    html += `<div class="grid-2">
+      ${oppInsightsCard('🩹 Pain', d.pain)}
+      ${oppInsightsCard('💥 Impact', d.impact)}
+    </div>`;
+    html += `<div class="grid-2">
+      ${oppInsightsCard('🏅 Champion', d.champion)}
+      ${oppInsightsCard('💼 Economic Buyer', d.economic_buyer)}
+    </div>`;
+    html += `<div class="grid-2">
+      ${oppInsightsCard('🗳️ Decision Process', d.decision_process)}
+      ${oppInsightsCard('🛡️ Objections', d.objections)}
+    </div>`;
+    html += `<div class="grid-2">
+      ${oppInsightsCard('⚔️ Competitors', d.competitors)}
+      ${oppInsightsCard('➡️ Next Steps', d.next_steps)}
+    </div>`;
+    html += `<div class="grid-2">
+      ${oppInsightsCard('⚠️ Risks (relatados)', d.risks_relatados)}
+      ${oppGapCard('🧮 Risks (calculados)', d.risks_calculados)}
+    </div>`;
+
+    return html;
   }
 
   async function alterarStatusCliente(cid, novoStatus) {

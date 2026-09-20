@@ -3006,6 +3006,24 @@ Steps.
   Pós-restart: `/health` = `versao 1.4.114`, `status online`, 4
   provedores `ok`; `GET /opportunities/1/intelligence` responde `401`
   sem token (confirma que a rota nova existe).
+- **UI no Dashboard construída depois (mesmo dia)**: usuário confirmou
+  avançar com a tela HTML/JS. Sem lista/criação de oportunidades ainda
+  (não existe em lugar nenhum) — aba "Oportunidades" com campo de ID
+  manual, reaproveitando classes CSS já existentes
+  (`.info-card`/`.metric`/`.badge-alta`), sem bump de versão de
+  backend (só `frontend/dashboard.html` mudou). **Testado de ponta a
+  ponta com dado real, não só sintaticamente**: backend local forçado
+  pra SQLite (qualquer `DB_*` vazio força o fallback — achado:
+  `.env` local tem `DB_HOST` apontando pra VPS de produção, cuidado em
+  sessões futuras de teste local), `Opportunity` + 9 insights reais
+  criados via `api.database` direto, JWT via `api.main._gerar_token()`
+  (mesma função dos testes automatizados), Chromium real via
+  Playwright confirmando as 12 seções renderizadas com os dados reais,
+  sem erro de console na chamada nova. Ambiente de teste limpo depois
+  (servidor parado, SQLite local restaurado, playwright removido do
+  venv). Detalhe completo em CHANGELOG.md. **Sales Science, Seller
+  Coaching e lista/criação de oportunidades não começam sem nova
+  confirmação explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 
