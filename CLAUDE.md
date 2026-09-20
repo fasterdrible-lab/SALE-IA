@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.116** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.117** (backend, local + GitHub — deploy na VPS pendente) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -3056,6 +3056,38 @@ Steps.
   seleção reais no Chromium, `Ciclo (dias)` calculado corretamente.
   Versão: `1.4.115` → `1.4.116`. Sales Science e Seller Coaching
   seguem sem começar sem confirmação.
+- **Sales Science (V.1.4.117)**: usuário confirmou. Investigação
+  prévia cruzando os 7 wrappers de `sales_science_engine.py` (Fase
+  13) com o único dado real hoje (`Opportunity`) achou: **só Win/Loss,
+  Seasonality e Conversion Drivers dão pra alimentar com dado real**
+  (`stage`/`product`/`competitor`/`close_date`/`created_at`, todos
+  campos que já existem). Seller Benchmark, Best Strategies/
+  Recommendation Effectiveness e Objection Trends **não são questão
+  de volume** — nenhuma função no sistema gera o dado bruto que essas
+  3 exigem (`seller_tier`, `RecommendationEvent` classificado via
+  Fase 10.2, objeção classificada via Fase 6.1 — nenhuma delas plugada
+  em `/tempo-real`), independente de quantas reuniões acontecerem.
+  Experiments (Fase 14, configurador de hipótese A/B, sem tabela no
+  banco) fora desta rodada por decisão explícita.
+  `agent/sales_science_insights_rules.py` (novo, função pura)
+  orquestra `win_loss_rules`/`data_warehouse_rules`/
+  `seasonality_rules`/`conversion_driver_analyzer` já prontos, cada
+  resultado passando pelo wrapper de `sales_science_engine.py`
+  correspondente — nenhum cálculo estatístico reimplementado.
+  `GET /sales-science/insights` (novo endpoint) é **admin-only**
+  (visão agregada de toda a organização, diferente de
+  `GET /opportunities`, filtrado por vendedor). Dashboard: aba
+  "🔬 Sales Science", `ssInsightCard()` genérico sobre o contrato
+  único de `montar_insight()` (mesma função de render serve Win/Loss/
+  Seasonality/Conversion Drivers) + `oppGapCard()` reaproveitado sem
+  mudança pros 3 gaps. 14 testes novos (10 módulo puro + 4 endpoint).
+  **Testado de ponta a ponta com dado real**: 200 oportunidades reais
+  com taxa de conversão propositalmente diferente por estágio
+  (negociação 80% vs descoberta 20%) — Chromium confirmou o sinal
+  detectado corretamente (negociação=81%, descoberta=23%, n=100
+  cada). Versão: `1.4.116` → `1.4.117`. **Seller Coaching (último
+  bloco de Dashboard da Fase 22) não começa sem nova confirmação
+  explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

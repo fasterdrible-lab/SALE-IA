@@ -773,7 +773,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.116",
+        "versao":              "1.4.117",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -811,7 +811,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.116",
+        "versao":          "1.4.117",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -4505,6 +4505,28 @@ def obter_opportunity_intelligence_endpoint(
         return montar_opportunity_intelligence(opp, memoria)
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/sales-science/insights")
+def sales_science_insights_endpoint(authorization: str | None = _Header(default=None)):
+    """Fase 22 (Frontend) / bloco Sales Science: Win/Loss, Seasonality e
+    Conversion Drivers com dado real de `Opportunity` (`stage`/
+    `product`/`competitor`, `close_date`/`created_at`) — reaproveita os
+    motores já prontos desde as Fases 8/9/13, consolidados sob
+    `agent/sales_science_engine.py::montar_insight()`. Seller
+    Benchmark, Strategy Effectiveness e Objection Trends vêm como gap
+    explícito — não é questão de volume, nenhuma função no sistema
+    gera o dado bruto que essas engines exigem ainda. Admin-only —
+    visão agregada de todas as oportunidades, não filtrada por
+    vendedor (diferente de `GET /opportunities`)."""
+    _req_admin(authorization)
+    try:
+        from api.database import listar_opportunities
+        from agent.sales_science_insights_rules import montar_sales_science_insights
+        opportunities = listar_opportunities(limit=5000)
+        return montar_sales_science_insights(opportunities)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

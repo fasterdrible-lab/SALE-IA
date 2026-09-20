@@ -3,6 +3,98 @@
 
 ---
 
+## V.1.4.117 — Sales Science, Fase 22 (Frontend, bloco 3) do "PROMPT MESTRE — SALE-IA V2"
+> Data: 20/09/2026 | Local + GitHub, deploy na VPS pendente de confirmação
+
+Usuário confirmou avançar com Sales Science (Win/Loss, Seasonality,
+Objection Trends, Best Strategies, Seller Benchmark, Conversion
+Drivers, Experiments, Recommendation Effectiveness — os 8 itens
+literais do prompt mestre).
+
+**Investigação prévia (antes de perguntar escopo)**: `agent/
+sales_science_engine.py` (Fase 13) já consolida 7 submódulos
+estatísticos sob um contrato único (`montar_insight()`), mas cada
+wrapper espera **dado já calculado** — nunca dado bruto. Cruzando os
+7 formatos de entrada com o único dado real do sistema hoje
+(`Opportunity`, via `listar_opportunities()`, agora com CRUD completo
+desde V.1.4.114-116), achado central: **só 3 dos 8 itens dão pra
+alimentar com dado real hoje** — Win/Loss e Conversion Drivers usam
+`Opportunity.status` + os únicos 3 campos categóricos livres que já
+existem (`stage`/`product`/`competitor`); Seasonality usa
+`close_date`/`created_at` reais via `data_warehouse_rules.
+construir_dataset_analitico()`. Os outros 5 exigem fonte de dado que
+**não existe em produção, independente de volume** (diferente de
+"esperar n≥30" — literalmente nada gera o dado bruto): Seller
+Benchmark precisa de `seller_tier` (nenhuma métrica de desempenho de
+vendedor é calculada em lugar nenhum); Best Strategies/Recommendation
+Effectiveness (mesmo dado subjacente, `recommendation_effectiveness_
+rules.py`) precisam de `RecommendationEvent` classificado (Fase 10.2,
+nunca plugada em `/tempo-real`); Objection Trends precisa de objeção
+já classificada por categoria+período (Fase 6.1, mesma situação).
+Usuário confirmou: **só os 3 viáveis com dado real, campos `stage`/
+`product`/`competitor`**, gap explícito pros outros; Experiments
+(Fase 14, configurador de hipótese A/B, sem tabela no banco — feature
+diferente por natureza) fica fora desta rodada.
+
+- **`agent/sales_science_insights_rules.py`** (novo, função pura, sem
+  IA/banco): `montar_sales_science_insights(opportunities)` orquestra
+  `win_loss_rules.comparar_por_variavel_categorica()` (por `stage`/
+  `product`/`competitor`), `data_warehouse_rules.
+  construir_dataset_analitico()` + `seasonality_rules.
+  detectar_sazonalidade()` (por `month`/`quarter`/`weekday`) e
+  `conversion_driver_analyzer.ranquear_drivers()` — cada resultado
+  passa pelo wrapper correspondente de `sales_science_engine.py`
+  (`insight_de_win_loss_analyzer`/`insight_de_seasonality_engine`/
+  `insight_de_conversion_driver_analyzer`), nunca reimplementando
+  cálculo estatístico. `SELLER_BENCHMARK_NAO_DISPONIVEL`/
+  `STRATEGY_EFFECTIVENESS_NAO_DISPONIVEL`/
+  `OBJECTION_TRENDS_NAO_DISPONIVEL` são os 3 gaps, mesmo padrão
+  `{"disponivel": False, "motivo": "..."}` já usado no Opportunity
+  Intelligence.
+- **`GET /sales-science/insights`** (novo endpoint, `api/main.py`):
+  **admin-only** (`_req_admin`) — diferente de `GET /opportunities`
+  (filtrado por vendedor), essa é uma visão agregada de todas as
+  oportunidades da organização, sem filtro por dono. Busca até 5000
+  oportunidades via `listar_opportunities()` e repassa pra função pura.
+- **`frontend/dashboard.html`**: nova aba "🔬 Sales Science" (nav
+  item sempre visível, mesmo padrão de "Custos" — 403 tratado como
+  mensagem neutra, não erro). Cards `.info-card` reaproveitados
+  (`ssInsightCard()` genérico sobre o contrato único de `montar_
+  insight()` — funciona igual pra Win/Loss, Seasonality e Conversion
+  Drivers sem 3 renderizadores diferentes) + `oppGapCard()` (já
+  existia, reaproveitado sem mudança) pros 3 gaps.
+- 10 testes novos em `tests/test_sales_science_insights_rules.py`
+  (módulo puro: estrutura completa, gaps nunca mudam, amostra abaixo
+  de 30 nunca produz insight, sinal real detectado corretamente com
+  dataset sintético de 200 oportunidades e taxas de conversão
+  propositalmente diferentes por estágio) + 4 testes em
+  `tests/test_sales_science_endpoint.py` (endpoint via TestClient
+  real + SQLite em memória: 401 sem token, 403 vendedor comum, 200
+  admin sem dado agrega gaps corretamente, 200 admin com 60
+  oportunidades reais criadas via `POST`/`PATCH /opportunities`
+  detecta o sinal).
+- **Testado de ponta a ponta com dado real, não só sintaticamente**:
+  mesmo procedimento de segurança de sempre (backend local forçado
+  pra SQLite, nunca a produção) — 200 oportunidades reais criadas via
+  `api.database` direto (100 "descoberta" com 20% de chance de won,
+  100 "negociação" com 80%), aba Sales Science aberta como admin real
+  no Chromium (Playwright): Win/Loss por estágio detectou corretamente
+  negociação=81% vs descoberta=23% (n=100 cada), Conversion Drivers
+  ranqueou os desvios do baseline geral (52%), Seasonality por dia da
+  semana encontrou 1 período significativo, os 3 gaps renderizaram
+  com o texto explicativo completo. Sem erro de console novo.
+- Versão: `1.4.116` → `1.4.117`.
+- **Decisão deliberada de escopo**: Seller Benchmark, Best Strategies/
+  Recommendation Effectiveness, Objection Trends e Experiments
+  seguem fora — desbloquear qualquer um deles é decisão de integração
+  separada (conectar um motor já pronto ao fluxo de reunião ao vivo,
+  não é questão de esperar dado). **Seller Coaching (o último bloco
+  de Dashboard da Fase 22) não começa sem nova confirmação explícita
+  do usuário.**
+- **Pendente**: push + deploy na VPS.
+
+---
+
 ## V.1.4.116 — PATCH /opportunities/{id} (mudar stage/status), fecha o CRUD básico de Opportunity
 > Data: 20/09/2026 | Local + GitHub + **produção confirmada** (`/health` = `versao 1.4.116`)
 

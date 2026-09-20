@@ -1024,6 +1024,9 @@
       <button class="nav-item" data-page="custos" onclick="mostrarPagina('custos', this)">
         <span class="nav-icon">💰</span><span class="nav-label">Custos</span>
       </button>
+      <button class="nav-item" data-page="sales-science" onclick="mostrarPagina('sales-science', this)">
+        <span class="nav-icon">🔬</span><span class="nav-label">Sales Science</span>
+      </button>
       <a class="nav-item" href="/manual" target="_blank" rel="noopener">
         <span class="nav-icon">📖</span><span class="nav-label">Manual</span>
       </a>
@@ -1538,6 +1541,18 @@
         <div id="opp-conteudo"></div>
       </div>
 
+      <!-- SALES SCIENCE (Fase 22 / bloco 3) -->
+      <div class="page" id="page-sales-science">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:20px">
+          <div>
+            <h2 style="margin:0">Sales Science</h2>
+            <p style="color:var(--muted);font-size:.85rem;margin:4px 0 0">Win/Loss, Seasonality e Conversion Drivers com dado real de todas as oportunidades — só admin.</p>
+          </div>
+          <button class="btn" onclick="carregarSalesScience()">↻</button>
+        </div>
+        <div id="ss-conteudo"><div style="color:var(--muted)">Carregando...</div></div>
+      </div>
+
       <!-- MONITOR -->
       <div class="page" id="page-monitor">
         <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:20px">
@@ -1960,6 +1975,7 @@
     if (nome === 'biblioteca')    carregarBiblioteca();
     if (nome === 'clientes')     carregarClientes();
     if (nome === 'oportunidades') carregarOportunidades();
+    if (nome === 'sales-science') carregarSalesScience();
     if (nome === 'monitor')       _iniciarMonitor();
     if (nome === 'custos')        carregarCustos();
     if (nome === 'configuracoes') {
@@ -4490,6 +4506,83 @@
       ${oppInsightsCard('⚠️ Risks (relatados)', d.risks_relatados)}
       ${oppGapCard('🧮 Risks (calculados)', d.risks_calculados)}
     </div>`;
+
+    return html;
+  }
+
+  /* ─── Sales Science (Fase 22 / bloco 3) ──────────────
+     Win/Loss, Seasonality e Conversion Drivers com dado real de
+     Opportunity — Seller Benchmark, Best Strategies e Objection
+     Trends vêm como gap explícito (mesmo padrão de oppGapCard, já
+     usado no Opportunity Intelligence). Admin-only — 403 é esperado
+     pra quem não é admin, não um erro. */
+  async function carregarSalesScience() {
+    const cont = document.getElementById('ss-conteudo');
+    cont.innerHTML = '<div style="color:var(--muted)">Carregando...</div>';
+    try {
+      const r = await fetchJsonWithFallback('/sales-science/insights', {
+        headers: { Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') },
+      });
+      if (r.status === 403) {
+        cont.innerHTML = '<div style="color:var(--muted)">Sem permissão — Sales Science é restrito a administradores.</div>';
+        return;
+      }
+      if (!r.ok) {
+        cont.innerHTML = `<div style="color:#f87171">Erro ${r.status} ao carregar Sales Science.</div>`;
+        return;
+      }
+      const dados = await r.json();
+      cont.innerHTML = renderSalesScience(dados);
+    } catch (e) {
+      cont.innerHTML = '<div style="color:#f87171">Erro de conexão: ' + escHtml(e.message) + '</div>';
+    }
+  }
+
+  function ssInsightCard(titulo, insights) {
+    const lista = insights || [];
+    let corpo;
+    if (!lista.length) {
+      corpo = '<div style="color:var(--muted);font-size:.85rem">Sem sinal estatístico significativo nesta amostra ainda.</div>';
+    } else {
+      corpo = '<div style="display:flex;flex-direction:column;gap:10px">' + lista.map(function (ins) {
+        const conf = ins.confidence != null ? Math.round(Number(ins.confidence) * 100) + '%' : null;
+        return `<div style="padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:8px">
+          <div style="font-size:.85rem;color:var(--text)">${escHtml(ins.insight)}</div>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:4px">n=${escHtml(ins.sample)}${conf ? ' · confiança ' + conf : ''}</div>
+        </div>`;
+      }).join('') + '</div>';
+    }
+    return `<div class="info-card"><h3>${titulo}</h3>${corpo}</div>`;
+  }
+
+  function renderSalesScience(d) {
+    let html = `<div class="metrics" style="margin-bottom:20px">
+      <div class="metric"><div class="metric-val">${escHtml(d.amostra_total)}</div><div class="metric-lbl">Oportunidades na amostra</div></div>
+    </div>`;
+
+    html += `<h3 style="margin-top:0">📊 Win/Loss</h3>`;
+    html += `<div class="grid-2">
+      ${ssInsightCard('Por estágio', d.win_loss.stage)}
+      ${ssInsightCard('Por produto', d.win_loss.product)}
+    </div>`;
+    html += `<div class="grid-2">
+      ${ssInsightCard('Por concorrente', d.win_loss.competitor)}
+      ${ssInsightCard('🎯 Conversion Drivers', d.conversion_drivers)}
+    </div>`;
+
+    html += `<h3>📅 Seasonality</h3>`;
+    html += `<div class="grid-2">
+      ${ssInsightCard('Por mês', d.seasonality.month)}
+      ${ssInsightCard('Por trimestre', d.seasonality.quarter)}
+    </div>`;
+    html += ssInsightCard('Por dia da semana', d.seasonality.weekday);
+
+    html += `<h3>⏳ Ainda não disponível</h3>`;
+    html += `<div class="grid-2">
+      ${oppGapCard('🏆 Seller Benchmark', d.seller_benchmark)}
+      ${oppGapCard('📈 Best Strategies / Recommendation Effectiveness', d.strategy_effectiveness)}
+    </div>`;
+    html += oppGapCard('🛡️ Objection Trends', d.objection_trends);
 
     return html;
   }

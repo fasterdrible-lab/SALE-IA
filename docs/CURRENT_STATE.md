@@ -1,6 +1,26 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-20 — Backend **V.1.4.116** (local + GitHub +
+Atualizado em: 2026-09-20 — Backend **V.1.4.117** (local + GitHub,
+deploy na VPS pendente): Sales Science (Fase 22 / bloco 3). Só
+Win/Loss, Seasonality e Conversion Drivers dão pra alimentar com dado
+real hoje (via `Opportunity.stage`/`product`/`competitor`/
+`close_date`/`created_at`) — Seller Benchmark, Best Strategies/
+Recommendation Effectiveness e Objection Trends ficam como gap
+explícito porque **nenhuma função no sistema gera o dado bruto que
+exigem** (não é questão de volume/amostra). Experiments (Fase 14)
+fora desta rodada. `agent/sales_science_insights_rules.py` (novo)
+orquestra motores já prontos das Fases 8/9/13 via
+`sales_science_engine.py::montar_insight()`. `GET /sales-science/
+insights` (novo, admin-only, visão agregada de toda a organização) +
+aba "🔬 Sales Science" no Dashboard. 14 testes novos. **Testado de
+ponta a ponta com dado real**: 200 oportunidades reais com taxa de
+conversão propositalmente diferente por estágio confirmaram o sinal
+estatístico detectado corretamente via Chromium real. Detalhe
+completo em CHANGELOG.md e CLAUDE.md. **Seller Coaching (último
+bloco de Dashboard da Fase 22) não começa sem nova confirmação
+explícita do usuário.**
+
+Backend **V.1.4.116** (local + GitHub +
 **produção confirmada**, `/health` = `versao 1.4.116`): `PATCH
 /opportunities/{id}` fecha o CRUD
 básico de `Opportunity` — `stage`/`status` independentes no mesmo
