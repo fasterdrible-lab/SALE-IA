@@ -1,7 +1,8 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-20 — Backend **V.1.4.121** (local + GitHub,
-aguardando deploy na VPS): usuário pediu plano pra fechar os 9 campos
+Atualizado em: 2026-09-20 — Backend **V.1.4.121** (local + GitHub +
+**produção confirmada**, `/health` = `versao 1.4.121`): usuário pediu
+plano pra fechar os 9 campos
 vazios do `SalesReasoningEngine`, documentado em `docs/
 tasks-sales-reasoning-engine-completo.md` (6 blocos). Tarefa 1.1
 (MEDDPICC via `maturity_score`) **bloqueada** — sem citação real
@@ -12,7 +13,10 @@ resolvido com 1 chamada de IA nova e barata (`agent/objection_
 category_classifier.py`). `entrada["objections"]` agora tem dado real
 no ciclo de `/tempo-real` — **3 dos 11 campos do SalesReasoningEngine
 preenchidos** (antes: 2). 33 testes novos, suite completa: **1285
-testes, 0 falhas**, 1 skip pré-existente. Detalhe completo em
+testes, 0 falhas**, 1 skip pré-existente. **Deploy confirmado
+(20/09/2026, ~21h09 UTC)**: commit `d5b59e9`, `reunioes_ativas: 0`
+checado antes do `git pull`/restart — `/health` = `versao 1.4.121`,
+`status online`; `/dashboard` = `200`. Detalhe completo em
 CHANGELOG.md. **Tarefa 2.1 (historical_patterns via Sales Science) não
 começa sem nova confirmação explícita do usuário.**
 

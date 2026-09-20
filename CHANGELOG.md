@@ -4,7 +4,7 @@
 ---
 
 ## V.1.4.121 — Plano de fechar os gaps do SalesReasoningEngine + Tarefa 1.2 (objeção do Finance)
-> Data: 20/09/2026 | Local + GitHub, aguardando deploy na VPS
+> Data: 20/09/2026 | Local + GitHub + **produção confirmada** (`/health` = `versao 1.4.121`)
 
 Usuário pediu um plano detalhado, dividido em tarefas testáveis, pra
 fazer o `SalesReasoningEngine` (Fase 7) funcionar plenamente — hoje só
@@ -59,8 +59,12 @@ completos do Bloco 4.
   piloto). Suite completa: **1285 testes, 0 falhas**, 1 skip
   pré-existente — sem regressão.
 - Versão: `1.4.120` → `1.4.121`.
-- **Pendente**: push + deploy na VPS (aditiva — sem tabela/coluna
-  nova, só código + 1 prompt template novo). **Tarefa 2.1 (Sales
+- **Push + deploy confirmados (20/09/2026, ~21h09 UTC)**: commit
+  `d5b59e9`. `reunioes_ativas: 0` checado antes do `git pull`
+  (fast-forward `1c8663a` → `d5b59e9`) e antes do `systemctl restart
+  saleia` — `active`, os 2 workers subiram limpos, journal sem erros.
+  Pós-restart: `/health` = `versao 1.4.121`, `status online`, 4
+  provedores `ok`; `/dashboard` = `200`. **Tarefa 2.1 (Sales
   Science → historical_patterns) não começa sem nova confirmação
   explícita do usuário.**
 
