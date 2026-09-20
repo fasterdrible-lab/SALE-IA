@@ -1,8 +1,8 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-20 — Backend **V.1.4.124** (local + GitHub,
-aguardando deploy na VPS): **Bloco 4 / Tarefa 4.1 (extrator de
-SPIN)**. `agent/spin_extractor.py` (novo) extrai fatos reais da
+Atualizado em: 2026-09-20 — Backend **V.1.4.124** (local + GitHub +
+**produção confirmada**, `/health` = `versao 1.4.124`): **Bloco 4 /
+Tarefa 4.1 (extrator de SPIN)**. `agent/spin_extractor.py` (novo) extrai fatos reais da
 conversa via IA, restrito aos 6 campos canônicos do checklist
 (vocabulário fechado, nunca inventa campo novo) — nunca recalcula
 cobertura, só alimenta `agent/spin_coverage_rules.py` (Fase 3) com os
@@ -13,7 +13,10 @@ em sucesso (cobertura vazia é informação real). Guarda automática:
 SalesReasoningEngine agora têm dado real** (`meeting_memory`,
 `rag_context`, `objections`, `historical_patterns`, `spin_state`). 16
 testes novos, suite completa: **1331 testes, 0 falhas**, 1 skip
-pré-existente. Detalhe completo em CHANGELOG.md. **Tarefa 4.2 (sinais
+pré-existente. **Deploy confirmado (20/09/2026, ~23h53 UTC)**: commit
+`4c02aa9`, `reunioes_ativas: 0` checado antes do `git pull`/restart —
+`/health` = `versao 1.4.124`, `status online`; `/dashboard` = `200`.
+Detalhe completo em CHANGELOG.md. **Tarefa 4.2 (sinais
 comportamentais) não começa sem nova confirmação explícita do
 usuário.**
 

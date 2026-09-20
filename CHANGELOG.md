@@ -4,7 +4,7 @@
 ---
 
 ## V.1.4.124 — Bloco 4 / Tarefa 4.1 — extrator de SPIN
-> Data: 20/09/2026 | Local + GitHub, aguardando deploy na VPS
+> Data: 20/09/2026 | Local + GitHub + **produção confirmada** (`/health` = `versao 1.4.124`)
 
 Usuário confirmou avançar pra Tarefa 4.1 (`docs/tasks-sales-
 reasoning-engine-completo.md`), segunda do Bloco 4.
@@ -46,8 +46,12 @@ reasoning-engine-completo.md`), segunda do Bloco 4.
   deploy, com `SHADOW_MODE_ENABLED`/`PILOT_MODE` ativos. Acompanhar
   via `GET /admin/costs/*` (feature `spin.extracao_fatos`) quando
   houver dado real.
-- **Pendente**: push + deploy na VPS (aditiva — sem tabela/coluna
-  nova, só código + 1 prompt template novo). **Tarefa 4.2 (sinais
+- **Push + deploy confirmados (20/09/2026, ~23h53 UTC)**: commit
+  `4c02aa9`. `reunioes_ativas: 0` checado antes do `git pull`
+  (fast-forward `c972383` → `4c02aa9`) e antes do `systemctl restart
+  saleia` — `active`, os 2 workers subiram limpos, journal sem erros.
+  Pós-restart: `/health` = `versao 1.4.124`, `status online`, 4
+  provedores `ok`; `/dashboard` = `200`. **Tarefa 4.2 (sinais
   comportamentais) não começa sem nova confirmação explícita do
   usuário.**
 
