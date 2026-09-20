@@ -3035,9 +3035,10 @@ Steps.
 > como esse gesto. Corrigido movendo o início da captura pro
 > `popup.html` (abrir o popup já é o gesto válido); a sidebar continua
 > controlando o microfone e, ao parar, também encerra a captura da
-> aba. Ver seção própria da V.1.4.16 no CHANGELOG.md — texto abaixo
-> descreve a arquitetura original da Fase 3, ainda válida, exceto pelo
-> ponto de início.
+> aba. **Confirmado pelo usuário numa reunião real (19/09/2026)** —
+> funcionou. Ver seção própria da V.1.4.16 no CHANGELOG.md — texto
+> abaixo descreve a arquitetura original da Fase 3, ainda válida,
+> exceto pelo ponto de início.
 
 Complementa o Whisper Local: até V.1.4.6, o pipeline de áudio só
 capturava o **microfone do vendedor**; agora também captura o **áudio da

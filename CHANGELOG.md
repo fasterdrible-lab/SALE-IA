@@ -4,7 +4,7 @@
 ---
 
 ## Dashboard — tela "Oportunidades" (Opportunity Intelligence), Fase 22 do "PROMPT MESTRE — SALE-IA V2" (sem bump de versão — só frontend)
-> Data: 19/09/2026 | Local + GitHub, deploy na VPS pendente de confirmação
+> Data: 19/09/2026 | Local + GitHub + **produção confirmada** (`GET /dashboard` responde 200 com "Oportunidades" presente)
 
 Usuário confirmou avançar com a UI que consome `GET /opportunities/{id}/
 intelligence` (backend já existia desde V.1.4.114). Sem bump de versão
@@ -80,7 +80,7 @@ sem construir lista/criação (ficaria pra rodada futura).
 ---
 
 ## Extensão Chrome V.1.4.16 — fix: captura de áudio da aba nunca funcionava (tabCapture/activeTab)
-> Data: 19/09/2026 | Local, aguardando reinstalação manual da extensão
+> Data: 19/09/2026 | Local + **validado pelo usuário numa reunião real** — funcionou
 
 Usuário reportou o erro real via DevTools numa reunião ativa: `[SALEIA]
 Captura do áudio da aba indisponível: tabCapture indisponível:
@@ -135,15 +135,12 @@ partir dali). A sidebar continua controlando o microfone e, ao
   clicar "parar" na sidebar, então um único botão ainda encerra
   microfone + aba juntos, mesmo a aba tendo sido iniciada por outro
   lugar (o popup).
-- Validado com `node --check` nos 3 arquivos — **fluxo do popup ainda
-  não testado ao vivo numa reunião real** (o achado original só foi
-  possível porque o usuário já estava numa reunião; o fix precisa da
-  mesma validação).
+- Validado com `node --check` nos 3 arquivos.
 - Versão: `1.4.15` → `1.4.16`.
-- **Pendente**: reinstalação manual da extensão + teste real numa
-  reunião do Meet (abrir o popup, clicar "Iniciar captura de áudio",
-  confirmar que `chrome.tabCapture.getMediaStreamId` não lança mais o
-  erro de `activeTab`).
+- **Confirmado pelo usuário (19/09/2026)**: reinstalou a extensão,
+  testou numa reunião real do Meet — abrir o popup, clicar "Iniciar
+  captura de áudio", funcionou sem o erro de `activeTab`. Fecha o
+  achado original.
 
 ---
 

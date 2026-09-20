@@ -32,8 +32,8 @@ própria página), e isso nunca satisfaz o gesto que o Chrome exige
 captura pro `popup.html` — abrir o popup já é o gesto válido. Sidebar
 continua controlando o microfone e, ao parar, também encerra a
 captura da aba. `1.4.15` → `1.4.16`. Detalhe completo no CHANGELOG.md.
-**Não testado ao vivo ainda** — pendente reinstalação manual +
-confirmação numa reunião real.
+**Confirmado pelo usuário numa reunião real (19/09/2026)** — funcionou
+após reinstalação manual da extensão.
 
 Backend **V.1.4.114** (local + GitHub +
 **produção confirmada** na VPS, `/health` = `versao 1.4.114`): Fase 22
