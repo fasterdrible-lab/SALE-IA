@@ -3,6 +3,85 @@
 
 ---
 
+## V.1.4.115 — Lista/criação de oportunidades, sequência do bloco 2 da Fase 22 do "PROMPT MESTRE — SALE-IA V2"
+> Data: 19/09/2026 | Local + GitHub, deploy na VPS pendente de confirmação
+
+Usuário confirmou avançar com `GET`/`POST /opportunities` — pré-requisito
+real pra Opportunity Intelligence virar utilizável (sem lista/criação,
+a ficha só funcionava digitando um ID manualmente, e nada no sistema
+criava uma `Opportunity` de verdade).
+
+- **`GET /opportunities`** (`api/main.py`): lista via `listar_opportunities()`
+  (Fase 2, já existia em `api/database.py`, sem endpoint até agora).
+  Não-admin só vê as próprias (`seller_id` do token) — `Opportunity.
+  seller_id` é `NOT NULL` desde a criação (Fase 2), diferente de
+  `MeetingMemory.usuario_id`, então não existe caso de "recurso sem
+  dono" aqui como na Fase 18.1; admin vê todas. Mesmo padrão de
+  `GET /clientes`.
+- **`POST /opportunities`**: cria via `criar_opportunity()` (já existia).
+  `seller_id` vem **sempre do token** (`payload["sub"]`), nunca do body
+  — mesmo princípio de segurança de `POST /clientes`, nunca confiar no
+  cliente pra atribuir dono. Valida `client_id` obrigatório e
+  `estimated_value` numérico quando enviado.
+- **`frontend/dashboard.html`**: aba "Oportunidades" ganhou lista (
+  `carregarOportunidades()`, reaproveita `.reuniao-card`/`.score-circle`
+  já usados em Reuniões — nenhuma classe CSS nova) + botão
+  "+ Nova Oportunidade" (`abrirNovaOportunidade()`, prompts sequenciais
+  — mesmo padrão simples já usado por `abrirNovoCliente()`, não uma
+  modal nova). Como `Opportunity.client_id` não é validado contra
+  cliente nenhum (sem FK), a criação busca o cliente por nome via
+  `GET /clientes?busca=...` (já existente) antes de criar — nunca deixa
+  o usuário digitar um ID de cliente cru; zero match mostra alerta
+  claro orientando cadastrar o cliente primeiro; mais de um match pede
+  pra escolher por número. Detalhe (`verOpportunityIntelligence`) e
+  lista agora coexistem na mesma aba, com "← Voltar à lista".
+- 8 testes novos (`tests/test_opportunities_list_create_endpoint.py`,
+  TestClient real + SQLite em memória, mesmo padrão de
+  `test_opportunity_intelligence_endpoint.py`): 401 sem token, 400 sem
+  `client_id`/`estimated_value` inválido, `seller_id` sempre do token
+  mesmo se o body tentar forjar outro, vendedor só vê as próprias,
+  admin vê todas, lista vazia não quebra.
+- **Testado de ponta a ponta com dado real, não só sintaticamente**:
+  mesmo procedimento de segurança já usado na tela em si (backend
+  local forçado pra SQLite, nunca a produção) — 2 oportunidades reais
+  criadas via `POST /opportunities` real (`curl`), confirmadas na
+  listagem, abertas via clique real no Chromium (Playwright): card →
+  detalhe (inclusive o caso de oportunidade **sem** nenhum insight
+  ainda, "Nenhum dado registrado ainda." em todos os 9 campos) → "←
+  Voltar à lista" → "+ Nova Oportunidade" → fluxo de busca de cliente
+  sem match nenhum (ambiente de teste não tem MySQL local — ver achado
+  abaixo) confirmado terminando num alerta claro, sem quebrar a
+  página. Sem erro de console (JS) em nenhum passo.
+- **Achado do ambiente de teste**: `agent/client_intelligence.py`
+  (Clientes) usa conexão `pymysql` própria, **sem fallback SQLite**
+  como `api/database.py` tem — diferente do resto do Opportunity
+  Intelligence (SQLModel), a busca de cliente só funciona de verdade
+  com MySQL real. Localmente sem MySQL, `listar_clientes()` retorna
+  lista vazia (não erro) — por isso o teste confirmou o alerta "nenhum
+  cliente encontrado" e não o caminho feliz de match real; o caminho
+  feliz (`encontrados.length === 1` ou `> 1`) segue o mesmo formato de
+  resposta já usado por `GET /clientes` em produção, não validado ao
+  vivo nesta rodada por essa limitação de ambiente.
+- **Achado de schema no SQLite local**: `data/saleia.db` de dev local
+  antecedia as colunas da Fase 8 (`outcome_value`/`product`/
+  `close_date`/`cycle_days`/`competitor`) — `ALTER TABLE` manual
+  aplicado só no arquivo local de teste (nunca a produção), mesmo
+  padrão de sempre para colunas novas em tabela existente.
+- Suite completa (rodada em paralelo ao teste de navegador): ver
+  resultado consolidado logo abaixo.
+- Versão: `1.4.114` → `1.4.115` (inclui o fix do bug de versão
+  hardcoded em `/health`/`/monitor/metricas`, achado e corrigido na
+  V.1.4.114 mas nunca re-testado — confirmado corrigido aqui também).
+- **Decisão deliberada de escopo**: sem `PATCH /opportunities/{id}`
+  (mudar stage/status pelo Dashboard), sem vincular oportunidade a uma
+  reunião pelo Dashboard (`vincular_meeting_opportunity()` já existe
+  em `api/database.py`, sem endpoint). Sales Science e Seller Coaching
+  (os outros 2 blocos de Dashboard da Fase 22) não começam sem nova
+  confirmação explícita do usuário.
+- **Pendente**: push + deploy na VPS.
+
+---
+
 ## Dashboard — tela "Oportunidades" (Opportunity Intelligence), Fase 22 do "PROMPT MESTRE — SALE-IA V2" (sem bump de versão — só frontend)
 > Data: 19/09/2026 | Local + GitHub + **produção confirmada** (`GET /dashboard` responde 200 com "Oportunidades" presente)
 

@@ -773,7 +773,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.114",
+        "versao":              "1.4.115",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -811,7 +811,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.114",
+        "versao":          "1.4.115",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -4378,6 +4378,55 @@ def admin_observabilidade_metricas(
 
 
 # ── Opportunity Intelligence (Fase 22 — Frontend) ─────
+
+@app.get("/opportunities")
+def listar_opportunities_endpoint(
+    status: str = "",
+    limit: int = 200,
+    authorization: str | None = _Header(default=None),
+):
+    """Lista oportunidades — não-admin só vê as próprias (`seller_id`
+    é sempre obrigatório desde a criação, Fase 2, então diferente de
+    `MeetingMemory.usuario_id` não existe caso de "sem dono" aqui);
+    admin vê todas. Mesmo padrão de `GET /clientes` (Fase 18.1)."""
+    payload = _req_auth(authorization)
+    try:
+        from api.database import listar_opportunities
+        seller_filtro = None if payload.get("perfil") == "admin" else payload.get("sub")
+        items = listar_opportunities(seller_id=seller_filtro, status=status or None, limit=limit)
+        return {"total": len(items), "opportunities": items}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/opportunities")
+def criar_opportunity_endpoint(body: dict, authorization: str | None = _Header(default=None)):
+    """Cria uma oportunidade. `seller_id` vem sempre do token (nunca do
+    body) — mesmo princípio de `POST /clientes`, nunca confiar no
+    cliente pra atribuir dono."""
+    payload = _req_auth(authorization)
+    client_id = str(body.get("client_id") or "").strip()
+    if not client_id:
+        raise HTTPException(status_code=400, detail="Campo 'client_id' é obrigatório.")
+    estimated_value_bruto = body.get("estimated_value")
+    try:
+        estimated_value = float(estimated_value_bruto) if estimated_value_bruto not in (None, "") else None
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Campo 'estimated_value' precisa ser numérico.")
+    try:
+        from api.database import criar_opportunity
+        opp = criar_opportunity(
+            client_id=client_id,
+            seller_id=payload.get("sub"),
+            stage=str(body.get("stage") or ""),
+            estimated_value=estimated_value,
+        )
+        return opp
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/opportunities/{opportunity_id}/intelligence")
 def obter_opportunity_intelligence_endpoint(

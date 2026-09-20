@@ -1528,11 +1528,14 @@
             <p style="color:var(--muted);font-size:.85rem;margin:4px 0 0">Opportunity Health, SPIN, MEDDPICC, dores, impacto e mais — por oportunidade.</p>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <input type="text" id="opp-id-input" placeholder="ID da oportunidade..." style="padding:6px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.85rem;width:200px" onkeydown="if(event.key==='Enter') verOpportunityIntelligence(document.getElementById('opp-id-input').value)"/>
+            <input type="text" id="opp-id-input" placeholder="Ir direto pro ID..." style="padding:6px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.85rem;width:160px" onkeydown="if(event.key==='Enter') verOpportunityIntelligence(document.getElementById('opp-id-input').value)"/>
             <button class="btn" onclick="verOpportunityIntelligence(document.getElementById('opp-id-input').value)">Ver</button>
+            <button class="btn btn-secondary" onclick="abrirNovaOportunidade()">+ Nova Oportunidade</button>
+            <button class="btn" onclick="carregarOportunidades()">↻</button>
           </div>
         </div>
-        <div id="opp-conteudo"><div style="color:var(--muted)">Digite o ID de uma oportunidade e clique em "Ver" (ou Enter). Ainda não há fluxo de criação/lista de oportunidades no Dashboard — esta tela só consulta uma oportunidade já existente no banco pelo ID.</div></div>
+        <div id="opp-lista"><div style="color:var(--muted)">Carregando...</div></div>
+        <div id="opp-conteudo"></div>
       </div>
 
       <!-- MONITOR -->
@@ -1956,6 +1959,7 @@
     if (nome === 'playbooks')     { carregarPlaybooks(); carregarSkills(); }
     if (nome === 'biblioteca')    carregarBiblioteca();
     if (nome === 'clientes')     carregarClientes();
+    if (nome === 'oportunidades') carregarOportunidades();
     if (nome === 'monitor')       _iniciarMonitor();
     if (nome === 'custos')        carregarCustos();
     if (nome === 'configuracoes') {
@@ -4241,27 +4245,112 @@
   }
 
   /* ─── Oportunidades — Opportunity Intelligence (Fase 22 / bloco 2) ──
-     Sem lista/criação de oportunidades no Dashboard ainda (nenhum
-     fluxo real cria uma Opportunity em produção hoje) — esta tela só
-     consulta GET /opportunities/{id}/intelligence por ID digitado.
-     SPIN Coverage/MEDDPICC/riscos calculados vêm como gap explícito
-     do backend ({disponivel:false, motivo:"..."}) — nunca inventados
-     aqui no front. */
+     GET/POST /opportunities (lista/criação) + GET /opportunities/{id}/
+     intelligence (ficha). SPIN Coverage/MEDDPICC/riscos calculados
+     vêm como gap explícito do backend ({disponivel:false, motivo:
+     "..."}) — nunca inventados aqui no front. */
   const OPP_STATUS_LABEL = { open: 'Aberta', won: '✅ Ganha', lost: '❌ Perdida', abandoned: 'Abandonada' };
   const OPP_STATUS_COLOR = { open: '#2dd4bf', won: '#22c55e', lost: '#f87171', abandoned: '#888' };
+
+  function _oppAuthHeaders() {
+    return { headers: { Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') } };
+  }
+
+  async function carregarOportunidades() {
+    const lista = document.getElementById('opp-lista');
+    document.getElementById('opp-conteudo').innerHTML = '';
+    lista.style.display = '';
+    lista.innerHTML = '<div style="color:var(--muted)">Carregando...</div>';
+    try {
+      const r = await fetchJsonWithFallback('/opportunities', _oppAuthHeaders());
+      if (!r.ok) { lista.innerHTML = `<div style="color:#f87171">Erro ${r.status} ao carregar oportunidades.</div>`; return; }
+      const d = await r.json();
+      const items = d.opportunities || [];
+      if (!items.length) {
+        lista.innerHTML = '<div style="color:var(--muted)">Nenhuma oportunidade ainda. Clique em "+ Nova Oportunidade".</div>';
+        return;
+      }
+      lista.innerHTML = items.map(function (o) {
+        const statusLabel = OPP_STATUS_LABEL[o.status] || o.status;
+        const statusColor = OPP_STATUS_COLOR[o.status] || '#888';
+        const valorFmt = o.estimated_value != null ? 'R$ ' + Number(o.estimated_value).toLocaleString('pt-BR') : '–';
+        return `<div class="reuniao-card" onclick="verOpportunityIntelligence('${escHtml(o.id)}')">
+          <div class="score-circle" style="border-color:${statusColor};color:${statusColor}">#${escHtml(o.id)}</div>
+          <div class="reuniao-info">
+            <div class="reuniao-titulo">${escHtml(o.stage || 'Sem estágio definido')}</div>
+            <div class="reuniao-meta">${escHtml(statusLabel)} · ${valorFmt} · cliente ${escHtml(o.client_id)}</div>
+          </div>
+        </div>`;
+      }).join('');
+    } catch (e) {
+      lista.innerHTML = '<div style="color:#f87171">Erro de conexão: ' + escHtml(e.message) + '</div>';
+    }
+  }
+
+  async function abrirNovaOportunidade() {
+    const buscaCliente = window.prompt('Nome do cliente (já cadastrado em "Clientes") para esta oportunidade:');
+    if (!buscaCliente?.trim()) return;
+
+    let clientId;
+    try {
+      const rc = await fetchJsonWithFallback('/clientes?busca=' + encodeURIComponent(buscaCliente.trim()), _oppAuthHeaders());
+      if (!rc.ok) throw new Error('HTTP ' + rc.status);
+      const dc = await rc.json();
+      const encontrados = dc.clientes || [];
+      if (!encontrados.length) {
+        alert('Nenhum cliente encontrado com esse nome. Cadastre o cliente primeiro na aba "Clientes".');
+        return;
+      }
+      if (encontrados.length === 1) {
+        clientId = encontrados[0].id;
+      } else {
+        const opcoes = encontrados.map((c, i) => `${i + 1}) ${c.nome}${c.empresa ? ' — ' + c.empresa : ''}`).join('\n');
+        const escolha = window.prompt('Mais de um cliente encontrado, digite o número:\n' + opcoes);
+        const idx = parseInt(escolha, 10) - 1;
+        if (!encontrados[idx]) return;
+        clientId = encontrados[idx].id;
+      }
+    } catch (e) {
+      alert('Erro ao buscar cliente: ' + e.message);
+      return;
+    }
+
+    const stage = window.prompt('Estágio (opcional, ex.: descoberta, proposta, negociação):') || '';
+    const valorTxt = window.prompt('Valor estimado em R$ (opcional):') || '';
+    const estimated_value = valorTxt.trim() ? Number(valorTxt.trim().replace(',', '.')) : null;
+
+    try {
+      const r = await fetchJsonWithFallback('/opportunities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') },
+        body: JSON.stringify({ client_id: clientId, stage: stage, estimated_value: estimated_value }),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const opp = await r.json();
+      verOpportunityIntelligence(opp.id);
+    } catch (e) {
+      alert('Erro ao criar oportunidade: ' + e.message);
+    }
+  }
+
+  function voltarParaOportunidades() {
+    document.getElementById('opp-conteudo').innerHTML = '';
+    document.getElementById('opp-id-input').value = '';
+    document.getElementById('opp-lista').style.display = '';
+  }
 
   async function verOpportunityIntelligence(idBruto) {
     const id = String(idBruto || '').trim();
     const conteudo = document.getElementById('opp-conteudo');
+    const lista = document.getElementById('opp-lista');
     if (!id) {
       conteudo.innerHTML = '<div style="color:var(--muted)">Digite o ID de uma oportunidade e clique em "Ver".</div>';
       return;
     }
+    lista.style.display = 'none';
     conteudo.innerHTML = '<div style="color:var(--muted)">Carregando...</div>';
     try {
-      const r = await fetchJsonWithFallback(`/opportunities/${encodeURIComponent(id)}/intelligence`, {
-        headers: { Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') },
-      });
+      const r = await fetchJsonWithFallback(`/opportunities/${encodeURIComponent(id)}/intelligence`, _oppAuthHeaders());
       if (r.status === 404) {
         conteudo.innerHTML = '<div style="color:#f87171">Oportunidade não encontrada (ou você não tem acesso a ela).</div>';
         return;
@@ -4271,7 +4360,8 @@
         return;
       }
       const dados = await r.json();
-      conteudo.innerHTML = renderOpportunityIntelligence(dados);
+      conteudo.innerHTML = '<button class="btn btn-secondary" style="margin-bottom:16px" onclick="voltarParaOportunidades()">← Voltar à lista</button>'
+        + renderOpportunityIntelligence(dados);
     } catch (e) {
       conteudo.innerHTML = '<div style="color:#f87171">Erro de conexão: ' + escHtml(e.message) + '</div>';
     }

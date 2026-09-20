@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.114** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.115** (backend, local + GitHub — deploy na VPS pendente) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -3024,6 +3024,23 @@ Steps.
   venv). Detalhe completo em CHANGELOG.md. **Sales Science, Seller
   Coaching e lista/criação de oportunidades não começam sem nova
   confirmação explícita do usuário.**
+- **Lista/criação de oportunidades (V.1.4.115)**: usuário confirmou o
+  pré-requisito real que faltava. `GET`/`POST /opportunities` (novos,
+  reaproveitam `listar_opportunities()`/`criar_opportunity()` da Fase
+  2, sem endpoint até então) — `seller_id` sempre do token, nunca do
+  body. Aba "Oportunidades" ganhou lista real (`.reuniao-card`,
+  nenhuma classe nova) + "+ Nova Oportunidade" (prompts sequenciais,
+  mesmo padrão simples de `abrirNovoCliente()` — busca cliente por
+  nome via `GET /clientes?busca=`, nunca deixa digitar ID cru). 8
+  testes novos. **Achado de ambiente**: `agent/client_intelligence.py`
+  (Clientes) usa `pymysql` direto **sem fallback SQLite** (diferente
+  do resto do Opportunity Intelligence, que é SQLModel) — testar a
+  busca de cliente localmente sem MySQL só exercita o caminho "zero
+  resultados" (confirmado funcionando, alerta claro, sem quebrar a
+  página), não o caminho de match real. Versão: `1.4.114` → `1.4.115`
+  (inclui o fix de versão hardcoded já feito na V.1.4.114, nunca
+  re-testado até agora — confirmado aqui). Sales Science e Seller
+  Coaching seguem sem começar sem confirmação.
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

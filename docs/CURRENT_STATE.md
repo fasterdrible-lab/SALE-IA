@@ -1,6 +1,26 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-19 — Dashboard: tela **"Oportunidades"**
+Atualizado em: 2026-09-19 — Backend **V.1.4.115** (local + GitHub,
+deploy na VPS pendente): `GET`/`POST /opportunities` (lista/criação),
+pré-requisito real que faltava pra Opportunity Intelligence virar
+utilizável (sem isso, a ficha só funcionava com ID digitado a mão e
+nada criava uma `Opportunity` de verdade). `seller_id` sempre do
+token; não-admin só vê as próprias (`Opportunity.seller_id` é
+`NOT NULL` desde a criação, sem caso de "sem dono"). Dashboard: aba
+"Oportunidades" ganhou lista real (cards clicáveis) + "+ Nova
+Oportunidade" (busca cliente por nome via `/clientes`, nunca ID cru).
+8 testes novos. **Testado de ponta a ponta com dado real**: 2
+oportunidades reais criadas via API, confirmadas na lista, detalhe
+aberto via clique real no Chromium (inclusive caso de oportunidade
+sem nenhum insight ainda), fluxo de "novo" confirmado terminando num
+alerta claro quando não acha cliente (ambiente de teste sem MySQL
+local — achado: `agent/client_intelligence.py` não tem fallback
+SQLite, diferente do resto do sistema). Inclui também o bump da
+versão hardcoded em `/health`/`/monitor/metricas` pra `1.4.115`.
+Detalhe completo em CHANGELOG.md e CLAUDE.md. **Sales Science, Seller
+Coaching não começam sem nova confirmação explícita do usuário.**
+
+Dashboard: tela **"Oportunidades"**
 (Opportunity Intelligence) nova em `frontend/dashboard.html` — consome
 `GET /opportunities/{id}/intelligence` (backend já existia desde
 V.1.4.114). Sem lista/criação de oportunidades ainda (não existe em
