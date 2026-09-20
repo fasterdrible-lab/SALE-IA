@@ -138,7 +138,23 @@ Cenarios (testes) - 33 testes novos, todos passando:
 
 ## Bloco 2 - Conectar o que ja esta pronto e so falta ligar
 
-### Tarefa 2.1 - Alimentar historical_patterns via Sales Science Engine
+### Tarefa 2.1 - Alimentar historical_patterns via Sales Science Engine [CONCLUIDA - 20/09/2026]
+
+**Ordem ajustada**: dependia da Tarefa 3.1 (vinculo automatico
+meeting<->opportunity), confirmada como nao resolvida hoje (`vincular_
+meeting_opportunity()` nunca era chamada em lugar nenhum do sistema).
+Usuario confirmou fazer as duas juntas nesta rodada, 3.1 primeiro.
+
+**Ajuste de escopo**: em vez de reaproveitar `montar_sales_science_
+insights()` inteiro (que recalcula win_loss/seasonality/conversion_
+drivers pras 3 dimensoes categoricas de uma vez), criado `agent/
+historical_pattern_rules.py` reaproveitando so `win_loss_rules.
+comparar_por_variavel_categorica()` + `sales_science_engine.
+insight_de_win_loss_analyzer()` filtrados a 1 categoria (`stage`) -
+evita recalcular estatistica que o ciclo de tempo real nao usa, a
+cada ciclo de cada reuniao ativa. So filtra por `stage` (nunca
+`product`/`competitor`, que so nascem no fechamento da oportunidade,
+Fase 8 - uma oportunidade ainda aberta nunca tem esses 2 campos).
 
 `agent/sales_science_engine.py` (Fase 13) ja consolida os 7
 submodulos estatisticos. So falta buscar os insights relevantes pra
@@ -171,7 +187,13 @@ Cenarios (testes):
 
 ## Bloco 3 - Ligar reuniao a Oportunidade automaticamente
 
-### Tarefa 3.1 - Vinculo automatico meeting<->opportunity
+### Tarefa 3.1 - Vinculo automatico meeting<->opportunity [CONCLUIDA - 20/09/2026]
+
+Feita antes da 2.1 (que dependia dela). `agent/opportunity_link_
+rules.py` - `vincular_automaticamente_se_possivel(meeting_id)` roda a
+cada ciclo de tempo real (custo so de leitura de banco, sem IA) -
+idempotente, so faz trabalho de verdade na primeira vez (depois disso
+o vinculo ja existe e retorna direto).
 
 Hoje `api/database.py::vincular_meeting_opportunity()` existe mas
 nunca e chamada automaticamente (Fase 18.1: "sem endpoint").
@@ -381,8 +403,15 @@ Tarefa 6.2.
 - **Tarefa 1.2 (objecao via Finance)**: CONCLUIDA (20/09/2026) - com
   ajuste de escopo confirmado (1 chamada de IA nova pra classificar
   categoria). `entrada["objections"]` agora tem dado real no ciclo de
-  tempo real, junto de `meeting_memory`/`rag_context` - 3 dos 11 campos
-  do SalesReasoningEngine preenchidos.
+  tempo real, junto de `meeting_memory`/`rag_context`.
+- **Tarefa 3.1 (vinculo automatico meeting<->opportunity)**: CONCLUIDA
+  (20/09/2026) - feita antes da 2.1, que dependia dela.
+- **Tarefa 2.1 (historical_patterns via Sales Science)**: CONCLUIDA
+  (20/09/2026) - com ajuste de escopo (filtra so por `stage`, reusa
+  win_loss_rules diretamente em vez do agregador completo de
+  `sales_science_insights_rules.py`). **4 dos 11 campos do
+  SalesReasoningEngine agora preenchidos com dado real** (`meeting_
+  memory`, `rag_context`, `objections`, `historical_patterns`).
 
 Atualizar esta secao (e o CHANGELOG.md/CLAUDE.md/docs/
 CURRENT_STATE.md, mesmo padrao do resto do projeto) a cada tarefa

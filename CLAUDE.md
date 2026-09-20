@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.121** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.122** (backend, local + GitHub, aguardando deploy na VPS) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -3330,9 +3330,34 @@ arquivo antes de assumir o que já foi feito ou não).
 - **Deploy confirmado (20/09/2026)**: commit `d5b59e9`, `reunioes_
   ativas: 0` checado antes do `git pull`/restart — `/health` = `versao
   1.4.121`, `status online`; `/dashboard` = `200`.
-- **Tarefa 2.1 (historical_patterns via Sales Science Engine) não
-  começa sem nova confirmação explícita do usuário** — mesma
-  disciplina de toda fase/tarefa anterior do roadmap.
+- **Tarefas 3.1 + 2.1 (V.1.4.122)**: usuário confirmou avançar pra 2.1
+  — investigação prévia achou que ela dependia de 3.1 (vínculo
+  automático meeting↔opportunity), nunca resolvida antes
+  (`vincular_meeting_opportunity()` existia desde a Fase 2, nunca
+  chamada em lugar nenhum). Usuário confirmou fazer as duas juntas,
+  3.1 primeiro. Regra: só vincula quando existe exatamente 1
+  oportunidade aberta do cliente (0 ou 2+ ficam sem vínculo
+  automático); nunca sobrescreve vínculo existente. `agent/
+  opportunity_link_rules.py` (novo) + `agent/historical_pattern_
+  rules.py` (novo — filtra só por `stage`, nunca `product`/
+  `competitor` que só nascem no fechamento da oportunidade, Fase 8;
+  reaproveita `win_loss_rules`/`sales_science_engine` filtrados a 1
+  categoria em vez de recalcular `montar_sales_science_insights()`
+  inteiro a cada ciclo). Achado incidental: `_meeting_memory_to_
+  dict()` nunca expunha `opportunity_id` no dict de `obter_meeting_
+  memory()`, mesmo já sendo coluna desde a Fase 2 — corrigido. Wiring
+  em `orquestrador.py`: `_aplicar_piloto_sales_reasoning()`/`_rodar_
+  shadow_mode()` chamam `vincular_automaticamente_se_possivel()` e,
+  se resolvido, `obter_historical_pattern_da_opportunity()` — melhor
+  esforço. **4 dos 11 campos do SalesReasoningEngine agora têm dado
+  real** (`meeting_memory`, `rag_context`, `objections`, `historical_
+  patterns`). 46 testes novos. Suite completa: 1303 testes, 0 falhas,
+  1 skip pré-existente — sem regressão. Versão: `1.4.121` →
+  `1.4.122`.
+- **Bloco 4 (extração real de SPIN/comportamento/motivação/causa raiz
+  de objeção via IA) não começa sem nova confirmação explícita do
+  usuário** — mesma disciplina de toda fase/tarefa anterior do
+  roadmap.
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

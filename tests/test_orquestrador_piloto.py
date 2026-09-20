@@ -109,6 +109,24 @@ class PilotoLigadoTest(unittest.TestCase):
         entrada = raciocinar_mock.await_args.args[0]
         self.assertEqual(entrada["objections"][0]["objection_spoken"]["category"], "TIMING")
 
+    def test_opportunity_vinculada_com_historical_pattern_preenche_entrada(self):
+        raciocinar_mock = AsyncMock(return_value={
+            "current_state": "x", "recommended_framework": "CLOSING",
+            "next_best_action": "y", "next_best_question": None,
+            "reason": "z", "confidence": 0.9, "hypotheses": [], "evidence": [],
+            "missing_information": [], "avoid": [],
+        })
+        criar_comparison_mock = MagicMock(return_value=None)
+        nba_atual = {"type": "insight", "message": "..."}
+        insight = {"insight": "Estágio negociação converte 81%.", "evidence": {"valor": "negociacao"}, "sample": 60}
+
+        with patch("agent.opportunity_link_rules.vincular_automaticamente_se_possivel", return_value=42), \
+             patch("agent.historical_pattern_rules.obter_historical_pattern_da_opportunity", return_value=insight):
+            self._rodar({"PILOT_MODE": "100pct"}, raciocinar_mock, criar_comparison_mock, nba_atual)
+
+        entrada = raciocinar_mock.await_args.args[0]
+        self.assertEqual(entrada["historical_patterns"], insight)
+
     def test_pilot_user_dentro_da_allowlist_substitui_recomendacao(self):
         raciocinar_mock = AsyncMock(return_value={
             "current_state": "Cliente sem orçamento validado.", "recommended_framework": "MEDDPICC_QUALIFICATION",

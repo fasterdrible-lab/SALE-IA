@@ -12,12 +12,14 @@ flag (`PILOT_MODE`) e chama a IA é `agent/multiagente/orquestrador.py`
 — este módulo só decide o que os campos significam.
 
 **Pré-condição desta fase, documentada e confirmada com o usuário**: o
-motor novo continua raciocinando com só 2 dos 11 campos de entrada reais
-(`meeting_memory` parcial + `rag_context`) — mesmo gap da Fase 23. A
-infraestrutura de rollout gradual é construída e testada nesta rodada,
-mas **nenhum vendedor real entra no piloto por padrão** (`PILOT_MODE`
-default `off`) — ativar é decisão de produto separada, só depois de
-avaliar dado real do Shadow Mode.
+motor novo raciocina hoje com 4 dos 11 campos de entrada reais
+(`meeting_memory` parcial, `rag_context`, `objections` — Bloco 1 /
+Tarefa 1.2, e `historical_patterns` — Bloco 2/3 / Tarefas 2.1+3.1 de
+`docs/tasks-sales-reasoning-engine-completo.md`) — os outros 7 seguem
+gap. A infraestrutura de rollout gradual é construída e testada nesta
+rodada, mas **nenhum vendedor real entra no piloto por padrão**
+(`PILOT_MODE` default `off`) — ativar é decisão de produto separada,
+só depois de avaliar dado real do Shadow Mode.
 """
 
 import hashlib

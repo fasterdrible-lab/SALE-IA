@@ -129,6 +129,22 @@ async def _aplicar_piloto_sales_reasoning(
     except Exception as _e:
         logger.debug("[Piloto] Falha ao classificar objeção (melhor esforço): %s", _e)
 
+    # Bloco 3 / Tarefa 3.1 + Bloco 2 / Tarefa 2.1 (docs/
+    # tasks-sales-reasoning-engine-completo.md): vincula a reunião a
+    # uma Opportunity aberta do mesmo cliente quando não há
+    # ambiguidade (nunca sobrescreve vínculo existente), depois busca
+    # o insight de Win/Loss real do estágio dessa oportunidade —
+    # melhor esforço, nunca bloqueia o ciclo.
+    historical_patterns = None
+    try:
+        from agent.historical_pattern_rules import obter_historical_pattern_da_opportunity
+        from agent.opportunity_link_rules import vincular_automaticamente_se_possivel
+        opportunity_id = vincular_automaticamente_se_possivel(meeting_id) if meeting_id else None
+        if opportunity_id:
+            historical_patterns = obter_historical_pattern_da_opportunity(opportunity_id)
+    except Exception as _e:
+        logger.debug("[Piloto] Falha ao resolver historical_patterns (melhor esforço): %s", _e)
+
     entrada = {
         "meeting_memory": {
             "transcricao_parcial": transcricao_parcial,
@@ -141,6 +157,7 @@ async def _aplicar_piloto_sales_reasoning(
         },
         "rag_context": client_context or None,
         "objections": objections,
+        "historical_patterns": historical_patterns,
     }
 
     inicio = _time.monotonic()
@@ -250,17 +267,19 @@ async def _rodar_shadow_mode(
     from agent.sales_reasoning_engine import raciocinar_async
     from agent.shadow_mode_rules import montar_registro_shadow
 
-    # 3 dos 11 campos do contrato têm dado real hoje no ciclo de
+    # 4 dos 11 campos do contrato têm dado real hoje no ciclo de
     # tempo real — meeting_memory (subconjunto do estado ao vivo da
     # reunião, nunca o registro completo do banco), rag_context (o
     # mesmo client_context — RAG + Sales Memory + Knowledge Compiler —
-    # já usado pelos 4-5 agentes reais) e objections (Bloco 1 / Tarefa
+    # já usado pelos 4-5 agentes reais), objections (Bloco 1 / Tarefa
     # 1.2 de docs/tasks-sales-reasoning-engine-completo.md — traduz
-    # objecao_detectada do Finance, com categoria classificada por
-    # IA). Os outros 8 (opportunity_memory/graph, spin_state,
+    # objecao_detectada do Finance, com categoria classificada por IA)
+    # e historical_patterns (Bloco 2/3 / Tarefas 2.1+3.1 — vincula a
+    # reunião a uma Opportunity e busca o insight de Win/Loss real do
+    # estágio dela). Os outros 7 (opportunity_memory/graph, spin_state,
     # meddpicc_state, buyer_motivation, behavioral_signals,
-    # seller_context, historical_patterns) ficam `None` — mesmo gap já
-    # documentado em agent/opportunity_intelligence_rules.py/agent/
+    # seller_context) ficam `None` — mesmo gap já documentado em
+    # agent/opportunity_intelligence_rules.py/agent/
     # seller_coaching_rules.py (Fase 22): nenhuma função extrai isso de
     # transcrição livre ainda.
     objections = None
@@ -270,6 +289,16 @@ async def _rodar_shadow_mode(
             objections = [objecao]
     except Exception as _e:
         logger.debug("[ShadowMode] Falha ao classificar objeção (melhor esforço): %s", _e)
+
+    historical_patterns = None
+    try:
+        from agent.historical_pattern_rules import obter_historical_pattern_da_opportunity
+        from agent.opportunity_link_rules import vincular_automaticamente_se_possivel
+        opportunity_id = vincular_automaticamente_se_possivel(meeting_id) if meeting_id else None
+        if opportunity_id:
+            historical_patterns = obter_historical_pattern_da_opportunity(opportunity_id)
+    except Exception as _e:
+        logger.debug("[ShadowMode] Falha ao resolver historical_patterns (melhor esforço): %s", _e)
 
     entrada = {
         "meeting_memory": {
@@ -283,6 +312,7 @@ async def _rodar_shadow_mode(
         },
         "rag_context": client_context or None,
         "objections": objections,
+        "historical_patterns": historical_patterns,
     }
 
     inicio = _time.monotonic()

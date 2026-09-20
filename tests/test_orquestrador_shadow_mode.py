@@ -137,6 +137,40 @@ class ShadowModeLigadoTest(unittest.TestCase):
         self.assertEqual(entrada["objections"][0]["objection_spoken"]["category"], "PRICE")
         self.assertEqual(entrada["objections"][0]["objection_spoken"]["evidence_quote"], "Achei caro pra ser sincero.")
 
+    def test_opportunity_vinculada_com_historical_pattern_preenche_entrada(self):
+        raciocinar_mock = AsyncMock(return_value={
+            "current_state": "x", "recommended_framework": "CLOSING",
+            "next_best_action": "y", "next_best_question": None,
+            "reason": "z", "confidence": 0.6, "hypotheses": [], "evidence": [],
+            "missing_information": [], "avoid": [],
+        })
+        criar_comparison_mock = MagicMock(return_value=None)
+        nba_atual = {"type": "insight", "message": "..."}
+        insight = {"insight": "Estágio negociação converte 81%.", "evidence": {"valor": "negociacao"}, "sample": 60}
+
+        with patch("agent.opportunity_link_rules.vincular_automaticamente_se_possivel", return_value=42), \
+             patch("agent.historical_pattern_rules.obter_historical_pattern_da_opportunity", return_value=insight):
+            self._rodar(raciocinar_mock, criar_comparison_mock, nba_atual)
+
+        entrada = raciocinar_mock.await_args.args[0]
+        self.assertEqual(entrada["historical_patterns"], insight)
+
+    def test_sem_opportunity_vinculada_historical_patterns_fica_none(self):
+        raciocinar_mock = AsyncMock(return_value={
+            "current_state": "x", "recommended_framework": "CLOSING",
+            "next_best_action": "y", "next_best_question": None,
+            "reason": "z", "confidence": 0.6, "hypotheses": [], "evidence": [],
+            "missing_information": [], "avoid": [],
+        })
+        criar_comparison_mock = MagicMock(return_value=None)
+        nba_atual = {"type": "insight", "message": "..."}
+
+        with patch("agent.opportunity_link_rules.vincular_automaticamente_se_possivel", return_value=None):
+            self._rodar(raciocinar_mock, criar_comparison_mock, nba_atual)
+
+        entrada = raciocinar_mock.await_args.args[0]
+        self.assertIsNone(entrada["historical_patterns"])
+
     def test_sem_objecao_detectada_objections_fica_none(self):
         raciocinar_mock = AsyncMock(return_value={
             "current_state": "x", "recommended_framework": "CLOSING",

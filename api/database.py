@@ -664,6 +664,7 @@ def _meeting_memory_to_dict(row: MeetingMemory) -> dict:
         "id": row.id,
         "meeting_id": row.meeting_id,
         "usuario_id": row.usuario_id,
+        "opportunity_id": row.opportunity_id,
         "transcript_full": row.transcript_full or "",
         "transcript_buffer": row.transcript_buffer or "",
         "accumulated_summary": row.accumulated_summary or "",

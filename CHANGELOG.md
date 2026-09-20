@@ -3,6 +3,68 @@
 
 ---
 
+## V.1.4.122 — Tarefas 3.1 (vínculo automático meeting↔opportunity) + 2.1 (historical_patterns)
+> Data: 20/09/2026 | Local + GitHub, aguardando deploy na VPS
+
+Usuário confirmou avançar pra Tarefa 2.1 (`docs/tasks-sales-
+reasoning-engine-completo.md`). Investigação prévia confirmou que 2.1
+dependia da Tarefa 3.1 (vínculo automático meeting↔opportunity), que
+nunca tinha sido resolvida — `api/database.py::vincular_meeting_
+opportunity()` existia desde a Fase 2, mas nunca era chamada em lugar
+nenhum do sistema. Usuário confirmou fazer as duas juntas, 3.1
+primeiro.
+
+**Tarefa 3.1 — vínculo automático**: regra confirmada — só vincula
+quando existe **exatamente 1** oportunidade aberta do cliente da
+reunião (0 ou 2+ candidatas ficam sem vínculo automático, ambiguidade
+não é resolvida sozinha); nunca sobrescreve um vínculo já existente.
+
+- **`agent/opportunity_link_rules.py`** (novo): `escolher_
+  opportunity_para_vincular()` (pura) + `vincular_automaticamente_se_
+  possivel(meeting_id)` (orquestração — checa vínculo existente,
+  resolve `client_id` via `agent/client_intelligence.py::buscar_
+  cliente_por_reuniao()`, filtra oportunidades abertas do cliente,
+  vincula só se inequívoco). Roda a cada ciclo de tempo real
+  (idempotente — só faz trabalho de verdade na primeira vez).
+- **`api/database.py::_meeting_memory_to_dict()`**: fix pequeno,
+  achado ao escrever a Tarefa 3.1 — `opportunity_id` nunca aparecia
+  no dict retornado por `obter_meeting_memory()`, mesmo já sendo
+  coluna da tabela desde a Fase 2. Aditivo, nada dependia da ausência.
+
+**Tarefa 2.1 — historical_patterns via Sales Science**: ajuste de
+escopo confirmado — em vez de reaproveitar `agent/sales_science_
+insights_rules.py::montar_sales_science_insights()` inteiro
+(recalcularia win_loss/seasonality/conversion_drivers pras 3
+dimensões categóricas de uma vez, a cada ciclo de cada reunião ativa),
+criado um módulo que filtra a 1 categoria só.
+
+- **`agent/historical_pattern_rules.py`** (novo):
+  `obter_historical_pattern_da_opportunity(opportunity_id)` —
+  reaproveita `agent/win_loss_rules.py::comparar_por_variavel_
+  categorica()` (Fase 8) + `agent/sales_science_engine.py::insight_
+  de_win_loss_analyzer()` (Fase 13) filtrados por `stage` — nunca
+  `product`/`competitor`, que só nascem no fechamento da oportunidade
+  (Fase 8), uma oportunidade ainda aberta nunca tem esses 2 campos.
+  `None` quando a oportunidade não existe, não tem `stage`, ou não há
+  amostra suficiente (nunca fabrica sinal).
+- **Wiring em `agent/multiagente/orquestrador.py`**: `_aplicar_
+  piloto_sales_reasoning()`/`_rodar_shadow_mode()` chamam `vincular_
+  automaticamente_se_possivel()` e, se resolvido, `obter_historical_
+  pattern_da_opportunity()` — melhor esforço, nunca bloqueia o ciclo.
+  **4 dos 11 campos do contrato agora têm dado real** (`meeting_
+  memory`, `rag_context`, `objections`, `historical_patterns`).
+- 46 testes novos (10 vínculo automático + 5 historical pattern + 4
+  integração no wiring do orquestrador + testes já existentes
+  reconfirmados). Suite completa: **1303 testes, 0 falhas**, 1 skip
+  pré-existente — sem regressão.
+- Versão: `1.4.121` → `1.4.122`.
+- **Pendente**: push + deploy na VPS (aditiva — sem tabela/coluna
+  nova, só código). **Bloco 4 (extração real de SPIN/comportamento/
+  motivação/causa raiz de objeção via IA) não começa sem nova
+  confirmação explícita do usuário.**
+
+---
+
 ## V.1.4.121 — Plano de fechar os gaps do SalesReasoningEngine + Tarefa 1.2 (objeção do Finance)
 > Data: 20/09/2026 | Local + GitHub + **produção confirmada** (`/health` = `versao 1.4.121`)
 

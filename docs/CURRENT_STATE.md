@@ -1,6 +1,26 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-20 — Backend **V.1.4.121** (local + GitHub +
+Atualizado em: 2026-09-20 — Backend **V.1.4.122** (local + GitHub,
+aguardando deploy na VPS): Tarefas 3.1 (vínculo automático
+meeting↔opportunity) + 2.1 (historical_patterns via Sales Science).
+Investigação prévia confirmou que 2.1 dependia de 3.1, nunca
+resolvida (`vincular_meeting_opportunity()` existia mas nunca era
+chamada) — usuário confirmou fazer as duas juntas, 3.1 primeiro.
+Regra de vínculo: só automático quando exatamente 1 oportunidade
+aberta do cliente (0 ou 2+ ficam sem vínculo, ambiguidade não é
+resolvida sozinha); nunca sobrescreve vínculo existente. `agent/
+opportunity_link_rules.py` (novo) + `agent/historical_pattern_
+rules.py` (novo, filtra só por `stage` — `product`/`competitor` só
+nascem no fechamento, reaproveita `win_loss_rules`/`sales_science_
+engine` sem recalcular estatística inteira a cada ciclo). Wiring em
+`orquestrador.py`. **4 dos 11 campos do SalesReasoningEngine agora
+têm dado real** (`meeting_memory`, `rag_context`, `objections`,
+`historical_patterns`). 46 testes novos, suite completa: **1303
+testes, 0 falhas**, 1 skip pré-existente. Detalhe completo em
+CHANGELOG.md. **Bloco 4 (extração real via IA) não começa sem nova
+confirmação explícita do usuário.**
+
+Backend **V.1.4.121** (local + GitHub +
 **produção confirmada**, `/health` = `versao 1.4.121`): usuário pediu
 plano pra fechar os 9 campos
 vazios do `SalesReasoningEngine`, documentado em `docs/
