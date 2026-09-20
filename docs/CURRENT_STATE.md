@@ -1,6 +1,27 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-20 — Backend **V.1.4.122** (local + GitHub +
+Atualizado em: 2026-09-20 — Backend **V.1.4.123** (local + GitHub,
+aguardando deploy na VPS): usuário confirmou avançar pro **Bloco 4**
+do plano (extração real por IA, mais cara), uma tarefa de cada vez.
+**Tarefa 4.4 (causa raiz de objeção)**: já garantida estruturalmente
+por `agent/objection_rules.py::precisa_investigar()` desde a Fase 6.1
+("Está caro." nunca pode virar `root_cause=PRICE` com a mesma
+evidência) — esta tarefa constrói a IA que tenta de verdade encontrar
+um sinal real na conversa completa (diferente da própria fala da
+objeção). `agent/objection_root_cause_extractor.py` (novo) tem
+**guarda defensiva própria** além da estrutural — nunca confia só no
+prompt, descarta qualquer resposta que caia no padrão proibido antes
+de persistir. Sem sinal claro, retorna `None` (nunca fabrica).
+`extrair_objecao_do_ciclo()` (Tarefa 1.2) ganha `transcricao_parcial`/
+`historico`; falha na investigação nunca derruba a objeção inteira.
+Não adiciona campo novo aos 11 do contrato (continuam 4 reais) — só
+aprofunda `objections` com `root_cause_hypothesis` real. 20 testes
+novos, suite completa: **1316 testes, 0 falhas**, 1 skip
+pré-existente. Detalhe completo em CHANGELOG.md. **Tarefa 4.1
+(extrator de SPIN) não começa sem nova confirmação explícita do
+usuário.**
+
+Backend **V.1.4.122** (local + GitHub +
 **produção confirmada**, `/health` = `versao 1.4.122`): Tarefas 3.1
 (vínculo automático
 meeting↔opportunity) + 2.1 (historical_patterns via Sales Science).

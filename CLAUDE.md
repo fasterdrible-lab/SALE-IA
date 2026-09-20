@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.122** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.123** (backend, local + GitHub, aguardando deploy na VPS) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -3357,10 +3357,37 @@ arquivo antes de assumir o que já foi feito ou não).
 - **Deploy confirmado (20/09/2026)**: commit `0c0967e`, `reunioes_
   ativas: 0` checado antes do `git pull`/restart — `/health` = `versao
   1.4.122`, `status online`; `/dashboard` = `200`.
-- **Bloco 4 (extração real de SPIN/comportamento/motivação/causa raiz
-  de objeção via IA) não começa sem nova confirmação explícita do
-  usuário** — mesma disciplina de toda fase/tarefa anterior do
-  roadmap.
+- **Bloco 4 / Tarefa 4.4 (causa raiz de objeção, V.1.4.123)**: usuário
+  confirmou avançar pro Bloco 4, uma tarefa de cada vez, começando
+  pela 4.4 (menor escopo, constrói direto em cima da Tarefa 1.2 já
+  pronta). A regra central do prompt mestre ("Está caro." nunca pode
+  virar `root_cause=PRICE` com a mesma evidência) já era garantida
+  estruturalmente por `agent/objection_rules.py::precisa_
+  investigar()` (Fase 6.1) — esta tarefa constrói a IA que de fato
+  tenta encontrar, na conversa completa, um sinal real diferente da
+  própria fala da objeção. `agent/objection_root_cause_
+  extractor.py` (novo): `investigar_causa_raiz_async()` usa a
+  conversa inteira como contexto (diferente do classificador de
+  categoria da Tarefa 1.2, que só via a fala isolada). **Guarda
+  defensiva própria**, além da estrutural de `precisa_investigar()`:
+  nunca confia só no texto do prompt — descarta explicitamente
+  qualquer resposta onde `hypothesis` bate com `category`
+  (case-insensitive) ou `evidence_quote` bate com a evidência da
+  própria objeção, tratando como "sem hipótese real" antes mesmo de
+  persistir. `agent/objecao_detectada_para_objection_rules.py::
+  extrair_objecao_do_ciclo()` ganha `transcricao_parcial`/`historico`
+  — falha na investigação de causa raiz é tratada dentro do próprio
+  módulo, nunca derruba a objeção inteira (degrada pra `root_cause_
+  hypothesis=None`, o comportamento seguro de sempre). Wiring em
+  `agent/multiagente/orquestrador.py`: as 2 chamadas de `extrair_
+  objecao_do_ciclo()` passam a repassar `transcricao_parcial`/
+  `historico`. **Não adiciona campo novo aos 11 do contrato**
+  (continuam os mesmos 4 reais) — só aprofunda `objections`. 20
+  testes novos. Suite completa: 1316 testes, 0 falhas, 1 skip
+  pré-existente — sem regressão. Versão: `1.4.122` → `1.4.123`.
+- **Tarefa 4.1 (extrator de SPIN) e o resto do Bloco 4 não começam sem
+  nova confirmação explícita do usuário** — mesma disciplina de toda
+  fase/tarefa anterior do roadmap.
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

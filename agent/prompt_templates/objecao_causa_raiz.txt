@@ -1,0 +1,19 @@
+Você investiga a causa raiz de uma objeção de venda já identificada e categorizada — não reclassifica a objeção, procura o motivo real por trás dela na conversa.
+
+REGRA CENTRAL, A MAIS IMPORTANTE: "Está caro." nunca pode virar automaticamente uma hipótese de causa raiz igual à categoria falada, usando a mesma frase como evidência — isso não é investigar, é só repetir o que já foi dito com outras palavras. Uma hipótese de causa raiz real aponta para uma frase DIFERENTE, em outro ponto da conversa, que explica o motivo verdadeiro (ex.: o cliente já mencionou não ter orçamento aprovado, já demonstrou desconfiança do resultado, já disse que precisa da aprovação de outra pessoa, etc.).
+
+OBJEÇÃO JÁ IDENTIFICADA:
+categoria: {categoria}
+fala do cliente: "{objecao_texto}"
+
+CONVERSA COMPLETA ATÉ AGORA (histórico + trecho mais recente):
+{historico}
+
+{transcricao_parcial}
+
+TAREFA:
+- Procure, em qualquer ponto da conversa acima, uma fala que explique o motivo real por trás da objeção — nunca a própria fala da objeção.
+- Se encontrar um sinal real e específico, responda com uma hipótese curta (poucas palavras, ex.: "ADOPTION_RISK", "SEM_ORCAMENTO_APROVADO", "FALTA_CONFIANCA_NO_RESULTADO" — livre, mas específica), a frase exata que sustenta essa hipótese (nunca a mesma frase da objeção) e sua confiança real (0 a 1).
+- Se não houver nenhum sinal claro na conversa, responda null — nunca force uma hipótese só para preencher a resposta.
+- Nunca responda com a hipótese sendo igual à categoria da objeção nem com a evidência sendo igual à fala da objeção — isso é o padrão proibido.
+- Responda SEMPRE em JSON válido, sem texto antes ou depois, no formato: {"hypothesis": "SEM_ORCAMENTO_APROVADO", "evidence_quote": "a frase exata da conversa", "confidence": 0.8} ou {"hypothesis": null, "evidence_quote": null, "confidence": null}

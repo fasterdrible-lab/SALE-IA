@@ -301,26 +301,53 @@ Cenarios (testes):
 - Guarda arquitetural ja existente (DISC nunca e tratado como
   motivacao) continua valendo pro extrator tambem.
 
-### Tarefa 4.4 - Investigacao de causa raiz de objecao (completa a 1.2)
+### Tarefa 4.4 - Investigacao de causa raiz de objecao (completa a 1.2) [CONCLUIDA - 20/09/2026]
+
+Feita primeiro dentro do Bloco 4 (recomendacao: menor escopo, constroi
+direto em cima da Tarefa 1.2 ja pronta).
 
 Arquivos:
-- Modificar `agent/objecao_detectada_para_objection_rules.py`
-  (Tarefa 1.2) ou criar extrator separado pra causa raiz
+- Criado `agent/objection_root_cause_extractor.py` (extrator separado,
+  unica parte com IA desta tarefa)
+- Criado `agent/prompt_templates/objecao_causa_raiz.txt`
+- Modificado `api/ai_features.py` (`OBJECTION_CAUSA_RAIZ_
+  INVESTIGACAO`)
+- Modificado `agent/objecao_detectada_para_objection_rules.py`
+  (`extrair_objecao_do_ciclo()` ganhou `transcricao_parcial`/
+  `historico`, chama o extrator novo apos montar `objection_spoken`)
+- Modificado `agent/multiagente/orquestrador.py` (as 2 chamadas de
+  `extrair_objecao_do_ciclo()` passam a repassar `transcricao_
+  parcial`/`historico`)
 
 Reutilizacao:
-- Reaproveitar `agent/objection_rules.py::precisa_investigar()`/
+- Reaproveitado `agent/objection_rules.py::precisa_investigar()`/
   `registrar_objecao()` (Fase 6.1) - a regra que proibe "Esta caro" ->
   desconto automatico continua sendo a mesma, sem duplicar.
 
 Dependencias:
-- Depende da Tarefa 1.2 ja estar funcionando (objection_spoken real).
+- Tarefa 1.2 (ja pronta desde V.1.4.121).
 
-Cenarios (testes):
-- Reproduzir o exemplo proibido do prompt mestre ("Esta caro." com
-  confianca 100% e mesma evidencia do spoken) - extrator real nunca
-  pode cair nesse padrao proibido.
+**Guarda defensiva adicional** (achado durante a implementacao): o
+extrator nunca confia so no texto do prompt pedindo pra IA nao
+espelhar a objecao - descarta explicitamente qualquer resposta onde
+`hypothesis` bate com a `category` (case-insensitive) ou `evidence_
+quote` bate com a evidencia da propria objecao, tratando como "sem
+hipotese real" antes mesmo de persistir. `agent/objection_rules.py::
+precisa_investigar()` ja cobria isso estruturalmente (nunca teria
+falso negativo), mas a guarda extra evita persistir uma "hipotese"
+vazia de conteudo real.
+
+Cenarios (testes) - 13 testes novos (9 no extrator + 4 na
+orquestracao/wiring), todos passando:
+- Reproduzido o exemplo proibido literal do prompt mestre ("Esta
+  caro." com confianca 100% e mesma evidencia do spoken) - descartado
+  corretamente, inclusive variante case-insensitive.
 - Objecao com hipotese de causa raiz distinta e evidencia propria ->
-  aceita.
+  aceita, `precisa_investigar` vira `False`.
+- Falha real de IA na investigacao nunca derruba a objecao inteira -
+  degrada pra `root_cause_hypothesis=None` (`precisa_investigar=True`,
+  o comportamento seguro de sempre), `objection_spoken` continua
+  valido.
 
 ---
 
@@ -412,6 +439,14 @@ Tarefa 6.2.
   `sales_science_insights_rules.py`). **4 dos 11 campos do
   SalesReasoningEngine agora preenchidos com dado real** (`meeting_
   memory`, `rag_context`, `objections`, `historical_patterns`).
+- **Tarefa 4.4 (causa raiz de objecao)**: CONCLUIDA (20/09/2026) -
+  primeira do Bloco 4 (recomendacao: menor escopo, constroi em cima da
+  1.2 ja pronta). Nao adiciona campo novo aos 11 (continua sendo os
+  mesmos 4) - so aprofunda a qualidade de `objections`, que ganha
+  `root_cause_hypothesis` real em vez de sempre `None`.
+- **Bloco 4 restante**: Tarefas 4.1 (SPIN), 4.2 (sinais
+  comportamentais), 4.3 (motivacao do comprador) - nao iniciadas, uma
+  de cada vez, com confirmacao entre cada uma.
 
 Atualizar esta secao (e o CHANGELOG.md/CLAUDE.md/docs/
 CURRENT_STATE.md, mesmo padrao do resto do projeto) a cada tarefa

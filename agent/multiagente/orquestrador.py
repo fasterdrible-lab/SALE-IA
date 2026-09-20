@@ -123,6 +123,7 @@ async def _aplicar_piloto_sales_reasoning(
     try:
         objecao = await extrair_objecao_do_ciclo(
             resultado.get("objecao_detectada"), usuario_id=usuario_id, meeting_id=meeting_id,
+            transcricao_parcial=transcricao_parcial, historico=historico,
         )
         if objecao:
             objections = [objecao]
@@ -284,7 +285,10 @@ async def _rodar_shadow_mode(
     # transcrição livre ainda.
     objections = None
     try:
-        objecao = await extrair_objecao_do_ciclo(objecao_detectada, usuario_id=usuario_id, meeting_id=meeting_id)
+        objecao = await extrair_objecao_do_ciclo(
+            objecao_detectada, usuario_id=usuario_id, meeting_id=meeting_id,
+            transcricao_parcial=transcricao_parcial, historico=historico,
+        )
         if objecao:
             objections = [objecao]
     except Exception as _e:

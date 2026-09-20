@@ -3,6 +3,72 @@
 
 ---
 
+## V.1.4.123 — Bloco 4 / Tarefa 4.4 — investigação de causa raiz de objeção
+> Data: 20/09/2026 | Local + GitHub, aguardando deploy na VPS
+
+Usuário confirmou avançar pro Bloco 4 (`docs/tasks-sales-reasoning-
+engine-completo.md`) — o bloco de extração real por IA, mais caro do
+plano. Dado que as 4 tarefas do bloco são independentes, usuário
+confirmou avançar uma de cada vez, começando pela Tarefa 4.4
+(recomendação: menor escopo, constrói direto em cima da Tarefa 1.2 já
+pronta desde V.1.4.121).
+
+**Tarefa 4.4 — investigação de causa raiz de objeção**: regra central
+do prompt mestre ("Está caro." nunca pode virar automaticamente
+`root_cause = PRICE` usando a mesma frase como evidência — isso é
+espelhamento, não investigação) já é garantida estruturalmente por
+`agent/objection_rules.py::precisa_investigar()` (Fase 6.1) desde
+sempre; esta tarefa constrói a peça que faltava — a IA que de fato
+tenta encontrar, na conversa completa, um sinal real diferente da
+própria fala da objeção.
+
+- **`agent/objection_root_cause_extractor.py`** (novo):
+  `investigar_causa_raiz_async(objection_spoken, transcricao_parcial,
+  historico, ...)` — usa a conversa inteira como contexto (não só a
+  fala isolada da objeção, diferente do classificador de categoria da
+  Tarefa 1.2). **Guarda defensiva própria, além da estrutural de
+  `precisa_investigar()`**: nunca confia só no texto do prompt pedindo
+  pra IA não espelhar — descarta explicitamente qualquer resposta onde
+  `hypothesis` bate com a `category` (case-insensitive) ou `evidence_
+  quote` bate com a evidência da própria objeção, tratando como "sem
+  hipótese real" antes mesmo de persistir. Sem sinal claro na
+  conversa, ou resposta malformada (`confidence` fora de `[0,1]`,
+  campos vazios), retorna `None` — nunca fabrica hipótese.
+- **`agent/prompt_templates/objecao_causa_raiz.txt`** (novo): recebe a
+  objeção já classificada + a conversa completa (histórico + trecho
+  recente), instrui a IA a procurar uma frase DIFERENTE da objeção que
+  explique o motivo real, com o exemplo proibido explícito no texto.
+- **`api/ai_features.py::OBJECTION_CAUSA_RAIZ_INVESTIGACAO`** (novo,
+  custo rastreado separadamente da classificação de categoria).
+- **`agent/objecao_detectada_para_objection_rules.py::extrair_
+  objecao_do_ciclo()`** ganha `transcricao_parcial`/`historico`
+  (novos parâmetros) — depois de montar `objection_spoken`, chama o
+  extrator novo e passa o resultado (ou `None`) pra `registrar_
+  objecao()` (Fase 6.1). Falha na investigação de causa raiz é tratada
+  **dentro do próprio módulo** (nunca propaga) — `objection_spoken`
+  sozinho já é dado valioso, uma falha na segunda chamada de IA nunca
+  derruba a objeção inteira, só degrada pra `root_cause_
+  hypothesis=None` (mesmo efeito de "sem hipótese", `precisa_
+  investigar=True`, o comportamento seguro de sempre).
+- **Wiring em `agent/multiagente/orquestrador.py`**: as 2 chamadas de
+  `extrair_objecao_do_ciclo()` (piloto e shadow mode) passam a
+  repassar `transcricao_parcial`/`historico`, que já estavam
+  disponíveis em ambas as funções.
+- 20 testes novos (9 extrator + 4 orquestração/wiring do módulo de
+  tradução + 4 integração no wiring do orquestrador + 3 testes
+  existentes atualizados pra mockar a nova chamada). Suite completa:
+  **1316 testes, 0 falhas**, 1 skip pré-existente — sem regressão.
+- Versão: `1.4.122` → `1.4.123`.
+- **Decisão deliberada de escopo**: não adiciona campo novo aos 11 do
+  contrato (continuam os mesmos 4 reais) — só aprofunda a qualidade de
+  `objections`, que ganha `root_cause_hypothesis` real em vez de
+  sempre `None`.
+- **Pendente**: push + deploy na VPS (aditiva — sem tabela/coluna
+  nova, só código + 1 prompt template novo). **Tarefa 4.1 (extrator de
+  SPIN) não começa sem nova confirmação explícita do usuário.**
+
+---
+
 ## V.1.4.122 — Tarefas 3.1 (vínculo automático meeting↔opportunity) + 2.1 (historical_patterns)
 > Data: 20/09/2026 | Local + GitHub + **produção confirmada** (`/health` = `versao 1.4.122`)
 

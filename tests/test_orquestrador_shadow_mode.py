@@ -128,7 +128,8 @@ class ShadowModeLigadoTest(unittest.TestCase):
         nba_atual = {"type": "insight", "message": "..."}
         finance_result = {"objecao_detectada": {"objecao": "Achei caro pra ser sincero.", "resposta_pronta": "..."}}
 
-        with patch("agent.objection_category_classifier.classificar_categoria_objecao_async", new=classificador_mock):
+        with patch("agent.objection_category_classifier.classificar_categoria_objecao_async", new=classificador_mock), \
+             patch("agent.objection_root_cause_extractor.investigar_causa_raiz_async", new=AsyncMock(return_value=None)):
             self._rodar(raciocinar_mock, criar_comparison_mock, nba_atual, finance_result=finance_result)
 
         raciocinar_mock.assert_awaited_once()
@@ -218,6 +219,32 @@ class ShadowModeLigadoTest(unittest.TestCase):
         self.assertEqual(kwargs["meeting_id"], "m1")
         self.assertEqual(kwargs["usuario_id"], "seller-1")
         self.assertTrue(kwargs["concordancia"])  # ambos recomendam pergunta
+
+    def test_causa_raiz_real_chega_na_objection_da_entrada(self):
+        raciocinar_mock = AsyncMock(return_value={
+            "current_state": "x", "recommended_framework": "NEGOTIATION",
+            "next_best_action": "y", "next_best_question": None,
+            "reason": "z", "confidence": 0.6, "hypotheses": [], "evidence": [],
+            "missing_information": [], "avoid": [],
+        })
+        criar_comparison_mock = MagicMock(return_value=None)
+        classificador_mock = AsyncMock(return_value="PRICE")
+        causa_raiz_mock = AsyncMock(return_value={
+            "hypothesis": "SEM_ORCAMENTO_APROVADO",
+            "evidence_quote": "Ainda não fechamos o orçamento desse trimestre.",
+            "confidence": 0.8,
+        })
+        nba_atual = {"type": "insight", "message": "..."}
+        finance_result = {"objecao_detectada": {"objecao": "Achei caro pra ser sincero.", "resposta_pronta": "..."}}
+
+        with patch("agent.objection_category_classifier.classificar_categoria_objecao_async", new=classificador_mock), \
+             patch("agent.objection_root_cause_extractor.investigar_causa_raiz_async", new=causa_raiz_mock):
+            self._rodar(raciocinar_mock, criar_comparison_mock, nba_atual, finance_result=finance_result)
+
+        entrada = raciocinar_mock.await_args.args[0]
+        objecao = entrada["objections"][0]
+        self.assertEqual(objecao["root_cause_hypothesis"]["hypothesis"], "SEM_ORCAMENTO_APROVADO")
+        self.assertFalse(objecao["precisa_investigar"])
 
     def test_falha_do_modelo_novo_persiste_erro_nunca_derruba_ciclo(self):
         raciocinar_mock = AsyncMock(side_effect=ValueError("resposta da IA malformada"))

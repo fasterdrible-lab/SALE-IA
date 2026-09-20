@@ -102,7 +102,8 @@ class PilotoLigadoTest(unittest.TestCase):
         nba_atual = {"type": "insight", "message": "..."}
         finance_result = {"objecao_detectada": {"objecao": "Agora não é a hora.", "resposta_pronta": "..."}}
 
-        with patch("agent.objection_category_classifier.classificar_categoria_objecao_async", new=classificador_mock):
+        with patch("agent.objection_category_classifier.classificar_categoria_objecao_async", new=classificador_mock), \
+             patch("agent.objection_root_cause_extractor.investigar_causa_raiz_async", new=AsyncMock(return_value=None)):
             self._rodar({"PILOT_MODE": "100pct"}, raciocinar_mock, criar_comparison_mock, nba_atual, finance_result=finance_result)
 
         raciocinar_mock.assert_awaited_once()
