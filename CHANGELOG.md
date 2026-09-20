@@ -3,6 +3,80 @@
 
 ---
 
+## V.1.4.118 — Seller Coaching, Fase 22 (Frontend, bloco 4) do "PROMPT MESTRE — SALE-IA V2", fecha a Fase 22
+> Data: 20/09/2026 | Local + GitHub, aguardando deploy na VPS
+
+Usuário confirmou avançar com Seller Coaching (Talk Ratio, Question
+Quality, SPIN Coverage, Qualification, Objection Handling, Negotiation,
+Next Step Discipline, Trend — os 8 itens literais do prompt mestre) —
+último bloco de Dashboard da Fase 22.
+
+**Investigação prévia (antes de perguntar escopo)**: diferente dos
+outros 2 blocos da Fase 22 (Opportunity Intelligence, 9/12 campos
+reais; Sales Science, 3/7 campos reais), **nenhum dos 8 campos tem dado
+real hoje**:
+- Talk Ratio / Question Quality / Next Step Discipline exigem uma lista
+  de `turns` com `speaker`/`start`/`end`/`text` (`agent/
+  conversation_metrics_rules.py`, Fase 11.1, motor real e testado) —
+  grep em `api/processador_tempo_real.py`/`api/webhook_tactiq.py`
+  confirmou que nada no sistema captura transcrição estruturada por
+  turno com timestamp, só texto corrido.
+- SPIN Coverage / Qualification exigem fatos classificados com
+  `evidence_quote` (`agent/spin_coverage_rules.py`, Fase 3;
+  `agent/meddpicc_rules.py`, Fase 4.1) — mesmo gap já documentado em
+  `agent/opportunity_intelligence_rules.py` (Fase 22/bloco 2).
+- Objection Handling / Negotiation exigem objeção falada + causa raiz
+  já classificadas (`agent/objection_rules.py`/`agent/
+  negotiation_rules.py`, Fase 6) — a classificação nunca roda em
+  produção.
+- Trend exigiria histórico de Seller Scorecard (`agent/
+  seller_scorecard_rules.py`, Fase 11.2) persistido ao longo do tempo —
+  o módulo existe e é puro, mas nunca foi chamado com dado real nem
+  persistido em nenhuma tabela.
+
+Usuário escolheu, depois dessa investigação, **só o contrato — os 8
+campos como gap explícito, sem dado real nesta rodada** — mesma
+disciplina de honestidade de `agent/observability_metrics_rules.py`
+(Fase 19), `agent/quality_monitoring_rules.py` (Fase 19.1) e
+`agent/opportunity_intelligence_rules.py`/`agent/
+sales_science_insights_rules.py` (Fase 22, blocos 2/3).
+
+- **`agent/seller_coaching_rules.py`** (novo, função pura, sem IA/
+  banco): `SELLER_COACHING_CAMPOS` (os 8 campos literais) +
+  `SELLER_COACHING_GAPS` (dict campo → gap, cada um com `motivo`
+  específico explicando exatamente o que falta e onde). `montar_
+  seller_coaching(seller_id)` monta o payload — `seller_id` é ecoado
+  por consistência com os outros 2 blocos da Fase 22, sem uso em
+  nenhum cálculo ainda.
+- **`GET /seller-coaching/{seller_id}`** (novo endpoint, `api/
+  main.py`): JWT + ownership via `_verificar_dono_ou_admin`, mesmo
+  padrão de `GET /opportunities/{id}/intelligence` (dono do
+  `seller_id` ou admin; 404, não 403, pra quem não é dono).
+- **Dashboard**: aba "🎓 Seller Coaching" nova, `renderSellerCoaching()`
+  reaproveita `oppGapCard()` sem nenhuma mudança (mesmo helper já usado
+  nos gaps de Opportunity Intelligence/Sales Science) — `seller_id`
+  resolvido do próprio usuário logado (`saleia_user.id` no
+  `localStorage`, mesmo id usado como `Opportunity.seller_id` em todo o
+  resto do Dashboard).
+- 12 testes novos (7 módulo puro em `tests/test_seller_coaching_
+  rules.py` + 5 endpoint em `tests/test_seller_coaching_endpoint.py`,
+  TestClient real, sem SQLite em memória — o payload não lê nenhuma
+  tabela). Suite completa sem regressão.
+- **Fecha a Fase 22 (Frontend)** completa: bloco 1 (sidebar, extensão
+  V.1.4.15) → bloco 2 (Opportunity Intelligence, V.1.4.114-116) →
+  bloco 3 (Sales Science, V.1.4.117) → bloco 4 (Seller Coaching,
+  V.1.4.118).
+- Versão: `1.4.117` → `1.4.118` (`api/main.py::/health` e
+  `/monitor/metricas`).
+- **Decisão deliberada de escopo**: nenhuma fase seguinte do "PROMPT
+  MESTRE — SALE-IA V2" começa sem nova confirmação explícita do
+  usuário.
+- **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna nova,
+  módulo puro em memória; deploy é só `git pull` + `systemctl restart
+  saleia`).
+
+---
+
 ## V.1.4.117 — Sales Science, Fase 22 (Frontend, bloco 3) do "PROMPT MESTRE — SALE-IA V2"
 > Data: 20/09/2026 | Local + GitHub + **produção confirmada** (`/health` = `versao 1.4.117`)
 

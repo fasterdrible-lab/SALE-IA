@@ -1027,6 +1027,9 @@
       <button class="nav-item" data-page="sales-science" onclick="mostrarPagina('sales-science', this)">
         <span class="nav-icon">🔬</span><span class="nav-label">Sales Science</span>
       </button>
+      <button class="nav-item" data-page="seller-coaching" onclick="mostrarPagina('seller-coaching', this)">
+        <span class="nav-icon">🎓</span><span class="nav-label">Seller Coaching</span>
+      </button>
       <a class="nav-item" href="/manual" target="_blank" rel="noopener">
         <span class="nav-icon">📖</span><span class="nav-label">Manual</span>
       </a>
@@ -1553,6 +1556,18 @@
         <div id="ss-conteudo"><div style="color:var(--muted)">Carregando...</div></div>
       </div>
 
+      <!-- SELLER COACHING (Fase 22 / bloco 4, fecha a Fase 22) -->
+      <div class="page" id="page-seller-coaching">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:20px">
+          <div>
+            <h2 style="margin:0">Seller Coaching</h2>
+            <p style="color:var(--muted);font-size:.85rem;margin:4px 0 0">Talk Ratio, Question Quality, SPIN Coverage, Qualification, Objection Handling, Negotiation, Next Step Discipline e Trend.</p>
+          </div>
+          <button class="btn" onclick="carregarSellerCoaching()">↻</button>
+        </div>
+        <div id="sc-conteudo"><div style="color:var(--muted)">Carregando...</div></div>
+      </div>
+
       <!-- MONITOR -->
       <div class="page" id="page-monitor">
         <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:20px">
@@ -1976,6 +1991,7 @@
     if (nome === 'clientes')     carregarClientes();
     if (nome === 'oportunidades') carregarOportunidades();
     if (nome === 'sales-science') carregarSalesScience();
+    if (nome === 'seller-coaching') carregarSellerCoaching();
     if (nome === 'monitor')       _iniciarMonitor();
     if (nome === 'custos')        carregarCustos();
     if (nome === 'configuracoes') {
@@ -4584,6 +4600,58 @@
     </div>`;
     html += oppGapCard('🛡️ Objection Trends', d.objection_trends);
 
+    return html;
+  }
+
+  /* ─── Seller Coaching (Fase 22 / bloco 4, fecha a Fase 22) ───
+     Os 8 campos literais vêm sempre como gap explícito nesta rodada —
+     investigação prévia confirmou que nenhum tem dado real hoje (ver
+     agent/seller_coaching_rules.py). seller_id vem do próprio usuário
+     logado (saleia_user.id) — mesmo id usado como Opportunity.seller_id
+     em todo o resto do Dashboard. */
+  async function carregarSellerCoaching() {
+    const cont = document.getElementById('sc-conteudo');
+    cont.innerHTML = '<div style="color:var(--muted)">Carregando...</div>';
+    let sellerId;
+    try {
+      sellerId = (JSON.parse(localStorage.getItem('saleia_user') || '{}') || {}).id;
+    } catch (e) { sellerId = null; }
+    if (!sellerId) {
+      cont.innerHTML = '<div style="color:#f87171">Não foi possível identificar o usuário logado.</div>';
+      return;
+    }
+    try {
+      const r = await fetchJsonWithFallback(`/seller-coaching/${encodeURIComponent(sellerId)}`, {
+        headers: { Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') },
+      });
+      if (!r.ok) {
+        cont.innerHTML = `<div style="color:#f87171">Erro ${r.status} ao carregar Seller Coaching.</div>`;
+        return;
+      }
+      const dados = await r.json();
+      cont.innerHTML = renderSellerCoaching(dados);
+    } catch (e) {
+      cont.innerHTML = '<div style="color:#f87171">Erro de conexão: ' + escHtml(e.message) + '</div>';
+    }
+  }
+
+  function renderSellerCoaching(d) {
+    let html = `<div class="grid-2">
+      ${oppGapCard('🗣️ Talk Ratio', d.talk_ratio)}
+      ${oppGapCard('❓ Question Quality', d.question_quality)}
+    </div>`;
+    html += `<div class="grid-2">
+      ${oppGapCard('🧭 SPIN Coverage', d.spin_coverage)}
+      ${oppGapCard('📋 Qualification (MEDDPICC)', d.qualification)}
+    </div>`;
+    html += `<div class="grid-2">
+      ${oppGapCard('🛡️ Objection Handling', d.objection_handling)}
+      ${oppGapCard('🤝 Negotiation', d.negotiation)}
+    </div>`;
+    html += `<div class="grid-2">
+      ${oppGapCard('➡️ Next Step Discipline', d.next_step_discipline)}
+      ${oppGapCard('📈 Trend', d.trend)}
+    </div>`;
     return html;
   }
 

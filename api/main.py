@@ -773,7 +773,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.117",
+        "versao":              "1.4.118",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -811,7 +811,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.117",
+        "versao":          "1.4.118",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -4527,6 +4527,29 @@ def sales_science_insights_endpoint(authorization: str | None = _Header(default=
         from agent.sales_science_insights_rules import montar_sales_science_insights
         opportunities = listar_opportunities(limit=5000)
         return montar_sales_science_insights(opportunities)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/seller-coaching/{seller_id}")
+def seller_coaching_endpoint(
+    seller_id: str,
+    authorization: str | None = _Header(default=None),
+):
+    """Fase 22 (Frontend) / bloco Seller Coaching, último bloco de
+    Dashboard da Fase 22 — fecha a Fase 22 por completo. Os 8 campos
+    literais (Talk Ratio, Question Quality, SPIN Coverage,
+    Qualification, Objection Handling, Negotiation, Next Step
+    Discipline, Trend) vêm todos como gap explícito nesta rodada —
+    diferente de Opportunity Intelligence e Sales Science, investigação
+    prévia confirmou que nenhum tem dado real hoje (ver
+    agent/seller_coaching_rules.py). Dono do seller_id ou admin — mesmo
+    padrão de ownership de `GET /opportunities/{id}/intelligence`."""
+    payload = _req_auth(authorization)
+    _verificar_dono_ou_admin(payload, seller_id)
+    try:
+        from agent.seller_coaching_rules import montar_seller_coaching
+        return montar_seller_coaching(seller_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

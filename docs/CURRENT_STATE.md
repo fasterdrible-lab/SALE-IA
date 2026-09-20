@@ -1,6 +1,30 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-20 — Backend **V.1.4.117** (local + GitHub +
+Atualizado em: 2026-09-20 — Backend **V.1.4.118** (local + GitHub,
+aguardando deploy na VPS): Seller Coaching (Fase 22 / bloco 4) — **fecha
+a Fase 22 (Frontend) por completo**. Investigação prévia (mesmo padrão
+das fases anteriores) achou que, diferente de Opportunity Intelligence
+(9/12 campos reais) e Sales Science (3/7 campos reais), **nenhum dos 8
+campos literais (Talk Ratio, Question Quality, SPIN Coverage,
+Qualification, Objection Handling, Negotiation, Next Step Discipline,
+Trend) tem dado real hoje** — Talk Ratio/Question Quality/Next Step
+Discipline exigem transcrição estruturada por turno (speaker/start/end,
+nunca capturada); SPIN Coverage/Qualification exigem fatos classificados
+com evidence_quote (mesmo gap do bloco 2); Objection Handling/
+Negotiation exigem objeção classificada em produção (nunca roda); Trend
+exigiria histórico de Seller Scorecard persistido (nunca salvo em
+tabela nenhuma). Usuário confirmou **só o contrato — os 8 como gap
+explícito**, mesma disciplina de honestidade do resto do roadmap.
+`agent/seller_coaching_rules.py` (novo) + `GET /seller-coaching/
+{seller_id}` (novo, JWT + ownership via `_verificar_dono_ou_admin`) +
+aba "🎓 Seller Coaching" no Dashboard. 12 testes novos. **Fase 22
+(Frontend) completa**: bloco 1 (sidebar) → bloco 2 (Opportunity
+Intelligence) → bloco 3 (Sales Science) → bloco 4 (Seller Coaching).
+Detalhe completo em CHANGELOG.md. **Nenhuma fase seguinte do "PROMPT
+MESTRE — SALE-IA V2" começa sem nova confirmação explícita do
+usuário.**
+
+Backend **V.1.4.117** (local + GitHub +
 **produção confirmada**, `/health` = `versao 1.4.117`): Sales Science
 (Fase 22 / bloco 3). Só
 Win/Loss, Seasonality e Conversion Drivers dão pra alimentar com dado

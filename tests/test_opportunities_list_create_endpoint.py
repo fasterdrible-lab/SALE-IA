@@ -11,6 +11,7 @@ Run:
 """
 import logging
 import unittest
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 from sqlalchemy.pool import StaticPool
@@ -166,9 +167,15 @@ class OpportunitiesListCreateEndpointTest(unittest.TestCase):
     def test_patch_status_won_com_dados_completos(self):
         r = self.client.post("/opportunities", json={"client_id": "c1"}, headers=self.vendedor_a_headers)
         oid = r.json()["id"]
+        # close_date sempre 1h no futuro em relação a agora, nunca hardcoded —
+        # created_at usa datetime.now() (api/database.py), então uma data fixa
+        # no passado do horário local em que o teste roda derruba
+        # calcular_cycle_days() (agent/outcome_rules.py: close_date não pode
+        # ser anterior a created_at).
+        close_date = (datetime.now() + timedelta(hours=1)).isoformat()
         r2 = self.client.patch(
             f"/opportunities/{oid}",
-            json={"status": "won", "value": 5000, "product": "Plano Pro", "close_date": "2026-09-20T10:00:00"},
+            json={"status": "won", "value": 5000, "product": "Plano Pro", "close_date": close_date},
             headers=self.vendedor_a_headers,
         )
         self.assertEqual(r2.status_code, 200)

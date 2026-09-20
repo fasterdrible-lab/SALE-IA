@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.117** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.118** (backend, local + GitHub, aguardando deploy na VPS) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -3088,6 +3088,38 @@ Steps.
   cada). Versão: `1.4.116` → `1.4.117`. **Seller Coaching (último
   bloco de Dashboard da Fase 22) não começa sem nova confirmação
   explícita do usuário.**
+- **Seller Coaching (V.1.4.118), fecha a Fase 22 por completo**:
+  usuário confirmou. Investigação prévia (mesma disciplina das Fases
+  7/10/13/14/16/19-21/22-blocos 2-3): diferente de Opportunity
+  Intelligence (9/12 reais) e Sales Science (3/7 reais), **nenhum dos
+  8 campos literais tem dado real hoje**. Talk Ratio/Question Quality/
+  Next Step Discipline exigem `turns` com `speaker`/`start`/`end`
+  (`agent/conversation_metrics_rules.py`, Fase 11.1, motor real e
+  testado, mas nunca alimentado — grep em
+  `processador_tempo_real.py`/`webhook_tactiq.py` confirmou que nada
+  captura transcrição estruturada por turno). SPIN Coverage/
+  Qualification exigem fatos com `evidence_quote` (mesmo gap já
+  documentado em `agent/opportunity_intelligence_rules.py`, bloco 2).
+  Objection Handling/Negotiation exigem objeção já classificada
+  (`agent/objection_rules.py`/`agent/negotiation_rules.py`, Fase 6,
+  nunca roda em produção). Trend exigiria histórico de Seller
+  Scorecard (`agent/seller_scorecard_rules.py`, Fase 11.2) persistido
+  — nunca salvo em nenhuma tabela. Usuário escolheu **só o contrato —
+  os 8 como gap explícito**, mesma disciplina de
+  `opportunity_intelligence_rules.py`/`sales_science_insights_
+  rules.py`. `agent/seller_coaching_rules.py` (novo,
+  `montar_seller_coaching(seller_id)`) + `GET /seller-coaching/
+  {seller_id}` (novo, JWT + ownership via `_verificar_dono_ou_admin`,
+  mesmo padrão de `GET /opportunities/{id}/intelligence`) + aba
+  "🎓 Seller Coaching" no Dashboard (`renderSellerCoaching()`
+  reaproveita `oppGapCard()` sem mudança; `seller_id` vem de
+  `saleia_user.id` no `localStorage`). 12 testes novos (7 módulo puro
+  + 5 endpoint, sem SQLite em memória — payload não lê nenhuma
+  tabela). Versão: `1.4.117` → `1.4.118`. **Fecha a Fase 22
+  (Frontend)** completa: bloco 1 (sidebar) → bloco 2 (Opportunity
+  Intelligence) → bloco 3 (Sales Science) → bloco 4 (Seller Coaching).
+  **Nenhuma fase seguinte do "PROMPT MESTRE — SALE-IA V2" começa sem
+  nova confirmação explícita do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 
