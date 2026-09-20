@@ -99,13 +99,14 @@ class ShadowModeDesligadoTest(unittest.TestCase):
 
 
 class ShadowModeLigadoTest(unittest.TestCase):
-    def _rodar(self, raciocinar_mock, criar_comparison_mock, nba_atual, finance_result=None):
+    def _rodar(self, raciocinar_mock, criar_comparison_mock, nba_atual, finance_result=None, spin_mock=None):
         rag_patches = _mock_rag()
         agente_patches = _mock_agentes(nba_atual, finance_result=finance_result)
         with patch.dict(os.environ, {"SHADOW_MODE_ENABLED": "true"}):
             with patch("agent.sales_reasoning_engine.raciocinar_async", new=raciocinar_mock), \
                  patch("api.database.criar_shadow_mode_comparison", new=criar_comparison_mock), \
-                 patch("api.database.obter_ultimo_ai_usage_event", return_value=None):
+                 patch("api.database.obter_ultimo_ai_usage_event", return_value=None), \
+                 patch("agent.spin_extractor.extrair_spin_state_async", new=spin_mock or AsyncMock(return_value=None)):
                 for p in (*rag_patches, *agente_patches):
                     p.start()
                 try:
@@ -171,6 +172,45 @@ class ShadowModeLigadoTest(unittest.TestCase):
 
         entrada = raciocinar_mock.await_args.args[0]
         self.assertIsNone(entrada["historical_patterns"])
+
+    def test_spin_state_real_chega_na_entrada(self):
+        raciocinar_mock = AsyncMock(return_value={
+            "current_state": "x", "recommended_framework": "SPIN_PROBLEM",
+            "next_best_action": "y", "next_best_question": None,
+            "reason": "z", "confidence": 0.6, "hypotheses": [], "evidence": [],
+            "missing_information": [], "avoid": [],
+        })
+        criar_comparison_mock = MagicMock(return_value=None)
+        nba_atual = {"type": "insight", "message": "..."}
+        cobertura = {
+            "situation": {"known": [{"stage": "situation", "campo": "team_size", "valor": "8", "evidence_quote": "..."}], "missing": ["crm_tool"]},
+            "problem": {"known": [], "missing": ["main_pain"]},
+            "implication": {"known": [], "missing": ["financial_impact", "conversion_impact"]},
+            "need_payoff": {"known": [], "missing": ["solution_value"]},
+        }
+        spin_mock = AsyncMock(return_value=cobertura)
+
+        self._rodar(raciocinar_mock, criar_comparison_mock, nba_atual, spin_mock=spin_mock)
+
+        entrada = raciocinar_mock.await_args.args[0]
+        self.assertEqual(entrada["spin_state"], cobertura)
+
+    def test_falha_na_extracao_de_spin_state_nunca_derruba_ciclo(self):
+        raciocinar_mock = AsyncMock(return_value={
+            "current_state": "x", "recommended_framework": "CLOSING",
+            "next_best_action": "y", "next_best_question": None,
+            "reason": "z", "confidence": 0.6, "hypotheses": [], "evidence": [],
+            "missing_information": [], "avoid": [],
+        })
+        criar_comparison_mock = MagicMock(return_value=None)
+        nba_atual = {"type": "insight", "message": "..."}
+        spin_mock = AsyncMock(side_effect=RuntimeError("4 provedores esgotados"))
+
+        resultado = self._rodar(raciocinar_mock, criar_comparison_mock, nba_atual, spin_mock=spin_mock)
+
+        self.assertIn("next_best_action", resultado)
+        entrada = raciocinar_mock.await_args.args[0]
+        self.assertIsNone(entrada["spin_state"])
 
     def test_sem_objecao_detectada_objections_fica_none(self):
         raciocinar_mock = AsyncMock(return_value={

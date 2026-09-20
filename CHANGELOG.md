@@ -3,6 +3,56 @@
 
 ---
 
+## V.1.4.124 — Bloco 4 / Tarefa 4.1 — extrator de SPIN
+> Data: 20/09/2026 | Local + GitHub, aguardando deploy na VPS
+
+Usuário confirmou avançar pra Tarefa 4.1 (`docs/tasks-sales-
+reasoning-engine-completo.md`), segunda do Bloco 4.
+
+- **`agent/spin_extractor.py`** (novo): `extrair_spin_state_async()`
+  chama IA pra extrair fatos SPIN reais da conversa (transcrição +
+  histórico), restrito aos **6 campos canônicos** do checklist
+  (`situation.team_size`/`crm_tool`, `problem.main_pain`,
+  `implication.financial_impact`/`conversion_impact`, `need_payoff.
+  solution_value`) — vocabulário fechado, a IA nunca inventa campo
+  novo. **Nunca recalcula cobertura** — só produz os fatos de entrada,
+  `agent/spin_coverage_rules.py::calcular_cobertura_spin()` (Fase 3)
+  continua sendo a única fonte de verdade pra known[]/missing[].
+  **Sempre retorna a cobertura calculada, nunca `None` em caso de
+  sucesso** — cobertura vazia (nenhum fato encontrado) é informação
+  real ("nada mapeado ainda"), diferente de falha de IA.
+- **Guarda automática**: toda `evidence_quote` produzida é checada
+  literalmente contra o texto da conversa recebida (substring exata)
+  — fato descartado se a IA "citar" algo que não está lá, mesmo
+  princípio de honestidade de `agent/objection_root_cause_
+  extractor.py` (Tarefa 4.4). Campo duplicado pela IA mantém só a
+  primeira ocorrência.
+- **`agent/prompt_templates/spin_extractor.txt`** (novo).
+- **`api/ai_features.py::SPIN_EXTRACAO_FATOS`** (novo, custo
+  rastreado separadamente).
+- **Wiring em `agent/multiagente/orquestrador.py`**: as 2 funções
+  (piloto e shadow mode) passam a montar `entrada["spin_state"]` —
+  melhor esforço, nunca bloqueia o ciclo se a extração falhar. **5 dos
+  11 campos do contrato agora têm dado real** (`meeting_memory`,
+  `rag_context`, `objections`, `historical_patterns`, `spin_state`).
+- 16 testes novos (12 no extrator — 4 exemplos golden, 1 por estágio
+  SPIN, + 8 guardas — + 4 integração no wiring do orquestrador). Suite
+  completa: **1331 testes, 0 falhas**, 1 skip pré-existente — sem
+  regressão.
+- Versão: `1.4.123` → `1.4.124`.
+- **Decisão deliberada de escopo**: "teste de custo" (medir tokens/
+  custo real por chamada, listado no plano original) não foi feito
+  nesta rodada — só é possível medir com tráfego real, depois do
+  deploy, com `SHADOW_MODE_ENABLED`/`PILOT_MODE` ativos. Acompanhar
+  via `GET /admin/costs/*` (feature `spin.extracao_fatos`) quando
+  houver dado real.
+- **Pendente**: push + deploy na VPS (aditiva — sem tabela/coluna
+  nova, só código + 1 prompt template novo). **Tarefa 4.2 (sinais
+  comportamentais) não começa sem nova confirmação explícita do
+  usuário.**
+
+---
+
 ## V.1.4.123 — Bloco 4 / Tarefa 4.4 — investigação de causa raiz de objeção
 > Data: 20/09/2026 | Local + GitHub + **produção confirmada** (`/health` = `versao 1.4.123`)
 

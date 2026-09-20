@@ -233,35 +233,55 @@ chamada de IA nova (a decidir se cada uma e uma chamada separada ou
 se da pra consolidar mais de uma no mesmo prompt, por custo) que le a
 conversa e produz fatos estruturados com evidencia real.
 
-### Tarefa 4.1 - Extrator de SPIN
+### Tarefa 4.1 - Extrator de SPIN [CONCLUIDA - 20/09/2026]
 
 Arquivos:
-- Criar `agent/spin_extractor.py` (chamada de IA) +
+- Criado `agent/spin_extractor.py` (chamada de IA) +
   `agent/prompt_templates/spin_extractor.txt`
-- Modificar `agent/multiagente/orquestrador.py`
+- Modificado `api/ai_features.py` (`SPIN_EXTRACAO_FATOS`)
+- Modificado `agent/multiagente/orquestrador.py` (as 2 funcoes de
+  wiring passam a montar `entrada["spin_state"]`)
 
 Reutilizacao:
-- Reaproveitar `agent/spin_coverage_rules.py::calcular_cobertura_
+- Reaproveitado `agent/spin_coverage_rules.py::calcular_cobertura_
   spin()`/`SPIN_CHECKLIST_PADRAO` (Fase 3) - o extrator so produz os
   fatos de entrada, a cobertura continua calculada pela regra pura ja
   existente.
-- Reaproveitar o mesmo caminho de IA de producao
+- Reaproveitado o mesmo caminho de IA de producao
   (`chamar_ia_com_fallback_claude`).
 
 Dependencias:
 - Nenhuma nova (usa os mesmos 4 provedores de sempre).
 
-Cenarios (testes):
-- Exemplos "golden" (trecho de conversa conhecido -> fato SPIN
-  esperado), pelo menos 1 por estagio (situation/problem/implication/
-  need_payoff).
-- Conversa sem nenhum sinal SPIN claro -> extrator nao inventa fato
-  nenhum.
-- Guarda automatica: toda `evidence_quote` produzida precisa ser um
-  trecho que realmente existe na transcricao recebida (checagem
-  literal de substring, nunca so "parece plausivel").
-- Teste de custo: medir tokens/custo real por chamada antes de decidir
-  ativar em producao.
+**Escopo restrito aos 6 campos canonicos do checklist** (situation.
+team_size/crm_tool, problem.main_pain, implication.financial_impact/
+conversion_impact, need_payoff.solution_value) - decisao desta rodada
+pra manter a IA num vocabulario fechado, nunca deixando ela inventar
+campo novo. `extrair_spin_state_async()` sempre retorna a cobertura
+calculada (nunca `None` em caso de sucesso, mesmo sem nenhum fato
+encontrado) - cobertura vazia e informacao real, nao ausencia de dado.
+
+Cenarios (testes) - 12 testes no extrator + 4 integracao no wiring do
+orquestrador, todos passando:
+- 4 exemplos "golden" (1 por estagio SPIN: situation/problem/
+  implication/need_payoff).
+- Conversa sem nenhum sinal SPIN claro -> cobertura vazia (known=[]
+  em todos os estagios), nunca fato inventado.
+- Guarda automatica confirmada: `evidence_quote` que nao existe
+  literalmente na conversa recebida e descartada (nao so "stage
+  invalido"/"campo fora do checklist", tambem checagem de substring
+  real).
+- Campo duplicado (a IA relatou o mesmo campo 2x) mantem so a
+  primeira ocorrencia.
+- Falha real de IA propaga no extrator, mas e tratada como melhor
+  esforco no wiring do orquestrador (`spin_state=None`, nunca derruba
+  o ciclo).
+
+**Pendente**: "teste de custo" (medir tokens/custo real por chamada)
+listado no plano original nao foi feito nesta rodada - só é possivel
+medir com trafego real, depois do deploy, com `SHADOW_MODE_ENABLED`/
+`PILOT_MODE` ativos. Acompanhar via `GET /admin/costs/*` (feature
+`spin.extracao_fatos`) quando houver dado real.
 
 ### Tarefa 4.2 - Extrator de sinais comportamentais
 
@@ -444,9 +464,15 @@ Tarefa 6.2.
   1.2 ja pronta). Nao adiciona campo novo aos 11 (continua sendo os
   mesmos 4) - so aprofunda a qualidade de `objections`, que ganha
   `root_cause_hypothesis` real em vez de sempre `None`.
-- **Bloco 4 restante**: Tarefas 4.1 (SPIN), 4.2 (sinais
-  comportamentais), 4.3 (motivacao do comprador) - nao iniciadas, uma
-  de cada vez, com confirmacao entre cada uma.
+- **Tarefa 4.1 (extrator de SPIN)**: CONCLUIDA (20/09/2026) - restrito
+  aos 6 campos canonicos do checklist, `extrair_spin_state_async()`
+  sempre retorna cobertura calculada (nunca `None` em sucesso). **5
+  dos 11 campos do SalesReasoningEngine agora preenchidos com dado
+  real** (`meeting_memory`, `rag_context`, `objections`, `historical_
+  patterns`, `spin_state`).
+- **Bloco 4 restante**: Tarefas 4.2 (sinais comportamentais), 4.3
+  (motivacao do comprador) - nao iniciadas, uma de cada vez, com
+  confirmacao entre cada uma.
 
 Atualizar esta secao (e o CHANGELOG.md/CLAUDE.md/docs/
 CURRENT_STATE.md, mesmo padrao do resto do projeto) a cada tarefa

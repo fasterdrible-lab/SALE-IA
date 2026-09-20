@@ -1,0 +1,21 @@
+Você extrai fatos SPIN de uma conversa de vendas real — não decide o que fazer com eles, só identifica o que já foi dito.
+
+CAMPOS QUE VOCÊ PODE EXTRAIR (só estes 6, um por estágio SPIN):
+situation.team_size — quantas pessoas fazem parte da equipe hoje
+situation.crm_tool — qual ferramenta/sistema eles usam hoje pra isso
+problem.main_pain — o principal problema/dor que eles enfrentam hoje
+implication.financial_impact — quanto esse problema custa financeiramente hoje
+implication.conversion_impact — como esse problema afeta a conversão/resultado deles
+need_payoff.solution_value — o que resolver esse problema valeria pra eles
+
+REGRAS:
+- Só extraia um campo quando o cliente (ou o vendedor relatando o que o cliente disse) tiver dito algo real e específico sobre ele na conversa — nunca inferido, nunca deduzido, nunca "parece que".
+- `evidence_quote` precisa ser a frase EXATA da conversa (copiada literalmente, sem parafrasear) que sustenta o fato — se você não consegue apontar uma frase exata, não extraia o fato.
+- Se nenhum dos 6 campos tiver sinal claro na conversa, responda com a lista vazia — nunca force um fato pra preencher a resposta.
+- Um mesmo campo nunca deve aparecer duas vezes na resposta.
+- Responda SEMPRE em JSON válido, sem texto antes ou depois, no formato: {"fatos": [{"stage": "situation", "campo": "team_size", "valor": "8 pessoas", "evidence_quote": "hoje somos 8 no time comercial"}]} ou {"fatos": []}
+
+CONVERSA COMPLETA ATÉ AGORA (histórico + trecho mais recente):
+{historico}
+
+{transcricao_parcial}

@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.123** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.124** (backend, local + GitHub, aguardando deploy na VPS) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -3388,9 +3388,33 @@ arquivo antes de assumir o que já foi feito ou não).
 - **Deploy confirmado (20/09/2026)**: commit `c972383`, `reunioes_
   ativas: 0` checado antes do `git pull`/restart — `/health` = `versao
   1.4.123`, `status online`; `/dashboard` = `200`.
-- **Tarefa 4.1 (extrator de SPIN) e o resto do Bloco 4 não começam sem
-  nova confirmação explícita do usuário** — mesma disciplina de toda
-  fase/tarefa anterior do roadmap.
+- **Bloco 4 / Tarefa 4.1 (extrator de SPIN, V.1.4.124)**: usuário
+  confirmou avançar. `agent/spin_extractor.py` (novo):
+  `extrair_spin_state_async()` extrai fatos reais da conversa via IA,
+  restrito aos 6 campos canônicos do checklist (`situation.
+  team_size`/`crm_tool`, `problem.main_pain`, `implication.financial_
+  impact`/`conversion_impact`, `need_payoff.solution_value`) —
+  vocabulário fechado, a IA nunca inventa campo novo. **Nunca
+  recalcula cobertura** — só produz os fatos de entrada, `agent/
+  spin_coverage_rules.py::calcular_cobertura_spin()` (Fase 3) continua
+  sendo a única fonte de verdade. **Sempre retorna a cobertura
+  calculada, nunca `None` em sucesso** — cobertura vazia é informação
+  real ("nada mapeado ainda"), diferente de falha de IA. Guarda
+  automática: `evidence_quote` checada literalmente contra o texto da
+  conversa recebida (substring exata), mesmo princípio de `agent/
+  objection_root_cause_extractor.py` (Tarefa 4.4). Wiring em `agent/
+  multiagente/orquestrador.py`: as 2 funções passam a montar `entrada
+  ["spin_state"]`. **5 dos 11 campos do contrato agora têm dado real**
+  (`meeting_memory`, `rag_context`, `objections`, `historical_
+  patterns`, `spin_state`). 16 testes novos. Suite completa: 1331
+  testes, 0 falhas, 1 skip pré-existente — sem regressão. Versão:
+  `1.4.123` → `1.4.124`. **Decisão deliberada**: "teste de custo"
+  (tokens/custo real por chamada) não feito nesta rodada — só medível
+  com tráfego real após o deploy.
+- **Tarefa 4.2 (sinais comportamentais) e 4.3 (motivação do
+  comprador) não começam sem nova confirmação explícita do
+  usuário** — mesma disciplina de toda fase/tarefa anterior do
+  roadmap.
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 
