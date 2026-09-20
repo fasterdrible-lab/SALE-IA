@@ -1,6 +1,19 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-20 — Backend **V.1.4.115** (local + GitHub +
+Atualizado em: 2026-09-20 — Backend **V.1.4.116** (local + GitHub,
+deploy na VPS pendente): `PATCH /opportunities/{id}` fecha o CRUD
+básico de `Opportunity` — `stage`/`status` independentes no mesmo
+body; won/lost exigem os mesmos dados de sempre (`value`/`product`/
+`loss_reason`, `agent/outcome_rules.py`, sem duplicação). Dashboard:
+`<select>` de status + botão de estágio na ficha, prompts pra won/
+lost, ficha sempre recarregada do banco após qualquer mudança. 10
+testes novos. **Testado de ponta a ponta com dado real**: mudança de
+estágio e transição pra "Ganha" confirmadas via clique/seleção reais
+no Chromium. Detalhe completo em CHANGELOG.md e CLAUDE.md. **Sales
+Science, Seller Coaching não começam sem nova confirmação explícita
+do usuário.**
+
+Backend **V.1.4.115** (local + GitHub +
 **produção confirmada**, `/health` = `versao 1.4.115`): `GET`/`POST
 /opportunities` (lista/criação),
 pré-requisito real que faltava pra Opportunity Intelligence virar

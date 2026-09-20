@@ -3,6 +3,65 @@
 
 ---
 
+## V.1.4.116 — PATCH /opportunities/{id} (mudar stage/status), fecha o CRUD básico de Opportunity
+> Data: 20/09/2026 | Local + GitHub, deploy na VPS pendente de confirmação
+
+Usuário confirmou continuar com `PATCH /opportunities/{id}` — fecha o
+CRUD básico de `Opportunity` (criar/listar/ler/atualizar) antes de
+partir pros blocos maiores de Sales Science/Seller Coaching.
+
+- **`api/database.py::atualizar_stage_opportunity(opportunity_id, stage)`**
+  (novo): atualiza só `stage` (string livre, sem enum — mesma decisão
+  da Fase 2), nunca mexe em `status`/`won_at`/`lost_at` — campo
+  totalmente independente de `atualizar_status_opportunity()`
+  (já existia desde a Fase 8, sem mudança).
+- **`PATCH /opportunities/{opportunity_id}`** (novo endpoint,
+  `api/main.py`): JWT + ownership via `_verificar_dono_ou_admin`,
+  mesmo padrão dos demais endpoints de Opportunity. `stage` e `status`
+  são campos independentes no mesmo body — atualiza qualquer um dos
+  dois presentes, ou os dois juntos. Para `status="won"` (primeira
+  transição): `value`/`product` obrigatórios (`close_date` opcional,
+  ISO 8601, default agora). Para `status="lost"` (primeira transição):
+  `loss_reason` obrigatório, `competitor` opcional — mesmas regras já
+  validadas por `agent/outcome_rules.py` desde a Fase 8, reaproveitadas
+  sem duplicação. `ValueError` da camada de validação vira `400`.
+- **`frontend/dashboard.html`**: ficha de Opportunity Intelligence
+  ganhou controles inline no card "Opportunity Health" — `<select>`
+  de status (Aberta/Ganha/Perdida/Abandonada) e botão "✏️ Mudar"
+  pro estágio. Mudar pra "Ganha"/"Perdida" dispara prompts
+  sequenciais coletando os dados obrigatórios (mesmo padrão simples
+  de `abrirNovaOportunidade()`) antes do `PATCH`; cancelar qualquer
+  prompt recarrega a ficha sem mudar nada (reverte o `<select>`
+  visualmente pro valor real). Após qualquer mudança bem-sucedida ou
+  com erro, a ficha inteira é recarregada (`verOpportunityIntelligence`)
+  pra sempre refletir o estado real do banco, nunca um estado otimista
+  desincronizado.
+- 2 testes novos em `tests/test_opportunity_memory.py`
+  (`atualizar_stage_opportunity`, módulo puro) + 8 testes novos em
+  `tests/test_opportunities_list_create_endpoint.py` (endpoint via
+  TestClient real + SQLite em memória: 401 sem token, 404 oportunidade
+  inexistente/de outro vendedor, muda só stage, won exige value/
+  product, won com dados completos grava `outcome_value`/`won_at`,
+  lost exige `loss_reason`, lost com motivo grava, stage e status
+  juntos no mesmo PATCH).
+- **Testado de ponta a ponta com dado real, não só sintaticamente**:
+  mesmo procedimento de segurança de sempre (backend local forçado
+  pra SQLite, nunca a produção) — mudança de estágio e de status pra
+  "Ganha" confirmadas via clique/seleção reais no Chromium
+  (Playwright), com os 2 prompts de valor/produto respondidos e a
+  ficha recarregada mostrando "✅ Ganha", novo estágio e `Ciclo (dias):
+  0` (calculado corretamente, criada e fechada no mesmo instante de
+  teste). Sem erro de console novo.
+- Versão: `1.4.115` → `1.4.116`.
+- **Decisão deliberada de escopo**: sem exclusão de oportunidade (não
+  pedida), sem histórico de mudanças de stage/status (audit trail já
+  existe desde a Fase 18.4, mas conectá-lo aqui é decisão separada).
+  Sales Science e Seller Coaching não começam sem nova confirmação
+  explícita do usuário.
+- **Pendente**: push + deploy na VPS.
+
+---
+
 ## V.1.4.115 — Lista/criação de oportunidades, sequência do bloco 2 da Fase 22 do "PROMPT MESTRE — SALE-IA V2"
 > Data: 19-20/09/2026 | Local + GitHub + **produção confirmada** (`/health` = `versao 1.4.115`)
 

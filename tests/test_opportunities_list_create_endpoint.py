@@ -130,6 +130,86 @@ class OpportunitiesListCreateEndpointTest(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json(), {"total": 0, "opportunities": []})
 
+    # ── PATCH /opportunities/{id} ────────────────────────
+
+    def test_patch_sem_token_401(self):
+        r = self.client.post("/opportunities", json={"client_id": "c1"}, headers=self.vendedor_a_headers)
+        oid = r.json()["id"]
+        r2 = self.client.patch(f"/opportunities/{oid}", json={"stage": "proposta"})
+        self.assertEqual(r2.status_code, 401)
+
+    def test_patch_oportunidade_inexistente_404(self):
+        r = self.client.patch("/opportunities/999999", json={"stage": "proposta"}, headers=self.vendedor_a_headers)
+        self.assertEqual(r.status_code, 404)
+
+    def test_patch_outro_vendedor_404(self):
+        r = self.client.post("/opportunities", json={"client_id": "c1"}, headers=self.vendedor_a_headers)
+        oid = r.json()["id"]
+        r2 = self.client.patch(f"/opportunities/{oid}", json={"stage": "proposta"}, headers=self.vendedor_b_headers)
+        self.assertEqual(r2.status_code, 404)
+
+    def test_patch_muda_so_stage(self):
+        r = self.client.post("/opportunities", json={"client_id": "c1", "stage": "descoberta"}, headers=self.vendedor_a_headers)
+        oid = r.json()["id"]
+        r2 = self.client.patch(f"/opportunities/{oid}", json={"stage": "negociacao"}, headers=self.vendedor_a_headers)
+        self.assertEqual(r2.status_code, 200)
+        body = r2.json()
+        self.assertEqual(body["stage"], "negociacao")
+        self.assertEqual(body["status"], "open")
+
+    def test_patch_status_won_exige_value_product(self):
+        r = self.client.post("/opportunities", json={"client_id": "c1"}, headers=self.vendedor_a_headers)
+        oid = r.json()["id"]
+        r2 = self.client.patch(f"/opportunities/{oid}", json={"status": "won"}, headers=self.vendedor_a_headers)
+        self.assertEqual(r2.status_code, 400)
+
+    def test_patch_status_won_com_dados_completos(self):
+        r = self.client.post("/opportunities", json={"client_id": "c1"}, headers=self.vendedor_a_headers)
+        oid = r.json()["id"]
+        r2 = self.client.patch(
+            f"/opportunities/{oid}",
+            json={"status": "won", "value": 5000, "product": "Plano Pro", "close_date": "2026-09-20T10:00:00"},
+            headers=self.vendedor_a_headers,
+        )
+        self.assertEqual(r2.status_code, 200)
+        body = r2.json()
+        self.assertEqual(body["status"], "won")
+        self.assertEqual(body["outcome_value"], 5000)
+        self.assertEqual(body["product"], "Plano Pro")
+        self.assertIsNotNone(body["won_at"])
+
+    def test_patch_status_lost_exige_loss_reason(self):
+        r = self.client.post("/opportunities", json={"client_id": "c1"}, headers=self.vendedor_a_headers)
+        oid = r.json()["id"]
+        r2 = self.client.patch(f"/opportunities/{oid}", json={"status": "lost"}, headers=self.vendedor_a_headers)
+        self.assertEqual(r2.status_code, 400)
+
+    def test_patch_status_lost_com_motivo(self):
+        r = self.client.post("/opportunities", json={"client_id": "c1"}, headers=self.vendedor_a_headers)
+        oid = r.json()["id"]
+        r2 = self.client.patch(
+            f"/opportunities/{oid}",
+            json={"status": "lost", "loss_reason": "Sem orcamento"},
+            headers=self.vendedor_a_headers,
+        )
+        self.assertEqual(r2.status_code, 200)
+        body = r2.json()
+        self.assertEqual(body["status"], "lost")
+        self.assertEqual(body["loss_reason"], "Sem orcamento")
+
+    def test_patch_stage_e_status_juntos(self):
+        r = self.client.post("/opportunities", json={"client_id": "c1"}, headers=self.vendedor_a_headers)
+        oid = r.json()["id"]
+        r2 = self.client.patch(
+            f"/opportunities/{oid}",
+            json={"stage": "encerrada", "status": "abandoned"},
+            headers=self.vendedor_a_headers,
+        )
+        self.assertEqual(r2.status_code, 200)
+        body = r2.json()
+        self.assertEqual(body["stage"], "encerrada")
+        self.assertEqual(body["status"], "abandoned")
+
 
 if __name__ == "__main__":
     unittest.main()

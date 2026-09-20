@@ -773,7 +773,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.115",
+        "versao":              "1.4.116",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -811,7 +811,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.115",
+        "versao":          "1.4.116",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -4424,6 +4424,58 @@ def criar_opportunity_endpoint(body: dict, authorization: str | None = _Header(d
         return opp
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.patch("/opportunities/{opportunity_id}")
+def atualizar_opportunity_endpoint(
+    opportunity_id: int,
+    body: dict,
+    authorization: str | None = _Header(default=None),
+):
+    """Atualiza `stage` e/ou `status` de uma oportunidade — os dois
+    campos são independentes (`atualizar_stage_opportunity()` nunca
+    mexe em status/won_at/lost_at, `atualizar_status_opportunity()`
+    nunca mexe em stage). Para `status="won"` (primeira transição):
+    `value`/`product` obrigatórios, `close_date` opcional (ISO 8601,
+    default agora). Para `status="lost"` (primeira transição):
+    `loss_reason` obrigatório, `competitor` opcional."""
+    payload = _req_auth(authorization)
+    try:
+        from api.database import atualizar_stage_opportunity, atualizar_status_opportunity, obter_opportunity
+        opp = obter_opportunity(opportunity_id)
+        if not opp:
+            raise HTTPException(status_code=404, detail="Oportunidade não encontrada.")
+        _verificar_dono_ou_admin(payload, opp.get("seller_id"))
+
+        resultado = opp
+        if "stage" in body:
+            resultado = atualizar_stage_opportunity(opportunity_id, str(body.get("stage") or ""))
+
+        if "status" in body:
+            close_date = None
+            close_date_bruto = body.get("close_date")
+            if close_date_bruto:
+                try:
+                    close_date = datetime.fromisoformat(str(close_date_bruto))
+                except ValueError:
+                    raise HTTPException(status_code=400, detail="Campo 'close_date' precisa ser ISO 8601.")
+            resultado = atualizar_status_opportunity(
+                opportunity_id,
+                str(body.get("status") or ""),
+                body.get("loss_reason"),
+                value=body.get("value"),
+                product=body.get("product"),
+                close_date=close_date,
+                competitor=body.get("competitor"),
+            )
+
+        return resultado
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

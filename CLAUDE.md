@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.115** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.116** (backend, local + GitHub — deploy na VPS pendente) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -3041,6 +3041,21 @@ Steps.
   (inclui o fix de versão hardcoded já feito na V.1.4.114, nunca
   re-testado até agora — confirmado aqui). Sales Science e Seller
   Coaching seguem sem começar sem confirmação.
+- **`PATCH /opportunities/{id}` (V.1.4.116)**: fecha o CRUD básico de
+  `Opportunity`. `stage`/`status` são campos independentes no mesmo
+  body (`atualizar_stage_opportunity()`, novo, nunca mexe em status;
+  `atualizar_status_opportunity()`, Fase 8, sem mudança). Won/lost
+  exigem os mesmos dados de sempre (`value`/`product`/`loss_reason`),
+  validados por `agent/outcome_rules.py` sem duplicação. Dashboard:
+  `<select>` de status + botão "✏️ Mudar" estágio no card Opportunity
+  Health, prompts sequenciais pra won/lost (mesmo padrão de
+  `abrirNovaOportunidade()`), ficha sempre recarregada do banco após
+  qualquer mudança (nunca estado otimista). 10 testes novos (2 módulo
+  puro + 8 endpoint). **Testado de ponta a ponta com dado real**:
+  mudança de estágio e transição pra "Ganha" confirmadas via clique/
+  seleção reais no Chromium, `Ciclo (dias)` calculado corretamente.
+  Versão: `1.4.115` → `1.4.116`. Sales Science e Seller Coaching
+  seguem sem começar sem confirmação.
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

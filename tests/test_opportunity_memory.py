@@ -123,6 +123,15 @@ class OpportunityPersistenciaTest(unittest.TestCase):
         self.assertEqual(lida["client_id"], "cliente-1")
         self.assertEqual(lida["stage"], "descoberta")
 
+    def test_atualizar_stage_muda_so_o_stage(self):
+        opp = database.criar_opportunity(client_id="c1", seller_id="s1", stage="descoberta")
+        atualizada = database.atualizar_stage_opportunity(opp["id"], "negociacao")
+        self.assertEqual(atualizada["stage"], "negociacao")
+        self.assertEqual(atualizada["status"], "open")  # nunca mexe em status
+
+    def test_atualizar_stage_opportunity_inexistente_retorna_none(self):
+        self.assertIsNone(database.atualizar_stage_opportunity(999999, "proposta"))
+
     def test_atualizar_status_status_invalido_levanta(self):
         opp = database.criar_opportunity(client_id="c1", seller_id="s1")
         with self.assertRaises(ValueError):

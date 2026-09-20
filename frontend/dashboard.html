@@ -4361,7 +4361,7 @@
       }
       const dados = await r.json();
       conteudo.innerHTML = '<button class="btn btn-secondary" style="margin-bottom:16px" onclick="voltarParaOportunidades()">← Voltar à lista</button>'
-        + renderOpportunityIntelligence(dados);
+        + renderOpportunityIntelligence(dados, id);
     } catch (e) {
       conteudo.innerHTML = '<div style="color:#f87171">Erro de conexão: ' + escHtml(e.message) + '</div>';
     }
@@ -4395,16 +4395,72 @@
     return `<div class="info-card"><h3>${titulo}</h3>${corpo}</div>`;
   }
 
-  function renderOpportunityIntelligence(d) {
+  async function _patchOportunidade(id, body) {
+    try {
+      const r = await fetchJsonWithFallback(`/opportunities/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        alert('Erro: ' + (err.detail || ('HTTP ' + r.status)));
+      }
+    } catch (e) {
+      alert('Erro de conexão: ' + e.message);
+    }
+    verOpportunityIntelligence(id);
+  }
+
+  async function mudarStatusOportunidade(id, novoStatus) {
+    const body = { status: novoStatus };
+    if (novoStatus === 'won') {
+      const valorTxt = window.prompt('Valor fechado em R$:');
+      if (valorTxt === null) { verOpportunityIntelligence(id); return; }
+      const productTxt = window.prompt('Produto/plano vendido:');
+      if (productTxt === null) { verOpportunityIntelligence(id); return; }
+      body.value = Number(valorTxt.trim().replace(',', '.'));
+      body.product = productTxt.trim();
+    } else if (novoStatus === 'lost') {
+      const motivo = window.prompt('Motivo da perda:');
+      if (motivo === null) { verOpportunityIntelligence(id); return; }
+      body.loss_reason = motivo.trim();
+      const concorrente = window.prompt('Concorrente (opcional):');
+      if (concorrente && concorrente.trim()) body.competitor = concorrente.trim();
+    }
+    await _patchOportunidade(id, body);
+  }
+
+  async function editarEstagioOportunidade(id, stageAtual) {
+    const novoStage = window.prompt('Novo estágio:', stageAtual || '');
+    if (novoStage === null) return;
+    await _patchOportunidade(id, { stage: novoStage.trim() });
+  }
+
+  function renderOpportunityIntelligence(d, id) {
     const h = d.opportunity_health || {};
     const statusLabel = OPP_STATUS_LABEL[h.status] || h.status || '–';
     const statusColor = OPP_STATUS_COLOR[h.status] || '#888';
     const valorFmt = h.estimated_value != null ? 'R$ ' + Number(h.estimated_value).toLocaleString('pt-BR') : '–';
     const outcomeFmt = h.outcome_value != null ? 'R$ ' + Number(h.outcome_value).toLocaleString('pt-BR') : '–';
+    const idAttr = escHtml(id);
 
     let html = `<div class="metrics" style="margin-bottom:20px">
-      <div class="metric"><div class="metric-val" style="color:${statusColor}">${escHtml(statusLabel)}</div><div class="metric-lbl">Status</div></div>
-      <div class="metric"><div class="metric-val">${escHtml(h.stage || '–')}</div><div class="metric-lbl">Estágio</div></div>
+      <div class="metric">
+        <div class="metric-val" style="color:${statusColor}">${escHtml(statusLabel)}</div>
+        <div class="metric-lbl">Status</div>
+        <select onchange="mudarStatusOportunidade('${idAttr}', this.value)" style="margin-top:8px;width:100%;padding:4px 6px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:.75rem">
+          <option value="open" ${h.status === 'open' ? 'selected' : ''}>Aberta</option>
+          <option value="won" ${h.status === 'won' ? 'selected' : ''}>Ganha</option>
+          <option value="lost" ${h.status === 'lost' ? 'selected' : ''}>Perdida</option>
+          <option value="abandoned" ${h.status === 'abandoned' ? 'selected' : ''}>Abandonada</option>
+        </select>
+      </div>
+      <div class="metric">
+        <div class="metric-val">${escHtml(h.stage || '–')}</div>
+        <div class="metric-lbl">Estágio</div>
+        <button class="btn btn-secondary" style="margin-top:8px;width:100%;padding:4px 6px;font-size:.75rem" onclick="editarEstagioOportunidade('${idAttr}','${escHtml(h.stage || '')}')">✏️ Mudar</button>
+      </div>
       <div class="metric"><div class="metric-val">${valorFmt}</div><div class="metric-lbl">Valor estimado</div></div>
       <div class="metric"><div class="metric-val">${h.cycle_days != null ? h.cycle_days : outcomeFmt}</div><div class="metric-lbl">${h.cycle_days != null ? 'Ciclo (dias)' : 'Valor fechado'}</div></div>
     </div>`;

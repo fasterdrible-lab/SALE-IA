@@ -2790,6 +2790,22 @@ def listar_opportunities(
         return [_opportunity_to_dict(r) for r in rows]
 
 
+def atualizar_stage_opportunity(opportunity_id: int, stage: str) -> Optional[dict]:
+    """Atualiza só o `stage` (string livre, sem enum — mesma decisão da
+    Fase 2) — nunca mexe em `status`/`won_at`/`lost_at`, que são
+    exclusividade de `atualizar_status_opportunity()`."""
+    with Session(engine) as session:
+        row = session.get(Opportunity, opportunity_id)
+        if not row:
+            return None
+        row.stage = stage
+        row.updated_at = datetime.now()
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _opportunity_to_dict(row)
+
+
 def atualizar_status_opportunity(
     opportunity_id: int,
     status: str,
