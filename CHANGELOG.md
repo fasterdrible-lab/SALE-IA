@@ -4,7 +4,7 @@
 ---
 
 ## V.1.4.118 — Seller Coaching, Fase 22 (Frontend, bloco 4) do "PROMPT MESTRE — SALE-IA V2", fecha a Fase 22
-> Data: 20/09/2026 | Local + GitHub, aguardando deploy na VPS
+> Data: 20/09/2026 | Local + GitHub + **produção confirmada** (`/health` = `versao 1.4.118`)
 
 Usuário confirmou avançar com Seller Coaching (Talk Ratio, Question
 Quality, SPIN Coverage, Qualification, Objection Handling, Negotiation,
@@ -71,9 +71,25 @@ sales_science_insights_rules.py` (Fase 22, blocos 2/3).
 - **Decisão deliberada de escopo**: nenhuma fase seguinte do "PROMPT
   MESTRE — SALE-IA V2" começa sem nova confirmação explícita do
   usuário.
-- **Pendente**: push + deploy na VPS (aditivo — sem tabela/coluna nova,
-  módulo puro em memória; deploy é só `git pull` + `systemctl restart
-  saleia`).
+- **Fix nesta mesma rodada (fora do escopo original, achado ao rodar a
+  suite completa antes do deploy)**: `tests/test_opportunities_list_
+  create_endpoint.py::test_patch_status_won_com_dados_completos` tinha
+  `close_date` hardcoded (`"2026-09-20T10:00:00"`) que expirava
+  silenciosamente depois das 10h do dia em que o teste rodasse —
+  `agent/outcome_rules.py::calcular_cycle_days()` recusa corretamente
+  `close_date` anterior a `created_at` (que usa `datetime.now()` real).
+  Corrigido para `datetime.now() + timedelta(hours=1)`, sempre válido
+  independente do horário de execução. Usuário confirmou corrigir antes
+  do deploy.
+- Suite completa **1201 testes, 0 falhas, 1 skip pré-existente** —
+  confirmada duas vezes (antes e depois do fix acima).
+- **Push + deploy confirmados (20/09/2026, ~17h27 UTC)**: commit
+  `0d2196e`. `reunioes_ativas: 0` checado antes do `git pull`
+  (fast-forward `8afc8ab` → `0d2196e`) e antes do `systemctl restart
+  saleia` — `active`, os 2 workers subiram limpos, journal sem erros.
+  Pós-restart: `/health` = `versao 1.4.118`, `status online`, 4
+  provedores `ok`; `GET /dashboard` = `200`; `GET /seller-coaching/x`
+  responde `401` sem token (confirma que a rota nova existe).
 
 ---
 

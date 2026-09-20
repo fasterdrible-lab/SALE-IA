@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.118** (backend, local + GitHub, aguardando deploy na VPS) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.118** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -3118,8 +3118,16 @@ Steps.
   tabela). Versão: `1.4.117` → `1.4.118`. **Fecha a Fase 22
   (Frontend)** completa: bloco 1 (sidebar) → bloco 2 (Opportunity
   Intelligence) → bloco 3 (Sales Science) → bloco 4 (Seller Coaching).
-  **Nenhuma fase seguinte do "PROMPT MESTRE — SALE-IA V2" começa sem
-  nova confirmação explícita do usuário.**
+  Fix confirmado pelo usuário, fora do escopo original: teste
+  pré-existente (`test_opportunities_list_create_endpoint.py`) tinha
+  `close_date` hardcoded que expirava depois das 10h do dia — trocado
+  por data relativa a `datetime.now()`. Suite completa: **1201 testes,
+  0 falhas**, 1 skip pré-existente. **Deploy confirmado (20/09/2026)**:
+  commit `0d2196e`, `reunioes_ativas: 0` checado antes do `git pull`/
+  restart — `/health` = `versao 1.4.118`, `status online`, 4
+  provedores `ok`; `/dashboard` = `200`. **Nenhuma fase seguinte do
+  "PROMPT MESTRE — SALE-IA V2" começa sem nova confirmação explícita
+  do usuário.**
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

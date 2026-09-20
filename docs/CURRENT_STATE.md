@@ -1,7 +1,8 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-20 — Backend **V.1.4.118** (local + GitHub,
-aguardando deploy na VPS): Seller Coaching (Fase 22 / bloco 4) — **fecha
+Atualizado em: 2026-09-20 — Backend **V.1.4.118** (local + GitHub +
+**produção confirmada**, `/health` = `versao 1.4.118`): Seller Coaching
+(Fase 22 / bloco 4) — **fecha
 a Fase 22 (Frontend) por completo**. Investigação prévia (mesmo padrão
 das fases anteriores) achou que, diferente de Opportunity Intelligence
 (9/12 campos reais) e Sales Science (3/7 campos reais), **nenhum dos 8
@@ -20,9 +21,16 @@ explícito**, mesma disciplina de honestidade do resto do roadmap.
 aba "🎓 Seller Coaching" no Dashboard. 12 testes novos. **Fase 22
 (Frontend) completa**: bloco 1 (sidebar) → bloco 2 (Opportunity
 Intelligence) → bloco 3 (Sales Science) → bloco 4 (Seller Coaching).
-Detalhe completo em CHANGELOG.md. **Nenhuma fase seguinte do "PROMPT
-MESTRE — SALE-IA V2" começa sem nova confirmação explícita do
-usuário.**
+Fix, fora do escopo original mas confirmado pelo usuário: teste
+pré-existente com `close_date` hardcoded que expirava após 10h do dia
+— corrigido para data relativa a agora. Suite completa: **1201 testes,
+0 falhas**, 1 skip pré-existente. **Deploy confirmado (20/09/2026,
+~17h27 UTC)**: commit `0d2196e`, `reunioes_ativas: 0` checado antes do
+`git pull`/restart — `/health` = `versao 1.4.118`, `status online`, 4
+provedores `ok`; `/dashboard` = `200`; `GET /seller-coaching/x`
+responde `401` sem token. Detalhe completo em CHANGELOG.md. **Nenhuma
+fase seguinte do "PROMPT MESTRE — SALE-IA V2" começa sem nova
+confirmação explícita do usuário.**
 
 Backend **V.1.4.117** (local + GitHub +
 **produção confirmada**, `/health` = `versao 1.4.117`): Sales Science
