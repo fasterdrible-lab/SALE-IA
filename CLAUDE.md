@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.120** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.121** (backend, local + GitHub, aguardando deploy na VPS) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -3285,6 +3285,51 @@ rollback sem deploy.
   `PILOT_MODE` continua `off`. **Fase 24 de fato (liberar pra 1
   vendedor) não começa sem nova confirmação explícita do usuário,
   depois de haver dado real de Shadow Mode pra avaliar.**
+
+## Plano para fechar os gaps do SalesReasoningEngine (V.1.4.121)
+
+Usuário pediu um plano detalhado (dividido em tarefas testáveis) pra
+fazer o `SalesReasoningEngine` (Fase 7) funcionar plenamente — hoje só
+2 dos 11 campos de entrada têm dado real no ciclo de `/tempo-real`.
+Documentado em `docs/tasks-sales-reasoning-engine-completo.md` (6
+blocos, do mais barato/rápido ao mais caro — sempre consultar esse
+arquivo antes de assumir o que já foi feito ou não).
+
+- **Tarefa 1.1 (MEDDPICC via `maturity_score` do Closer) —
+  BLOQUEADA**: investigação prévia (antes de codar) achou que
+  `agent/prompt_templates/multiagente_closer.txt` só pede números
+  (`budget_identificado: 0-15` etc.), nunca a citação literal que
+  justificou o número — `agent/meddpicc_rules.py` exige `evidence_
+  quote` real pra qualquer fato sair de `UNKNOWN`. Sem citação real
+  disponível, gerar o fato seria fabricar evidência. Usuário confirmou
+  pular (não mexer no prompt do Closer, que roda em produção real, sem
+  decisão separada pra isso).
+- **Tarefa 1.2 (objeção detectada pelo Finance) — CONCLUÍDA**: achado
+  o mesmo problema estrutural em outro campo — `objecao_detectada.
+  objecao` (Finance) já é citação real, mas o Finance nunca classifica
+  a categoria (vocabulário fechado de 13 valores de `agent/
+  objection_rules.py::OBJECTION_TIPOS`). Diferente da 1.1, usuário
+  confirmou resolver com **1 chamada de IA nova, pequena e barata**
+  (só escolhe 1 de 13 categorias) — sai do escopo "zero IA nova" do
+  Bloco 1, mas bem mais barato que os extratores completos do Bloco 4.
+  `agent/objection_category_classifier.py` (novo, única parte com IA)
+  + `agent/objecao_detectada_para_objection_rules.py` (novo, pura +
+  orquestração) + `agent/prompt_templates/objecao_categoria_
+  classificacao.txt` + `api/ai_features.py::OBJECTION_CATEGORIA_
+  CLASSIFICACAO`. `category: null`/fora do vocabulário nunca é forçado
+  — vira gap. Wiring em `agent/multiagente/orquestrador.py`: as 3
+  funções (`_aplicar_piloto_sales_reasoning()`/`_rodar_shadow_mode()`/
+  `_agendar_shadow_mode()`) passam a montar `entrada["objections"]`
+  a partir de `resultado["objecao_detectada"]` (já calculado em todo
+  ciclo pelo Finance) — melhor esforço, nunca bloqueia o ciclo se a
+  classificação falhar. **3 dos 11 campos do contrato agora têm dado
+  real** (`meeting_memory`, `rag_context`, `objections`).
+- 33 testes novos. Suite completa: 1285 testes, 0 falhas, 1 skip
+  pré-existente — sem regressão.
+- Versão: `1.4.120` → `1.4.121`.
+- **Tarefa 2.1 (historical_patterns via Sales Science Engine) não
+  começa sem nova confirmação explícita do usuário** — mesma
+  disciplina de toda fase/tarefa anterior do roadmap.
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

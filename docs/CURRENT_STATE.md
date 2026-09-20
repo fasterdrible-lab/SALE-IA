@@ -1,6 +1,22 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-20 — Backend **V.1.4.120** (local + GitHub +
+Atualizado em: 2026-09-20 — Backend **V.1.4.121** (local + GitHub,
+aguardando deploy na VPS): usuário pediu plano pra fechar os 9 campos
+vazios do `SalesReasoningEngine`, documentado em `docs/
+tasks-sales-reasoning-engine-completo.md` (6 blocos). Tarefa 1.1
+(MEDDPICC via `maturity_score`) **bloqueada** — sem citação real
+disponível hoje, mudar exigiria tocar o prompt do Closer em produção,
+usuário preferiu pular. Tarefa 1.2 (objeção do Finance) **concluída**
+— achou o mesmo problema estrutural (sem categoria classificada), mas
+resolvido com 1 chamada de IA nova e barata (`agent/objection_
+category_classifier.py`). `entrada["objections"]` agora tem dado real
+no ciclo de `/tempo-real` — **3 dos 11 campos do SalesReasoningEngine
+preenchidos** (antes: 2). 33 testes novos, suite completa: **1285
+testes, 0 falhas**, 1 skip pré-existente. Detalhe completo em
+CHANGELOG.md. **Tarefa 2.1 (historical_patterns via Sales Science) não
+começa sem nova confirmação explícita do usuário.**
+
+Backend **V.1.4.120** (local + GitHub +
 **produção confirmada**, `/health` = `versao 1.4.120`): **Fase 24
 (Piloto)** do "PROMPT MESTRE —
 SALE-IA V2" — infraestrutura de rollout gradual (1 vendedor → 5% → 20%

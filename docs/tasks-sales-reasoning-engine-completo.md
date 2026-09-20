@@ -28,6 +28,19 @@ Ordem recomendada: Bloco 1 -> Bloco 2 -> Bloco 3 -> (decisao de custo)
 
 ### Tarefa 1.1 - Traduzir maturity_score (Closer) em fatos parciais de MEDDPICC
 
+**BLOQUEADA (20/09/2026)**: investigacao antes de codar confirmou que
+`agent/prompt_templates/multiagente_closer.txt` so pede numeros
+(`budget_identificado: 0-15` etc.), nunca a citacao literal que
+justificou o numero. `meddpicc_rules.py` exige `evidence_quote` real
+pra qualquer fato sair de UNKNOWN - sem citacao real disponivel, geral
+o fato seria fabricar evidencia. Usuario confirmou pular esta tarefa
+por agora (nao mudar o prompt do Closer, que roda em producao real,
+sem decisao separada pra isso) e comecar pela Tarefa 1.2, que tem
+evidencia real disponivel. Reabrir esta tarefa exige decidir antes:
+mudar o prompt do Closer pra capturar citacao, ou aceitar outro
+formato de evidencia.
+
+
 O `agent/multiagente/closer_agent.py` ja calcula a cada ciclo:
 `dor_identificada`, `impacto_quantificado`, `urgencia_identificada`,
 `budget_identificado`, `decisores_mapeados`,
@@ -65,30 +78,61 @@ Cenarios (testes):
   sales_reasoning()` recebem o `meddpicc_state` preenchido sem
   quebrar.
 
-### Tarefa 1.2 - Traduzir objecao_detectada (Finance) em fato de objecao
+### Tarefa 1.2 - Traduzir objecao_detectada (Finance) em fato de objecao [CONCLUIDA - 20/09/2026]
 
 `agent/multiagente/finance_agent.py` ja detecta objecao a cada ciclo
-(`resultado["objecao_detectada"]`).
+(`resultado["objecao_detectada"]`), com a citacao real
+(`objecao_detectada.objecao`, "transcricao da objecao").
+
+**Achado durante a investigacao (antes de codar)**: a citacao real
+existe, mas o Finance **nunca classifica a categoria** (PRICE/VALUE/
+BUDGET/etc.) - sem categoria, `objection_rules.py` recusa o fato (mesmo
+problema estrutural da Tarefa 1.1, em outro campo). Diferente da 1.1,
+aqui o usuario confirmou resolver com **1 chamada de IA nova, pequena
+e barata** (so escolhe 1 de 13 categorias fechadas) - sai do escopo
+original "zero IA nova" do Bloco 1, mas ainda e bem mais barato que os
+extratores completos do Bloco 4.
 
 Arquivos:
-- Criar `agent/objecao_detectada_para_objection_rules.py` (funcao pura)
-- Modificar `agent/multiagente/orquestrador.py`
+- Criado `agent/objection_category_classifier.py` (IA, so a
+  classificacao de categoria)
+- Criado `agent/objecao_detectada_para_objection_rules.py` (funcao
+  pura `montar_objection_spoken()` + orquestracao
+  `extrair_objecao_do_ciclo()`)
+- Criado `agent/prompt_templates/objecao_categoria_classificacao.txt`
+- Modificado `api/ai_features.py` (`OBJECTION_CATEGORIA_
+  CLASSIFICACAO`)
+- Modificado `agent/multiagente/orquestrador.py` (`_aplicar_piloto_
+  sales_reasoning()`/`_rodar_shadow_mode()`/`_agendar_shadow_mode()`
+  passam a montar `entrada["objections"]`)
 
 Reutilizacao:
-- Reaproveitar `agent/objection_rules.py::OBJECTION_TIPOS`/
+- Reaproveitado `agent/objection_rules.py::OBJECTION_TIPOS`/
   `registrar_objecao()` (Fase 6.1) - so a parte `objection_spoken`,
   nunca a investigacao de causa raiz (isso fica pra Tarefa 4.4).
+- Reaproveitado o mesmo caminho de IA de producao
+  (`chamar_ia_com_fallback_claude`).
 
 Dependencias:
-- Nenhuma nova.
+- Nenhuma nova (mesmos 4 provedores de sempre).
 
-Cenarios (testes):
-- Objecao detectada com categoria reconhecida vira registro
-  `objection_spoken` valido.
-- Objecao com categoria fora do vocabulario fechado de `OBJECTION_
-  TIPOS` nunca quebra - vira gap, nunca um valor forcado.
-- Sem objecao detectada no ciclo, `objections` fica vazio (lista
-  vazia, nunca `None` nem inventado).
+Cenarios (testes) - 33 testes novos, todos passando:
+- Objecao detectada com categoria classificada com sucesso vira
+  registro `objection_spoken` valido (`tests/test_objecao_detectada_
+  para_objection_rules.py`).
+- Objecao com categoria fora do vocabulario fechado, ou sem
+  classificacao (`category: null` da IA) - nunca quebra, vira `None`
+  (gap, nunca um valor forcado) (`tests/test_objection_category_
+  classifier.py`).
+- Sem objecao detectada no ciclo, `objections` fica `None` (nunca
+  chama a IA de classificacao a toa).
+- Falha real de IA na classificacao (4 provedores + fallback
+  esgotados) propaga, mas o chamador (`orquestrador.py`) trata como
+  melhor esforco - nunca derruba o ciclo real.
+- Testes de integracao em `tests/test_orquestrador_shadow_mode.py`/
+  `tests/test_orquestrador_piloto.py` confirmando que `entrada
+  ["objections"]` chega preenchido no `raciocinar_async()` real quando
+  o Finance detecta objecao.
 
 ---
 
@@ -331,6 +375,15 @@ Tarefa 6.2.
 
 ## Registro de progresso
 
-Nenhuma tarefa iniciada ainda. Atualizar esta secao (e o CHANGELOG.md/
-CLAUDE.md/docs/CURRENT_STATE.md, mesmo padrao do resto do projeto) a
-cada tarefa concluida.
+- **Tarefa 1.1 (MEDDPICC via maturity_score)**: BLOQUEADA (20/09/2026)
+  - sem citacao real disponivel no maturity_score do Closer. Ver nota
+  na propria tarefa acima.
+- **Tarefa 1.2 (objecao via Finance)**: CONCLUIDA (20/09/2026) - com
+  ajuste de escopo confirmado (1 chamada de IA nova pra classificar
+  categoria). `entrada["objections"]` agora tem dado real no ciclo de
+  tempo real, junto de `meeting_memory`/`rag_context` - 3 dos 11 campos
+  do SalesReasoningEngine preenchidos.
+
+Atualizar esta secao (e o CHANGELOG.md/CLAUDE.md/docs/
+CURRENT_STATE.md, mesmo padrao do resto do projeto) a cada tarefa
+concluida.

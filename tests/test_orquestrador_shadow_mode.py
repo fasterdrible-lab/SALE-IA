@@ -38,12 +38,12 @@ def _mock_rag():
     )
 
 
-def _mock_agentes(nba=None):
+def _mock_agentes(nba=None, finance_result=None):
     coach_result = {"next_best_action": nba} if nba is not None else {}
     return [
         patch.object(orquestrador, "analisar_coach", new=AsyncMock(return_value=coach_result)),
         patch.object(orquestrador, "analisar_disc", new=AsyncMock(return_value={})),
-        patch.object(orquestrador, "analisar_finance", new=AsyncMock(return_value={})),
+        patch.object(orquestrador, "analisar_finance", new=AsyncMock(return_value=finance_result or {})),
         patch.object(orquestrador, "analisar_closer", new=AsyncMock(return_value={})),
         patch.object(orquestrador, "analisar_bigfive", new=AsyncMock(return_value={})),
     ]
@@ -99,9 +99,9 @@ class ShadowModeDesligadoTest(unittest.TestCase):
 
 
 class ShadowModeLigadoTest(unittest.TestCase):
-    def _rodar(self, raciocinar_mock, criar_comparison_mock, nba_atual):
+    def _rodar(self, raciocinar_mock, criar_comparison_mock, nba_atual, finance_result=None):
         rag_patches = _mock_rag()
-        agente_patches = _mock_agentes(nba_atual)
+        agente_patches = _mock_agentes(nba_atual, finance_result=finance_result)
         with patch.dict(os.environ, {"SHADOW_MODE_ENABLED": "true"}):
             with patch("agent.sales_reasoning_engine.raciocinar_async", new=raciocinar_mock), \
                  patch("api.database.criar_shadow_mode_comparison", new=criar_comparison_mock), \
@@ -115,6 +115,42 @@ class ShadowModeLigadoTest(unittest.TestCase):
                 finally:
                     for p in (*rag_patches, *agente_patches):
                         p.stop()
+
+    def test_objecao_detectada_pelo_finance_vira_objections_na_entrada(self):
+        raciocinar_mock = AsyncMock(return_value={
+            "current_state": "x", "recommended_framework": "OBJECTION_INVESTIGATION",
+            "next_best_action": "y", "next_best_question": None,
+            "reason": "z", "confidence": 0.6, "hypotheses": [], "evidence": [],
+            "missing_information": [], "avoid": [],
+        })
+        criar_comparison_mock = MagicMock(return_value=None)
+        classificador_mock = AsyncMock(return_value="PRICE")
+        nba_atual = {"type": "insight", "message": "..."}
+        finance_result = {"objecao_detectada": {"objecao": "Achei caro pra ser sincero.", "resposta_pronta": "..."}}
+
+        with patch("agent.objection_category_classifier.classificar_categoria_objecao_async", new=classificador_mock):
+            self._rodar(raciocinar_mock, criar_comparison_mock, nba_atual, finance_result=finance_result)
+
+        raciocinar_mock.assert_awaited_once()
+        entrada = raciocinar_mock.await_args.args[0]
+        self.assertEqual(len(entrada["objections"]), 1)
+        self.assertEqual(entrada["objections"][0]["objection_spoken"]["category"], "PRICE")
+        self.assertEqual(entrada["objections"][0]["objection_spoken"]["evidence_quote"], "Achei caro pra ser sincero.")
+
+    def test_sem_objecao_detectada_objections_fica_none(self):
+        raciocinar_mock = AsyncMock(return_value={
+            "current_state": "x", "recommended_framework": "CLOSING",
+            "next_best_action": "y", "next_best_question": None,
+            "reason": "z", "confidence": 0.6, "hypotheses": [], "evidence": [],
+            "missing_information": [], "avoid": [],
+        })
+        criar_comparison_mock = MagicMock(return_value=None)
+        nba_atual = {"type": "insight", "message": "..."}
+
+        self._rodar(raciocinar_mock, criar_comparison_mock, nba_atual)
+
+        entrada = raciocinar_mock.await_args.args[0]
+        self.assertIsNone(entrada["objections"])
 
     def test_resultado_real_nunca_muda_mesmo_com_shadow_ligado(self):
         raciocinar_mock = AsyncMock(return_value={

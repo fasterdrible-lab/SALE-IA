@@ -3,6 +3,69 @@
 
 ---
 
+## V.1.4.121 — Plano de fechar os gaps do SalesReasoningEngine + Tarefa 1.2 (objeção do Finance)
+> Data: 20/09/2026 | Local + GitHub, aguardando deploy na VPS
+
+Usuário pediu um plano detalhado, dividido em tarefas testáveis, pra
+fazer o `SalesReasoningEngine` (Fase 7) funcionar plenamente — hoje só
+2 dos 11 campos de entrada têm dado real no ciclo de `/tempo-real`.
+Documentado em `docs/tasks-sales-reasoning-engine-completo.md` (6
+blocos, do mais barato ao mais caro). Usuário confirmou começar pela
+Tarefa 1.1, mas investigação prévia (antes de codar) achou que ela não
+é honestamente viável sem mudar um prompt de produção (ver abaixo) —
+pulada por decisão do usuário, começou-se pela Tarefa 1.2.
+
+**Tarefa 1.1 (MEDDPICC via `maturity_score` do Closer) — BLOQUEADA**:
+`agent/prompt_templates/multiagente_closer.txt` só pede números
+(`budget_identificado: 0-15` etc.), nunca a citação literal que
+justificou o número. `agent/meddpicc_rules.py` exige `evidence_quote`
+real pra qualquer fato sair de `UNKNOWN` — sem citação real, gerar o
+fato seria fabricar evidência. Usuário confirmou pular esta tarefa
+(não mexer no prompt do Closer, que roda em produção real, sem decisão
+separada) e reabrir só quando decidir como capturar a citação.
+
+**Tarefa 1.2 (objeção detectada pelo Finance) — CONCLUÍDA**: mesmo
+problema estrutural da 1.1, em outro campo — `objecao_detectada.
+objecao` (Finance) já é a citação real, mas o Finance nunca classifica
+a categoria (PRICE/VALUE/BUDGET/etc.), e `agent/objection_rules.py`
+exige categoria do vocabulário fechado de 13 valores. Diferente da
+1.1, usuário confirmou resolver com **1 chamada de IA nova, pequena e
+barata** (só escolhe 1 de 13 categorias) — sai do escopo original
+"zero IA nova" do Bloco 1, mas ainda bem mais barato que os extratores
+completos do Bloco 4.
+
+- **`agent/objection_category_classifier.py`** (novo): `classificar_
+  categoria_objecao_async()` — única parte desta tarefa que chama IA,
+  separada da lógica pura (testável sem mock de rede). `category:
+  null` da IA ou fora do vocabulário fechado nunca é forçado pra
+  categoria mais parecida — vira gap (`None`), mesma disciplina de
+  honestidade do resto do projeto.
+- **`agent/objecao_detectada_para_objection_rules.py`** (novo):
+  `montar_objection_spoken()` (pura) + `extrair_objecao_do_ciclo()`
+  (orquestra classificação + `agent/objection_rules.py::
+  registrar_objecao()`, Fase 6.1 — sem `root_cause_hypothesis` ainda,
+  isso é a Tarefa 4.4 do plano).
+- **`api/ai_features.py::OBJECTION_CATEGORIA_CLASSIFICACAO`** (novo,
+  custo rastreado separadamente).
+- **Wiring em `agent/multiagente/orquestrador.py`**: `_aplicar_piloto_
+  sales_reasoning()`/`_rodar_shadow_mode()`/`_agendar_shadow_mode()`
+  passam a montar `entrada["objections"]` a partir de `resultado
+  ["objecao_detectada"]` (já calculado pelo Finance em todo ciclo) —
+  melhor esforço, nunca bloqueia o ciclo se a classificação falhar.
+  **3 dos 11 campos do contrato agora têm dado real** (`meeting_
+  memory`, `rag_context`, `objections`).
+- 33 testes novos (7 classificador + 8 tradução/orquestração + 4
+  integração no wiring do orquestrador, cobrindo shadow mode e
+  piloto). Suite completa: **1285 testes, 0 falhas**, 1 skip
+  pré-existente — sem regressão.
+- Versão: `1.4.120` → `1.4.121`.
+- **Pendente**: push + deploy na VPS (aditiva — sem tabela/coluna
+  nova, só código + 1 prompt template novo). **Tarefa 2.1 (Sales
+  Science → historical_patterns) não começa sem nova confirmação
+  explícita do usuário.**
+
+---
+
 ## V.1.4.120 — Fase 24 do "PROMPT MESTRE — SALE-IA V2" (Piloto) — infraestrutura + ativação do Shadow Mode em produção
 > Data: 20/09/2026 | Local + GitHub + **produção confirmada** (`/health` = `versao 1.4.120`)
 

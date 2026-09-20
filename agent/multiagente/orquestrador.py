@@ -108,11 +108,27 @@ async def _aplicar_piloto_sales_reasoning(
     `analisar_fragmento_multi()`)."""
     import time as _time
 
+    from agent.objecao_detectada_para_objection_rules import extrair_objecao_do_ciclo
     from agent.pilot_rollout_rules import mapear_para_next_best_action
     from agent.sales_reasoning_engine import raciocinar_async
     from agent.shadow_mode_rules import montar_registro_shadow
 
     recomendacao_atual = resultado.get("next_best_action") or {}
+
+    # Bloco 1 / Tarefa 1.2 (docs/tasks-sales-reasoning-engine-completo.md):
+    # traduz a objeção já detectada pelo Finance (com categoria
+    # classificada por IA) pro formato de objection_rules.py — melhor
+    # esforço, nunca bloqueia o ciclo se a classificação falhar.
+    objections = None
+    try:
+        objecao = await extrair_objecao_do_ciclo(
+            resultado.get("objecao_detectada"), usuario_id=usuario_id, meeting_id=meeting_id,
+        )
+        if objecao:
+            objections = [objecao]
+    except Exception as _e:
+        logger.debug("[Piloto] Falha ao classificar objeção (melhor esforço): %s", _e)
+
     entrada = {
         "meeting_memory": {
             "transcricao_parcial": transcricao_parcial,
@@ -124,6 +140,7 @@ async def _aplicar_piloto_sales_reasoning(
             "eventos": eventos,
         },
         "rag_context": client_context or None,
+        "objections": objections,
     }
 
     inicio = _time.monotonic()
@@ -191,6 +208,7 @@ def _agendar_shadow_mode(
         return
     task = asyncio.create_task(_rodar_shadow_mode(
         recomendacao_atual=resultado.get("next_best_action") or {},
+        objecao_detectada=resultado.get("objecao_detectada"),
         transcricao_parcial=transcricao_parcial,
         historico=historico,
         resumo_vivo=resumo_vivo,
@@ -208,6 +226,7 @@ def _agendar_shadow_mode(
 
 async def _rodar_shadow_mode(
     recomendacao_atual: dict,
+    objecao_detectada: dict | None,
     transcricao_parcial: str,
     historico: str,
     resumo_vivo: str,
@@ -227,21 +246,31 @@ async def _rodar_shadow_mode(
     `analisar_fragmento_multi`)."""
     import time as _time
 
+    from agent.objecao_detectada_para_objection_rules import extrair_objecao_do_ciclo
     from agent.sales_reasoning_engine import raciocinar_async
     from agent.shadow_mode_rules import montar_registro_shadow
 
-    # Só 2 dos 11 campos do contrato têm dado real hoje no ciclo de
+    # 3 dos 11 campos do contrato têm dado real hoje no ciclo de
     # tempo real — meeting_memory (subconjunto do estado ao vivo da
-    # reunião, nunca o registro completo do banco) e rag_context (o
+    # reunião, nunca o registro completo do banco), rag_context (o
     # mesmo client_context — RAG + Sales Memory + Knowledge Compiler —
-    # já usado pelos 4-5 agentes reais). Os outros 9
-    # (opportunity_memory/graph, spin_state, meddpicc_state,
-    # buyer_motivation, objections, behavioral_signals, seller_context,
-    # historical_patterns) ficam `None` — mesmo gap já documentado em
-    # agent/opportunity_intelligence_rules.py/agent/
+    # já usado pelos 4-5 agentes reais) e objections (Bloco 1 / Tarefa
+    # 1.2 de docs/tasks-sales-reasoning-engine-completo.md — traduz
+    # objecao_detectada do Finance, com categoria classificada por
+    # IA). Os outros 8 (opportunity_memory/graph, spin_state,
+    # meddpicc_state, buyer_motivation, behavioral_signals,
+    # seller_context, historical_patterns) ficam `None` — mesmo gap já
+    # documentado em agent/opportunity_intelligence_rules.py/agent/
     # seller_coaching_rules.py (Fase 22): nenhuma função extrai isso de
-    # transcrição livre ainda. Decisão confirmada com o usuário: rodar
-    # o Shadow Mode hoje mesmo com input parcial, em vez de esperar.
+    # transcrição livre ainda.
+    objections = None
+    try:
+        objecao = await extrair_objecao_do_ciclo(objecao_detectada, usuario_id=usuario_id, meeting_id=meeting_id)
+        if objecao:
+            objections = [objecao]
+    except Exception as _e:
+        logger.debug("[ShadowMode] Falha ao classificar objeção (melhor esforço): %s", _e)
+
     entrada = {
         "meeting_memory": {
             "transcricao_parcial": transcricao_parcial,
@@ -253,6 +282,7 @@ async def _rodar_shadow_mode(
             "eventos": eventos,
         },
         "rag_context": client_context or None,
+        "objections": objections,
     }
 
     inicio = _time.monotonic()
