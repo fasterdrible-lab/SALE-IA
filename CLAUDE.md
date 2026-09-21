@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.124** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.125** (backend, local + GitHub, aguardando deploy na VPS) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -3414,10 +3414,28 @@ arquivo antes de assumir o que já foi feito ou não).
 - **Deploy confirmado (20/09/2026)**: commit `4c02aa9`, `reunioes_
   ativas: 0` checado antes do `git pull`/restart — `/health` = `versao
   1.4.124`, `status online`; `/dashboard` = `200`.
-- **Tarefa 4.2 (sinais comportamentais) e 4.3 (motivação do
-  comprador) não começam sem nova confirmação explícita do
-  usuário** — mesma disciplina de toda fase/tarefa anterior do
-  roadmap.
+- **Bloco 4 / Tarefa 4.2 (extrator de sinais comportamentais,
+  V.1.4.125)**: usuário confirmou avançar. `agent/behavioral_signal_
+  extractor.py` (novo): `extrair_sinais_comportamentais_async()`
+  identifica sinais reais na conversa via IA, restrito aos 6 sinais
+  canônicos de `agent/behavioral_signal_rules.py::
+  BEHAVIORAL_SIGNAL_TIPOS` (Fase 5.2). **Nunca reimplementa
+  validação** — passa por `detectar_sinais()` (Fase 5.2), que já
+  garante "evitar alegações pseudocientíficas" por construção
+  (descrição canônica sóbria de cada sinal, nunca texto livre gerado
+  pela IA). **Sempre retorna lista, nunca `None` em sucesso** — lista
+  vazia é informação real, mesma disciplina da Tarefa 4.1. Guarda
+  automática: `evidence_quote` checada literalmente contra o texto da
+  conversa (substring exata). Wiring em `agent/multiagente/
+  orquestrador.py`: as 2 funções passam a montar `entrada
+  ["behavioral_signals"]`. **6 dos 11 campos do contrato agora têm
+  dado real** (`meeting_memory`, `rag_context`, `objections`,
+  `historical_patterns`, `spin_state`, `behavioral_signals`) — mais da
+  metade. 14 testes novos. Suite completa: 1344 testes, 0 falhas, 1
+  skip pré-existente — sem regressão. Versão: `1.4.124` → `1.4.125`.
+- **Tarefa 4.3 (motivação do comprador, última do Bloco 4) não começa
+  sem nova confirmação explícita do usuário** — mesma disciplina de
+  toda fase/tarefa anterior do roadmap.
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

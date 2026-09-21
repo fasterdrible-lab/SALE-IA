@@ -3,6 +3,55 @@
 
 ---
 
+## V.1.4.125 — Bloco 4 / Tarefa 4.2 — extrator de sinais comportamentais
+> Data: 20/09/2026 | Local + GitHub, aguardando deploy na VPS
+
+Usuário confirmou avançar pra Tarefa 4.2 (`docs/tasks-sales-
+reasoning-engine-completo.md`), terceira do Bloco 4.
+
+- **`agent/behavioral_signal_extractor.py`** (novo):
+  `extrair_sinais_comportamentais_async()` chama IA pra identificar
+  sinais comportamentais reais na conversa, restrito aos **6 sinais
+  canônicos** de `agent/behavioral_signal_rules.py::
+  BEHAVIORAL_SIGNAL_TIPOS` (Fase 5.2) — `LOSS_AVERSION`,
+  `STATUS_QUO_BIAS`, `SOCIAL_PROOF_REQUEST`, `AUTHORITY_REQUEST`,
+  `PRICE_ANCHOR`, `RISK_AVERSION`. **Nunca reimplementa a
+  validação** — toda lista passa por `detectar_sinais()` (Fase 5.2)
+  antes de retornar, que já garante por construção "evitar alegações
+  pseudocientíficas" (a descrição canônica sóbria de cada sinal vem de
+  lá, nunca gerada pela IA — mesmo texto fixo sempre). **Sempre
+  retorna uma lista, nunca `None` em caso de sucesso** — lista vazia
+  (nenhum sinal encontrado) é informação real, mesma disciplina da
+  Tarefa 4.1 (SPIN).
+- **Guarda automática**: toda `evidence_quote` checada literalmente
+  contra o texto da conversa recebida (substring exata) — mesmo
+  princípio de honestidade de `agent/spin_extractor.py` (Tarefa 4.1) e
+  `agent/objection_root_cause_extractor.py` (Tarefa 4.4).
+- **`agent/prompt_templates/behavioral_signal_extractor.txt`** (novo):
+  lista os 6 sinais com suas descrições, instrui explicitamente a
+  nunca explicar mecanismo psicológico/neurológico (só identificar QUE
+  o comportamento observável aconteceu), permite múltiplos sinais na
+  mesma conversa.
+- **`api/ai_features.py::BEHAVIORAL_SIGNAL_EXTRACAO`** (novo, custo
+  rastreado separadamente).
+- **Wiring em `agent/multiagente/orquestrador.py`**: as 2 funções
+  (piloto e shadow mode) passam a montar `entrada
+  ["behavioral_signals"]` — melhor esforço, nunca bloqueia o ciclo se
+  a extração falhar. **6 dos 11 campos do contrato agora têm dado
+  real** (`meeting_memory`, `rag_context`, `objections`,
+  `historical_patterns`, `spin_state`, `behavioral_signals`) — mais da
+  metade.
+- 14 testes novos (10 no extrator — 2 exemplos golden + guardas — + 4
+  integração no wiring do orquestrador). Suite completa: **1344
+  testes, 0 falhas**, 1 skip pré-existente — sem regressão.
+- Versão: `1.4.124` → `1.4.125`.
+- **Pendente**: push + deploy na VPS (aditiva — sem tabela/coluna
+  nova, só código + 1 prompt template novo). **Tarefa 4.3 (motivação
+  do comprador, última do Bloco 4) não começa sem nova confirmação
+  explícita do usuário.**
+
+---
+
 ## V.1.4.124 — Bloco 4 / Tarefa 4.1 — extrator de SPIN
 > Data: 20/09/2026 | Local + GitHub + **produção confirmada** (`/health` = `versao 1.4.124`)
 

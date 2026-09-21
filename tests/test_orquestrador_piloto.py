@@ -75,14 +75,15 @@ class PilotoDesligadoTest(unittest.TestCase):
 
 
 class PilotoLigadoTest(unittest.TestCase):
-    def _rodar(self, env, raciocinar_mock, criar_comparison_mock, nba_atual, usuario_id="seller-1", finance_result=None, spin_mock=None):
+    def _rodar(self, env, raciocinar_mock, criar_comparison_mock, nba_atual, usuario_id="seller-1", finance_result=None, spin_mock=None, behavioral_mock=None):
         rag_patches = _mock_rag()
         agente_patches = _mock_agentes(nba_atual, finance_result=finance_result)
         with patch.dict(os.environ, env):
             with patch("agent.sales_reasoning_engine.raciocinar_async", new=raciocinar_mock), \
                  patch("api.database.criar_shadow_mode_comparison", new=criar_comparison_mock), \
                  patch("api.database.obter_ultimo_ai_usage_event", return_value=None), \
-                 patch("agent.spin_extractor.extrair_spin_state_async", new=spin_mock or AsyncMock(return_value=None)):
+                 patch("agent.spin_extractor.extrair_spin_state_async", new=spin_mock or AsyncMock(return_value=None)), \
+                 patch("agent.behavioral_signal_extractor.extrair_sinais_comportamentais_async", new=behavioral_mock or AsyncMock(return_value=[])):
                 for p in (*rag_patches, *agente_patches):
                     p.start()
                 try:
@@ -150,6 +151,23 @@ class PilotoLigadoTest(unittest.TestCase):
 
         entrada = raciocinar_mock.await_args.args[0]
         self.assertEqual(entrada["spin_state"], cobertura)
+
+    def test_behavioral_signals_real_chega_na_entrada(self):
+        raciocinar_mock = AsyncMock(return_value={
+            "current_state": "x", "recommended_framework": "NEGOTIATION",
+            "next_best_action": "y", "next_best_question": None,
+            "reason": "z", "confidence": 0.9, "hypotheses": [], "evidence": [],
+            "missing_information": [], "avoid": [],
+        })
+        criar_comparison_mock = MagicMock(return_value=None)
+        nba_atual = {"type": "insight", "message": "..."}
+        sinais = [{"signal": "STATUS_QUO_BIAS", "evidence_quote": "...", "descricao": "..."}]
+        behavioral_mock = AsyncMock(return_value=sinais)
+
+        self._rodar({"PILOT_MODE": "100pct"}, raciocinar_mock, criar_comparison_mock, nba_atual, behavioral_mock=behavioral_mock)
+
+        entrada = raciocinar_mock.await_args.args[0]
+        self.assertEqual(entrada["behavioral_signals"], sinais)
 
     def test_pilot_user_dentro_da_allowlist_substitui_recomendacao(self):
         raciocinar_mock = AsyncMock(return_value={

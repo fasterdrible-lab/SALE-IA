@@ -283,25 +283,42 @@ medir com trafego real, depois do deploy, com `SHADOW_MODE_ENABLED`/
 `PILOT_MODE` ativos. Acompanhar via `GET /admin/costs/*` (feature
 `spin.extracao_fatos`) quando houver dado real.
 
-### Tarefa 4.2 - Extrator de sinais comportamentais
+### Tarefa 4.2 - Extrator de sinais comportamentais [CONCLUIDA - 20/09/2026]
 
 Arquivos:
-- Criar `agent/behavioral_signal_extractor.py` +
+- Criado `agent/behavioral_signal_extractor.py` +
   `agent/prompt_templates/behavioral_signal_extractor.txt`
+- Modificado `api/ai_features.py` (`BEHAVIORAL_SIGNAL_EXTRACAO`)
+- Modificado `agent/multiagente/orquestrador.py` (as 2 funcoes de
+  wiring passam a montar `entrada["behavioral_signals"]`)
 
 Reutilizacao:
-- Reaproveitar `agent/behavioral_signal_rules.py::detectar_sinais()`
-  (Fase 5.2) - vocabulario fechado de 6 sinais ja definido.
+- Reaproveitado `agent/behavioral_signal_rules.py::detectar_sinais()`
+  (Fase 5.2) - vocabulario fechado de 6 sinais ja definido; a
+  descricao canonica de cada sinal vem de la, nunca gerada pela IA.
 
 Dependencias:
 - Nenhuma nova.
 
-Cenarios (testes):
-- Mesmo padrao golden examples + guarda de evidence_quote da Tarefa
-  4.1.
-- Guarda contra alegacao pseudocientifica ja existente em
-  `behavioral_signal_rules.py` continua validando a saida do extrator
-  tambem (reaproveitada, nao duplicada).
+`extrair_sinais_comportamentais_async()` sempre retorna uma lista
+(nunca `None` em caso de sucesso, mesmo vazia quando nenhum sinal foi
+encontrado) - mesma disciplina de honestidade da Tarefa 4.1
+(cobertura/lista vazia e informacao real, nao ausencia de dado).
+
+Cenarios (testes) - 10 testes no extrator + 4 integracao no wiring do
+orquestrador, todos passando:
+- 2 exemplos "golden" (PRICE_ANCHOR, STATUS_QUO_BIAS) + teste de
+  multiplos sinais na mesma conversa.
+- Guarda automatica confirmada: `evidence_quote` que nao existe
+  literalmente na conversa recebida e descartada.
+- `signal` fora do vocabulario fechado de 6 valores e descartado.
+- Descricao de cada sinal e sempre a canonica de `DESCRICOES_SINAIS`
+  (Fase 5.2), nunca texto livre gerado pela IA - guarda contra
+  alegacao pseudocientifica ja existente continua validando a saida
+  do extrator, reaproveitada sem duplicar.
+- Falha real de IA propaga no extrator, mas e tratada como melhor
+  esforco no wiring do orquestrador (`behavioral_signals=None`, nunca
+  derruba o ciclo).
 
 ### Tarefa 4.3 - Extrator de motivacao do comprador
 
@@ -470,9 +487,15 @@ Tarefa 6.2.
   dos 11 campos do SalesReasoningEngine agora preenchidos com dado
   real** (`meeting_memory`, `rag_context`, `objections`, `historical_
   patterns`, `spin_state`).
-- **Bloco 4 restante**: Tarefas 4.2 (sinais comportamentais), 4.3
-  (motivacao do comprador) - nao iniciadas, uma de cada vez, com
-  confirmacao entre cada uma.
+- **Tarefa 4.2 (extrator de sinais comportamentais)**: CONCLUIDA
+  (20/09/2026) - restrito aos 6 sinais canonicos, `extrair_sinais_
+  comportamentais_async()` sempre retorna lista (nunca `None` em
+  sucesso). **6 dos 11 campos do SalesReasoningEngine agora
+  preenchidos com dado real** (`meeting_memory`, `rag_context`,
+  `objections`, `historical_patterns`, `spin_state`, `behavioral_
+  signals`).
+- **Bloco 4 restante**: Tarefa 4.3 (motivacao do comprador) - nao
+  iniciada.
 
 Atualizar esta secao (e o CHANGELOG.md/CLAUDE.md/docs/
 CURRENT_STATE.md, mesmo padrao do resto do projeto) a cada tarefa

@@ -99,14 +99,15 @@ class ShadowModeDesligadoTest(unittest.TestCase):
 
 
 class ShadowModeLigadoTest(unittest.TestCase):
-    def _rodar(self, raciocinar_mock, criar_comparison_mock, nba_atual, finance_result=None, spin_mock=None):
+    def _rodar(self, raciocinar_mock, criar_comparison_mock, nba_atual, finance_result=None, spin_mock=None, behavioral_mock=None):
         rag_patches = _mock_rag()
         agente_patches = _mock_agentes(nba_atual, finance_result=finance_result)
         with patch.dict(os.environ, {"SHADOW_MODE_ENABLED": "true"}):
             with patch("agent.sales_reasoning_engine.raciocinar_async", new=raciocinar_mock), \
                  patch("api.database.criar_shadow_mode_comparison", new=criar_comparison_mock), \
                  patch("api.database.obter_ultimo_ai_usage_event", return_value=None), \
-                 patch("agent.spin_extractor.extrair_spin_state_async", new=spin_mock or AsyncMock(return_value=None)):
+                 patch("agent.spin_extractor.extrair_spin_state_async", new=spin_mock or AsyncMock(return_value=None)), \
+                 patch("agent.behavioral_signal_extractor.extrair_sinais_comportamentais_async", new=behavioral_mock or AsyncMock(return_value=[])):
                 for p in (*rag_patches, *agente_patches):
                     p.start()
                 try:
@@ -194,6 +195,40 @@ class ShadowModeLigadoTest(unittest.TestCase):
 
         entrada = raciocinar_mock.await_args.args[0]
         self.assertEqual(entrada["spin_state"], cobertura)
+
+    def test_behavioral_signals_real_chega_na_entrada(self):
+        raciocinar_mock = AsyncMock(return_value={
+            "current_state": "x", "recommended_framework": "NEGOTIATION",
+            "next_best_action": "y", "next_best_question": None,
+            "reason": "z", "confidence": 0.6, "hypotheses": [], "evidence": [],
+            "missing_information": [], "avoid": [],
+        })
+        criar_comparison_mock = MagicMock(return_value=None)
+        nba_atual = {"type": "insight", "message": "..."}
+        sinais = [{"signal": "PRICE_ANCHOR", "evidence_quote": "...", "descricao": "..."}]
+        behavioral_mock = AsyncMock(return_value=sinais)
+
+        self._rodar(raciocinar_mock, criar_comparison_mock, nba_atual, behavioral_mock=behavioral_mock)
+
+        entrada = raciocinar_mock.await_args.args[0]
+        self.assertEqual(entrada["behavioral_signals"], sinais)
+
+    def test_falha_na_extracao_de_behavioral_signals_nunca_derruba_ciclo(self):
+        raciocinar_mock = AsyncMock(return_value={
+            "current_state": "x", "recommended_framework": "CLOSING",
+            "next_best_action": "y", "next_best_question": None,
+            "reason": "z", "confidence": 0.6, "hypotheses": [], "evidence": [],
+            "missing_information": [], "avoid": [],
+        })
+        criar_comparison_mock = MagicMock(return_value=None)
+        nba_atual = {"type": "insight", "message": "..."}
+        behavioral_mock = AsyncMock(side_effect=RuntimeError("4 provedores esgotados"))
+
+        resultado = self._rodar(raciocinar_mock, criar_comparison_mock, nba_atual, behavioral_mock=behavioral_mock)
+
+        self.assertIn("next_best_action", resultado)
+        entrada = raciocinar_mock.await_args.args[0]
+        self.assertIsNone(entrada["behavioral_signals"])
 
     def test_falha_na_extracao_de_spin_state_nunca_derruba_ciclo(self):
         raciocinar_mock = AsyncMock(return_value={
