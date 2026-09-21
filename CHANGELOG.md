@@ -4,7 +4,7 @@
 ---
 
 ## V.1.4.125 — Bloco 4 / Tarefa 4.2 — extrator de sinais comportamentais
-> Data: 20/09/2026 | Local + GitHub, aguardando deploy na VPS
+> Data: 20/09/2026 | Local + GitHub + **produção confirmada** (`/health` = `versao 1.4.125`)
 
 Usuário confirmou avançar pra Tarefa 4.2 (`docs/tasks-sales-
 reasoning-engine-completo.md`), terceira do Bloco 4.
@@ -45,9 +45,13 @@ reasoning-engine-completo.md`), terceira do Bloco 4.
   integração no wiring do orquestrador). Suite completa: **1344
   testes, 0 falhas**, 1 skip pré-existente — sem regressão.
 - Versão: `1.4.124` → `1.4.125`.
-- **Pendente**: push + deploy na VPS (aditiva — sem tabela/coluna
-  nova, só código + 1 prompt template novo). **Tarefa 4.3 (motivação
-  do comprador, última do Bloco 4) não começa sem nova confirmação
+- **Push + deploy confirmados (20/09/2026, ~00h30 UTC de 21/09)**:
+  commit `573c378`. `reunioes_ativas: 0` checado antes do `git pull`
+  (fast-forward `4c02aa9` → `573c378`) e antes do `systemctl restart
+  saleia` — `active`, os 2 workers subiram limpos, journal sem erros.
+  Pós-restart: `/health` = `versao 1.4.125`, `status online`, 4
+  provedores `ok`; `/dashboard` = `200`. **Tarefa 4.3 (motivação do
+  comprador, última do Bloco 4) não começa sem nova confirmação
   explícita do usuário.**
 
 ---

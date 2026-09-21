@@ -1,8 +1,8 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-20 — Backend **V.1.4.125** (local + GitHub,
-aguardando deploy na VPS): **Bloco 4 / Tarefa 4.2 (extrator de sinais
-comportamentais)**. `agent/behavioral_signal_extractor.py` (novo)
+Atualizado em: 2026-09-21 — Backend **V.1.4.125** (local + GitHub +
+**produção confirmada**, `/health` = `versao 1.4.125`): **Bloco 4 /
+Tarefa 4.2 (extrator de sinais comportamentais)**. `agent/behavioral_signal_extractor.py` (novo)
 identifica sinais reais na conversa via IA, restrito aos 6 sinais
 canônicos de `agent/behavioral_signal_rules.py` (Fase 5.2) —
 `LOSS_AVERSION`/`STATUS_QUO_BIAS`/`SOCIAL_PROOF_REQUEST`/
@@ -15,9 +15,12 @@ Wiring em `orquestrador.py`. **6 dos 11 campos do SalesReasoningEngine
 agora têm dado real** (`meeting_memory`, `rag_context`, `objections`,
 `historical_patterns`, `spin_state`, `behavioral_signals`) — mais da
 metade. 14 testes novos, suite completa: **1344 testes, 0 falhas**, 1
-skip pré-existente. Detalhe completo em CHANGELOG.md. **Tarefa 4.3
-(motivação do comprador, última do Bloco 4) não começa sem nova
-confirmação explícita do usuário.**
+skip pré-existente. **Deploy confirmado (~00h30 UTC de 21/09)**: commit
+`573c378`, `reunioes_ativas: 0` checado antes do `git pull`/restart —
+`/health` = `versao 1.4.125`, `status online`; `/dashboard` = `200`.
+Detalhe completo em CHANGELOG.md. **Tarefa 4.3 (motivação do
+comprador, última do Bloco 4) não começa sem nova confirmação
+explícita do usuário.**
 
 Backend **V.1.4.124** (local + GitHub +
 **produção confirmada**, `/health` = `versao 1.4.124`): **Bloco 4 /
