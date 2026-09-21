@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.126** (backend, local + GitHub, aguardando deploy na VPS) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.126** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -3458,6 +3458,9 @@ arquivo antes de assumir o que já foi feito ou não).
   `buyer_motivation`) — mais de 60%. 15 testes novos. Suite completa:
   1358 testes, 0 falhas, 1 skip pré-existente — sem regressão. Versão:
   `1.4.125` → `1.4.126`.
+- **Deploy confirmado (21/09/2026, ~01h07 UTC)**: commit `cd1b3e8`,
+  `reunioes_ativas: 0` checado antes do `git pull`/restart — `/health`
+  = `versao 1.4.126`, `status online`; `/dashboard` = `200`.
 - **Bloco 4 completo**: os 4 campos que seguem gap
   (`opportunity_memory`, `opportunity_graph`, `meddpicc_state`,
   `seller_context`) não têm tarefa aberta no plano atual — exigiriam

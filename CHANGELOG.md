@@ -4,7 +4,7 @@
 ---
 
 ## V.1.4.126 — Bloco 4 / Tarefa 4.3 — extrator de motivação do comprador (fecha o Bloco 4)
-> Data: 21/09/2026 | Local + GitHub, aguardando deploy na VPS
+> Data: 21/09/2026 | Local + GitHub + **produção confirmada** (`/health` = `versao 1.4.126`)
 
 Usuário confirmou avançar pra Tarefa 4.3 (`docs/tasks-sales-
 reasoning-engine-completo.md`), última do Bloco 4 — **fecha o bloco
@@ -59,9 +59,13 @@ do contrato. Os 4 campos que seguem gap (`opportunity_memory`,
 tarefa aberta no plano atual — exigiriam extensão do plano original
 (novos blocos), não foram pedidos ainda.
 
-- **Pendente**: push + deploy na VPS (aditiva — sem tabela/coluna
-  nova, só código + 1 prompt template novo). **Nenhuma extensão do
-  plano (novos blocos além do 1-6 já documentado) começa sem nova
+- **Push + deploy confirmados (21/09/2026, ~01h07 UTC)**: commit
+  `cd1b3e8`. `reunioes_ativas: 0` checado antes do `git pull`
+  (fast-forward `573c378` → `cd1b3e8`) e antes do `systemctl restart
+  saleia` — `active`, os 2 workers subiram limpos, journal sem erros.
+  Pós-restart: `/health` = `versao 1.4.126`, `status online`, 4
+  provedores `ok`; `/dashboard` = `200`. **Nenhuma extensão do plano
+  (novos blocos além do 1-6 já documentado) começa sem nova
   confirmação explícita do usuário.**
 
 ---

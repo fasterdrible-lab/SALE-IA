@@ -1,8 +1,9 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-21 — Backend **V.1.4.126** (local + GitHub,
-aguardando deploy na VPS): **Bloco 4 / Tarefa 4.3 (extrator de
-motivação do comprador) — fecha o Bloco 4 por completo**. `agent/
+Atualizado em: 2026-09-21 — Backend **V.1.4.126** (local + GitHub +
+**produção confirmada**, `/health` = `versao 1.4.126`): **Bloco 4 /
+Tarefa 4.3 (extrator de motivação do comprador) — fecha o Bloco 4 por
+completo**. `agent/
 buyer_motivation_extractor.py` (novo) identifica hipóteses de
 motivação reais na conversa via IA, restrito aos 12 motivadores
 canônicos de `agent/buyer_motivation_rules.py` (Fase 5.1) —
@@ -18,8 +19,11 @@ SalesReasoningEngine agora têm dado real** (`meeting_memory`,
 Os 4 campos que seguem gap (`opportunity_memory`, `opportunity_graph`,
 `meddpicc_state`, `seller_context`) não têm tarefa aberta no plano
 atual. 15 testes novos, suite completa: **1358 testes, 0 falhas**, 1
-skip pré-existente. Detalhe completo em CHANGELOG.md. **Nenhuma
-extensão do plano começa sem nova confirmação explícita do usuário.**
+skip pré-existente. **Deploy confirmado (~01h07 UTC)**: commit
+`cd1b3e8`, `reunioes_ativas: 0` checado antes do `git pull`/restart —
+`/health` = `versao 1.4.126`, `status online`; `/dashboard` = `200`.
+Detalhe completo em CHANGELOG.md. **Nenhuma extensão do plano começa
+sem nova confirmação explícita do usuário.**
 
 Backend **V.1.4.125** (local + GitHub +
 **produção confirmada**, `/health` = `versao 1.4.125`): **Bloco 4 /
