@@ -1,5 +1,52 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-09-21 — Backend **V.1.4.129** (local, **pendente
+push + deploy**): Bloco 5 / Tarefa 5.1 (`docs/tasks-sales-reasoning-
+engine-completo.md`) — `agent/seller_dna_extractor.py` (novo) extrai
+observações reais de estilo do vendedor via IA a partir da transcrição
+completa de reuniões encerradas, restritas aos 12 campos canônicos do
+SellerDNA (Fase 15.1), com guarda contra alegação de eficácia (Fase
+15.2). `api/database.py::SellerDnaObservacao` (tabela nova) persiste 1
+linha por observação; `agent/seller_dna_rules.py` ganhou funções de
+agregação. Wiring atrás do kill-switch `SELLER_DNA_OBSERVACAO_ENABLED`
+(**`false`** por padrão) nos 2 hooks pós-reunião já existentes
+(`/recapitulacao-completa`/`/recapitulacao-manual`). `seller_id`
+resolvido via `MeetingMemory.usuario_id` — sem dono real, nenhuma
+observação é salva. 25 testes novos. **`seller_context` continua sem
+dado real no SalesReasoningEngine** — falta ativar o kill-switch em
+produção e ligar a agregação de volta no wiring do Bloco 6 (próxima
+rodada). Detalhe completo em CHANGELOG.md. **Push + deploy pendentes de
+confirmação explícita do usuário.**
+
+Atualizado em: 2026-09-21 — Backend **V.1.4.128** (local, **pendente
+push + deploy**): Bloco 6 / Tarefa 6.1 (parcial, `docs/tasks-sales-
+reasoning-engine-completo.md`) — `agent/multiagente/orquestrador.py`
+passa a ler `OpportunityMemory`/`OpportunityGraph` (leitura pura, zero
+IA nova) usando o `opportunity_id` já resolvido, para o
+`SalesReasoningEngine` (Fase 7). **9 dos 11 campos do contrato agora
+têm dado real** (subiu de 7) — restam `meddpicc_state` (bloqueado) e
+`seller_context` (Bloco 5, não iniciado). Hoje `opportunity_memory`/
+`opportunity_graph` costumam vir vazios em produção porque nada ainda
+escreve nessas 2 estruturas automaticamente — vazio real, documentado,
+não fabricado. 5 testes novos. Suite completa: **1364 testes, 0
+falhas**, 1 skip pré-existente. Detalhe completo em CHANGELOG.md.
+**Push + deploy, Tarefa 6.2 (observar Shadow Mode) e Tarefa 6.3
+(reavaliar o Piloto) pendentes de confirmação explícita do usuário.**
+
+Atualizado em: 2026-09-21 — Backend **V.1.4.127** (local, **pendente
+push + deploy**): item de débito técnico da fila "Pendente" de
+`docs/TASKS.md` (achado 05/09/2026) — `google.generativeai` (SDK
+confirmado descontinuado pelo Google) migrado para `google.genai` nos 2
+call sites reais (`api/ai_router.py::_call_gemini`,
+`api/main.py::admin_testar_provedor`); `PROVIDERS["anthropic"].
+default_model` trocado de `claude-sonnet-4-20250514` (EOL 15/06/2026)
+para `claude-sonnet-4-6`, mesmo id já usado em 2 outros pontos de
+`api/main.py`. Nova entrada em `api/pricing_catalog.py` pro modelo novo
+(preço herdado do tier anterior, não reverificado). 1 teste novo +
+1 estendido. Suite completa: **1359 testes, 0 falhas**, 1 skip
+pré-existente — sem regressão. Detalhe completo em CHANGELOG.md.
+**Push + deploy pendentes de confirmação explícita do usuário.**
+
 Atualizado em: 2026-09-21 — Backend **V.1.4.126** (local + GitHub +
 **produção confirmada**, `/health` = `versao 1.4.126`): **Bloco 4 /
 Tarefa 4.3 (extrator de motivação do comprador) — fecha o Bloco 4 por

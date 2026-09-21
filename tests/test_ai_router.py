@@ -298,6 +298,39 @@ class CallAnthropicContentParsingTest(unittest.TestCase):
                 ai_router._call_anthropic("system", "user", "fake-key", "claude-sonnet-5", 30)
 
 
+class CallGeminiTest(unittest.TestCase):
+    """_call_gemini usa o SDK google-genai (google-generativeai foi
+    descontinuado pelo Google, sem mais updates/fixes)."""
+
+    def test_monta_config_correta_e_extrai_texto_e_usage(self):
+        meta = type("Meta", (), {
+            "prompt_token_count": 300, "candidates_token_count": 120,
+            "cached_content_token_count": 0,
+        })()
+        fake_response = type("Response", (), {"text": '{"ok": true}', "usage_metadata": meta})()
+
+        fake_models = MagicMock()
+        fake_models.generate_content.return_value = fake_response
+        fake_client = type("Client", (), {"models": fake_models})()
+
+        with patch("google.genai.Client", return_value=fake_client) as mock_client_cls:
+            resultado, usage = ai_router._call_gemini("system", "user", "fake-key", "gemini-2.5-flash", 30)
+
+        mock_client_cls.assert_called_once_with(api_key="fake-key")
+        self.assertEqual(resultado, {"ok": True})
+        self.assertEqual(usage.input_tokens, 300)
+        self.assertEqual(usage.output_tokens, 120)
+
+        _, kwargs = fake_models.generate_content.call_args
+        self.assertEqual(kwargs["model"], "gemini-2.5-flash")
+        self.assertEqual(kwargs["contents"], "user")
+        config = kwargs["config"]
+        self.assertEqual(config.system_instruction, "system")
+        self.assertEqual(config.response_mime_type, "application/json")
+        self.assertEqual(config.temperature, 0.3)
+        self.assertEqual(config.http_options.timeout, 30000)  # segundos -> ms
+
+
 class UsageExtractorsTest(unittest.TestCase):
     """Cost Intelligence Fase 1 — extracao de usage real por provider."""
 

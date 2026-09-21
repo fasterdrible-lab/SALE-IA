@@ -493,6 +493,36 @@ class OpportunityGraphEdge(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
 
 
+class SellerDnaObservacao(SQLModel, table=True):
+    """Observação individual de estilo do vendedor ("PROMPT MESTRE —
+    SALE-IA V2", Fase 15 / plano de fechamento do SalesReasoningEngine,
+    Bloco 5 / Tarefa 5.1, `docs/tasks-sales-reasoning-engine-completo.md`)
+    — 1 linha por observação extraída de 1 reunião encerrada, nunca o
+    perfil agregado (isso é `agent/seller_dna_rules.py::
+    construir_seller_dna()`, que nunca lê banco).
+
+    `campo` é validado pelo chamador contra `agent/seller_dna_rules.py::
+    SELLER_DNA_CAMPOS` (vocabulário fechado dos 12 campos literais) —
+    nunca travado por constraint de banco, mesmo padrão de `Opportunity
+    Memory`/`OpportunityGraphEdge` (validação sempre na camada de
+    domínio, nunca no schema SQL). `evidence_quote` é sempre uma
+    citação real do vendedor (guarda aplicada em `agent/seller_dna_
+    extractor.py` antes de persistir) — nunca uma observação sem
+    lastro na conversa, mesma disciplina de `SalesEvidence`/`SPIN`/
+    `MEDDPICC`.
+    """
+
+    __tablename__ = "seller_dna_observacoes"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    seller_id: str = Field(sa_column=Column(String(36), index=True, nullable=False))
+    meeting_id: str = Field(sa_column=Column(String(100), index=True, nullable=False))
+    campo: str = Field(sa_column=Column(String(30), nullable=False))
+    valor: str = Field(sa_column=Column(Text, nullable=False))
+    evidence_quote: str = Field(sa_column=Column(Text, nullable=False))
+    created_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+
+
 class RecommendationEvent(SQLModel, table=True):
     """Recomendação mostrada ao vendedor ("PROMPT MESTRE — SALE-IA V2",
     Fase 10 / Tarefa 10.1) — schema literal do prompt mestre. Base para
@@ -3082,6 +3112,73 @@ def listar_arestas_opportunity(
         stmt = stmt.order_by(OpportunityGraphEdge.created_at.asc())
         rows = session.exec(stmt).all()
         return [_opportunity_graph_edge_to_dict(r) for r in rows]
+
+
+def _seller_dna_observacao_to_dict(row: "SellerDnaObservacao") -> dict:
+    return {
+        "id": row.id,
+        "seller_id": row.seller_id,
+        "meeting_id": row.meeting_id,
+        "campo": row.campo,
+        "valor": row.valor,
+        "evidence_quote": row.evidence_quote,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
+def criar_seller_dna_observacao(
+    seller_id: str,
+    meeting_id: str,
+    campo: str,
+    valor: str,
+    evidence_quote: str,
+) -> dict:
+    """Persiste 1 observação de estilo do vendedor (Bloco 5 / Tarefa
+    5.1). Dado de domínio — propaga `ValueError` em campo fora do
+    vocabulário `agent/seller_dna_rules.py::SELLER_DNA_CAMPOS` ou
+    campo obrigatório vazio, mesma convenção de `SalesEvent`/
+    `SalesEvidence`/`RecommendationEvent` (nunca falha silenciosa como
+    `AiUsageEvent`)."""
+    from agent.seller_dna_rules import SELLER_DNA_CAMPOS
+
+    if campo not in SELLER_DNA_CAMPOS:
+        raise ValueError(f"campo inválido: {campo!r} (esperado um de {SELLER_DNA_CAMPOS})")
+    if not (seller_id or "").strip():
+        raise ValueError("seller_id obrigatório e não pode ser vazio")
+    if not (meeting_id or "").strip():
+        raise ValueError("meeting_id obrigatório e não pode ser vazio")
+    if not (valor or "").strip():
+        raise ValueError("valor obrigatório e não pode ser vazio")
+    if not (evidence_quote or "").strip():
+        raise ValueError("evidence_quote obrigatório e não pode ser vazio")
+
+    with Session(engine) as session:
+        row = SellerDnaObservacao(
+            seller_id=seller_id,
+            meeting_id=meeting_id,
+            campo=campo,
+            valor=valor,
+            evidence_quote=evidence_quote,
+        )
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _seller_dna_observacao_to_dict(row)
+
+
+def listar_seller_dna_observacoes(seller_id: str) -> List[dict]:
+    """Todas as observações já persistidas de um vendedor, ordenadas da
+    mais antiga pra mais recente — insumo de `agent/seller_dna_rules.py::
+    agregar_observacoes_por_campo()`, nunca consumido diretamente pelo
+    SalesReasoningEngine."""
+    with Session(engine) as session:
+        stmt = (
+            select(SellerDnaObservacao)
+            .where(SellerDnaObservacao.seller_id == seller_id)
+            .order_by(SellerDnaObservacao.created_at.asc())
+        )
+        rows = session.exec(stmt).all()
+        return [_seller_dna_observacao_to_dict(r) for r in rows]
 
 
 def _recommendation_event_to_dict(row: "RecommendationEvent") -> dict:

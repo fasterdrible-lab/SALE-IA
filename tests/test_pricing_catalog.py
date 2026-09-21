@@ -33,7 +33,12 @@ class PricingCatalogTest(unittest.TestCase):
         self.assertEqual(preco.input_per_million, pricing_catalog._DEFAULT_FALLBACK.input_per_million)
 
     def test_todos_os_precos_tem_proveniencia(self):
-        for chave in (("deepseek", "deepseek-chat"), ("anthropic", "claude-sonnet-4-20250514"), ("gemini", "gemini-2.0-flash")):
+        for chave in (
+            ("deepseek", "deepseek-chat"),
+            ("anthropic", "claude-sonnet-4-20250514"),
+            ("anthropic", "claude-sonnet-4-6"),
+            ("gemini", "gemini-2.0-flash"),
+        ):
             preco = pricing_catalog.obter_preco(*chave)
             self.assertTrue(preco.source)
             self.assertTrue(preco.effective_date)

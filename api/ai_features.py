@@ -20,6 +20,7 @@ OBJECTION_CAUSA_RAIZ_INVESTIGACAO = "objection.causa_raiz_investigacao"
 SPIN_EXTRACAO_FATOS = "spin.extracao_fatos"
 BEHAVIORAL_SIGNAL_EXTRACAO = "behavioral_signal.extracao"
 BUYER_MOTIVATION_EXTRACAO = "buyer_motivation.extracao"
+SELLER_DNA_EXTRACAO = "seller_dna.extracao"
 
 REPORT_DIAGNOSTICO_FINANCEIRO = "report.diagnostico_financeiro"
 REPORT_PERFIL_DISC = "report.perfil_disc"

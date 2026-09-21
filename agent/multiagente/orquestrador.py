@@ -136,15 +136,33 @@ async def _aplicar_piloto_sales_reasoning(
     # ambiguidade (nunca sobrescreve vínculo existente), depois busca
     # o insight de Win/Loss real do estágio dessa oportunidade —
     # melhor esforço, nunca bloqueia o ciclo.
+    #
+    # Bloco 6 / Tarefa 6.1 (parcial, docs/
+    # tasks-sales-reasoning-engine-completo.md): reaproveita o mesmo
+    # opportunity_id já resolvido pra ler OpportunityMemory (Fase 2.1)
+    # e OpportunityGraph (Fase 2.2) — leitura pura, zero IA nova, mesmo
+    # espírito do Bloco 2. Hoje nada na produção escreve nessas duas
+    # estruturas automaticamente, então o valor real costuma vir vazio
+    # (`opportunity_memory=None` quando a linha nem existe ainda,
+    # `opportunity_graph=[]` quando existe mas sem nenhuma aresta) —
+    # vazio real, nunca inventado, mesma disciplina de `spin_state`
+    # (Bloco 4.1).
     historical_patterns = None
+    opportunity_memory = None
+    opportunity_graph = None
     try:
         from agent.historical_pattern_rules import obter_historical_pattern_da_opportunity
         from agent.opportunity_link_rules import vincular_automaticamente_se_possivel
+        from api.database import listar_arestas_opportunity, obter_opportunity_memory
         opportunity_id = vincular_automaticamente_se_possivel(meeting_id) if meeting_id else None
         if opportunity_id:
             historical_patterns = obter_historical_pattern_da_opportunity(opportunity_id)
+            opportunity_memory = obter_opportunity_memory(opportunity_id, criar_se_ausente=False)
+            opportunity_graph = listar_arestas_opportunity(opportunity_id)
     except Exception as _e:
-        logger.debug("[Piloto] Falha ao resolver historical_patterns (melhor esforço): %s", _e)
+        logger.debug(
+            "[Piloto] Falha ao resolver historical_patterns/opportunity_memory/opportunity_graph (melhor esforço): %s", _e,
+        )
 
     # Bloco 4 / Tarefa 4.1 (docs/tasks-sales-reasoning-engine-completo.md):
     # extrai fatos SPIN reais da conversa via IA — melhor esforço,
@@ -195,6 +213,8 @@ async def _aplicar_piloto_sales_reasoning(
         "rag_context": client_context or None,
         "objections": objections,
         "historical_patterns": historical_patterns,
+        "opportunity_memory": opportunity_memory,
+        "opportunity_graph": opportunity_graph,
         "spin_state": spin_state,
         "behavioral_signals": behavioral_signals,
         "buyer_motivation": buyer_motivation,
@@ -307,7 +327,7 @@ async def _rodar_shadow_mode(
     from agent.sales_reasoning_engine import raciocinar_async
     from agent.shadow_mode_rules import montar_registro_shadow
 
-    # 7 dos 11 campos do contrato têm dado real hoje no ciclo de
+    # 9 dos 11 campos do contrato têm dado real hoje no ciclo de
     # tempo real — meeting_memory (subconjunto do estado ao vivo da
     # reunião, nunca o registro completo do banco), rag_context (o
     # mesmo client_context — RAG + Sales Memory + Knowledge Compiler —
@@ -317,17 +337,21 @@ async def _rodar_shadow_mode(
     # detectada do Finance, com categoria classificada por IA e
     # investigação de causa raiz real), historical_patterns (Bloco
     # 2/3 / Tarefas 2.1+3.1 — vincula a reunião a uma Opportunity e
-    # busca o insight de Win/Loss real do estágio dela), spin_state
-    # (Bloco 4 / Tarefa 4.1 — extrai fatos SPIN reais da conversa via
-    # IA), behavioral_signals (Bloco 4 / Tarefa 4.2 — extrai sinais
-    # comportamentais reais da conversa via IA) e buyer_motivation
-    # (Bloco 4 / Tarefa 4.3 — extrai a motivação de compra dominante
-    # real da conversa via IA, fecha o Bloco 4). Os outros 4
-    # (opportunity_memory/graph, meddpicc_state, seller_context) ficam
-    # `None` — mesmo gap já documentado em agent/
-    # opportunity_intelligence_rules.py/agent/
-    # seller_coaching_rules.py (Fase 22): nenhuma função extrai isso de
-    # transcrição livre ainda.
+    # busca o insight de Win/Loss real do estágio dela),
+    # opportunity_memory/opportunity_graph (Bloco 6 / Tarefa 6.1
+    # parcial — leitura pura do mesmo opportunity_id já resolvido,
+    # zero IA nova; hoje costuma vir vazio porque nada na produção
+    # escreve nessas 2 estruturas automaticamente ainda, mas vazio
+    # real nunca é fabricado), spin_state (Bloco 4 / Tarefa 4.1 —
+    # extrai fatos SPIN reais da conversa via IA), behavioral_signals
+    # (Bloco 4 / Tarefa 4.2 — extrai sinais comportamentais reais da
+    # conversa via IA) e buyer_motivation (Bloco 4 / Tarefa 4.3 —
+    # extrai a motivação de compra dominante real da conversa via IA,
+    # fecha o Bloco 4). Os outros 2 (meddpicc_state, seller_context)
+    # ficam `None` — meddpicc_state segue bloqueado (Tarefa 1.1, sem
+    # citação real disponível no maturity_score do Closer),
+    # seller_context depende do Bloco 5 (SellerDNA persistido), ainda
+    # não iniciado.
     objections = None
     try:
         objecao = await extrair_objecao_do_ciclo(
@@ -340,14 +364,21 @@ async def _rodar_shadow_mode(
         logger.debug("[ShadowMode] Falha ao classificar objeção (melhor esforço): %s", _e)
 
     historical_patterns = None
+    opportunity_memory = None
+    opportunity_graph = None
     try:
         from agent.historical_pattern_rules import obter_historical_pattern_da_opportunity
         from agent.opportunity_link_rules import vincular_automaticamente_se_possivel
+        from api.database import listar_arestas_opportunity, obter_opportunity_memory
         opportunity_id = vincular_automaticamente_se_possivel(meeting_id) if meeting_id else None
         if opportunity_id:
             historical_patterns = obter_historical_pattern_da_opportunity(opportunity_id)
+            opportunity_memory = obter_opportunity_memory(opportunity_id, criar_se_ausente=False)
+            opportunity_graph = listar_arestas_opportunity(opportunity_id)
     except Exception as _e:
-        logger.debug("[ShadowMode] Falha ao resolver historical_patterns (melhor esforço): %s", _e)
+        logger.debug(
+            "[ShadowMode] Falha ao resolver historical_patterns/opportunity_memory/opportunity_graph (melhor esforço): %s", _e,
+        )
 
     spin_state = None
     try:
@@ -389,6 +420,8 @@ async def _rodar_shadow_mode(
         "rag_context": client_context or None,
         "objections": objections,
         "historical_patterns": historical_patterns,
+        "opportunity_memory": opportunity_memory,
+        "opportunity_graph": opportunity_graph,
         "spin_state": spin_state,
         "behavioral_signals": behavioral_signals,
         "buyer_motivation": buyer_motivation,

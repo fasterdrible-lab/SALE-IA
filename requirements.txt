@@ -25,8 +25,10 @@ openai>=1.52.0
 # Anthropic (Claude 3.5 Sonnet) — fallback 1
 anthropic>=0.26.0
 
-# Google (Gemini 1.5 Pro) — fallback 2
-google-generativeai>=0.7.0
+# Google (Gemini) — fallback 2
+# google-generativeai foi descontinuado pelo Google (sem mais updates/fixes,
+# ver aviso oficial do pacote) — migrado para o SDK atual google-genai.
+google-genai>=1.0.0
 
 # Claude Agent SDK — piloto "conta Claude do usuário" (agent/claude_account.py)
 # Requer o CLI @anthropic-ai/claude-code instalado no host (npm install -g @anthropic-ai/claude-code)

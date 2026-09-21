@@ -46,9 +46,21 @@ _CATALOG: dict[tuple[str, str], ModelPrice] = {
         "openai", "gpt-4o", 2.50, 10.0, 1.25,
         "openai_pricing_2026-05", "2026-05-01",
     ),
+    # claude-sonnet-4-20250514 entrou em EOL (15/06/2026) e não é mais o
+    # default de api/ai_router.py — entrada mantida só como registro
+    # histórico (algum AiUsageEvent antigo ou ANTHROPIC_MODEL customizado
+    # ainda pode referenciar esse id).
     ("anthropic", "claude-sonnet-4-20250514"): ModelPrice(
         "anthropic", "claude-sonnet-4-20250514", 3.0, 15.0, 0.30,
         "anthropic_pricing_2025-05", "2025-05-14",
+    ),
+    # Preço herdado do tier anterior (claude-sonnet-4-20250514) — mesmo
+    # valor que já caía aqui via _PROVIDER_FALLBACK["anthropic"], nunca
+    # reverificado direto com a tabela de preços da Anthropic pra este id
+    # especificamente. Atualizar quando/se o preço real divergir.
+    ("anthropic", "claude-sonnet-4-6"): ModelPrice(
+        "anthropic", "claude-sonnet-4-6", 3.0, 15.0, 0.30,
+        "anthropic_pricing_herdado_sonnet4_nao_reverificado", "2026-09-21",
     ),
     ("gemini", "gemini-2.0-flash"): ModelPrice(
         "gemini", "gemini-2.0-flash", 0.10, 0.40, 0.025,

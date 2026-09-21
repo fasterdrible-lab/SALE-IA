@@ -416,70 +416,142 @@ orquestracao/wiring), todos passando:
 
 ## Bloco 5 - Perfil do vendedor (SellerDNA)
 
-### Tarefa 5.1 - Persistir observacoes por vendedor ao longo do tempo
+### Tarefa 5.1 - Persistir observacoes por vendedor ao longo do tempo [CONCLUIDA - 21/09/2026]
+
+**Escopo confirmado com o usuario (pergunta direta)**: nenhum modulo do
+sistema calcula os 12 campos do SellerDNA hoje (confirmado por grep) -
+diferente do Bloco 6, aqui nao tinha atalho de "so ligar dado que ja
+existe". Usuario confirmou construir um extrator novo por IA (custo
+real, 1 chamada por reuniao ENCERRADA), com kill-switch off por
+padrao (mesma disciplina do Shadow Mode - contrato/mecanismo primeiro,
+ativar e decisao separada).
 
 Arquivos:
-- Criar tabela `SellerDnaObservacao` (ou similar) em `api/database.py`
-- Modificar fluxo pos-reuniao (mesmo ponto onde Sales Memory e
-  extraida automaticamente) para acumular observacoes por vendedor
+- Criado `agent/seller_dna_extractor.py` (extracao via IA) +
+  `agent/prompt_templates/seller_dna_extractor.txt`
+- Criado `api/database.py::SellerDnaObservacao` (tabela nova,
+  `criar_seller_dna_observacao()`/`listar_seller_dna_observacoes()`)
+- Modificado `agent/seller_dna_rules.py` (`agregar_observacoes_por_
+  campo()`/`construir_seller_dna_de_observacoes()`, novas)
+- Modificado `api/ai_features.py` (`SELLER_DNA_EXTRACAO`)
+- Modificado `api/main.py` (`_seller_dna_observacao_habilitado()` +
+  wiring nos 2 hooks pos-reuniao: `/recapitulacao-completa` e
+  `/recapitulacao-manual`, mesmo ponto onde `extrair_e_salvar_
+  memorias()` ja roda)
 
 Reutilizacao:
-- Reaproveitar `agent/seller_dna_rules.py::construir_seller_dna()`
-  (Fase 15.1), incluindo a exigencia de amostra minima (10 reunioes)
-  ja implementada.
+- Reaproveitado `agent/seller_dna_rules.py::construir_seller_dna()`
+  (Fase 15.1) e `validar_sem_alegacao_de_eficacia()` (Fase 15.2) -
+  o extrator nunca reimplementa nenhuma das duas guardas.
+- Reaproveitado o mesmo caminho de IA de producao
+  (`chamar_ia_com_fallback_claude`).
+
+**Achado de atribuicao (antes de codar)**: `/recapitulacao-completa`/
+`/recapitulacao-manual` exigem so um JWT valido de QUALQUER usuario
+(nao necessariamente o vendedor da reuniao) - atribuir a observacao ao
+usuario que gerou o relatorio seria errado. `seller_id` e resolvido
+via `api.database.obter_meeting_memory(meeting_id)["usuario_id"]`
+(dono real da reuniao, Fase 18.1) - sem MeetingMemory resolvivel ou
+sem `usuario_id`, nenhuma observacao e salva (nunca atribui a um
+vendedor errado).
 
 Dependencias:
 - Precisa de varias reunioes do mesmo vendedor acumuladas - nao da
-  pra testar em producao com 1 reuniao so.
+  pra testar em producao com 1 reuniao so. `agregar_observacoes_por_
+  campo()`/`construir_seller_dna_de_observacoes()` (agregacao) ja
+  prontos e testados, mas so fazem sentido com trafego real apos o
+  kill-switch ser ligado.
 
-Cenarios (testes):
-- Com menos de 10 reunioes do vendedor, perfil nao e gerado (gap
-  explicito, sem clonar personalidade de poucas conversas).
-- Com 10+ reunioes, perfil reflete padroes agregados reais.
-- Guarda contra alegacao de eficacia (Tarefa 15.2, ja existente)
-  continua validando as observacoes novas tambem.
+Cenarios (testes) - 25 testes novos (13 no extrator + 7 na persistencia
++ 7 na agregacao), todos passando:
+- Observacao valida extraida com `evidence_quote` real; multiplas
+  observacoes na mesma reuniao; uma observacao invalida nunca derruba
+  as outras da mesma resposta.
+- Guardas: campo fora do vocabulario, `evidence_quote` que nao existe
+  literalmente na transcricao, alegacao de eficacia (Fase 15.2) -
+  todas descartam so a observacao afetada.
+- Pipeline completo: sem `meeting_id`, sem `MeetingMemory` resolvivel,
+  ou sem `usuario_id` -> nenhuma observacao salva; com seller
+  resolvido, extrai e persiste; falha real de IA nunca propaga
+  (melhor esforco absoluto, mesmo padrao de `extrair_e_salvar_
+  memorias()`).
+- `agregar_observacoes_por_campo()`: agrupa por campo mantendo valores
+  distintos (nunca escolhe so "o mais recente"), valor repetido nao
+  duplica.
+- `construir_seller_dna_de_observacoes()`: conta reunioes DISTINTAS
+  (nao linhas - 10 observacoes de so 3 reunioes continua amostra
+  insuficiente); com 10+ reunioes distintas monta o perfil; guarda
+  contra alegacao de eficacia continua valendo na agregacao tambem.
+
+**Decisao deliberada de escopo**: `SELLER_DNA_OBSERVACAO_ENABLED`
+continua `false` - nenhuma observacao real sendo coletada em producao
+ainda. Sem endpoint HTTP pra ler o perfil agregado (`GET /seller-dna/
+{seller_id}` ou similar) - nao pedido pela Tarefa 5.1 ("persistir
+observacoes"), fica pra quando o `seller_context` do SalesReasoningEngine
+for de fato wireado (decisao de produto separada, provavel proxima
+rodada do Bloco 6).
 
 ---
 
 ## Bloco 6 - Reconectar tudo e revalidar
 
-### Tarefa 6.1 - Wiring completo dos 11 campos
+### Tarefa 6.1 - Wiring completo dos 11 campos [PARCIAL - 21/09/2026]
 
-Arquivos:
-- Modificar `agent/multiagente/orquestrador.py::_agendar_shadow_
-  mode()`/`_aplicar_piloto_sales_reasoning()` pra montar a entrada
-  completa usando os Blocos 1-5.
+**Escopo confirmado com o usuario (pergunta direta)**: `meddpicc_state`
+continua bloqueado (Tarefa 1.1) e `seller_context` depende do Bloco 5
+(nunca iniciado), entao "wiring completo dos 11 campos" nao era
+possivel nesta rodada. Fatia possivel: `opportunity_memory` e
+`opportunity_graph` ja tem toda a infraestrutura pronta desde a Fase 2
+(Tarefa 2.1/2.2) e o `opportunity_id` ja e resolvido no mesmo ponto do
+wiring desde o Bloco 3 - so faltava ligar (mesmo espirito do Bloco 2,
+zero IA nova).
 
-Reutilizacao:
-- Reaproveitar toda a infraestrutura de Shadow Mode (Fase 23) e
-  Piloto (Fase 24) ja construida - so a montagem da `entrada` muda.
+**Achado antes de codar**: `registrar_conhecimento_opportunity()` e
+`criar_aresta_opportunity_graph()` (as unicas funcoes que escrevem
+nessas 2 estruturas) nunca sao chamadas em lugar nenhum da producao -
+so em testes. Ou seja, o wiring e honesto (leitura real, nunca
+fabricada), mas hoje quase sempre chega vazio (`opportunity_memory`
+sem linha ainda -> `None`; `opportunity_graph` sem nenhuma aresta ->
+`[]`) ate que algo comece a escrever real nessas tabelas - decisao de
+escopo futura, nao pedida ainda.
 
-Dependencias:
-- Blocos 1-5 completos (ou pelo menos os que forem priorizados).
+Arquivos modificados:
+- `agent/multiagente/orquestrador.py` (`_aplicar_piloto_sales_
+  reasoning()` e `_rodar_shadow_mode()`) - reaproveita o `opportunity_id`
+  ja resolvido pra chamar `api.database.obter_opportunity_memory(
+  opportunity_id, criar_se_ausente=False)` (nunca cria linha nova so
+  por ler, side-effect indesejado num caminho best-effort) e
+  `api.database.listar_arestas_opportunity(opportunity_id)`.
+- `tests/test_orquestrador_shadow_mode.py` +
+  `tests/test_orquestrador_piloto.py` (5 testes novos no total).
 
-Cenarios (testes):
-- Teste de integracao confirmando que os 11 campos chegam preenchidos
-  (ou `None` explicito quando de fato nao ha dado) na chamada de
-  `raciocinar_async()`.
-- Nenhuma regressao nos testes existentes de Shadow Mode/Piloto
-  (mocks precisam ser atualizados pra nova assinatura de entrada).
+**9 dos 11 campos do SalesReasoningEngine agora preenchidos com dado
+real** (subiu de 7 pra 9): `meeting_memory`, `rag_context`,
+`objections`, `historical_patterns`, `opportunity_memory`,
+`opportunity_graph`, `spin_state`, `behavioral_signals`,
+`buyer_motivation`. Restam `meddpicc_state` (bloqueado) e
+`seller_context` (Bloco 5, nao iniciado).
 
-### Tarefa 6.2 - Rodar o Shadow Mode de novo com contexto completo
+Cenarios (testes) - 5 testes novos, todos passando:
+- Com `opportunity_id` resolvido, `opportunity_memory`/`opportunity_graph`
+  chegam preenchidos com o retorno real das funcoes de `api/database.py`.
+- Sem `opportunity_id` (nenhuma oportunidade vinculada), os 2 campos
+  ficam `None` - nunca tenta buscar nada.
+- `opportunity_memory` ausente no banco (`criar_se_ausente=False`) fica
+  `None` (vazio real, nunca fabricado); `opportunity_graph` sem
+  aresta nenhuma vem `[]` (existe mas vazio) - distinguivel de `None`
+  (nem vinculado).
 
-Sem codigo novo - e observacao. Deixar `SHADOW_MODE_ENABLED=true`
-rodando por um periodo com o contexto completo e comparar `agreement_
-rate`/`latency_ms_media`/`cost_usd_total` antes e depois do Bloco 6.1
-(usando o campo `origem` e a data de deploy pra separar as duas
-janelas).
+### Tarefa 6.2 - Rodar o Shadow Mode de novo com contexto completo [PENDENTE]
 
-Cenarios (validacao, nao teste automatizado):
-- Comparar amostra manual de recomendacoes antes/depois do wiring
-  completo - confirmar que ficaram mais especificas, nao so
-  estatisticamente "concordantes".
+Ainda nao comecada. Com o wiring parcial acima em producao, faz
+sentido observar `agreement_rate`/`latency_ms_media`/`cost_usd_total`
+do periodo pos-deploy (campo `origem`, mesmo padrao ja documentado)
+antes de decidir a Tarefa 6.3.
 
-### Tarefa 6.3 - Reavaliar o Piloto
+### Tarefa 6.3 - Reavaliar o Piloto [PENDENTE]
 
-Decisao de produto, nao tarefa tecnica. So comeca com nova
+Decisao de produto, nao tarefa tecnica - so comeca com nova
 confirmacao explicita do usuario, depois de revisar o resultado da
 Tarefa 6.2.
 
@@ -531,6 +603,44 @@ Tarefa 6.2.
 ## `meddpicc_state`, `seller_context`) nao tem tarefa aberta no plano
 ## atual - exigiriam extensao do plano original (novos blocos), nao
 ## foram pedidos ainda.
+
+- **Tarefa 6.1 (wiring completo dos 11 campos) - PARCIAL (21/09/2026)**:
+  usuario confirmou avancar pro Bloco 6 e, diante do achado de que
+  `meddpicc_state` (bloqueado) e `seller_context` (Bloco 5 nao
+  iniciado) nao davam pra fechar nesta rodada, confirmou a fatia
+  possivel - conectar `opportunity_memory`/`opportunity_graph` (leitura
+  pura via `api/database.py`, zero IA nova, mesmo `opportunity_id` ja
+  resolvido desde o Bloco 3). **9 dos 11 campos do SalesReasoningEngine
+  agora preenchidos com dado real** (`meeting_memory`, `rag_context`,
+  `objections`, `historical_patterns`, `opportunity_memory`,
+  `opportunity_graph`, `spin_state`, `behavioral_signals`,
+  `buyer_motivation`) - mais de 80% do contrato. Hoje `opportunity_
+  memory`/`opportunity_graph` costumam chegar vazios/`None` porque
+  nada na producao escreve neles ainda (achado documentado na propria
+  tarefa) - vazio real, nunca fabricado. 5 testes novos em `tests/
+  test_orquestrador_shadow_mode.py`/`tests/test_orquestrador_
+  piloto.py`. **Restam `meddpicc_state` (bloqueado) e `seller_context`
+  (Bloco 5) sem tarefa concluida.** Tarefas 6.2 (observar Shadow Mode
+  com o wiring novo) e 6.3 (reavaliar o Piloto) seguem pendentes -
+  6.3 e decisao de produto, so comeca com nova confirmacao explicita.
+- **Tarefa 5.1 (persistir observacoes por vendedor) - CONCLUIDA
+  (21/09/2026)**: usuario confirmou avancar pro Bloco 5. Diferente do
+  6.1, nao tinha atalho - nenhum modulo calculava os 12 campos do
+  SellerDNA, confirmado construir extrator novo por IA (custo real, 1
+  chamada por reuniao ENCERRADA, nao por fragmento). `agent/seller_dna_
+  extractor.py` (novo) + `api/database.py::SellerDnaObservacao` (tabela
+  nova) + `agent/seller_dna_rules.py::agregar_observacoes_por_campo()`/
+  `construir_seller_dna_de_observacoes()` (novas) + wiring em `api/
+  main.py` nos 2 hooks pos-reuniao (mesmo ponto de `extrair_e_salvar_
+  memorias()`), atras do kill-switch `SELLER_DNA_OBSERVACAO_ENABLED`
+  (`false` por padrao, mesma disciplina do Shadow Mode). `seller_id` e
+  resolvido via `MeetingMemory.usuario_id` do `meeting_id` - sem dono
+  real resolvivel, nenhuma observacao e salva (nunca atribui a um
+  vendedor errado). 25 testes novos. **`seller_context` continua sem
+  dado real no SalesReasoningEngine** - a extracao/persistencia esta
+  pronta e testada, mas o kill-switch esta desligado e ninguem ainda
+  liga o resultado agregado (`construir_seller_dna_de_observacoes()`)
+  de volta na `entrada` do wiring do Bloco 6 - proxima rodada natural.
 
 Atualizar esta secao (e o CHANGELOG.md/CLAUDE.md/docs/
 CURRENT_STATE.md, mesmo padrao do resto do projeto) a cada tarefa

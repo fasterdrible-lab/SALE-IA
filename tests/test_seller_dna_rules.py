@@ -17,9 +17,11 @@ from agent.seller_dna_rules import (
     SELLER_DNA_AMOSTRA_MINIMA_PADRAO,
     SELLER_DNA_CAMPOS,
     TERMOS_ALEGACAO_EFICACIA,
+    agregar_observacoes_por_campo,
     amostra_suficiente_seller_dna,
     campos_sem_observacao,
     construir_seller_dna,
+    construir_seller_dna_de_observacoes,
     validar_sem_alegacao_de_eficacia,
 )
 
@@ -144,6 +146,70 @@ class GuardaContraAlegacaoDeEficaciaTest(unittest.TestCase):
                 n_reunioes_analisadas=15,
                 observacoes_por_campo={"closing_patterns": "Esse fechamento funciona sempre"},
             )
+
+
+class AgregarObservacoesPorCampoTest(unittest.TestCase):
+    """Bloco 5 / Tarefa 5.1 (docs/tasks-sales-reasoning-engine-
+    completo.md) — agregação de observações persistidas (uma linha por
+    reunião+campo) no formato que construir_seller_dna() já espera."""
+
+    def test_agrupa_por_campo_mantendo_valores_distintos(self):
+        observacoes = [
+            {"meeting_id": "m1", "campo": "opening_patterns", "valor": "Abre perguntando sobre a rotina"},
+            {"meeting_id": "m2", "campo": "opening_patterns", "valor": "Abre confirmando a pauta"},
+            {"meeting_id": "m1", "campo": "pricing_style", "valor": "Fala preço só no fim"},
+        ]
+        agregado = agregar_observacoes_por_campo(observacoes)
+        self.assertEqual(
+            agregado["opening_patterns"],
+            ["Abre perguntando sobre a rotina", "Abre confirmando a pauta"],
+        )
+        self.assertEqual(agregado["pricing_style"], ["Fala preço só no fim"])
+
+    def test_valor_repetido_nao_duplica(self):
+        observacoes = [
+            {"meeting_id": "m1", "campo": "closing_patterns", "valor": "Sempre propõe próximo passo"},
+            {"meeting_id": "m2", "campo": "closing_patterns", "valor": "Sempre propõe próximo passo"},
+        ]
+        agregado = agregar_observacoes_por_campo(observacoes)
+        self.assertEqual(agregado["closing_patterns"], ["Sempre propõe próximo passo"])
+
+    def test_campo_fora_do_vocabulario_e_ignorado(self):
+        observacoes = [{"meeting_id": "m1", "campo": "personalidade_geral", "valor": "extrovertido"}]
+        self.assertEqual(agregar_observacoes_por_campo(observacoes), {})
+
+    def test_lista_vazia_retorna_dict_vazio(self):
+        self.assertEqual(agregar_observacoes_por_campo([]), {})
+
+
+class ConstruirSellerDnaDeObservacoesTest(unittest.TestCase):
+    def test_conta_reunioes_distintas_nao_linhas(self):
+        """10 observações, mas só 3 reuniões distintas -> amostra
+        insuficiente (mínimo padrão é 10 REUNIÕES, não observações)."""
+        observacoes = [
+            {"meeting_id": mid, "campo": "closing_patterns", "valor": f"padrao-{mid}"}
+            for mid in ["m1"] * 4 + ["m2"] * 3 + ["m3"] * 3
+        ]
+        with self.assertRaises(ValueError):
+            construir_seller_dna_de_observacoes("vendedor_1", observacoes)
+
+    def test_10_reunioes_distintas_monta_perfil(self):
+        observacoes = [
+            {"meeting_id": f"m{i}", "campo": "closing_patterns", "valor": "Sempre propõe próximo passo"}
+            for i in range(10)
+        ]
+        perfil = construir_seller_dna_de_observacoes("vendedor_1", observacoes)
+        self.assertEqual(perfil["n_reunioes_analisadas"], 10)
+        self.assertEqual(perfil["campos"]["closing_patterns"], ["Sempre propõe próximo passo"])
+        self.assertIsNone(perfil["campos"]["pricing_style"])  # sem observação ainda
+
+    def test_guarda_contra_alegacao_de_eficacia_continua_valendo(self):
+        observacoes = [
+            {"meeting_id": f"m{i}", "campo": "closing_patterns", "valor": "Esse fechamento funciona sempre"}
+            for i in range(10)
+        ]
+        with self.assertRaises(ValueError):
+            construir_seller_dna_de_observacoes("vendedor_1", observacoes)
 
 
 if __name__ == "__main__":

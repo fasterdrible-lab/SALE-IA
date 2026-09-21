@@ -175,6 +175,69 @@ class ShadowModeLigadoTest(unittest.TestCase):
         entrada = raciocinar_mock.await_args.args[0]
         self.assertIsNone(entrada["historical_patterns"])
 
+    def test_opportunity_vinculada_preenche_opportunity_memory_e_graph(self):
+        """Bloco 6 / Tarefa 6.1 (parcial) — leitura pura via o mesmo
+        opportunity_id já resolvido, zero IA nova."""
+        raciocinar_mock = AsyncMock(return_value={
+            "current_state": "x", "recommended_framework": "CLOSING",
+            "next_best_action": "y", "next_best_question": None,
+            "reason": "z", "confidence": 0.6, "hypotheses": [], "evidence": [],
+            "missing_information": [], "avoid": [],
+        })
+        criar_comparison_mock = MagicMock(return_value=None)
+        nba_atual = {"type": "insight", "message": "..."}
+        memoria = {"id": 1, "opportunity_id": 42, "pain_points": [{"valor": "leads esquecidos"}]}
+        arestas = [{"from_type": "PAIN", "to_type": "IMPACT", "relation": "causa"}]
+
+        with patch("agent.opportunity_link_rules.vincular_automaticamente_se_possivel", return_value=42), \
+             patch("api.database.obter_opportunity_memory", return_value=memoria) as mock_om, \
+             patch("api.database.listar_arestas_opportunity", return_value=arestas):
+            self._rodar(raciocinar_mock, criar_comparison_mock, nba_atual)
+
+        entrada = raciocinar_mock.await_args.args[0]
+        self.assertEqual(entrada["opportunity_memory"], memoria)
+        self.assertEqual(entrada["opportunity_graph"], arestas)
+        mock_om.assert_called_once_with(42, criar_se_ausente=False)
+
+    def test_sem_opportunity_vinculada_opportunity_memory_e_graph_ficam_none(self):
+        raciocinar_mock = AsyncMock(return_value={
+            "current_state": "x", "recommended_framework": "CLOSING",
+            "next_best_action": "y", "next_best_question": None,
+            "reason": "z", "confidence": 0.6, "hypotheses": [], "evidence": [],
+            "missing_information": [], "avoid": [],
+        })
+        criar_comparison_mock = MagicMock(return_value=None)
+        nba_atual = {"type": "insight", "message": "..."}
+
+        with patch("agent.opportunity_link_rules.vincular_automaticamente_se_possivel", return_value=None):
+            self._rodar(raciocinar_mock, criar_comparison_mock, nba_atual)
+
+        entrada = raciocinar_mock.await_args.args[0]
+        self.assertIsNone(entrada["opportunity_memory"])
+        self.assertIsNone(entrada["opportunity_graph"])
+
+    def test_opportunity_memory_ausente_no_banco_fica_none_nunca_fabricado(self):
+        """Sem linha existente ainda (criar_se_ausente=False) — vazio
+        real, não inventado. opportunity_graph vem [] (existe mas sem
+        aresta nenhuma), distinguível de None (nem vinculado)."""
+        raciocinar_mock = AsyncMock(return_value={
+            "current_state": "x", "recommended_framework": "CLOSING",
+            "next_best_action": "y", "next_best_question": None,
+            "reason": "z", "confidence": 0.6, "hypotheses": [], "evidence": [],
+            "missing_information": [], "avoid": [],
+        })
+        criar_comparison_mock = MagicMock(return_value=None)
+        nba_atual = {"type": "insight", "message": "..."}
+
+        with patch("agent.opportunity_link_rules.vincular_automaticamente_se_possivel", return_value=42), \
+             patch("api.database.obter_opportunity_memory", return_value=None), \
+             patch("api.database.listar_arestas_opportunity", return_value=[]):
+            self._rodar(raciocinar_mock, criar_comparison_mock, nba_atual)
+
+        entrada = raciocinar_mock.await_args.args[0]
+        self.assertIsNone(entrada["opportunity_memory"])
+        self.assertEqual(entrada["opportunity_graph"], [])
+
     def test_spin_state_real_chega_na_entrada(self):
         raciocinar_mock = AsyncMock(return_value={
             "current_state": "x", "recommended_framework": "SPIN_PROBLEM",

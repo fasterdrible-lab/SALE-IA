@@ -141,3 +141,50 @@ def campos_sem_observacao(seller_dna: dict) -> list:
     esconder o campo, mesmo princípio de
     `seller_scorecard_rules.dimensoes_sem_evidencia()`."""
     return [campo for campo, valor in seller_dna["campos"].items() if valor is None]
+
+
+# Bloco 5 / Tarefa 5.1 (docs/tasks-sales-reasoning-engine-completo.md)
+# — agregação de observações persistidas por reunião
+# (`api/database.py::SellerDnaObservacao`) em `observacoes_por_campo`,
+# o formato que `construir_seller_dna()` já espera.
+
+
+def agregar_observacoes_por_campo(observacoes: list) -> dict:
+    """Agrupa observações já persistidas (uma linha por reunião+campo,
+    `api/database.py::listar_seller_dna_observacoes()`) num dict
+    `{campo: [valores distintos]}` — nunca escolhe arbitrariamente "só
+    a mais recente", mantém toda variação real já observada (mesmo
+    princípio de "informação não desaparece" de `agent/
+    opportunity_memory_rules.py::adicionar_insight()`). Campo fora do
+    vocabulário ou observação sem `valor` é ignorado silenciosamente
+    (dado malformado, não um erro do chamador)."""
+    agregado: dict = {}
+    for observacao in observacoes or []:
+        campo = observacao.get("campo")
+        valor = observacao.get("valor")
+        if campo not in SELLER_DNA_CAMPOS or not valor:
+            continue
+        lista = agregado.setdefault(campo, [])
+        if valor not in lista:
+            lista.append(valor)
+    return agregado
+
+
+def construir_seller_dna_de_observacoes(
+    seller_id: str,
+    observacoes: list,
+    minimo_amostra: int = SELLER_DNA_AMOSTRA_MINIMA_PADRAO,
+) -> dict:
+    """Conveniência: agrega observações persistidas e monta o
+    SellerDNA num só passo (`agregar_observacoes_por_campo()` +
+    `construir_seller_dna()`). `n_reunioes_analisadas` é a contagem de
+    `meeting_id` DISTINTOS entre as observações — não o total de
+    linhas, já que várias observações podem vir da mesma reunião."""
+    reunioes_distintas = {o.get("meeting_id") for o in (observacoes or []) if o.get("meeting_id")}
+    observacoes_por_campo = agregar_observacoes_por_campo(observacoes)
+    return construir_seller_dna(
+        seller_id,
+        len(reunioes_distintas),
+        observacoes_por_campo,
+        minimo_amostra=minimo_amostra,
+    )

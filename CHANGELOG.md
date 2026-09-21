@@ -3,6 +3,207 @@
 
 ---
 
+## V.1.4.129 — Bloco 5 / Tarefa 5.1 — persistência de observações do vendedor (SellerDNA)
+
+> Data: 21/09/2026 | Local (pendente push + deploy)
+
+Usuário confirmou avançar pro Bloco 5 (`docs/tasks-sales-reasoning-
+engine-completo.md`) — persistir observações reais de estilo do
+vendedor ao longo do tempo, rumo a fechar `seller_context` no
+`SalesReasoningEngine` (Fase 7).
+
+- **Achado antes de codar (pergunta de escopo confirmada)**: diferente
+  do Bloco 6 (só precisou *ler* dado que já existia), nenhum módulo do
+  sistema calcula nenhum dos 12 campos literais do SellerDNA
+  (`communication_style`, `opening_patterns`, etc. — confirmado por
+  grep). Fechar isso de verdade exige uma extração nova por IA, lendo a
+  transcrição completa da reunião. Usuário confirmou construir o
+  extrator (custo real — 1 chamada por reunião **encerrada**, não por
+  fragmento como os extratores do Bloco 4), com kill-switch desligado
+  por padrão — mesma disciplina de "contrato/mecanismo primeiro,
+  ativar é decisão separada" já usada no Shadow Mode.
+- **`agent/seller_dna_extractor.py`** (novo):
+  `extrair_observacoes_seller_dna_async()` lê a transcrição completa e
+  identifica padrões de estilo do vendedor restritos aos 12 campos
+  canônicos de `agent/seller_dna_rules.py::SELLER_DNA_CAMPOS` (Fase
+  15.1). Guarda automática: `evidence_quote` checada literalmente
+  contra a transcrição (substring exata) e cada observação passa por
+  `validar_sem_alegacao_de_eficacia()` (Fase 15.2, reaproveitada sem
+  duplicar) — uma observação inválida nunca derruba as outras da mesma
+  resposta. `extrair_e_salvar_seller_dna_observacoes()` é o
+  entrypoint do pipeline pós-reunião (mesma assinatura de `agent/
+  knowledge_extractor.py::extrair_e_salvar_memorias`).
+- **Achado de atribuição**: `/recapitulacao-completa`/
+  `/recapitulacao-manual` só exigem um JWT válido de *qualquer*
+  usuário logado, não necessariamente o vendedor da reunião —
+  atribuir a observação a quem gerou o relatório seria errado.
+  `seller_id` é resolvido via `MeetingMemory.usuario_id` (dono real da
+  reunião, Fase 18.1) a partir do `meeting_id` — sem `MeetingMemory`
+  resolvível ou sem `usuario_id`, nenhuma observação é salva (nunca
+  atribui a um vendedor errado).
+- **`api/database.py::SellerDnaObservacao`** (tabela
+  `seller_dna_observacoes`, nova): 1 linha por observação
+  (`seller_id`, `meeting_id`, `campo`, `valor`, `evidence_quote`).
+  `criar_seller_dna_observacao()` propaga `ValueError` em campo fora
+  do vocabulário ou campo obrigatório vazio (dado de domínio, mesma
+  convenção de `SalesEvent`/`SalesEvidence`). `listar_seller_dna_
+  observacoes()` retorna todas as observações de um vendedor.
+- **`agent/seller_dna_rules.py`** ganha `agregar_observacoes_por_
+  campo()` (agrupa observações persistidas em `{campo: [valores
+  distintos]}` — nunca escolhe arbitrariamente "só a mais recente",
+  mesmo princípio de "informação não desaparece" de `agent/
+  opportunity_memory_rules.py`) e `construir_seller_dna_de_
+  observacoes()` (conveniência: agrega + chama `construir_seller_dna()`
+  num só passo, contando `meeting_id` **distintos**, não linhas — 10
+  observações de só 3 reuniões continua amostra insuficiente).
+- **`api/main.py`**: `_seller_dna_observacao_habilitado()` (kill-switch
+  `SELLER_DNA_OBSERVACAO_ENABLED`, **default `false`**) + wiring nos 2
+  hooks pós-reunião já existentes (`/recapitulacao-completa`,
+  `/recapitulacao-manual`), mesmo ponto onde `extrair_e_salvar_
+  memorias()` já roda em background.
+- 25 testes novos (13 no extrator + 7 na persistência + 7 na
+  agregação — `tests/test_seller_dna_extractor.py`, `tests/
+  test_seller_dna_observacao_db.py`, extensão de `tests/
+  test_seller_dna_rules.py`).
+- Versão: `1.4.128` → `1.4.129`.
+- **Decisão deliberada de escopo**: `SELLER_DNA_OBSERVACAO_ENABLED`
+  continua `false` — nenhuma observação real sendo coletada em
+  produção ainda. Sem endpoint HTTP pra ler o perfil agregado (não
+  pedido pela Tarefa 5.1). **`seller_context` continua sem dado real
+  no `SalesReasoningEngine`** — o mecanismo de captura/agregação está
+  pronto e testado, mas falta (1) ativar o kill-switch em produção e
+  (2) ligar `construir_seller_dna_de_observacoes()` de volta na
+  `entrada` do wiring do Bloco 6 — próxima rodada natural.
+- **Pendente**: push + deploy na VPS (tabela nova, aditiva, via
+  `create_all()` no startup).
+
+---
+
+## V.1.4.128 — Bloco 6 / Tarefa 6.1 (parcial) — opportunity_memory + opportunity_graph no SalesReasoningEngine
+
+> Data: 21/09/2026 | Local (pendente push + deploy)
+
+Usuário pediu um gap analysis do "PROMPT MESTRE — SALE-IA V2" completo
+(as 25 fases + seções transversais) e confirmou avançar pro Bloco 6
+(`docs/tasks-sales-reasoning-engine-completo.md`) — "reconectar tudo e
+revalidar" o `SalesReasoningEngine` (Fase 7).
+
+- **Achado antes de codar (pergunta de escopo confirmada)**: a Tarefa
+  6.1 pede "wiring completo dos 11 campos", mas isso não era possível
+  nesta rodada — `meddpicc_state` segue bloqueado (Tarefa 1.1, sem
+  citação real disponível no `maturity_score` do Closer) e
+  `seller_context` depende do Bloco 5 (nunca iniciado). Investigação
+  revelou também que `opportunity_memory`/`opportunity_graph` nunca
+  tiveram tarefa nenhuma no plano — confirmado por grep que
+  `registrar_conhecimento_opportunity()`/`criar_aresta_
+  opportunity_graph()` (Fase 2.1/2.2) nunca são chamadas em lugar
+  nenhum da produção, só em testes. Usuário confirmou a fatia possível:
+  ligar essas 2 estruturas como leitura pura (zero IA nova, mesmo
+  espírito do Bloco 2), reaproveitando o `opportunity_id` já resolvido
+  desde o Bloco 3.
+- **`agent/multiagente/orquestrador.py`** (`_aplicar_piloto_sales_
+  reasoning()` e `_rodar_shadow_mode()`): passam a chamar
+  `api.database.obter_opportunity_memory(opportunity_id,
+  criar_se_ausente=False)` (nunca cria linha nova só por ler, side
+  effect indesejado num caminho best-effort) e `api.database.
+  listar_arestas_opportunity(opportunity_id)` — melhor esforço, nunca
+  bloqueia o ciclo se falhar (mesmo `try/except` já usado pra
+  `historical_patterns`).
+- **Honestidade sobre o dado real**: como nada na produção escreve
+  nessas 2 estruturas ainda, `opportunity_memory` costuma chegar `None`
+  (linha nem existe) e `opportunity_graph` costuma chegar `[]` (existe
+  zero aresta) — vazio real, nunca fabricado, mesma disciplina de
+  `spin_state`/`historical_patterns`. `[]` vs `None` distingue "nunca
+  vinculado" de "vinculado mas sem dado ainda".
+- **9 dos 11 campos do SalesReasoningEngine agora têm dado real**
+  (`meeting_memory`, `rag_context`, `objections`, `historical_patterns`,
+  `opportunity_memory`, `opportunity_graph`, `spin_state`,
+  `behavioral_signals`, `buyer_motivation`) — mais de 80% do contrato.
+  Restam `meddpicc_state` (bloqueado) e `seller_context` (Bloco 5, não
+  iniciado), sem tarefa aberta ainda.
+- 5 testes novos (`tests/test_orquestrador_shadow_mode.py` +
+  `tests/test_orquestrador_piloto.py`): campo preenchido com o retorno
+  real das funções de `api/database.py`, campos `None` quando não há
+  `opportunity_id` vinculado, e `opportunity_memory=None`/
+  `opportunity_graph=[]` quando a oportunidade existe mas ainda não tem
+  nenhum insight/aresta registrado. Suite completa: **1364 testes, 0
+  falhas**, 1 skip pré-existente — sem regressão.
+- Versão: `1.4.127` → `1.4.128`.
+- **Pendente**: push + deploy na VPS (sem tabela/coluna nova — só
+  wiring em código). Tarefa 6.2 (observar Shadow Mode com o contexto
+  novo por um período) e Tarefa 6.3 (reavaliar o Piloto, decisão de
+  produto separada) seguem pendentes — 6.3 só começa com nova
+  confirmação explícita do usuário, depois de revisar 6.2.
+
+---
+
+## V.1.4.127 — Débito técnico: SDK Gemini (google-genai) + modelo Anthropic EOL
+
+> Data: 21/09/2026 | Local (pendente push + deploy)
+
+Item da fila "Pendente" de `docs/TASKS.md` (achado em 05/09/2026): usuário
+confirmou executar.
+
+- **`google.generativeai` → `google.genai`**: confirmado antes de codar
+  que o SDK antigo está realmente descontinuado — importá-lo emite
+  `FutureWarning: All support for the google.generativeai package has
+  ended. It will no longer be receiving updates or bug fixes.` Migrados
+  os 2 call sites reais do projeto (fora de cópias antigas soltas em
+  `SALEIA/SALEIA/`, fora de escopo):
+  - `api/ai_router.py::_call_gemini` — `genai.configure()` +
+    `genai.GenerativeModel(...)` → `genai.Client(api_key=...)` +
+    `client.models.generate_content(model=, contents=,
+    config=types.GenerateContentConfig(system_instruction=,
+    response_mime_type=, temperature=, http_options=types.HttpOptions
+    (timeout=...)))`. Achado ao inspecionar o SDK novo: `HttpOptions.
+    timeout` é em **milissegundos**, diferente do `request_options=
+    {"timeout": ...}` (segundos) do SDK antigo — convertido
+    explicitamente (`int(timeout * 1000)`). `_usage_from_gemini()` não
+    precisou mudar — `response.usage_metadata.prompt_token_count`/
+    `candidates_token_count`/`cached_content_token_count` têm os mesmos
+    nomes nos dois SDKs.
+  - `api/main.py::admin_testar_provedor` (branch `gemini` do botão
+    "Testar conexão") — mesma troca de cliente.
+  - Validado com o SDK novo instalado no venv local e exercitado contra
+    a API real do Gemini até a camada de rede (`client.models.
+    generate_content(...)`) — falhou só por `API_KEY_INVALID` (a chave
+    do `.env` local está desatualizada/placeholder, achado já conhecido
+    do projeto), confirmando que a chamada em si está correta
+    (parâmetros aceitos, sem `TypeError`).
+- **`claude-sonnet-4-20250514` (EOL 15/06/2026) → `claude-sonnet-4-6`**:
+  `api/ai_router.py::PROVIDERS["anthropic"].default_model` era o único
+  lugar do projeto ainda usando o id antigo — `api/main.py` já usava
+  `claude-sonnet-4-6` em 2 outros pontos (OCR de imagem e teste de
+  provedor no painel admin), então a troca segue uma convenção já
+  estabelecida no próprio código, não inventada nesta rodada.
+- **`api/pricing_catalog.py`**: nova entrada `("anthropic",
+  "claude-sonnet-4-6")` — preço herdado do tier anterior (mesmos 3.0/
+  15.0/0.30 USD/milhão de `claude-sonnet-4-20250514`, que já caía nesses
+  valores via `_PROVIDER_FALLBACK["anthropic"]` mesmo sem entrada
+  própria), **nunca reverificado independentemente contra a tabela real
+  da Anthropic para este id específico** — documentado explicitamente no
+  `source` (`anthropic_pricing_herdado_sonnet4_nao_reverificado`) para
+  não passar como dado confirmado. Entrada antiga mantida (histórico —
+  `AiUsageEvent`/`ANTHROPIC_MODEL` customizado ainda podem referenciá-la).
+- 1 teste novo (`tests/test_ai_router.py::CallGeminiTest`, mock de
+  `google.genai.Client`, confirma `model`/`contents`/`system_instruction`/
+  `response_mime_type`/`temperature`/`http_options.timeout` montados
+  corretamente) + `tests/test_pricing_catalog.py::
+  test_todos_os_precos_tem_proveniencia` estendido pro modelo novo.
+  Suite completa: **1359 testes, 0 falhas**, 1 skip pré-existente — sem
+  regressão.
+- `requirements.txt`: `google-generativeai>=0.7.0` → `google-genai>=1.0.0`.
+- **Fora de escopo, não corrigido nesta rodada** (comentário
+  pré-existente, não relacionado ao débito técnico em si): `requirements.
+  txt` ainda descreve a dependência `anthropic` como "Claude 3.5 Sonnet"
+  — descrição desatualizada, mas cosmética, sem efeito funcional.
+- Versão: `1.4.126` → `1.4.127`.
+- **Pendente**: push + deploy na VPS. Sem tabela/coluna nova — deploy é
+  só `git pull` + `pip install -r requirements.txt` (troca de dependência
+  Python) + `systemctl restart saleia`.
+
+---
+
 ## V.1.4.126 — Bloco 4 / Tarefa 4.3 — extrator de motivação do comprador (fecha o Bloco 4)
 > Data: 21/09/2026 | Local + GitHub + **produção confirmada** (`/health` = `versao 1.4.126`)
 

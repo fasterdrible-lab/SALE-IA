@@ -321,20 +321,19 @@ def _call_anthropic(system_prompt: str, user_content: str, api_key: str, model: 
 
 
 def _call_gemini(system_prompt: str, user_content: str, api_key: str, model: str, timeout: float) -> tuple[dict, ProviderUsage | None]:
-    import google.generativeai as genai
+    from google import genai
+    from google.genai import types
 
-    genai.configure(api_key=api_key)
-    gemini_model = genai.GenerativeModel(
-        model_name=model,
-        system_instruction=system_prompt,
-        generation_config={
-            "response_mime_type": "application/json",
-            "temperature": 0.3,
-        },
-    )
-    response = gemini_model.generate_content(
-        user_content,
-        request_options={"timeout": timeout},
+    client = genai.Client(api_key=api_key)
+    response = client.models.generate_content(
+        model=model,
+        contents=user_content,
+        config=types.GenerateContentConfig(
+            system_instruction=system_prompt,
+            response_mime_type="application/json",
+            temperature=0.3,
+            http_options=types.HttpOptions(timeout=int(timeout * 1000)),
+        ),
     )
     return _extract_json(response.text), _usage_from_gemini(response)
 
@@ -358,7 +357,7 @@ PROVIDERS: dict[str, Provider] = {
         name="anthropic",
         env_keys=("ANTHROPIC_API_KEY",),
         model_env="ANTHROPIC_MODEL",
-        default_model="claude-sonnet-4-20250514",
+        default_model="claude-sonnet-4-6",
         caller=_call_anthropic,
     ),
     "gemini": Provider(

@@ -773,7 +773,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.126",
+        "versao":              "1.4.129",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -811,7 +811,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.126",
+        "versao":          "1.4.129",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -1095,6 +1095,9 @@ def recapitulacao_completa(req: RecapitulacaoRequest, background_tasks: Backgrou
             background_tasks.add_task(gerar_e_salvar_playbook, resultado, req.transcricao, meeting_id)
         background_tasks.add_task(indexar_relatorio, meeting_id, req.titulo_reuniao, resultado)
         background_tasks.add_task(indexar_transcricao, meeting_id, req.titulo_reuniao, req.transcricao)
+        if _seller_dna_observacao_habilitado():
+            from agent.seller_dna_extractor import extrair_e_salvar_seller_dna_observacoes
+            background_tasks.add_task(extrair_e_salvar_seller_dna_observacoes, resultado, req.transcricao, meeting_id)
     except Exception as e:
         logger.warning("Não foi possível agendar pipeline pós-reunião: %s", e)
 
@@ -2222,6 +2225,9 @@ def recapitulacao_manual(req: RecapitulacaoRequest, background_tasks: Background
             background_tasks.add_task(gerar_e_salvar_playbook, resultado, req.transcricao, meeting_id)
         background_tasks.add_task(indexar_relatorio, meeting_id, req.titulo_reuniao, resultado)
         background_tasks.add_task(indexar_transcricao, meeting_id, req.titulo_reuniao, req.transcricao)
+        if _seller_dna_observacao_habilitado():
+            from agent.seller_dna_extractor import extrair_e_salvar_seller_dna_observacoes
+            background_tasks.add_task(extrair_e_salvar_seller_dna_observacoes, resultado, req.transcricao, meeting_id)
     except Exception as e:
         logger.warning("Não foi possível agendar pipeline pós-reunião: %s", e)
 
@@ -2571,6 +2577,16 @@ _BIBLIOTECA_MAX_BYTES = 20 * 1024 * 1024  # mesmo limite de POST /base
 
 def _knowledge_compiler_habilitado() -> bool:
     return os.getenv("KNOWLEDGE_COMPILER_ENABLED", "false").strip().lower() in ("1", "true", "yes")
+
+
+def _seller_dna_observacao_habilitado() -> bool:
+    """Kill-switch do Bloco 5 / Tarefa 5.1 (`docs/tasks-sales-
+    reasoning-engine-completo.md`) — extração de observações de estilo
+    do vendedor via IA no pipeline pós-reunião. `false` por padrão
+    (opt-in, mesmo padrão do Shadow Mode) — contrato/mecanismo primeiro,
+    ligar em produção é decisão separada, soma 1 chamada real de IA por
+    reunião encerrada."""
+    return os.getenv("SELLER_DNA_OBSERVACAO_ENABLED", "false").strip().lower() == "true"
 
 
 def _req_biblioteca(authorization: str | None) -> dict:
@@ -4711,11 +4727,10 @@ async def admin_testar_provedor(req: AdminTesteRequest, authorization: str | Non
             async with _anth.AsyncAnthropic(api_key=chave) as c:
                 await c.messages.create(model="claude-haiku-4-5-20251001", max_tokens=1, messages=[{"role":"user","content":"ping"}])
         elif pid == "gemini":
-            import google.generativeai as _gem
-            _gem.configure(api_key=chave)
+            from google import genai as _genai
             modelo_gemini = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
-            m = _gem.GenerativeModel(modelo_gemini)
-            await asyncio.to_thread(m.generate_content, "ping")
+            _cliente_gemini = _genai.Client(api_key=chave)
+            await asyncio.to_thread(_cliente_gemini.models.generate_content, model=modelo_gemini, contents="ping")
         ts_ok = _time.time()
         _ultimo_teste[pid] = {"ok": True, "ts": ts_ok, "detalhe": ""}
         try:
