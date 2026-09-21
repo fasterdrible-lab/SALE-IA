@@ -5,7 +5,16 @@
 
 ## V.1.4.129 — Bloco 5 / Tarefa 5.1 — persistência de observações do vendedor (SellerDNA)
 
-> Data: 21/09/2026 | Local (pendente push + deploy)
+> Data: 21/09/2026 | Local + GitHub (commit `7fa3a0e`, bundle V.1.4.127-129) — **deploy parcial na VPS**
+
+**Push + deploy (21/09/2026)**: commit `7fa3a0e` no GitHub. Na VPS,
+`git pull` (fast-forward `cd1b3e8` → `7fa3a0e`) + `pip install -r
+requirements.txt` (`google-generativeai` → `google-genai`, `pip check`
+limpo) aplicados com segurança — só arquivos em disco, sem restart.
+`reunioes_ativas: 1` bloqueou o `systemctl restart saleia` — produção
+segue em `versao 1.4.126` até a janela segura abrir. Chave SSH
+`saleia_vps` continua sem acesso (`Permission denied`); deploy feito
+via senha root + paramiko.
 
 Usuário confirmou avançar pro Bloco 5 (`docs/tasks-sales-reasoning-
 engine-completo.md`) — persistir observações reais de estilo do

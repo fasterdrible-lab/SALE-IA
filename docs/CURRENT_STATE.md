@@ -1,5 +1,18 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-09-21 — Backend **V.1.4.127-129** (local + GitHub,
+**deploy parcial na VPS**): commit `7fa3a0e` (bundle das 3 versões:
+débito técnico SDK Gemini/modelo Anthropic, Bloco 6.1 parcial,
+Bloco 5.1) empurrado pro GitHub. Na VPS: `git pull` (fast-forward
+`cd1b3e8` → `7fa3a0e`) e `pip install -r requirements.txt` (troca
+`google-generativeai` → `google-genai`, `pip check` limpo) já
+aplicados com segurança (só arquivos em disco). **`reunioes_ativas: 1`
+bloqueando o `systemctl restart saleia`** — produção continua servindo
+`versao 1.4.126` até a janela segura abrir; restart será aplicado assim
+que `reunioes_ativas` voltar a `0`. Chave SSH `saleia_vps` continua sem
+acesso (`Permission denied`) — deploy feito via senha root + paramiko,
+mesmo padrão já usado antes no projeto.
+
 Atualizado em: 2026-09-21 — Backend **V.1.4.129** (local, **pendente
 push + deploy**): Bloco 5 / Tarefa 5.1 (`docs/tasks-sales-reasoning-
 engine-completo.md`) — `agent/seller_dna_extractor.py` (novo) extrai
