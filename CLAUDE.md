@@ -14,7 +14,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.125** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.126** (backend, local + GitHub, aguardando deploy na VPS) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -3436,9 +3436,34 @@ arquivo antes de assumir o que já foi feito ou não).
 - **Deploy confirmado (~00h30 UTC de 21/09/2026)**: commit `573c378`,
   `reunioes_ativas: 0` checado antes do `git pull`/restart — `/health`
   = `versao 1.4.125`, `status online`; `/dashboard` = `200`.
-- **Tarefa 4.3 (motivação do comprador, última do Bloco 4) não começa
-  sem nova confirmação explícita do usuário** — mesma disciplina de
-  toda fase/tarefa anterior do roadmap.
+- **Bloco 4 / Tarefa 4.3 (extrator de motivação do comprador,
+  V.1.4.126) — FECHA O BLOCO 4 POR COMPLETO**: usuário confirmou
+  avançar. `agent/buyer_motivation_extractor.py` (novo):
+  `extrair_buyer_motivation_async()` identifica hipóteses de motivação
+  reais na conversa via IA, restrito aos 12 motivadores canônicos de
+  `agent/buyer_motivation_rules.py::MOTIVATION_TIPOS` (Fase 5.1).
+  Diferente das Tarefas 4.1/4.2, `entrada["buyer_motivation"]` recebe
+  direto a saída de `motivacao_dominante()` (Fase 5.1) — a hipótese de
+  maior `confidence`, não a lista inteira. **Guarda automática por
+  citação individual**: como `evidence` é uma lista, o filtro remove
+  só as citações fabricadas (mantendo as reais) e só descarta a
+  hipótese inteira se nenhuma sobreviver. **Guarda arquitetural
+  herdada, garantida por construção**: "DISC nunca deverá ser tratado
+  como motivação" — mesma checagem por termos proibidos de `tests/
+  test_buyer_motivation_rules.py::GuardaArquiteturalTest`. Wiring em
+  `agent/multiagente/orquestrador.py`: as 2 funções passam a montar
+  `entrada["buyer_motivation"]`. **7 dos 11 campos do contrato agora
+  têm dado real** (`meeting_memory`, `rag_context`, `objections`,
+  `historical_patterns`, `spin_state`, `behavioral_signals`,
+  `buyer_motivation`) — mais de 60%. 15 testes novos. Suite completa:
+  1358 testes, 0 falhas, 1 skip pré-existente — sem regressão. Versão:
+  `1.4.125` → `1.4.126`.
+- **Bloco 4 completo**: os 4 campos que seguem gap
+  (`opportunity_memory`, `opportunity_graph`, `meddpicc_state`,
+  `seller_context`) não têm tarefa aberta no plano atual — exigiriam
+  extensão do plano original (novos blocos), não pedida ainda. Nenhuma
+  extensão começa sem nova confirmação explícita do usuário — mesma
+  disciplina de toda fase/tarefa anterior do roadmap.
 
 ## Captura de áudio da aba (participantes) — Fase 3 do PROMPT MESTRE (extensão V.1.4.7)
 

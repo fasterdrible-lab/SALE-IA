@@ -170,6 +170,18 @@ async def _aplicar_piloto_sales_reasoning(
     except Exception as _e:
         logger.debug("[Piloto] Falha ao extrair behavioral_signals (melhor esforço): %s", _e)
 
+    # Bloco 4 / Tarefa 4.3 (docs/tasks-sales-reasoning-engine-completo.md):
+    # extrai a motivação de compra dominante real da conversa via IA —
+    # melhor esforço, nunca bloqueia o ciclo se a extração falhar.
+    buyer_motivation = None
+    try:
+        from agent.buyer_motivation_extractor import extrair_buyer_motivation_async
+        buyer_motivation = await extrair_buyer_motivation_async(
+            transcricao_parcial, historico, usuario_id=usuario_id, meeting_id=meeting_id,
+        )
+    except Exception as _e:
+        logger.debug("[Piloto] Falha ao extrair buyer_motivation (melhor esforço): %s", _e)
+
     entrada = {
         "meeting_memory": {
             "transcricao_parcial": transcricao_parcial,
@@ -185,6 +197,7 @@ async def _aplicar_piloto_sales_reasoning(
         "historical_patterns": historical_patterns,
         "spin_state": spin_state,
         "behavioral_signals": behavioral_signals,
+        "buyer_motivation": buyer_motivation,
     }
 
     inicio = _time.monotonic()
@@ -294,7 +307,7 @@ async def _rodar_shadow_mode(
     from agent.sales_reasoning_engine import raciocinar_async
     from agent.shadow_mode_rules import montar_registro_shadow
 
-    # 6 dos 11 campos do contrato têm dado real hoje no ciclo de
+    # 7 dos 11 campos do contrato têm dado real hoje no ciclo de
     # tempo real — meeting_memory (subconjunto do estado ao vivo da
     # reunião, nunca o registro completo do banco), rag_context (o
     # mesmo client_context — RAG + Sales Memory + Knowledge Compiler —
@@ -306,11 +319,13 @@ async def _rodar_shadow_mode(
     # 2/3 / Tarefas 2.1+3.1 — vincula a reunião a uma Opportunity e
     # busca o insight de Win/Loss real do estágio dela), spin_state
     # (Bloco 4 / Tarefa 4.1 — extrai fatos SPIN reais da conversa via
-    # IA) e behavioral_signals (Bloco 4 / Tarefa 4.2 — extrai sinais
-    # comportamentais reais da conversa via IA). Os outros 5
-    # (opportunity_memory/graph, meddpicc_state, buyer_motivation,
-    # seller_context) ficam `None` — mesmo gap já documentado em
-    # agent/opportunity_intelligence_rules.py/agent/
+    # IA), behavioral_signals (Bloco 4 / Tarefa 4.2 — extrai sinais
+    # comportamentais reais da conversa via IA) e buyer_motivation
+    # (Bloco 4 / Tarefa 4.3 — extrai a motivação de compra dominante
+    # real da conversa via IA, fecha o Bloco 4). Os outros 4
+    # (opportunity_memory/graph, meddpicc_state, seller_context) ficam
+    # `None` — mesmo gap já documentado em agent/
+    # opportunity_intelligence_rules.py/agent/
     # seller_coaching_rules.py (Fase 22): nenhuma função extrai isso de
     # transcrição livre ainda.
     objections = None
@@ -352,6 +367,15 @@ async def _rodar_shadow_mode(
     except Exception as _e:
         logger.debug("[ShadowMode] Falha ao extrair behavioral_signals (melhor esforço): %s", _e)
 
+    buyer_motivation = None
+    try:
+        from agent.buyer_motivation_extractor import extrair_buyer_motivation_async
+        buyer_motivation = await extrair_buyer_motivation_async(
+            transcricao_parcial, historico, usuario_id=usuario_id, meeting_id=meeting_id,
+        )
+    except Exception as _e:
+        logger.debug("[ShadowMode] Falha ao extrair buyer_motivation (melhor esforço): %s", _e)
+
     entrada = {
         "meeting_memory": {
             "transcricao_parcial": transcricao_parcial,
@@ -367,6 +391,7 @@ async def _rodar_shadow_mode(
         "historical_patterns": historical_patterns,
         "spin_state": spin_state,
         "behavioral_signals": behavioral_signals,
+        "buyer_motivation": buyer_motivation,
     }
 
     inicio = _time.monotonic()

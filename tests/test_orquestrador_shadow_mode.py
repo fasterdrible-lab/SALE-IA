@@ -99,7 +99,7 @@ class ShadowModeDesligadoTest(unittest.TestCase):
 
 
 class ShadowModeLigadoTest(unittest.TestCase):
-    def _rodar(self, raciocinar_mock, criar_comparison_mock, nba_atual, finance_result=None, spin_mock=None, behavioral_mock=None):
+    def _rodar(self, raciocinar_mock, criar_comparison_mock, nba_atual, finance_result=None, spin_mock=None, behavioral_mock=None, motivation_mock=None):
         rag_patches = _mock_rag()
         agente_patches = _mock_agentes(nba_atual, finance_result=finance_result)
         with patch.dict(os.environ, {"SHADOW_MODE_ENABLED": "true"}):
@@ -107,7 +107,8 @@ class ShadowModeLigadoTest(unittest.TestCase):
                  patch("api.database.criar_shadow_mode_comparison", new=criar_comparison_mock), \
                  patch("api.database.obter_ultimo_ai_usage_event", return_value=None), \
                  patch("agent.spin_extractor.extrair_spin_state_async", new=spin_mock or AsyncMock(return_value=None)), \
-                 patch("agent.behavioral_signal_extractor.extrair_sinais_comportamentais_async", new=behavioral_mock or AsyncMock(return_value=[])):
+                 patch("agent.behavioral_signal_extractor.extrair_sinais_comportamentais_async", new=behavioral_mock or AsyncMock(return_value=[])), \
+                 patch("agent.buyer_motivation_extractor.extrair_buyer_motivation_async", new=motivation_mock or AsyncMock(return_value=None)):
                 for p in (*rag_patches, *agente_patches):
                     p.start()
                 try:
@@ -229,6 +230,40 @@ class ShadowModeLigadoTest(unittest.TestCase):
         self.assertIn("next_best_action", resultado)
         entrada = raciocinar_mock.await_args.args[0]
         self.assertIsNone(entrada["behavioral_signals"])
+
+    def test_buyer_motivation_real_chega_na_entrada(self):
+        raciocinar_mock = AsyncMock(return_value={
+            "current_state": "x", "recommended_framework": "SPIN_IMPLICATION",
+            "next_best_action": "y", "next_best_question": None,
+            "reason": "z", "confidence": 0.6, "hypotheses": [], "evidence": [],
+            "missing_information": [], "avoid": [],
+        })
+        criar_comparison_mock = MagicMock(return_value=None)
+        nba_atual = {"type": "insight", "message": "..."}
+        motivacao = {"motivation": "COST_REDUCTION", "confidence": 0.8, "evidence": ["..."]}
+        motivation_mock = AsyncMock(return_value=motivacao)
+
+        self._rodar(raciocinar_mock, criar_comparison_mock, nba_atual, motivation_mock=motivation_mock)
+
+        entrada = raciocinar_mock.await_args.args[0]
+        self.assertEqual(entrada["buyer_motivation"], motivacao)
+
+    def test_falha_na_extracao_de_buyer_motivation_nunca_derruba_ciclo(self):
+        raciocinar_mock = AsyncMock(return_value={
+            "current_state": "x", "recommended_framework": "CLOSING",
+            "next_best_action": "y", "next_best_question": None,
+            "reason": "z", "confidence": 0.6, "hypotheses": [], "evidence": [],
+            "missing_information": [], "avoid": [],
+        })
+        criar_comparison_mock = MagicMock(return_value=None)
+        nba_atual = {"type": "insight", "message": "..."}
+        motivation_mock = AsyncMock(side_effect=RuntimeError("4 provedores esgotados"))
+
+        resultado = self._rodar(raciocinar_mock, criar_comparison_mock, nba_atual, motivation_mock=motivation_mock)
+
+        self.assertIn("next_best_action", resultado)
+        entrada = raciocinar_mock.await_args.args[0]
+        self.assertIsNone(entrada["buyer_motivation"])
 
     def test_falha_na_extracao_de_spin_state_nunca_derruba_ciclo(self):
         raciocinar_mock = AsyncMock(return_value={

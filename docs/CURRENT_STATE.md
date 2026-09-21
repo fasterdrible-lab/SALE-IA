@@ -1,6 +1,27 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-21 — Backend **V.1.4.125** (local + GitHub +
+Atualizado em: 2026-09-21 — Backend **V.1.4.126** (local + GitHub,
+aguardando deploy na VPS): **Bloco 4 / Tarefa 4.3 (extrator de
+motivação do comprador) — fecha o Bloco 4 por completo**. `agent/
+buyer_motivation_extractor.py` (novo) identifica hipóteses de
+motivação reais na conversa via IA, restrito aos 12 motivadores
+canônicos de `agent/buyer_motivation_rules.py` (Fase 5.1) —
+`entrada["buyer_motivation"]` recebe a motivação dominante
+(`motivacao_dominante()`), não a lista inteira. Guarda automática por
+citação individual (evidência é uma lista — remove só as fabricadas,
+descarta a hipótese só se nenhuma sobreviver). Guarda arquitetural
+herdada: DISC nunca é tratado como motivação, garantido por
+construção. Wiring em `orquestrador.py`. **7 dos 11 campos do
+SalesReasoningEngine agora têm dado real** (`meeting_memory`,
+`rag_context`, `objections`, `historical_patterns`, `spin_state`,
+`behavioral_signals`, `buyer_motivation`) — mais de 60% do contrato.
+Os 4 campos que seguem gap (`opportunity_memory`, `opportunity_graph`,
+`meddpicc_state`, `seller_context`) não têm tarefa aberta no plano
+atual. 15 testes novos, suite completa: **1358 testes, 0 falhas**, 1
+skip pré-existente. Detalhe completo em CHANGELOG.md. **Nenhuma
+extensão do plano começa sem nova confirmação explícita do usuário.**
+
+Backend **V.1.4.125** (local + GitHub +
 **produção confirmada**, `/health` = `versao 1.4.125`): **Bloco 4 /
 Tarefa 4.2 (extrator de sinais comportamentais)**. `agent/behavioral_signal_extractor.py` (novo)
 identifica sinais reais na conversa via IA, restrito aos 6 sinais

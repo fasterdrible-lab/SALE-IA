@@ -3,6 +3,69 @@
 
 ---
 
+## V.1.4.126 — Bloco 4 / Tarefa 4.3 — extrator de motivação do comprador (fecha o Bloco 4)
+> Data: 21/09/2026 | Local + GitHub, aguardando deploy na VPS
+
+Usuário confirmou avançar pra Tarefa 4.3 (`docs/tasks-sales-
+reasoning-engine-completo.md`), última do Bloco 4 — **fecha o bloco
+por completo**.
+
+- **`agent/buyer_motivation_extractor.py`** (novo):
+  `extrair_buyer_motivation_async()` chama IA pra identificar
+  hipóteses de motivação de compra reais na conversa, restrito aos
+  **12 motivadores canônicos** de `agent/buyer_motivation_rules.py::
+  MOTIVATION_TIPOS` (Fase 5.1). Diferente das Tarefas 4.1/4.2, o
+  contrato do SalesReasoningEngine espera não uma lista, mas a
+  **motivação dominante** — `entrada["buyer_motivation"]` recebe
+  direto a saída de `motivacao_dominante()` (Fase 5.1, a hipótese de
+  maior `confidence`, ou `None`).
+- **Guarda automática por citação individual** (diferente das Tarefas
+  4.1/4.2, onde a evidência é 1 citação só): como `evidence` aqui é
+  uma **lista** de citações, o filtro remove só as citações fabricadas
+  da lista (mantendo as reais) e só descarta a hipótese inteira se
+  **nenhuma** citação sobreviver — nunca descarta uma hipótese com
+  pelo menos 1 evidência real só porque a IA também alegou uma segunda
+  citação fabricada junto.
+- **Guarda arquitetural herdada, garantida por construção**: "DISC
+  nunca deverá ser tratado como motivação" — este módulo, assim como
+  `agent/buyer_motivation_rules.py` (Fase 5.1), nunca importa nem lê
+  nenhum campo relacionado a DISC (só transcrição/histórico entram).
+  `GuardaArquiteturalTest` reproduz a mesma checagem por termos
+  proibidos (`disc_agent`, `perfil_disc`, etc. — não a palavra "DISC"
+  isolada, que a própria docstring cita pra explicar a regra) de
+  `tests/test_buyer_motivation_rules.py`.
+- **`agent/prompt_templates/buyer_motivation_extractor.txt`** (novo):
+  lista os 12 motivadores com descrições, instrui explicitamente a
+  nunca incluir perfil de personalidade/estilo de comunicação (isso
+  não é motivação).
+- **`api/ai_features.py::BUYER_MOTIVATION_EXTRACAO`** (novo, custo
+  rastreado separadamente).
+- **Wiring em `agent/multiagente/orquestrador.py`**: as 2 funções
+  (piloto e shadow mode) passam a montar `entrada
+  ["buyer_motivation"]` — melhor esforço, nunca bloqueia o ciclo se a
+  extração falhar.
+- 15 testes novos (11 no extrator — 2 exemplos golden, guarda por
+  citação mista, guarda arquitetural dedicada — + 4 integração no
+  wiring do orquestrador). Suite completa: **1358 testes, 0 falhas**,
+  1 skip pré-existente — sem regressão.
+- Versão: `1.4.125` → `1.4.126`.
+
+### Bloco 4 fechado por completo
+**7 dos 11 campos do SalesReasoningEngine agora têm dado real**
+(`meeting_memory`, `rag_context`, `objections`, `historical_patterns`,
+`spin_state`, `behavioral_signals`, `buyer_motivation`) — mais de 60%
+do contrato. Os 4 campos que seguem gap (`opportunity_memory`,
+`opportunity_graph`, `meddpicc_state`, `seller_context`) não têm
+tarefa aberta no plano atual — exigiriam extensão do plano original
+(novos blocos), não foram pedidos ainda.
+
+- **Pendente**: push + deploy na VPS (aditiva — sem tabela/coluna
+  nova, só código + 1 prompt template novo). **Nenhuma extensão do
+  plano (novos blocos além do 1-6 já documentado) começa sem nova
+  confirmação explícita do usuário.**
+
+---
+
 ## V.1.4.125 — Bloco 4 / Tarefa 4.2 — extrator de sinais comportamentais
 > Data: 20/09/2026 | Local + GitHub + **produção confirmada** (`/health` = `versao 1.4.125`)
 

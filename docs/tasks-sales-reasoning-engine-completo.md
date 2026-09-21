@@ -320,23 +320,49 @@ orquestrador, todos passando:
   esforco no wiring do orquestrador (`behavioral_signals=None`, nunca
   derruba o ciclo).
 
-### Tarefa 4.3 - Extrator de motivacao do comprador
+### Tarefa 4.3 - Extrator de motivacao do comprador [CONCLUIDA - 21/09/2026]
+
+Ultima tarefa do Bloco 4 - fecha o bloco inteiro.
 
 Arquivos:
-- Criar `agent/buyer_motivation_extractor.py` +
+- Criado `agent/buyer_motivation_extractor.py` +
   `agent/prompt_templates/buyer_motivation_extractor.txt`
+- Modificado `api/ai_features.py` (`BUYER_MOTIVATION_EXTRACAO`)
+- Modificado `agent/multiagente/orquestrador.py` (as 2 funcoes de
+  wiring passam a montar `entrada["buyer_motivation"]`)
 
 Reutilizacao:
-- Reaproveitar `agent/buyer_motivation_rules.py::validar_hipoteses_
-  motivacao()`/`motivacao_dominante()` (Fase 5.1).
+- Reaproveitado `agent/buyer_motivation_rules.py::validar_hipoteses_
+  motivacao()`/`motivacao_dominante()` (Fase 5.1) - `entrada
+  ["buyer_motivation"]` recebe direto a saida de `motivacao_
+  dominante()` (a hipotese de maior confidence, ou `None`), nao a
+  lista inteira de hipoteses - mesma leitura que o contrato do
+  SalesReasoningEngine (Fase 7) ja esperava.
 
 Dependencias:
 - Nenhuma nova.
 
-Cenarios (testes):
-- Golden examples + guarda de evidence_quote.
+**Guarda por citacao individual, diferente das Tarefas 4.1/4.2**: como
+`evidence` aqui e uma LISTA de citacoes (nao 1 so), o filtro remove
+so as citacoes fabricadas da lista (mantendo as reais) e so descarta a
+hipotese inteira se NENHUMA citacao sobreviver - nunca descarta uma
+hipotese que tem pelo menos 1 evidencia real so porque a IA tambem
+alegou uma segunda citacao fabricada junto.
+
+Cenarios (testes) - 11 testes no extrator (incluindo guarda
+arquitetural dedicada, 2 testes) + 4 integracao no wiring do
+orquestrador, todos passando:
+- Golden examples (COST_REDUCTION, RISK_REDUCTION) + teste de
+  desempate por `confidence` mais alta.
+- Guarda automatica confirmada: citacao que nao existe literalmente na
+  conversa e removida da lista `evidence`; hipotese com evidence mista
+  (1 real + 1 fabricada) mantem so a real.
+- Motivation fora do vocabulario fechado de 12 valores e descartada.
 - Guarda arquitetural ja existente (DISC nunca e tratado como
-  motivacao) continua valendo pro extrator tambem.
+  motivacao) continua valendo pro extrator tambem - `GuardaArquitetural
+  Test` reproduz a mesma checagem por termos proibidos (nao a palavra
+  "DISC" isolada, que a propria docstring cita pra explicar a regra)
+  de `tests/test_buyer_motivation_rules.py`.
 
 ### Tarefa 4.4 - Investigacao de causa raiz de objecao (completa a 1.2) [CONCLUIDA - 20/09/2026]
 
@@ -490,12 +516,21 @@ Tarefa 6.2.
 - **Tarefa 4.2 (extrator de sinais comportamentais)**: CONCLUIDA
   (20/09/2026) - restrito aos 6 sinais canonicos, `extrair_sinais_
   comportamentais_async()` sempre retorna lista (nunca `None` em
-  sucesso). **6 dos 11 campos do SalesReasoningEngine agora
-  preenchidos com dado real** (`meeting_memory`, `rag_context`,
-  `objections`, `historical_patterns`, `spin_state`, `behavioral_
-  signals`).
-- **Bloco 4 restante**: Tarefa 4.3 (motivacao do comprador) - nao
-  iniciada.
+  sucesso).
+- **Tarefa 4.3 (extrator de motivacao do comprador)**: CONCLUIDA
+  (21/09/2026) - restrito aos 12 motivadores canonicos,
+  `extrair_buyer_motivation_async()` retorna a motivacao dominante
+  (`motivacao_dominante()`, Fase 5.1) ou `None`. **FECHA O BLOCO 4
+  POR COMPLETO.**
+
+## Bloco 4 completo - 7 dos 11 campos do SalesReasoningEngine agora
+## preenchidos com dado real (`meeting_memory`, `rag_context`,
+## `objections`, `historical_patterns`, `spin_state`, `behavioral_
+## signals`, `buyer_motivation`) - mais de 60% do contrato. Os 4
+## campos que seguem gap (`opportunity_memory`, `opportunity_graph`,
+## `meddpicc_state`, `seller_context`) nao tem tarefa aberta no plano
+## atual - exigiriam extensao do plano original (novos blocos), nao
+## foram pedidos ainda.
 
 Atualizar esta secao (e o CHANGELOG.md/CLAUDE.md/docs/
 CURRENT_STATE.md, mesmo padrao do resto do projeto) a cada tarefa
