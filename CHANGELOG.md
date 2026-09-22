@@ -3,6 +3,71 @@
 
 ---
 
+## V.1.4.131 — Recommendation Usage ligado em produção (Fase 25 — "o que falta pra ligar", item 2/5)
+
+> Data: 22/09/2026 | Local (pendente push + deploy)
+
+Segunda frente da Fase 25 confirmada pelo usuário ("próxima tarefa").
+Investigação prévia (antes de codar) achou que nada em produção
+escrevia `RecommendationEvent` — nem a Tarefa 10.1 (registrar a
+recomendação mostrada) estava ligada, só a 10.2 (`detectar_uso_
+recomendacao`, embeddings) existia pronta e nunca chamada. Ligar isso
+de verdade é duas peças, não uma — 2 perguntas de escopo confirmadas
+com o usuário antes de codar: **só registrar quando a recomendação
+mudar** (evita 1 linha por ciclo de 60s repetindo a mesma coisa) e
+**classificar o uso comparando com o fragmento do ciclo seguinte**
+(embeddings locais via Ollama, sem custo de IA real).
+
+- **`agent/multiagente/orquestrador.py::_rastrear_recomendacao()`**
+  (novo, best-effort — nunca pode atrasar/quebrar o ciclo real, mesma
+  disciplina de Shadow Mode/Prompt Injection): 2 passos por ciclo,
+  chamado depois do Piloto/Shadow Mode (rastreia
+  `resultado["next_best_action"]` já pós-substituição do Piloto quando
+  aplicável — o que o vendedor de fato vê).
+  1. Se existe uma `RecommendationEvent` **pendente** da reunião
+     (`used_at is None` — a última registrada, ainda sem reação do
+     vendedor) e o ciclo trouxe fala nova, chama `detectar_uso_
+     recomendacao()` (Tarefa 10.2) e grava `seller_action` via
+     `registrar_uso_recommendation_event()` (Tarefa 10.1). A
+     classificação em si (`USED`/`PARTIALLY_USED`/`IGNORED`/`UNKNOWN`)
+     **nunca vira coluna nova** — decisão arquitetural já tomada na
+     Tarefa 10.2 (sempre derivável sob demanda a partir de
+     `recommendation`+`seller_action`) — só é logada
+     (`[RecommendationTracking] ... estado=... similaridade=...`) para
+     visibilidade imediata sem duplicar dado.
+  2. Se a recomendação atual (`next_best_action.message`) é diferente
+     da última registrada, cria uma `RecommendationEvent` nova
+     (`strategy=category`, `recommendation=message`, `reason=reason`),
+     que vira a pendente do próximo ciclo.
+- **Kill-switch `RECOMMENDATION_TRACKING_ENABLED`** (env, default
+  `true` — diferente do Shadow Mode/SellerDNA Observação, que custam
+  IA real e nascem `false`; aqui o custo é embeddings locais via
+  Ollama, mesmo provedor do RAG/Sales Memory, sem chamada de IA paga).
+  `false` no `.env` + restart desliga sem reverter deploy.
+- **Reunião anônima nunca grava nada** — `meeting_id` ausente ou
+  `"default"` sai cedo, mesmo padrão já usado em `/audio-transcricao`.
+- 17 testes novos (`tests/test_orquestrador_recommendation_tracking.py`):
+  kill-switch, cria/não-duplica evento, classifica/não-classifica a
+  pendente, reunião anônima nunca grava, falha em qualquer chamada
+  (DB ou embedding) nunca derruba o ciclo real, e 2 testes de
+  integração via `analisar_fragmento_multi()` confirmando o wiring de
+  ponta a ponta.
+- Suite completa: **1413 testes** (1396 da V.1.4.130 + 17 novos), **0
+  falhas**, 1 skip pré-existente — sem regressão.
+- **Decisão deliberada de escopo**: `opportunity_id` não é resolvido
+  nesta rodada (ficaria `None` em todo `RecommendationEvent` — resolver
+  isso duplicaria a mesma chamada já feita pelo Piloto/Shadow Mode;
+  fica pra quando o dado for realmente consumido por algo que precise
+  dele). `outcome_window` (Tarefa 10.3, avanço de estágio/resultado)
+  também não é preenchido aqui — fora do escopo desta frente.
+- Versão: `1.4.130` → `1.4.131`.
+- **Pendente**: push + deploy na VPS (aditivo — nenhuma tabela/coluna
+  nova, `recommendation_events` já existe desde a V.1.4.91). Item 3/5
+  da Fase 25 (Golden Dataset → Quality Monitoring, custo real de IA)
+  não começa sem nova confirmação explícita do usuário.
+
+---
+
 ## V.1.4.130 — Audit Trail conectado ao SalesReasoningEngine (Fase 25 — "o que falta pra ligar")
 
 > Data: 22/09/2026 | Local + GitHub (commit `0101687`) + **produção confirmada**, `/health` = `versao 1.4.130`

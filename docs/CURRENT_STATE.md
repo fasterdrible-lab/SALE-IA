@@ -1,5 +1,28 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-09-22 — Backend **V.1.4.131** (local, **pendente
+push + deploy**): segunda frente da Fase 25 ("o que falta pra ligar",
+item 2/5) — **Recommendation Usage em produção**. Investigação prévia
+achou que nada em produção escrevia `RecommendationEvent` (só a
+Tarefa 10.2/embeddings existia pronta, nunca chamada). `agent/
+multiagente/orquestrador.py::_rastrear_recomendacao()` (novo,
+best-effort) roda a cada ciclo de `/tempo-real`, depois do Piloto/
+Shadow Mode: registra uma `RecommendationEvent` só quando a
+recomendação muda de ciclo pra ciclo (evita 1 linha por ciclo de 60s
+repetindo a mesma coisa — decisão confirmada com o usuário), e
+classifica o uso da recomendação pendente anterior comparando com a
+fala nova do vendedor via `detectar_uso_recomendacao()` (embeddings
+locais Ollama, sem custo de IA real — segunda decisão confirmada).
+Estado (`USED`/`PARTIALLY_USED`/`IGNORED`/`UNKNOWN`) nunca vira coluna
+nova, só é logado — mesma disciplina "derivável sob demanda" já
+decidida na Tarefa 10.2. Kill-switch `RECOMMENDATION_TRACKING_ENABLED`
+(default `true`, custo local). Reunião anônima/`"default"` nunca grava
+nada. 17 testes novos. Suite completa: **1413 testes, 0 falhas**, 1
+skip pré-existente — sem regressão. Detalhe completo em CHANGELOG.md.
+**Item 3/5 da Fase 25 (Golden Dataset → Quality Monitoring, custo real
+de IA) e push + deploy desta versão não começam sem nova confirmação
+explícita do usuário.**
+
 Atualizado em: 2026-09-22 — Backend **V.1.4.130** (local + GitHub +
 **produção confirmada**, `/health` = `versao 1.4.130`): usuário pediu
 um levantamento do que falta do

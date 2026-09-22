@@ -63,6 +63,77 @@ def pilot_mode_atual() -> str:
     return modo if modo in PILOT_MODES else "off"
 
 
+def recommendation_tracking_ativo() -> bool:
+    """Kill-switch das Tarefas 10.1+10.2 ("PROMPT MESTRE — SALE-IA V2",
+    Fase 10) ligadas em produção: grava `RecommendationEvent` quando a
+    recomendação muda de ciclo pra ciclo, e classifica o uso da
+    recomendação pendente anterior contra a fala nova do vendedor via
+    embeddings locais (Ollama, mesmo provedor do RAG/Sales Memory — sem
+    custo de IA real, diferente do Shadow Mode/SellerDNA Observação).
+    `true` por padrão — `false` no `.env` + restart desliga sem
+    reverter deploy, mesmo padrão de todo kill-switch já usado no
+    projeto."""
+    return os.getenv("RECOMMENDATION_TRACKING_ENABLED", "true").strip().lower() != "false"
+
+
+async def _rastrear_recomendacao(
+    resultado: dict,
+    transcricao_parcial: str,
+    meeting_id: str | None,
+) -> None:
+    """Fase 10 (Tarefas 10.1+10.2) — 2 passos por ciclo, nesta ordem:
+
+    1. Se existe uma `RecommendationEvent` PENDENTE desta reunião
+       (`used_at is None` — a última recomendação registrada, ainda sem
+       reação do vendedor) e o ciclo trouxe fala nova, classifica o uso
+       (`detectar_uso_recomendacao()`, Tarefa 10.2) e grava
+       `seller_action` (`registrar_uso_recommendation_event()`, Tarefa
+       10.1) — a classificação em si nunca vira coluna nova (mesmo
+       princípio de `outcome_rules.calcular_cycle_days()`: sempre
+       derivável sob demanda a partir de `recommendation`+
+       `seller_action`), só é logada para visibilidade imediata.
+    2. Se a recomendação ATUAL (`resultado["next_best_action"]`, já
+       pós-Piloto — o que o vendedor de fato vê) é diferente da última
+       registrada, cria uma `RecommendationEvent` nova, que vira a
+       pendente do próximo ciclo.
+
+    Best-effort absoluto (mesma disciplina de Shadow Mode/Prompt
+    Injection) — nunca pode atrasar nem quebrar o ciclo real; reunião
+    anônima (`meeting_id` ausente/`"default"`, mesmo padrão de
+    `/audio-transcricao`) nunca grava nada."""
+    if not meeting_id or meeting_id == "default" or not recommendation_tracking_ativo():
+        return
+    try:
+        from agent.recommendation_usage_rules import detectar_uso_recomendacao
+        from api.database import criar_recommendation_event, listar_recommendation_events, registrar_uso_recommendation_event
+
+        eventos = listar_recommendation_events(meeting_id=meeting_id)
+        ultimo = eventos[-1] if eventos else None
+
+        if ultimo and ultimo.get("used_at") is None and (transcricao_parcial or "").strip():
+            try:
+                classificacao = await detectar_uso_recomendacao(ultimo["recommendation"], transcricao_parcial)
+                registrar_uso_recommendation_event(ultimo["id"], seller_action=transcricao_parcial)
+                logger.info(
+                    "[RecommendationTracking] meeting=%s event=%s estado=%s similaridade=%s",
+                    meeting_id, ultimo["id"], classificacao["state"], classificacao.get("similarity"),
+                )
+            except Exception as _e:
+                logger.debug("[RecommendationTracking] Falha ao classificar uso (melhor esforço): %s", _e)
+
+        nba = resultado.get("next_best_action") or {}
+        texto = (nba.get("message") or "").strip()
+        if texto and (not ultimo or ultimo.get("recommendation") != texto):
+            criar_recommendation_event(
+                meeting_id=meeting_id,
+                strategy=nba.get("category") or "generico",
+                recommendation=texto,
+                reason=nba.get("reason") or "sem motivo informado",
+            )
+    except Exception as _e:
+        logger.debug("[RecommendationTracking] Falha (melhor esforço): %s", _e)
+
+
 def pilot_usuarios() -> frozenset:
     """Allowlist usada só quando `pilot_mode_atual() == "pilot_user"` —
     `PILOT_USER_IDS` no `.env`, `usuario_id` separados por vírgula
@@ -746,5 +817,14 @@ async def analisar_fragmento_multi(
             )
         except Exception as _e:
             logger.debug("[ShadowMode] Falha ao agendar (melhor esforço): %s", _e)
+
+    # Fase 10 (Tarefas 10.1+10.2) — roda depois do Piloto/Shadow Mode
+    # acima, pra rastrear a recomendação que o vendedor de fato vê
+    # (resultado["next_best_action"] já reflete a substituição do
+    # Piloto quando aplicável).
+    try:
+        await _rastrear_recomendacao(resultado, transcricao_parcial, meeting_id)
+    except Exception as _e:
+        logger.debug("[RecommendationTracking] Falha inesperada (melhor esforço): %s", _e)
 
     return resultado
