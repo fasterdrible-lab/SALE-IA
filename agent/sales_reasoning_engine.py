@@ -42,11 +42,14 @@ SalesReasoningEngine", não mais uma função de regra isolada.
 """
 
 import json
+import logging
 from pathlib import Path
 from typing import Optional
 
 from agent.multiagente.claude_fallback import chamar_ia_com_fallback_claude
 from api import ai_features
+
+logger = logging.getLogger(__name__)
 
 # Os 11 inputs literais do prompt mestre — o contrato de ENTRADA do
 # SalesReasoningEngine. Cada um é o output de uma peça já construída
@@ -203,6 +206,56 @@ def validar_output_raciocinio(saida: dict) -> None:
         raise ValueError(f"confidence fora do intervalo [0, 1]: {confidence_valor!r}")
 
 
+# Fase 18 / Tarefa 18.4 ("PROMPT MESTRE — SALE-IA V2", Audit Trail):
+# versões literais deste módulo — bump manual sempre que o prompt
+# (`agent/prompt_templates/sales_reasoning_engine.txt`) ou o contrato de
+# entrada/saída deste arquivo mudar. Seção 34 do prompt mestre ("qual
+# versão recomendou isso") não define formato — string livre, mesma
+# decisão já tomada no schema do `AuditTrailEntry`.
+_PROMPT_VERSION = "sales_reasoning_engine.v1"
+_RULE_VERSION = "sales_reasoning_engine.v1"
+
+
+def _registrar_audit_trail(
+    bundle: dict,
+    meeting_id: Optional[str],
+    *,
+    resultado,
+    model: Optional[str] = None,
+    reason: Optional[str] = None,
+) -> None:
+    """Grava 1 `AuditTrailEntry` por chamada real de `raciocinar_async()`
+    — sucesso ou falha (choke-point único, nenhum outro caminho do
+    sistema chama a IA do SalesReasoningEngine). Best-effort: uma falha
+    aqui nunca pode derrubar o raciocínio real, mesma disciplina de todo
+    hook best-effort já usado no projeto (Prompt Injection, Shadow
+    Mode). `data_used` guarda só quais dos 11 campos de entrada vieram
+    preenchidos, nunca o conteúdo — evita duplicar transcrição/PII já
+    persistida em `MeetingMemory`/`OpportunityMemory` dentro de uma
+    tabela de auditoria."""
+    try:
+        from api.database import criar_audit_trail_entry
+
+        campos_preenchidos = sorted(k for k, v in bundle.items() if v is not None)
+        if isinstance(resultado, dict):
+            result_texto = f"{resultado.get('recommended_framework')}: {resultado.get('next_best_action')}"
+        else:
+            result_texto = str(resultado)
+        criar_audit_trail_entry(
+            actor="sales_reasoning_engine",
+            action="gerar_recomendacao",
+            reason=reason or "SalesReasoningEngine.raciocinar_async",
+            result=result_texto,
+            meeting_id=meeting_id,
+            data_used={"campos_preenchidos": campos_preenchidos},
+            model=model,
+            prompt_version=_PROMPT_VERSION,
+            rule_version=_RULE_VERSION,
+        )
+    except Exception as _e:
+        logger.debug("[SalesReasoningEngine] Falha ao gravar audit trail (melhor esforço): %s", _e)
+
+
 async def raciocinar_async(
     entrada: dict,
     usuario_id: Optional[str] = None,
@@ -219,6 +272,9 @@ async def raciocinar_async(
     IA não bater com o contrato de saída (`montar_saida_raciocinio`) —
     dado de domínio, mesma convenção de `SalesEvent`/`SalesEvidence`
     (Fases 1-6): nunca falha silenciosa como `AiUsageEvent`.
+
+    Toda chamada (sucesso ou falha) grava um `AuditTrailEntry` (Fase
+    18.4) — ver `_registrar_audit_trail()`.
     """
     validar_input_raciocinio(entrada)
     bundle = {**construir_input_vazio(), **entrada}
@@ -230,23 +286,36 @@ async def raciocinar_async(
         serializado = json.dumps(valor, ensure_ascii=False) if valor is not None else "null"
         prompt = prompt.replace("{" + campo + "}", serializado)
 
-    resposta = await chamar_ia_com_fallback_claude(
-        _SYSTEM_PROMPT,
-        prompt,
-        usuario_id,
-        feature=ai_features.SALES_REASONING_RACIOCINIO,
-        meeting_id=meeting_id,
-    )
+    try:
+        resposta = await chamar_ia_com_fallback_claude(
+            _SYSTEM_PROMPT,
+            prompt,
+            usuario_id,
+            feature=ai_features.SALES_REASONING_RACIOCINIO,
+            meeting_id=meeting_id,
+        )
 
-    return montar_saida_raciocinio(
-        current_state=resposta.get("current_state"),
-        recommended_framework=resposta.get("recommended_framework"),
-        next_best_action=resposta.get("next_best_action"),
-        reason=resposta.get("reason"),
-        confidence=resposta.get("confidence"),
-        hypotheses=resposta.get("hypotheses"),
-        evidence=resposta.get("evidence"),
-        missing_information=resposta.get("missing_information"),
-        next_best_question=resposta.get("next_best_question"),
-        avoid=resposta.get("avoid"),
+        saida = montar_saida_raciocinio(
+            current_state=resposta.get("current_state"),
+            recommended_framework=resposta.get("recommended_framework"),
+            next_best_action=resposta.get("next_best_action"),
+            reason=resposta.get("reason"),
+            confidence=resposta.get("confidence"),
+            hypotheses=resposta.get("hypotheses"),
+            evidence=resposta.get("evidence"),
+            missing_information=resposta.get("missing_information"),
+            next_best_question=resposta.get("next_best_question"),
+            avoid=resposta.get("avoid"),
+        )
+    except Exception as erro:
+        _registrar_audit_trail(bundle, meeting_id, resultado=f"erro: {type(erro).__name__}: {erro}")
+        raise
+
+    _registrar_audit_trail(
+        bundle,
+        meeting_id,
+        model=resposta.get("_modelo_ia"),
+        reason=saida["reason"],
+        resultado=saida,
     )
+    return saida

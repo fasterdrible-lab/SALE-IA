@@ -3,6 +3,69 @@
 
 ---
 
+## V.1.4.130 — Audit Trail conectado ao SalesReasoningEngine (Fase 25 — "o que falta pra ligar")
+
+> Data: 22/09/2026 | Local (pendente push + deploy)
+
+Usuário pediu um levantamento do que falta do "PROMPT MESTRE — SALE-IA
+V2" (25 fases) frente aos 4 temas do subtítulo do documento ("Sales
+Intelligence, Sales Science, Learning Loop e preparação para Autonomous
+Digital Sales Twin"). Achado: as Fases 0-24 já estavam todas
+implementadas (a maioria só como contrato/regra, sem wiring real), mas
+a **Fase 25 (Critério para iniciar o Digital Sales Twin)** nunca
+começou — nenhum dos 9 critérios objetivos do prompt mestre (event
+precision, objection classification, hallucination rate, `policy
+violation`, `audit coverage`, etc.) tem número real hoje. Usuário
+confirmou começar pela frente mais barata: **ligar o Audit Trail (Fase
+18.4) em produção**, hoje só schema+CRUD sem nenhum caminho real
+gravando nele.
+
+- **`agent/sales_reasoning_engine.py::raciocinar_async()`** — único
+  choke-point de IA do `SalesReasoningEngine` (Fase 7) — passa a gravar
+  1 `AuditTrailEntry` por chamada real, sucesso ou falha (`_registrar_
+  audit_trail()`, novo, best-effort — uma falha na gravação nunca pode
+  derrubar o raciocínio real, mesma disciplina de todo hook já usado no
+  projeto: Prompt Injection, Shadow Mode, Otimização).
+- `actor="sales_reasoning_engine"`, `action="gerar_recomendacao"`,
+  `reason` reaproveita a própria justificativa que o motor devolveu
+  (`saida["reason"]"`) — no caminho de erro, vira uma descrição textual
+  da exceção. `result` é o par `recommended_framework: next_best_action`
+  (ou `"erro: ..."`). `model` vem de `resposta["_modelo_ia"]` (mesma
+  chave já injetada por `api/ai_router.py::chamar_ia`; fica `None` no
+  fallback pra Conta Claude pessoal, que não expõe modelo — limitação já
+  documentada). `prompt_version`/`rule_version` ganham 2 constantes
+  novas (`_PROMPT_VERSION`/`_RULE_VERSION = "sales_reasoning_
+  engine.v1"`) — primeiro uso real dos campos de versionamento que a
+  Seção 34 do prompt mestre pede ("qual versão recomendou isso").
+- **`data_used` guarda só a lista de quais dos 11 campos de entrada
+  vieram preenchidos** (`campos_preenchidos`), nunca o conteúdo — evita
+  duplicar transcrição/PII já persistida em `MeetingMemory`/
+  `OpportunityMemory` dentro de uma tabela de auditoria; como efeito
+  colateral, essa lista também vira um jeito barato de acompanhar quais
+  dos 11 campos estão reais em cada chamada, sem precisar reler o
+  histórico dos Blocos 4-6 (`docs/tasks-sales-reasoning-engine-
+  completo.md`).
+- 4 testes novos (`tests/test_sales_reasoning_engine.py::
+  AuditTrailTest`): grava em sucesso com os campos certos, grava em
+  falha e ainda propaga a exceção original, e os dois casos de "a
+  própria gravação de auditoria falha" (sucesso e falha do raciocínio)
+  nunca perdendo o resultado/exceção real.
+- Suite completa: **1396 testes, 0 falhas**, 1 skip pré-existente — sem
+  regressão (Shadow Mode/Piloto mockam `raciocinar_async()` inteiro nos
+  próprios testes, então nem exercitam o código novo).
+- **Decisão deliberada de escopo**: só cobre chamadas via
+  `raciocinar_async()` — não é "audit coverage = 100%" do sistema
+  inteiro (outras ações que um dia forem autônomas, ex.: `AutonomyPolicy`
+  ainda dormente, precisam do próprio hook quando existirem). As outras
+  4 frentes da Fase 25 (Recommendation Usage em produção, Golden
+  Dataset → Quality Monitoring, benchmark de transcrição, escalonamento
+  humano) não começam sem nova confirmação explícita do usuário.
+- Versão: `1.4.129` → `1.4.130`.
+- **Pendente**: push + deploy na VPS (aditivo — nenhuma tabela/coluna
+  nova, `audit_trail_entries` já existe desde a V.1.4.108).
+
+---
+
 ## V.1.4.129 — Bloco 5 / Tarefa 5.1 — persistência de observações do vendedor (SellerDNA)
 
 > Data: 21/09/2026 | Local + GitHub (commit `7fa3a0e`, bundle V.1.4.127-129) — **deploy parcial na VPS**

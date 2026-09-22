@@ -289,5 +289,83 @@ class RaciocinarAsyncTest(unittest.TestCase):
         )
 
 
+class AuditTrailTest(unittest.TestCase):
+    """"Ligar o que falta" da Fase 25 — Audit Trail (Fase 18.4) conectado
+    ao único choke-point real de IA do SalesReasoningEngine
+    (`raciocinar_async()`). Mocka `api.database.criar_audit_trail_entry`
+    — persistência real já coberta por `tests/test_audit_trail.py`."""
+
+    def _run(self, entrada=None, **kwargs):
+        return asyncio.run(raciocinar_async(entrada if entrada is not None else {}, **kwargs))
+
+    def _resposta_valida(self, **overrides):
+        base = dict(
+            current_state="cliente reconhece dor, mas impacto econômico ainda não está claro",
+            recommended_framework="SPIN_IMPLICATION",
+            next_best_action="aprofundar impacto",
+            next_best_question="Quanto esse problema afeta a operação por mês?",
+            avoid=["não apresentar preço ainda"],
+            reason="dor confirmada mas sem impacto financeiro mapeado ainda",
+            confidence=0.86,
+            _modelo_ia="deepseek-chat",
+        )
+        base.update(overrides)
+        return base
+
+    def test_grava_audit_trail_em_sucesso_com_dados_reais(self):
+        entrada = {"rag_context": "contexto real", "spin_state": {"situation": {"known": [], "missing": []}}}
+        with patch(
+            "agent.sales_reasoning_engine.chamar_ia_com_fallback_claude",
+            new=AsyncMock(return_value=self._resposta_valida()),
+        ), patch("api.database.criar_audit_trail_entry") as mock_audit:
+            self._run(entrada, usuario_id="u1", meeting_id="m1")
+
+        mock_audit.assert_called_once()
+        _, kwargs = mock_audit.call_args
+        self.assertEqual(kwargs["actor"], "sales_reasoning_engine")
+        self.assertEqual(kwargs["action"], "gerar_recomendacao")
+        self.assertEqual(kwargs["reason"], "dor confirmada mas sem impacto financeiro mapeado ainda")
+        self.assertIn("SPIN_IMPLICATION", kwargs["result"])
+        self.assertIn("aprofundar impacto", kwargs["result"])
+        self.assertEqual(kwargs["meeting_id"], "m1")
+        self.assertEqual(kwargs["model"], "deepseek-chat")
+        self.assertTrue(kwargs["prompt_version"])
+        self.assertTrue(kwargs["rule_version"])
+        # data_used só lista os campos realmente preenchidos, nunca o
+        # conteúdo (transcrição/PII já vive em MeetingMemory).
+        self.assertEqual(kwargs["data_used"]["campos_preenchidos"], ["rag_context", "spin_state"])
+
+    def test_grava_audit_trail_em_falha_e_ainda_propaga_o_erro_original(self):
+        with patch(
+            "agent.sales_reasoning_engine.chamar_ia_com_fallback_claude",
+            new=AsyncMock(side_effect=RuntimeError("provedor indisponível")),
+        ), patch("api.database.criar_audit_trail_entry") as mock_audit:
+            with self.assertRaises(RuntimeError):
+                self._run({}, meeting_id="m2")
+
+        mock_audit.assert_called_once()
+        _, kwargs = mock_audit.call_args
+        self.assertIn("erro", kwargs["result"].lower())
+        self.assertIn("provedor indisponível", kwargs["result"])
+        self.assertEqual(kwargs["meeting_id"], "m2")
+
+    def test_falha_ao_gravar_audit_trail_nunca_derruba_o_raciocinio_real(self):
+        with patch(
+            "agent.sales_reasoning_engine.chamar_ia_com_fallback_claude",
+            new=AsyncMock(return_value=self._resposta_valida()),
+        ), patch("api.database.criar_audit_trail_entry", side_effect=Exception("db indisponível")):
+            resultado = self._run({})
+
+        self.assertEqual(resultado["recommended_framework"], "SPIN_IMPLICATION")
+
+    def test_falha_ao_gravar_audit_trail_no_caminho_de_erro_preserva_excecao_original(self):
+        with patch(
+            "agent.sales_reasoning_engine.chamar_ia_com_fallback_claude",
+            new=AsyncMock(side_effect=ValueError("resposta malformada")),
+        ), patch("api.database.criar_audit_trail_entry", side_effect=Exception("db indisponível")):
+            with self.assertRaises(ValueError):
+                self._run({})
+
+
 if __name__ == "__main__":
     unittest.main()

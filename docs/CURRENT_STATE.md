@@ -1,5 +1,31 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-09-22 — Backend **V.1.4.130** (local, **pendente
+push + deploy**): usuário pediu um levantamento do que falta do
+"PROMPT MESTRE — SALE-IA V2" (25 fases) frente aos 4 temas do
+subtítulo do documento (Sales Intelligence, Sales Science, Learning
+Loop, preparação para o Autonomous Digital Sales Twin). Achado: Fases
+0-24 já estavam todas implementadas (maioria só contrato/regra, sem
+wiring real) — só a **Fase 25 (Critério para iniciar o Digital Sales
+Twin)** nunca começou, nenhum dos 9 critérios objetivos tem número
+real hoje (`audit coverage`, `event precision`, `hallucination rate`
+etc.). Usuário confirmou começar pela frente mais barata: **ligar o
+Audit Trail (Fase 18.4) em produção** — `agent/
+sales_reasoning_engine.py::raciocinar_async()` (único choke-point de
+IA do `SalesReasoningEngine`, Fase 7) agora grava 1 `AuditTrailEntry`
+por chamada real, sucesso ou falha, best-effort (nunca derruba o
+raciocínio real). `data_used` guarda só quais dos 11 campos de entrada
+vieram preenchidos (nunca o conteúdo). Primeiro uso real dos campos
+`prompt_version`/`rule_version` (constantes novas `sales_reasoning_
+engine.v1`) pedidos pela Seção 34 do prompt mestre. 4 testes novos.
+Suite completa: **1396 testes, 0 falhas**, 1 skip pré-existente — sem
+regressão. Detalhe completo em CHANGELOG.md. **Só cobre chamadas via
+`raciocinar_async()` — não é "audit coverage = 100%" do sistema
+inteiro.** As outras 4 frentes da Fase 25 (Recommendation Usage em
+produção, Golden Dataset → Quality Monitoring, benchmark de
+transcrição, escalonamento humano) e push + deploy desta versão não
+começam sem nova confirmação explícita do usuário.
+
 Atualizado em: 2026-09-21 — Backend **V.1.4.127-129** (local + GitHub,
 **deploy parcial na VPS**): commit `7fa3a0e` (bundle das 3 versões:
 débito técnico SDK Gemini/modelo Anthropic, Bloco 6.1 parcial,
