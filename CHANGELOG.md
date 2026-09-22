@@ -5,7 +5,7 @@
 
 ## V.1.4.131 — Recommendation Usage ligado em produção (Fase 25 — "o que falta pra ligar", item 2/5)
 
-> Data: 22/09/2026 | Local (pendente push + deploy)
+> Data: 22/09/2026 | Local + GitHub (commit `d564807`) + **produção confirmada**, `/health` = `versao 1.4.131`
 
 Segunda frente da Fase 25 confirmada pelo usuário ("próxima tarefa").
 Investigação prévia (antes de codar) achou que nada em produção
@@ -61,10 +61,14 @@ mudar** (evita 1 linha por ciclo de 60s repetindo a mesma coisa) e
   dele). `outcome_window` (Tarefa 10.3, avanço de estágio/resultado)
   também não é preenchido aqui — fora do escopo desta frente.
 - Versão: `1.4.130` → `1.4.131`.
-- **Pendente**: push + deploy na VPS (aditivo — nenhuma tabela/coluna
-  nova, `recommendation_events` já existe desde a V.1.4.91). Item 3/5
-  da Fase 25 (Golden Dataset → Quality Monitoring, custo real de IA)
-  não começa sem nova confirmação explícita do usuário.
+- **Push + deploy confirmados (22/09/2026)**: commit `d564807` no
+  GitHub. `reunioes_ativas: 0` checado antes/depois na VPS — `git pull`
+  (fast-forward `0101687` → `d564807`) + `systemctl restart saleia` —
+  `active`, journal sem erros (aditivo, `recommendation_events` já
+  existia desde V.1.4.91). Pós-restart: `/health` = `versao 1.4.131`,
+  `status online`, 4 provedores `ok`; `/dashboard` = `200`. Item 3/5 da
+  Fase 25 (Golden Dataset → Quality Monitoring, custo real de IA) não
+  começa sem nova confirmação explícita do usuário.
 
 ---
 

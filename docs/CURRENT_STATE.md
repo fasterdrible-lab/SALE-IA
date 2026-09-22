@@ -1,7 +1,8 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-22 — Backend **V.1.4.131** (local, **pendente
-push + deploy**): segunda frente da Fase 25 ("o que falta pra ligar",
+Atualizado em: 2026-09-22 — Backend **V.1.4.131** (local + GitHub +
+**produção confirmada**, `/health` = `versao 1.4.131`): segunda frente
+da Fase 25 ("o que falta pra ligar",
 item 2/5) — **Recommendation Usage em produção**. Investigação prévia
 achou que nada em produção escrevia `RecommendationEvent` (só a
 Tarefa 10.2/embeddings existia pronta, nunca chamada). `agent/
@@ -18,9 +19,13 @@ nova, só é logado — mesma disciplina "derivável sob demanda" já
 decidida na Tarefa 10.2. Kill-switch `RECOMMENDATION_TRACKING_ENABLED`
 (default `true`, custo local). Reunião anônima/`"default"` nunca grava
 nada. 17 testes novos. Suite completa: **1413 testes, 0 falhas**, 1
-skip pré-existente — sem regressão. Detalhe completo em CHANGELOG.md.
-**Item 3/5 da Fase 25 (Golden Dataset → Quality Monitoring, custo real
-de IA) e push + deploy desta versão não começam sem nova confirmação
+skip pré-existente — sem regressão. **Deploy confirmado (22/09/2026)**:
+commit `d564807`, `reunioes_ativas: 0` checado antes/depois — `git
+pull` (fast-forward `0101687` → `d564807`) + `systemctl restart
+saleia` — `active`, journal sem erros; `/health` = `versao 1.4.131`,
+`status online`, 4 provedores `ok`; `/dashboard` = `200`. Detalhe
+completo em CHANGELOG.md. **Item 3/5 da Fase 25 (Golden Dataset →
+Quality Monitoring, custo real de IA) não começa sem nova confirmação
 explícita do usuário.**
 
 Atualizado em: 2026-09-22 — Backend **V.1.4.130** (local + GitHub +
