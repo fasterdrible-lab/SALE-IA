@@ -5,7 +5,7 @@
 
 ## V.1.4.130 — Audit Trail conectado ao SalesReasoningEngine (Fase 25 — "o que falta pra ligar")
 
-> Data: 22/09/2026 | Local (pendente push + deploy)
+> Data: 22/09/2026 | Local + GitHub (commit `0101687`) + **produção confirmada**, `/health` = `versao 1.4.130`
 
 Usuário pediu um levantamento do que falta do "PROMPT MESTRE — SALE-IA
 V2" (25 fases) frente aos 4 temas do subtítulo do documento ("Sales
@@ -61,8 +61,13 @@ gravando nele.
   Dataset → Quality Monitoring, benchmark de transcrição, escalonamento
   humano) não começam sem nova confirmação explícita do usuário.
 - Versão: `1.4.129` → `1.4.130`.
-- **Pendente**: push + deploy na VPS (aditivo — nenhuma tabela/coluna
-  nova, `audit_trail_entries` já existe desde a V.1.4.108).
+- **Push + deploy confirmados (22/09/2026)**: commit `0101687` no
+  GitHub. `reunioes_ativas: 0` checado antes/depois na VPS — `git pull`
+  (fast-forward `7fa3a0e` → `0101687`) + `systemctl restart saleia` —
+  `active`, journal sem erros (sem corrida de DDL desta vez, a tabela
+  `audit_trail_entries` já existia desde V.1.4.108). Pós-restart:
+  `/health` = `versao 1.4.130`, `status online`, 4 provedores `ok`;
+  `/dashboard` = `200`.
 
 ---
 

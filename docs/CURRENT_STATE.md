@@ -1,7 +1,8 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-22 — Backend **V.1.4.130** (local, **pendente
-push + deploy**): usuário pediu um levantamento do que falta do
+Atualizado em: 2026-09-22 — Backend **V.1.4.130** (local + GitHub +
+**produção confirmada**, `/health` = `versao 1.4.130`): usuário pediu
+um levantamento do que falta do
 "PROMPT MESTRE — SALE-IA V2" (25 fases) frente aos 4 temas do
 subtítulo do documento (Sales Intelligence, Sales Science, Learning
 Loop, preparação para o Autonomous Digital Sales Twin). Achado: Fases
@@ -19,12 +20,16 @@ vieram preenchidos (nunca o conteúdo). Primeiro uso real dos campos
 `prompt_version`/`rule_version` (constantes novas `sales_reasoning_
 engine.v1`) pedidos pela Seção 34 do prompt mestre. 4 testes novos.
 Suite completa: **1396 testes, 0 falhas**, 1 skip pré-existente — sem
-regressão. Detalhe completo em CHANGELOG.md. **Só cobre chamadas via
-`raciocinar_async()` — não é "audit coverage = 100%" do sistema
-inteiro.** As outras 4 frentes da Fase 25 (Recommendation Usage em
-produção, Golden Dataset → Quality Monitoring, benchmark de
-transcrição, escalonamento humano) e push + deploy desta versão não
-começam sem nova confirmação explícita do usuário.
+regressão. **Deploy confirmado (22/09/2026)**: commit `0101687`,
+`reunioes_ativas: 0` checado antes/depois — `git pull` (fast-forward
+`7fa3a0e` → `0101687`) + `systemctl restart saleia` — `active`, journal
+sem erros; `/health` = `versao 1.4.130`, `status online`, 4 provedores
+`ok`; `/dashboard` = `200`. Detalhe completo em CHANGELOG.md. **Só
+cobre chamadas via `raciocinar_async()` — não é "audit coverage =
+100%" do sistema inteiro.** As outras 4 frentes da Fase 25
+(Recommendation Usage em produção, Golden Dataset → Quality Monitoring,
+benchmark de transcrição, escalonamento humano) não começam sem nova
+confirmação explícita do usuário.
 
 Atualizado em: 2026-09-21 — Backend **V.1.4.127-129** (local + GitHub,
 **deploy parcial na VPS**): commit `7fa3a0e` (bundle das 3 versões:
