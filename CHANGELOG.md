@@ -52,8 +52,19 @@ AutonomyPolicy (Fase 17) nunca roda em produção (dormente).
   integração com os outros 2 tipos potenciais de violação (exigiriam
   construir detectores novos, fora do escopo desta rodada).
 - Versão: `1.4.136` → `1.4.137`.
-- **Pendente**: push + deploy na VPS (aditivo — tabela nova via
-  `create_all()`, sem coluna nova em tabela existente).
+- **Push + deploy confirmados (23/09/2026, 17:06 UTC)**: commit
+  `a7b110c` no GitHub. `reunioes_ativas: 0` checado antes do
+  `git pull`/restart. **Corrida de DDL entre os 2 workers do uvicorn**
+  criando `policy_violation_events` (mesmo padrão já visto em
+  V.1.4.108/119) — um worker criou a tabela, o outro recebeu
+  `pymysql.err.OperationalError (1684, "Table ... was skipped since
+  its definition is being modified by concurrent DDL statement")` no
+  `DESCRIBE` de verificação, matando esse worker; como um dos dois
+  falhou ao subir, o `uvicorn` derrubou o processo inteiro e o
+  `systemd` reiniciou automaticamente (`NRestarts=1`, ~6s de
+  indisponibilidade real). Na 2ª tentativa a tabela já existia, sem
+  disputa. Pós-recuperação: `/health` = `versao 1.4.137`, `status
+  online`, `reunioes_ativas 0`, 4 provedores `ok`.
 
 ---
 
