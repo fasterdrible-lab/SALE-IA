@@ -1,5 +1,113 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-09-23 — Backend **V.1.4.136** (local, pendente
+deploy): medindo `E2E_success`/`audit_coverage`/`recommendation_
+quality` (Fase 25). `recommendation_quality` confirmado como NÃO
+gratuito (state de `RecommendationEvent` só logado, nunca persistido
+— mesmo gap já exposto pelo endpoint `/admin/observabilidade/
+metricas` em produção). `E2E_success` (proxy = 1−error_rate) = 85,5%
+nos últimos 7 dias, abaixo do alvo de 99%. **Achado real**:
+`audit_coverage` degrada de ~100% (logo após o restart diário
+automático) pra 0-11% ao longo do uptime — 21/09=0%, 22/09=10,8%,
+23/09 pós-restart=100%. Investigação read-only na VPS descartou
+esgotamento de pool de conexão (`Max_used_connections=13` de 151),
+bypass do choke-point de auditoria, falha de chamada de IA, e task
+cancelada escapando do Shadow Mode (zero "Task exception was never
+retrieved" no journal) — a causa real está sendo engolida por um
+`except Exception` best-effort, mas só logada em `debug` (nível de
+produção é `INFO`, mensagem invisível). **Mudança temporária de
+diagnóstico**: 2 `logger.debug`→`logger.warning` (`agent/
+sales_reasoning_engine.py::_registrar_audit_trail`, `agent/
+multiagente/orquestrador.py::_rodar_shadow_mode`) — zero mudança de
+comportamento, só visibilidade. Detalhe completo (o que foi
+descartado e como) no CHANGELOG.md. Versão: `1.4.135` → `1.4.136`.
+**Pendente: push + deploy (aguardando reunioes_ativas=0 — reunião
+real ativa há mais de 80 minutos). Corrigir a causa raiz não começa
+sem nova confirmação explícita do usuário, depois de capturar o
+warning real no journal.**
+
+Atualizado em: 2026-09-23 — Backend **V.1.4.135** (local, sem impacto
+em produção): usuário pediu pra medir os 9 critérios objetivos da
+Fase 25 de verdade, começando pelo Golden Dataset (`scripts/
+quality_monitoring_golden_run.py --real`, até 164 chamadas reais de
+IA), nunca rodado de ponta a ponta até então. **1ª rodada real**
+(40 cenários) devolveu `hallucination_rate=90.87%`/
+`evidence_coverage=9.13%` — número alto demais pra aceitar sem
+investigar, mesma disciplina já usada na V.1.4.132 (framework_accuracy
+inicial de 33% também não refletia qualidade real). **Achado
+confirmado com diagnóstico pontual (2 cenários, IA real)**: o checador
+de evidência (`texto_contido_em`, agora removido) só aceitava
+`evidence` que fosse substring literal do TEXTO BRUTO da conversa —
+mas o prompt do `SalesReasoningEngine` permite citar qualquer campo de
+entrada recebido, inclusive resumos verdadeiros em linguagem natural
+sobre `spin_state`/`meddpicc_state` (ex.: `"meddpicc_state é null"`,
+`"spin_state.problem.missing inclui 'main_pain'"` — ambos 100% reais,
+só não são citação literal de nada). O checador batia só contra a
+fala da conversa, então marcava esses resumos estruturais corretos
+como "sem evidência" — inflando o hallucination_rate artificialmente,
+não um problema real do motor de raciocínio.
+**`agent/quality_monitoring_golden_runner.py::evidencia_fundamentada()`**
+(nova, substitui `texto_contido_em`): compara contra o MESMO bundle de
+11 campos que `raciocinar_async()` de fato serializa no prompt
+(`montar_texto_fundamentacao()`), e tolera paráfrase (cobertura de
+≥60% das palavras significativas da afirmação, não substring exata) —
+ainda determinístico, sem LLM-judge novo, sem custo de IA extra pra
+medir. **2ª rodada real, com o checador corrigido**:
+`hallucination_rate=14.44%`, `evidence_coverage=85.56%`,
+`framework_accuracy=44.44%` (variação normal de chamada real de IA
+frente aos 37.04% da 1ª rodada — framework_accuracy não depende do
+checador), `objection_precision=0.75` (igual às 2 rodadas, também não
+depende do checador). Relatório salvo em `docs/
+QUALITY_MONITORING_GOLDEN_REPORT.json`. 10 testes novos/reescritos em
+`tests/test_quality_monitoring_golden_runner.py` (32 no total no
+arquivo). **`event_precision`/`recommendation_relevance` continuam
+gap explícito** (mesma limitação estrutural documentada desde a
+V.1.4.132 — nenhum extrator de `SalesEvent` existe; LLM-judge é
+decisão de custo separada). Versão: `1.4.134` → `1.4.135`.
+**Pendente: push + deploy na VPS (código do runner é ferramenta de
+avaliação offline, nunca chamada por caminho real do app — impacto
+zero em produção mesmo sem deploy imediato). Medir os 5 critérios
+restantes da Fase 25 (transcription_reliability, policy_violation,
+recommendation_quality, E2E_success, audit_coverage) não começa sem
+nova confirmação explícita do usuário.**
+
+Atualizado em: 2026-09-23 — Backend **V.1.4.134** (local, sem impacto
+em produção): quinta e última frente da Fase 25 ("o que falta pra
+ligar", item 5/5) — **motor + disparo real de escalonamento humano**.
+Usuário confirmou escopo antes de codar (mesma disciplina de toda
+fase/tarefa do roadmap): "funcional" (texto literal do critério,
+`human escalation functional = 100%`) foi lido como "precisa
+notificar alguém de verdade", diferente da maioria das fases que ficam
+só no contrato — então esta rodada tem função pura + disparo real via
+o canal Telegram já ativo em produção (`agent/alertas.py::alertar()`),
+sem canal novo. `agent/human_escalation_rules.py` (novo):
+`precisa_escalar_para_humano()` reaproveita as fronteiras de decisão
+de `autonomy_policy_rules.py` (Fase 17) — sempre `True` pra
+`FORBIDDEN`/`HUMAN_REQUIRED`/`HUMAN_APPROVAL`, condicional pra
+`POLICY_DEPENDENT` sem aprovação, sempre `False` pra `AUTONOMOUS`.
+Achado/correção desta rodada: a decisão foi feita **independente do
+nível de autonomia atual do sistema** — misturar os dois geraria
+escalonamento falso toda vez que uma ação `AUTONOMOUS` fosse tentada
+num nível baixo (`OBSERVE`/`RECOMMEND`), que é decisão de operação,
+não motivo real pra chamar um humano. `montar_escalonamento()` monta o
+registro (`acao`/`fronteira`/`motivo` obrigatórios, `contexto` livre).
+`agent/alertas.py::escalar_para_humano()` (novo) dispara o Telegram
+real — **nunca tem cooldown** (diferente dos outros alertas do módulo:
+um escalonamento real precisa notificar sempre, quem decide ignorar é
+o humano). 26 testes novos (`tests/test_human_escalation_rules.py` +
+3 em `tests/test_alertas.py`). Suite completa: **1488 testes, 0
+falhas**, 1 skip pré-existente — sem regressão. Sem integração com
+`orquestrador.py` — nada autônomo roda em produção hoje
+(`AutonomyPolicy`, Fase 17, segue dormente), então nada dispara este
+mecanismo automaticamente ainda; ele fica pronto pra quando essa
+decisão for tomada. Versão: `1.4.133` → `1.4.134`. **Pendente: push +
+deploy na VPS (aditivo, sem tabela/coluna nova). Fecha os 5/5 itens de
+"o que falta pra ligar" documentados desde a V.1.4.126 — os 9
+critérios objetivos da Fase 25 (`event_precision`/`objection_
+classification`/`hallucination_rate`/`policy_violation`/etc.) ainda
+não têm número real medido em produção; medir isso de verdade é
+decisão de escopo separada, não tomada nesta rodada.**
+
 Atualizado em: 2026-09-23 — Backend **V.1.4.133** (local, sem impacto
 em produção): quarta frente da Fase 25 ("o que falta pra ligar", item
 4/5) — **motor de cálculo do benchmark de transcrição**. Usuário

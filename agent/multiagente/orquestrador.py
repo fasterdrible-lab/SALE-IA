@@ -505,7 +505,9 @@ async def _rodar_shadow_mode(
         recomendacao_nova = await raciocinar_async(entrada, usuario_id=usuario_id, meeting_id=meeting_id)
     except Exception as e:
         erro = f"{type(e).__name__}: {e}"
-        logger.debug("[ShadowMode] raciocinar_async falhou (esperado, melhor esforço): %s", erro)
+        # Diagnóstico temporário (V.1.4.136) — ver nota em
+        # agent/sales_reasoning_engine.py::_registrar_audit_trail.
+        logger.warning("[ShadowMode] raciocinar_async falhou (esperado, melhor esforço): %s", erro)
     latency_ms = int((_time.monotonic() - inicio) * 1000)
 
     cost_usd = None
