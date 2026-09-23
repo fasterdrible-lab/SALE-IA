@@ -3,6 +3,73 @@
 
 ---
 
+## V.1.4.133 — Motor de cálculo do benchmark de transcrição (Fase 25 — "o que falta pra ligar", item 4/5)
+
+> Data: 23/09/2026 | Local (sem impacto em produção — módulo puro, nunca chamado por nenhum caminho real do app)
+
+Quarta frente da Fase 25 (Critério para iniciar o Digital Sales Twin),
+alimentando o critério literal `transcription reliability >= alvo
+definido`. Usuário confirmou o escopo antes de codar (pergunta direta,
+mesma disciplina das Fases 7/10/13/14/16/18.2/19-24): benchmark de WER
+real exige comparar a saída de cada provedor contra uma transcrição-
+gabarito de áudio real — nenhum dataset assim existe hoje no projeto
+(confirmado por grep, sem WER/jiwer/benchmark em nenhum arquivo Python
+antes desta rodada). Usuário escolheu **só o motor de cálculo** — sem
+dataset de áudio real ainda, mesma disciplina "contrato primeiro" já
+usada em `quality_monitoring_rules.py` (Tarefa 19.1) antes do Golden
+Sales Dataset (Fase 20) existir.
+
+- **`agent/transcription_benchmark_rules.py`** (novo, função pura, sem
+  IA/banco, mesmo padrão de `win_loss_rules.py`/`observability_
+  metrics_rules.py`): `calcular_wer(referencia, hipotese)` — Word
+  Error Rate clássico via distância de edição (Levenshtein) a nível de
+  palavra, implementado em Python puro (zero dependência nova, mesmo
+  princípio de `win_loss_rules.py`: zero numpy/scipy). Comparação
+  sempre case-insensitive. `referencia` vazia devolve `wer=None`
+  (indefinido, nunca dividido por zero).
+- **`TRANSCRIPTION_PROVIDERS`** espelha as 3 chaves reais de
+  `api/main.py::_TRANSCRICAO_PROVEDORES` (`whisper`/`groq`/
+  `whisper_local`) — documentação do vocabulário esperado, nunca
+  imposta pelas funções (aceitam qualquer string de provider), mesmo
+  princípio de `WIN_LOSS_VARIAVEIS` em `win_loss_rules.py`.
+- **`WER_ALVO_PADRAO = 0.10`** ("alvo definido" do texto literal da
+  Fase 25) — decisão desta rodada: WER ≤ 10% (90% de acurácia de
+  palavras), mesma ordem de grandeza dos outros 2 critérios de
+  acurácia da fase (`event_precision`/`objection_classification` ≥
+  90%). Sobrescrevível por chamada via `avaliar_meta_confiabilidade()`.
+- **`montar_resultado_transcricao()`**/**`comparar_provedores()`**:
+  reaproveitam, sem duplicar nenhum cálculo estatístico,
+  `win_loss_rules.calcular_limites_iqr`/`detectar_outliers_iqr` (Fase
+  8 — outlier de WER tratado igual a outlier de ticket/cycle/
+  talk_ratio) e `observability_metrics_rules.calcular_estatisticas_
+  latencia` (Fase 19). Provider sem nenhum `wer` real nunca aparece
+  com `0`/`atinge_meta=False` por omissão — ambos vêm `None`.
+- **`TRANSCRIPTION_BENCHMARK_SEM_DATASET_REAL`** — dict explícito
+  documentando o gap, mesmo padrão de `RAG_LATENCY_NAO_CAPTURADA`
+  (Fase 19) e `QUALITY_METRIC_SEM_GABARITO` (Tarefa 19.1): as funções
+  calculam corretamente, mas rodar de verdade contra os 3 provedores
+  reais exige reunir/gravar um dataset de áudio com transcrição-
+  gabarito primeiro — decisão de escopo separada, análoga ao Golden
+  Sales Dataset (Fase 20).
+- 22 testes novos (`tests/test_transcription_benchmark_rules.py`),
+  incluindo os 3 casos hand-verificados de WER (uma deleção, uma
+  inserção, uma substituição isoladas) e a guarda de outliers nunca
+  distorcendo o WER médio silenciosamente. Suite completa: **1462
+  testes** (1436 + 22 novos, mais 4 já existentes desde a V.1.4.132
+  não contados na nota anterior), **0 falhas**, 1 skip pré-existente —
+  sem regressão.
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`/`processador_tempo_real.py`, sem endpoint HTTP,
+  sem persistência nova — mesma disciplina das Fases 1-24. Rodar o
+  benchmark de verdade (o próprio item 4/5 da Fase 25) e o item 5/5
+  (escalonamento humano) não começam sem nova confirmação explícita
+  do usuário.
+- Versão: `1.4.132` → `1.4.133`.
+- **Pendente**: push + deploy na VPS (aditivo — módulo novo, sem
+  tabela/coluna nova).
+
+---
+
 ## V.1.4.132 — Golden Dataset → Quality Monitoring (Fase 25 — "o que falta pra ligar", item 3/5)
 
 > Data: 22/09/2026 | Local (sem impacto em produção — ferramenta de avaliação offline, nunca chamada por nenhum caminho real do app)

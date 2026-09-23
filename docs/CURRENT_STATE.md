@@ -1,5 +1,35 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-09-23 — Backend **V.1.4.133** (local, sem impacto
+em produção): quarta frente da Fase 25 ("o que falta pra ligar", item
+4/5) — **motor de cálculo do benchmark de transcrição**. Usuário
+confirmou escopo antes de codar (mesma disciplina de toda fase/tarefa
+do roadmap): sem dataset de áudio real com transcrição-gabarito hoje
+no projeto (confirmado por grep antes de perguntar), então esta rodada
+constrói só as funções puras (WER via distância de edição a nível de
+palavra, comparação entre os 3 provedores reais — `whisper`/`groq`/
+`whisper_local` — e avaliação contra a meta), sem rodar nenhum
+benchmark de verdade ainda. `agent/transcription_benchmark_rules.py`
+(novo): `calcular_wer()` (Levenshtein por palavra, Python puro, zero
+dependência nova), `avaliar_meta_confiabilidade()` (`WER_ALVO_PADRAO
+= 0.10`, decisão desta rodada — mesma ordem de grandeza dos outros 2
+critérios de acurácia da Fase 25, `event_precision`/`objection_
+classification >= 90%`), `comparar_provedores()` (reaproveita
+`win_loss_rules.calcular_limites_iqr`/`detectar_outliers_iqr`, Fase 8,
+e `observability_metrics_rules.calcular_estatisticas_latencia`, Fase
+19 — nenhum cálculo estatístico duplicado). `TRANSCRIPTION_BENCHMARK_
+SEM_DATASET_REAL` documenta o gap explicitamente, mesmo padrão de
+`RAG_LATENCY_NAO_CAPTURADA`/`QUALITY_METRIC_SEM_GABARITO`. 22 testes
+novos (`tests/test_transcription_benchmark_rules.py`). Suite completa:
+**1462 testes, 0 falhas**, 1 skip pré-existente — sem regressão. Sem
+integração com `orquestrador.py`/endpoint HTTP/persistência nova —
+mesma disciplina "contrato primeiro" das Fases 1-24. **Pendente: push
++ deploy na VPS (aditivo, sem tabela/coluna nova). Rodar o benchmark
+de verdade (item 4/5) exige antes reunir/gravar um dataset de áudio
+real com gabarito — decisão de escopo separada, análoga ao Golden
+Sales Dataset da Fase 20. Item 5/5 da Fase 25 (escalonamento humano)
+não começa sem nova confirmação explícita do usuário.**
+
 Atualizado em: 2026-09-22 — Backend **V.1.4.132** (local, sem impacto
 em produção): terceira frente da Fase 25 ("o que falta pra ligar",
 item 3/5) — **Golden Dataset → Quality Monitoring**. Construído
