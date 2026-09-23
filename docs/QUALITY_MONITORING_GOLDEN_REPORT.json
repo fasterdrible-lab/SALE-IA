@@ -1,0 +1,21 @@
+{
+  "event_precision": {
+    "disponivel": false,
+    "motivo": "Exige comparar a saída da IA contra um gabarito rotulado (Fase 20 — Golden Sales Dataset — ainda não construída). Sem gabarito real, calcular isso geraria um número sem lastro."
+  },
+  "objection_precision": 0.75,
+  "framework_accuracy": 0.4444,
+  "recommendation_relevance": {
+    "disponivel": false,
+    "motivo": "Exige LLM-judge (chamada de IA extra por cenário) — decisão de custo separada, não incluída nesta rodada."
+  },
+  "hallucination_rate": 0.1444,
+  "evidence_coverage": 0.8556,
+  "amostra": {
+    "total_cenarios": 40,
+    "framework_total": 27,
+    "objecao_total": 4,
+    "afirmacoes_total": 187,
+    "erros": []
+  }
+}

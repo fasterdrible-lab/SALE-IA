@@ -2,7 +2,8 @@
 Testes — agent/quality_monitoring_golden_runner.py (Fase 25, "o que
 falta pra ligar", item 3/5: Golden Dataset → Quality Monitoring).
 
-Cobre as funções puras (extrair_categoria_esperada/texto_contido_em/
+Cobre as funções puras (extrair_categoria_esperada/
+evidencia_fundamentada/montar_texto_fundamentacao/
 carregar_cenarios_golden_dataset — sem IA) e o motor real
 (executar_golden_dataset_async, mockando raciocinar_async/
 classificar_categoria_objecao_async, mesmo padrão de
@@ -20,10 +21,11 @@ from unittest.mock import AsyncMock, patch
 from agent.quality_monitoring_golden_runner import (
     ARQUIVO_OBJECOES,
     carregar_cenarios_golden_dataset,
+    evidencia_fundamentada,
     executar_golden_dataset_async,
     extrair_categoria_esperada,
     montar_relatorio_metricas,
-    texto_contido_em,
+    montar_texto_fundamentacao,
 )
 
 
@@ -62,19 +64,58 @@ class ExtrairCategoriaEsperadaTest(unittest.TestCase):
         self.assertIsNone(extrair_categoria_esperada(None))
 
 
-class TextoContidoEmTest(unittest.TestCase):
-    def test_substring_literal(self):
-        self.assertTrue(texto_contido_em("tenho medo da equipe", "Cliente: tenho medo da equipe não usar."))
+class EvidenciaFundamentadaTest(unittest.TestCase):
+    def test_substring_literal_bate(self):
+        self.assertTrue(evidencia_fundamentada("tenho medo da equipe", "Cliente: tenho medo da equipe não usar."))
 
-    def test_case_insensitive_e_espacos_normalizados(self):
-        self.assertTrue(texto_contido_em("  Tenho MEDO   da equipe  ", "cliente diz: tenho medo da equipe hoje"))
+    def test_case_insensitive(self):
+        self.assertTrue(evidencia_fundamentada("Tenho MEDO da equipe", "cliente diz: tenho medo da equipe hoje"))
 
-    def test_nao_contido_retorna_false(self):
-        self.assertFalse(texto_contido_em("frase inventada que não existe", "texto fonte totalmente diferente"))
+    def test_afirmacao_totalmente_fabricada_nao_fundamentada(self):
+        self.assertFalse(evidencia_fundamentada("frase inventada que não existe em lugar nenhum", "texto fonte totalmente diferente"))
 
     def test_afirmacao_vazia_retorna_false(self):
-        self.assertFalse(texto_contido_em("", "qualquer texto fonte"))
-        self.assertFalse(texto_contido_em(None, "qualquer texto fonte"))
+        self.assertFalse(evidencia_fundamentada("", "qualquer texto fonte"))
+        self.assertFalse(evidencia_fundamentada(None, "qualquer texto fonte"))
+
+    def test_paraphrase_de_campo_estruturado_e_fundamentada(self):
+        # Achado real desta rodada: "meddpicc_state é null" é um fato
+        # verdadeiro sobre a entrada (não uma citação literal de
+        # nada), mas precisa contar como fundamentada — diferente do
+        # antigo texto_contido_em (substring estrita), que marcava
+        # isso como alucinação.
+        fonte = 'meddpicc_state:\nnull\n\nspin_state:\n{"problem": {"missing": ["main_pain"]}}'
+        self.assertTrue(evidencia_fundamentada("meddpicc_state é null", fonte))
+        self.assertTrue(evidencia_fundamentada("spin_state.problem.missing inclui 'main_pain'", fonte))
+
+    def test_rotulos_genericos_nao_inflam_cobertura(self):
+        # "cliente"/"vendedor" aparecem em quase toda fonte real —
+        # sozinhos, não podem "fundamentar" uma afirmação fabricada.
+        fonte = "Cliente: preciso pensar. Vendedor: sem problema."
+        self.assertFalse(evidencia_fundamentada(
+            "cliente vendedor aprovou orcamento internamente hoje mesmo", fonte,
+        ))
+
+    def test_cobertura_minima_sobrescrevivel(self):
+        fonte = "apenas uma palavra rara: xilofone"
+        afirmacao = "xilofone mencionado"  # 1 de 2 tokens significativos bate (50%)
+        self.assertFalse(evidencia_fundamentada(afirmacao, fonte, cobertura_minima=0.6))
+        self.assertTrue(evidencia_fundamentada(afirmacao, fonte, cobertura_minima=0.4))
+
+
+class MontarTextoFundamentacaoTest(unittest.TestCase):
+    def test_inclui_texto_bruto_e_campos_estruturados_como_null(self):
+        cenario = {"input": "Cliente: já validei com meu sócio."}
+        texto = montar_texto_fundamentacao(cenario)
+        self.assertIn("já validei com meu sócio", texto)
+        self.assertIn("meddpicc_state", texto)
+        self.assertIn("null", texto)
+
+    def test_contexto_estruturado_aparece_serializado(self):
+        cenario = {"input": "x"}
+        contexto = {"spin_state": {"problem": {"missing": ["main_pain"]}}}
+        texto = montar_texto_fundamentacao(cenario, contexto=contexto)
+        self.assertIn("main_pain", texto)
 
 
 def _cenario_framework(id_, input_, expected_framework):

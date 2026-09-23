@@ -69,9 +69,34 @@ duplicação) = até 164, todas via DeepSeek por padrão (mesmo provedor
 barato já usado no resto da suíte Promptfoo do projeto) — salto de
 custo real frente às 44 da v1, confirmado com o usuário antes de
 rodar.
+
+**Achado real desta rodada (rodagem completa em 23/09/2026,
+`hallucination_rate=90.87%`/`evidence_coverage=9.13%`) — falso
+positivo estrutural, não qualidade real do motor**: o checador
+original (`texto_contido_em`) só aceitava `evidence` que fosse
+substring literal do TEXTO BRUTO do cenário. Mas o prompt do
+`SalesReasoningEngine` (`agent/prompt_templates/
+sales_reasoning_engine.txt`) permite citar qualquer campo de entrada
+recebido — inclusive resumos verdadeiros em linguagem natural sobre
+`spin_state`/`meddpicc_state`/etc. (ex.: `"meddpicc_state é null"`,
+`"spin_state.problem.missing inclui 'main_pain'"` — ambos fatos 100%
+reais sobre a entrada que a IA de fato recebeu, confirmados por
+diagnóstico pontual com IA real). O checador batia só contra o texto
+da conversa, então marcava esses resumos estruturais corretos como
+"sem evidência" — inflando `hallucination_rate` artificialmente.
+Corrigido com `evidencia_fundamentada()`: compara contra o MESMO
+bundle de 11 campos que `raciocinar_async()` de fato serializa no
+prompt (`montar_texto_fundamentacao()`, espelha o loop de
+`agent/sales_reasoning_engine.py::raciocinar_async` que monta o
+prompt), e tolera paráfrase (cobertura de palavras significativas, não
+substring exata) — ainda determinístico, sem LLM-judge novo.
+`texto_contido_em()` (substring estrita) foi removido por ficar sem
+uso real depois desta correção — `evidencia_fundamentada()` é
+estritamente mais correta pro mesmo objetivo.
 """
 
 import asyncio
+import json
 import re
 from pathlib import Path
 from typing import Optional
@@ -120,13 +145,80 @@ def extrair_categoria_esperada(valor: Optional[str]) -> Optional[str]:
     return match.group(1) if match else None
 
 
-def texto_contido_em(afirmacao: Optional[str], texto_fonte: Optional[str]) -> bool:
-    """Substring literal (case-insensitive, espaços normalizados) —
-    mesmo princípio de guarda já usado nos extratores do Bloco 4
-    (`evidence_quote` checada contra a transcrição real)."""
-    a = " ".join((afirmacao or "").split()).lower()
-    f = " ".join((texto_fonte or "").split()).lower()
-    return bool(a) and a in f
+# Conectivos/rótulos genéricos demais pra contar como "conteúdo
+# específico" numa afirmação — sem isso, qualquer afirmação que
+# mencione "cliente"/"vendedor" (aparece em ~100% dos cenários, são os
+# rótulos de fala) inflaria a cobertura de qualquer frase, mesmo
+# fabricada. Lista pequena e deliberada, não um NLP genérico.
+_STOPWORDS_FUNDAMENTACAO = frozenset({
+    "com", "para", "que", "uma", "das", "dos", "essa", "esse",
+    "esta", "este", "isso", "está", "estão", "estao", "sido", "ser",
+    "tem", "não", "nao", "são", "sao", "foi", "pela", "pelo", "algum",
+    "alguma", "sobre", "todos", "todas", "indica", "inclui", "cliente",
+    "vendedor", "campo", "campos", "the", "and", "for", "from",
+})
+
+
+def _tokens_significativos(texto: Optional[str]) -> set:
+    palavras = re.findall(r"[a-zà-öø-ÿ0-9_]+", (texto or "").lower())
+    return {p for p in palavras if len(p) >= 4 and p not in _STOPWORDS_FUNDAMENTACAO}
+
+
+def evidencia_fundamentada(afirmacao: Optional[str], texto_fonte: Optional[str], cobertura_minima: float = 0.6) -> bool:
+    """Mais tolerante que substring exata — aceita paráfrase/resumo
+    verdadeiro em linguagem natural sobre a entrada, não só citação
+    literal da conversa (achado real desta rodada: `evidence` do
+    SalesReasoningEngine legitimamente descreve campos estruturados
+    como `"meddpicc_state é null"`, nunca uma citação literal de nada,
+    mesmo sendo 100% verdadeiro — ver docstring do módulo).
+
+    Considera fundamentada quando pelo menos `cobertura_minima` das
+    palavras significativas (>= 4 caracteres, fora de conectivos/
+    rótulos comuns de `_STOPWORDS_FUNDAMENTACAO`) da afirmação aparecem
+    literalmente em `texto_fonte` — tolera palavra de ligação que a IA
+    usa pra parafrasear um fato real, mas ainda rejeita afirmação cujo
+    conteúdo específico (nome de campo, valor, número, citação) não
+    aparece em lugar nenhum da entrada recebida. Determinístico, sem
+    chamada de IA extra (LLM-judge é decisão de custo separada, Tarefa
+    19.1)."""
+    tokens = _tokens_significativos(afirmacao)
+    if not tokens:
+        return False
+    fonte = (texto_fonte or "").lower()
+    cobertos = sum(1 for t in tokens if t in fonte)
+    return (cobertos / len(tokens)) >= cobertura_minima
+
+
+def _montar_entrada_reasoning(cenario: dict, contexto: Optional[dict] = None, objections: Optional[list] = None) -> dict:
+    entrada = {"meeting_memory": {"transcricao_parcial": cenario["input"]}}
+    if contexto:
+        entrada.update(contexto)
+    if objections:
+        entrada["objections"] = objections
+    return entrada
+
+
+def montar_texto_fundamentacao(cenario: dict, contexto: Optional[dict] = None, objections: Optional[list] = None) -> str:
+    """Texto contra o qual `evidence` é checado por
+    `evidencia_fundamentada()` — reproduz o MESMO bundle de 11 campos
+    que `agent/sales_reasoning_engine.py::raciocinar_async()` de fato
+    serializa no prompt enviado à IA (`construir_input_vazio()` +
+    `entrada`, campo ausente vira `null`, idêntico ao loop de
+    serialização de `raciocinar_async`) — não só o texto bruto da
+    conversa. Isso é o que corrige o falso positivo desta rodada: a
+    IA pode citar `meddpicc_state: null` porque foi literalmente isso
+    que ela recebeu no prompt, mesmo sem aparecer no texto da fala."""
+    from agent.sales_reasoning_engine import SALES_REASONING_INPUT_CAMPOS, construir_input_vazio
+
+    entrada = _montar_entrada_reasoning(cenario, contexto, objections)
+    bundle = {**construir_input_vazio(), **entrada}
+
+    partes = [cenario["input"]]
+    for campo in SALES_REASONING_INPUT_CAMPOS:
+        valor = bundle[campo]
+        serializado = json.dumps(valor, ensure_ascii=False) if valor is not None else "null"
+        partes.append(f"{campo}:\n{serializado}")
+    return "\n\n".join(partes)
 
 
 async def _extrair_contexto_estruturado(cenario: dict) -> dict:
@@ -157,11 +249,7 @@ async def _extrair_contexto_estruturado(cenario: dict) -> dict:
 async def _rodar_reasoning(cenario: dict, contexto: Optional[dict] = None, objections: Optional[list] = None) -> dict:
     from agent.sales_reasoning_engine import raciocinar_async
 
-    entrada = {"meeting_memory": {"transcricao_parcial": cenario["input"]}}
-    if contexto:
-        entrada.update(contexto)
-    if objections:
-        entrada["objections"] = objections
+    entrada = _montar_entrada_reasoning(cenario, contexto, objections)
     return await raciocinar_async(entrada)
 
 
@@ -229,8 +317,9 @@ async def executar_golden_dataset_async(cenarios: Optional[list[dict]] = None) -
                 if saida.get("recommended_framework") == esperado_fw:
                     framework_corretos += 1
 
+            texto_fundamentacao = montar_texto_fundamentacao(cenario, contexto, objections)
             for afirmacao in (saida.get("evidence") or []):
-                if texto_contido_em(afirmacao, cenario.get("input", "")):
+                if evidencia_fundamentada(afirmacao, texto_fundamentacao):
                     afirm_com_evidencia += 1
                 else:
                     afirm_sem_evidencia += 1
