@@ -1,5 +1,16 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-09-23 — Backend **V.1.4.139** (local, pendente
+deploy): recálculo em lote de `recommendation_quality` (Fase 25).
+`agent/recommendation_effectiveness_rules.py::resumir_uso_geral()`
+(novo) + `api/database.py::listar_recommendation_events_
+respondidos()` (novo) + `scripts/recommendation_quality_run.py`
+(novo) — classifica o `state` real de cada `RecommendationEvent` via
+embeddings locais Ollama (custo zero, Tarefa 10.2 já em produção),
+antes só logado, nunca agregado. 12 testes novos, suite completa 1515
+testes/0 falhas. Versão: `1.4.138` → `1.4.139`. **Pendente: push +
+deploy, depois rodar `--real` contra o banco de produção de verdade.**
+
 Atualizado em: 2026-09-23 — Backend **V.1.4.138** (local, pendente
 deploy): 1ª medição real de `transcription_reliability` (Fase 25,
 item 4/5). Dataset novo de 8 falas sintéticas

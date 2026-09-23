@@ -3260,6 +3260,24 @@ def listar_recommendation_events(
         return [_recommendation_event_to_dict(r) for r in rows]
 
 
+def listar_recommendation_events_respondidos(
+    meeting_id: Optional[str] = None,
+    limit: int = 1000,
+) -> List[dict]:
+    """`RecommendationEvent`s com `seller_action` já registrado — o
+    dado real que `agent/recommendation_usage_rules.py::
+    detectar_uso_recomendacao()` (Tarefa 10.2) precisa pra classificar
+    o estado de uso. Usado pelo recálculo em lote da Fase 25
+    (`recommendation_quality`, `scripts/recommendation_quality_run.py`)."""
+    with Session(engine) as session:
+        stmt = select(RecommendationEvent).where(RecommendationEvent.seller_action.is_not(None))
+        if meeting_id:
+            stmt = stmt.where(RecommendationEvent.meeting_id == meeting_id)
+        stmt = stmt.order_by(RecommendationEvent.shown_at.asc()).limit(limit)
+        rows = session.exec(stmt).all()
+        return [_recommendation_event_to_dict(r) for r in rows]
+
+
 def registrar_uso_recommendation_event(
     event_id: int,
     seller_action: str,

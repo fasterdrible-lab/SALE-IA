@@ -15,6 +15,7 @@ import unittest
 from agent.recommendation_effectiveness_rules import (
     TEMPLATE_EFETIVIDADE,
     calcular_efetividade_por_estrategia,
+    resumir_uso_geral,
 )
 
 
@@ -118,6 +119,50 @@ class GuardaContraConfusaoCausalTest(unittest.TestCase):
         eventos = [_evento("A", opportunity_result=None)]
         resumo = calcular_efetividade_por_estrategia(eventos)
         self.assertIsNone(resumo["A"]["taxa_desfecho_positivo"])
+
+
+class ResumirUsoGeralTest(unittest.TestCase):
+    """Fase 25 ("o que falta pra ligar") — agregado simples de uso
+    real, sem quebrar por estratégia."""
+
+    def test_conta_cada_estado(self):
+        estados = ["USED", "USED", "PARTIALLY_USED", "IGNORED", "UNKNOWN"]
+        resumo = resumir_uso_geral(estados)
+        self.assertEqual(resumo["total"], 5)
+        self.assertEqual(resumo["por_estado"]["USED"], 2)
+        self.assertEqual(resumo["por_estado"]["PARTIALLY_USED"], 1)
+        self.assertEqual(resumo["por_estado"]["IGNORED"], 1)
+        self.assertEqual(resumo["por_estado"]["UNKNOWN"], 1)
+
+    def test_taxa_uso_real_exclui_unknown_do_denominador(self):
+        # 2 USED + 1 IGNORED conhecidos, 1 UNKNOWN fora da conta —
+        # taxa = 2/3, não 2/4.
+        estados = ["USED", "USED", "IGNORED", "UNKNOWN"]
+        resumo = resumir_uso_geral(estados)
+        self.assertAlmostEqual(resumo["taxa_uso_real"], 2 / 3)
+
+    def test_partially_used_conta_como_uso(self):
+        estados = ["PARTIALLY_USED", "IGNORED"]
+        resumo = resumir_uso_geral(estados)
+        self.assertAlmostEqual(resumo["taxa_uso_real"], 0.5)
+
+    def test_todos_unknown_taxa_e_none_nunca_inventa_numero(self):
+        estados = ["UNKNOWN", "UNKNOWN"]
+        resumo = resumir_uso_geral(estados)
+        self.assertIsNone(resumo["taxa_uso_real"])
+
+    def test_lista_vazia_nunca_quebra(self):
+        resumo = resumir_uso_geral([])
+        self.assertEqual(resumo["total"], 0)
+        self.assertIsNone(resumo["taxa_uso_real"])
+
+    def test_estado_invalido_levanta(self):
+        with self.assertRaises(ValueError):
+            resumir_uso_geral(["ESTADO_QUE_NAO_EXISTE"])
+
+    def test_todos_os_4_estados_sempre_presentes_no_por_estado(self):
+        resumo = resumir_uso_geral(["USED"])
+        self.assertEqual(set(resumo["por_estado"].keys()), {"USED", "PARTIALLY_USED", "IGNORED", "UNKNOWN"})
 
 
 if __name__ == "__main__":

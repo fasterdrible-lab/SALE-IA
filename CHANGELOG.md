@@ -3,6 +3,60 @@
 
 ---
 
+## V.1.4.139 — Recálculo em lote de recommendation_quality (Fase 25 — medindo os 9 critérios de verdade)
+
+> Data: 23/09/2026 | Local, pendente deploy (código novo, sem tabela/coluna nova)
+
+Usuário confirmou construir o recálculo real de `recommendation_
+quality`. Investigação prévia: `agent/recommendation_usage_rules.py::
+detectar_uso_recomendacao()` (Tarefa 10.2, já em produção desde
+V.1.4.131) classifica o uso real de cada `RecommendationEvent` via
+embeddings locais Ollama (**custo zero**, decisão já confirmada
+naquela tarefa), mas o `state` resultante era só logado
+(`logger.info`), nunca agregado — por isso `GET /admin/
+observabilidade/metricas` (Fase 19) ainda expõe `recommendation_
+effectiveness` como `RECOMMENDATION_EFFECTIVENESS_NAO_DISPONIVEL`.
+
+- **`agent/recommendation_effectiveness_rules.py::resumir_uso_geral()`**
+  (novo): agregado simples — conta cada um dos 4 estados
+  (`RECOMMENDATION_USAGE_STATES`, Tarefa 10.2) e calcula `taxa_uso_
+  real` (`USED`+`PARTIALLY_USED` sobre o total com estado CONHECIDO —
+  `UNKNOWN` fica fora do denominador, "não sabemos se foi usada" é
+  diferente de "não foi usada"). Complementar a `calcular_efetividade_
+  por_estrategia()` (Tarefa 10.3, inalterada), que exige `strategy`
+  por evento — este é o número único, sem quebra.
+- **`api/database.py::listar_recommendation_events_respondidos()`**
+  (novo): `RecommendationEvent`s reais com `seller_action` já
+  registrado (o dado que a Tarefa 10.2 precisa pra classificar) — sem
+  limite artificial de 200 como `listar_recommendation_events()`
+  (mesmo padrão de query, mas escopada pro caso real deste recálculo).
+- **`scripts/recommendation_quality_run.py`** (novo, mesmo padrão de
+  `scripts/quality_monitoring_golden_run.py`/`transcription_
+  benchmark_run.py`): busca os eventos reais respondidos, classifica
+  cada um via `detectar_uso_recomendacao()` (embeddings locais,
+  **$0,00 de custo real**), agrega via `resumir_uso_geral()` +
+  `calcular_efetividade_por_estrategia()`. `taxa_avanco`/`taxa_
+  desfecho_positivo` (Tarefa 10.3) continuam `None` — `stage_
+  advanced`/`opportunity_result` não são capturados em nenhum lugar
+  da produção ainda, gap documentado à parte, fora do escopo desta
+  rodada (que fecha só a classificação real de USO).
+- 12 testes novos (7 em `tests/test_recommendation_effectiveness_
+  rules.py::ResumirUsoGeralTest` + 3 em `tests/
+  test_recommendation_event.py`). Suite completa: **1515 testes**, 0
+  falhas, 1 skip pré-existente — sem regressão.
+- **Decisão deliberada de escopo**: `state` continua NÃO virando
+  coluna nova em `RecommendationEvent` — recalculado sob demanda a
+  cada rodada do script, mesmo princípio "derivável, nunca armazenado"
+  já decidido na Tarefa 10.2 (`outcome_rules.calcular_cycle_days()`).
+  Sem endpoint HTTP novo, sem integração automática com `GET /admin/
+  observabilidade/metricas` (decisão de produto separada).
+- Versão: `1.4.138` → `1.4.139`.
+- **Pendente**: push + deploy na VPS, depois rodar `--real` contra o
+  banco de produção de verdade (custo real de IA: zero, mas ainda
+  não executado contra dado real).
+
+---
+
 ## V.1.4.138 — Dataset real + 1ª medição de transcription_reliability (Fase 25 — medindo os 9 critérios de verdade, item 4/5)
 
 > Data: 23/09/2026 | Local, pendente deploy (dataset novo + script, sem impacto em código de produção)

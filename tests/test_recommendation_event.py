@@ -137,6 +137,38 @@ class RecommendationEventPersistenciaTest(unittest.TestCase):
     def test_registrar_uso_em_evento_inexistente_retorna_none(self):
         self.assertIsNone(database.registrar_uso_recommendation_event(999, seller_action="x"))
 
+    def test_listar_respondidos_so_traz_com_seller_action(self):
+        c1 = database.criar_recommendation_event(
+            meeting_id="reuniao-1", strategy="A", recommendation="r1", reason="m1",
+        )
+        database.criar_recommendation_event(
+            meeting_id="reuniao-1", strategy="B", recommendation="r2", reason="m2",
+        )
+        database.registrar_uso_recommendation_event(c1["id"], seller_action="usou de verdade")
+
+        respondidos = database.listar_recommendation_events_respondidos()
+        self.assertEqual(len(respondidos), 1)
+        self.assertEqual(respondidos[0]["id"], c1["id"])
+
+    def test_listar_respondidos_filtra_por_meeting_id(self):
+        c1 = database.criar_recommendation_event(
+            meeting_id="reuniao-1", strategy="A", recommendation="r1", reason="m1",
+        )
+        c2 = database.criar_recommendation_event(
+            meeting_id="reuniao-2", strategy="A", recommendation="r2", reason="m2",
+        )
+        database.registrar_uso_recommendation_event(c1["id"], seller_action="x")
+        database.registrar_uso_recommendation_event(c2["id"], seller_action="y")
+
+        self.assertEqual(len(database.listar_recommendation_events_respondidos(meeting_id="reuniao-1")), 1)
+        self.assertEqual(len(database.listar_recommendation_events_respondidos()), 2)
+
+    def test_listar_respondidos_vazio_quando_nenhum_tem_seller_action(self):
+        database.criar_recommendation_event(
+            meeting_id="reuniao-1", strategy="A", recommendation="r1", reason="m1",
+        )
+        self.assertEqual(database.listar_recommendation_events_respondidos(), [])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -47,6 +47,35 @@ TEMPLATE_EFETIVIDADE = (
 )
 
 
+def resumir_uso_geral(estados: list) -> dict:
+    """Fase 25 ("o que falta pra ligar") — agregado simples de "quantas
+    recomendações foram realmente usadas", sem quebrar por estratégia
+    (complementar a `calcular_efetividade_por_estrategia()`, que exige
+    `strategy` por evento). Cada item de `estados` é um valor de
+    `RECOMMENDATION_USAGE_STATES` (Tarefa 10.2) — estado fora do
+    vocabulário levanta `ValueError`.
+
+    `taxa_uso_real` conta `USED`/`PARTIALLY_USED` sobre o total com
+    estado CONHECIDO (exclui `UNKNOWN` do denominador — "não sabemos
+    se foi usada" é diferente de "não foi usada", mesma disciplina de
+    `classificar_uso_por_similaridade()`)."""
+    contagem = {estado: 0 for estado in RECOMMENDATION_USAGE_STATES}
+    for estado in estados:
+        if estado not in RECOMMENDATION_USAGE_STATES:
+            raise ValueError(f"state inválido: {estado!r} (esperado um de {sorted(RECOMMENDATION_USAGE_STATES)})")
+        contagem[estado] += 1
+
+    total = len(estados)
+    total_conhecido = total - contagem["UNKNOWN"]
+    usados = contagem["USED"] + contagem["PARTIALLY_USED"]
+
+    return {
+        "total": total,
+        "por_estado": contagem,
+        "taxa_uso_real": (usados / total_conhecido) if total_conhecido else None,
+    }
+
+
 def calcular_efetividade_por_estrategia(
     eventos: list,
     minimo_amostra: int = AMOSTRA_MINIMA_PADRAO,
