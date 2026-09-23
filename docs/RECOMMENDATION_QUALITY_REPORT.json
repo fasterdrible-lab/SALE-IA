@@ -1,0 +1,1897 @@
+{
+  "recommendation_quality": {
+    "total": 231,
+    "por_estado": {
+      "PARTIALLY_USED": 116,
+      "USED": 6,
+      "UNKNOWN": 0,
+      "IGNORED": 109
+    },
+    "taxa_uso_real": 0.5281385281385281
+  },
+  "efetividade_por_estrategia": {
+    "situacao": {
+      "usos": 82,
+      "taxa_avanco": null,
+      "amostra_avanco_suficiente": false,
+      "taxa_desfecho_positivo": null,
+      "amostra_desfecho_suficiente": false,
+      "afirmacao": null
+    },
+    "problema": {
+      "usos": 2,
+      "taxa_avanco": null,
+      "amostra_avanco_suficiente": false,
+      "taxa_desfecho_positivo": null,
+      "amostra_desfecho_suficiente": false,
+      "afirmacao": null
+    },
+    "objecao": {
+      "usos": 37,
+      "taxa_avanco": null,
+      "amostra_avanco_suficiente": false,
+      "taxa_desfecho_positivo": null,
+      "amostra_desfecho_suficiente": false,
+      "afirmacao": null
+    },
+    "implicacao": {
+      "usos": 1,
+      "taxa_avanco": null,
+      "amostra_avanco_suficiente": false,
+      "taxa_desfecho_positivo": null,
+      "amostra_desfecho_suficiente": false,
+      "afirmacao": null
+    }
+  },
+  "eventos_classificados": [
+    {
+      "id": 1,
+      "strategy": "situacao",
+      "state": "IGNORED",
+      "similarity": 0.27288723182559577,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 2,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4176350005093183,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 3,
+      "strategy": "situacao",
+      "state": "USED",
+      "similarity": 0.557306116935074,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 4,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5023170076271594,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 5,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4402310174107816,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 6,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5190487476212144,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 7,
+      "strategy": "problema",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.47685961374281594,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 8,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4006928794089946,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 9,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5125064528100113,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 10,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4131696321318851,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 11,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.42767826618894844,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 12,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.35556872931795847,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 13,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4769302119064747,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 14,
+      "strategy": "problema",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.3595423463444041,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 15,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5120542324425262,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 16,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4130299041936167,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 17,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4306068511431537,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 18,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5042858621914095,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 19,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5436347398979952,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 20,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.479227524555063,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 21,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4636796852899323,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 22,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5427934660459611,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 23,
+      "strategy": "situacao",
+      "state": "USED",
+      "similarity": 0.5638496389324652,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 24,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.45352965309626087,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 25,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.41857156777980037,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 26,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5249126409937614,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 27,
+      "strategy": "situacao",
+      "state": "USED",
+      "similarity": 0.5743685724640092,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 28,
+      "strategy": "situacao",
+      "state": "IGNORED",
+      "similarity": 0.2902332541505369,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 29,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5290531034390131,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 30,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4637063660376417,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 31,
+      "strategy": "situacao",
+      "state": "USED",
+      "similarity": 0.5737756723594969,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 32,
+      "strategy": "situacao",
+      "state": "USED",
+      "similarity": 0.558259866937195,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 33,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4802338655029986,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 34,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5385000141809952,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 35,
+      "strategy": "situacao",
+      "state": "USED",
+      "similarity": 0.5573991148435857,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 36,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5310583324328518,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 37,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4461549616796106,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 38,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5216946493739815,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 39,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5076050089623233,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 40,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4897616500460309,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 41,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.48169025227561235,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 42,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.3915521070637735,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 43,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4622313683695043,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 44,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5159014281250753,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 45,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5013873906169689,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 46,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.38785030942503235,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 47,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.44919628034121234,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 48,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.46584504168783014,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 49,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.45962804715681443,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 50,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4509216178645223,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 51,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.47435955877798763,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 52,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5242657565364715,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 53,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4990287445963578,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 54,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5004448849525135,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 55,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.47969129777065667,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 56,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4812943847457822,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 57,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.45450826030804015,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 58,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4961979373016133,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 59,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.48553541175527176,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 60,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.48749810817563205,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 61,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.408209936189461,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 62,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5035092117840629,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 63,
+      "strategy": "situacao",
+      "state": "IGNORED",
+      "similarity": 0.32167269419362693,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 64,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5474623451335975,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 65,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5091819862348467,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 66,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4322103256772789,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 67,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.38538365389001195,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 68,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.44491226705226933,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 69,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5356204573940953,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 70,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5243808333938352,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 71,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4869285442344297,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 72,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5396479222804647,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 73,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4286073096380811,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 74,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5000626754532459,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 75,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5081969704298445,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 76,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.39874389367036767,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 77,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.47919320775598934,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 78,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.44817566477012605,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 80,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5065486050909889,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 81,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5248321549565121,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 82,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.44941617326970046,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 83,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.5466821699630477,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 84,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4924052706695224,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 85,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.46674014033418065,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 86,
+      "strategy": "situacao",
+      "state": "IGNORED",
+      "similarity": 0.3282574066611728,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 87,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.43663259651890546,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 88,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.39448956345736474,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 89,
+      "strategy": "situacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4655863938657749,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 90,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.42936771717861594,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 91,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.3845135270403419,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 92,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.3824787984339408,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 93,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.3801157877448999,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 94,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.37323953788993397,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 95,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.289187386446055,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 96,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.3031751251918609,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 97,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4048822761776661,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 98,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.425036626991882,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 99,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4415563038204197,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 100,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.30594479744164893,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 101,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.33246974895753784,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 102,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.40786723045133744,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 103,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.38558733316875843,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 104,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.30378539149162176,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 105,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.38701000035461525,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 106,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.2931353082418821,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 107,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.3697316284738233,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 108,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.3324671167048994,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 109,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.28766515112226054,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 110,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.3651773113672946,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 111,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.34242080256243895,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 112,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.32578102721333674,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 113,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.3494094453939234,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 114,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.34467506778976453,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 115,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.3103137231568866,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 116,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.36569060794544267,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 117,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.355173047245013,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 118,
+      "strategy": "descoberta_dor",
+      "state": "IGNORED",
+      "similarity": 0.30347577552055816,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 119,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.32395599691870375,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 120,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.266385164121277,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 121,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.2592381310126236,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 122,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.2966288431889368,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 123,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.31943719438277657,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 124,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.3165166861126315,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 125,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.27868841521783466,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 126,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.30800039292907455,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 127,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.3614267288753532,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 128,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.3394826860837184,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 129,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.28730093691553354,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 130,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.3536241319024199,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 131,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.2949099338201671,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 132,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.26455240522036383,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 133,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.28008372733133713,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 134,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.30546500817024974,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 135,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.2818482898244711,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 136,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.32244693482296716,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 137,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.34956727967851947,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 139,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.30829817088072176,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 140,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.33571149175544673,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 141,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.36418955739947356,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 142,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.3504211853384415,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 143,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.31324443271394004,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 144,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.283797014915713,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 145,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.2554587782255375,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 146,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.24101469930160194,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 147,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.25662357850153833,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 148,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.2917174479450006,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 149,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.25011702711097744,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 150,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.267513918509564,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 151,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.29659371822854574,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 152,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.31934195897483525,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 153,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.283661908232369,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 154,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.3157471311918632,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 155,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.26475744862445644,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 156,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.29261546162356195,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 157,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.34287442303728116,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 158,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.3703518795898962,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 159,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.2975671635264463,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 160,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.3091427750700203,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 161,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.3097491379781131,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 162,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.3224032249125234,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 163,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.2208364556961244,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 164,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.3028875232464915,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 165,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.33824391793879216,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 166,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.2684441009313708,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 167,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.3251765524503602,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 168,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.27960316058756457,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 169,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.2862107272808422,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 170,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.33610358651986777,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 171,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.28823428101486476,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 172,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.2827074058996089,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 173,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.2808262765628311,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 174,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.2504996770067035,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 175,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.30531957408095745,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 176,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.3496593156536698,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 177,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.2947152464784926,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 178,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4396087597311202,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 179,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.36557583627646206,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 180,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4839056218280732,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 181,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.39284652425503763,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 182,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.45345290566032564,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 183,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4490272135386368,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 185,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4513772814887671,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 186,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.2767388746859645,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 187,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.33435177808795036,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 189,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.2973793070113362,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 190,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.30946078757111656,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 191,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.27984614980104205,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 192,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.3015729770933667,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 193,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.36788458829249576,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 194,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.2892784888049286,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 195,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.26674113796988325,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 196,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.2579785046473677,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 197,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.29538823652570684,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 199,
+      "strategy": "controle_consultivo",
+      "state": "IGNORED",
+      "similarity": 0.3236560932183474,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 200,
+      "strategy": "controle_consultivo",
+      "state": "IGNORED",
+      "similarity": 0.28922021282928323,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 201,
+      "strategy": "problema",
+      "state": "IGNORED",
+      "similarity": 0.285038140424432,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 202,
+      "strategy": "implicacao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.3526144713300491,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 203,
+      "strategy": "implicacao",
+      "state": "IGNORED",
+      "similarity": 0.27781752132511073,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 204,
+      "strategy": "implicacao",
+      "state": "IGNORED",
+      "similarity": 0.2649010538822861,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 205,
+      "strategy": "problema",
+      "state": "IGNORED",
+      "similarity": 0.2840430534161341,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 206,
+      "strategy": "implicacao",
+      "state": "IGNORED",
+      "similarity": 0.33126732574295314,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 207,
+      "strategy": "implicacao",
+      "state": "IGNORED",
+      "similarity": 0.2320023419561277,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 208,
+      "strategy": "implicacao",
+      "state": "IGNORED",
+      "similarity": 0.32032807099840244,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 209,
+      "strategy": "implicacao",
+      "state": "IGNORED",
+      "similarity": 0.2450502149618846,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 210,
+      "strategy": "implicacao",
+      "state": "IGNORED",
+      "similarity": 0.3255727035940933,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 211,
+      "strategy": "implicacao",
+      "state": "IGNORED",
+      "similarity": 0.2820245855580051,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 212,
+      "strategy": "implicacao",
+      "state": "IGNORED",
+      "similarity": 0.29624541191112425,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 213,
+      "strategy": "implicacao",
+      "state": "IGNORED",
+      "similarity": 0.2884275466315876,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 214,
+      "strategy": "implicacao",
+      "state": "IGNORED",
+      "similarity": 0.23868216078302154,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 215,
+      "strategy": "implicacao",
+      "state": "IGNORED",
+      "similarity": 0.28588953649086823,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 216,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.35467344890892144,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 217,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.30162103577660027,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 218,
+      "strategy": "implicacao",
+      "state": "IGNORED",
+      "similarity": 0.33313899987529966,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 219,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.3201498465010741,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 220,
+      "strategy": "implicacao",
+      "state": "IGNORED",
+      "similarity": 0.3093323093513484,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 221,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.18297946662753214,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 222,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.31821122426740217,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 223,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.33365006410504566,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 224,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.35022948647410845,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 225,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.3592086347067924,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 226,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.39753032634720253,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 227,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.42227040073904676,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 228,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.38870808704475346,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 229,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.2370751622979606,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 230,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.484919445493677,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 231,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.4274178451004535,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 232,
+      "strategy": "objecao",
+      "state": "PARTIALLY_USED",
+      "similarity": 0.3773114116472842,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 233,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.3321622882223227,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 234,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.26786867499723477,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 235,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.27796946813077267,
+      "stage_advanced": null,
+      "opportunity_result": null
+    },
+    {
+      "id": 236,
+      "strategy": "objecao",
+      "state": "IGNORED",
+      "similarity": 0.2755451821319934,
+      "stage_advanced": null,
+      "opportunity_result": null
+    }
+  ],
+  "erros": []
+}

@@ -8,8 +8,24 @@ respondidos()` (novo) + `scripts/recommendation_quality_run.py`
 (novo) — classifica o `state` real de cada `RecommendationEvent` via
 embeddings locais Ollama (custo zero, Tarefa 10.2 já em produção),
 antes só logado, nunca agregado. 12 testes novos, suite completa 1515
-testes/0 falhas. Versão: `1.4.138` → `1.4.139`. **Pendente: push +
-deploy, depois rodar `--real` contra o banco de produção de verdade.**
+testes/0 falhas. Versão: `1.4.138` → `1.4.139`. **Push + deploy
+confirmados (19:44 UTC)** — `/health` = `versao 1.4.139`. **`--real`
+rodado contra produção de verdade (custo $0,00)**: 231
+`RecommendationEvent`s classificados, `taxa_uso_real = 52,8%` (6
+`USED` + 116 `PARTIALLY_USED` / 231, 109 `IGNORED`) — 1º número real
+do critério `recommendation_quality`. Achado a investigar depois:
+`USED` puro raro (2,6%) frente a `PARTIALLY_USED` (50,2%) — pode ser
+comportamento real ou o limiar de similaridade (`0.55`) rígido demais
+pra linguagem natural; não investigado ainda. Relatório completo em
+`docs/RECOMMENDATION_QUALITY_REPORT.json`.
+
+Com isso, **8 dos 9 critérios objetivos da Fase 25 já têm alguma
+medição real ou gap explícito documentado** — só `event_precision`
+segue sem nenhum caminho de medição real (exigiria construir um
+extrator de `SalesEvent` do zero, fora do escopo de qualquer rodada
+até agora). `audit_coverage` segue com bug em investigação
+(V.1.4.136), `policy_violation` tem o contador pronto mas ainda sem
+nenhuma contagem real de produção consultada.
 
 Atualizado em: 2026-09-23 — Backend **V.1.4.138** (local, pendente
 deploy): 1ª medição real de `transcription_reliability` (Fase 25,

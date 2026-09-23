@@ -51,9 +51,26 @@ effectiveness` como `RECOMMENDATION_EFFECTIVENESS_NAO_DISPONIVEL`.
   Sem endpoint HTTP novo, sem integração automática com `GET /admin/
   observabilidade/metricas` (decisão de produto separada).
 - Versão: `1.4.138` → `1.4.139`.
-- **Pendente**: push + deploy na VPS, depois rodar `--real` contra o
-  banco de produção de verdade (custo real de IA: zero, mas ainda
-  não executado contra dado real).
+- **Push + deploy confirmados (23/09/2026, 19:44 UTC)**: commit
+  `64af510` no GitHub. `reunioes_ativas: 0` checado antes do
+  `git pull`/restart — startup limpo, sem corrida de DDL (sem tabela
+  nova nesta versão). `/health` = `versao 1.4.139`, `status online`.
+- **`--real` rodado contra o banco de produção de verdade
+  (23/09/2026, custo real: $0,00)**: **231 `RecommendationEvent`s**
+  reais classificados. `taxa_uso_real = 52,8%` (6 `USED` + 116
+  `PARTIALLY_USED` de 231; 109 `IGNORED`; 0 `UNKNOWN`) — primeiro
+  número real pro critério `recommendation_quality` da Fase 25. Por
+  estratégia: `situacao` (82 usos), `objecao` (37), `problema` (2),
+  `implicacao` (1) — `taxa_avanco`/`taxa_desfecho_positivo` `null`
+  em todas, como esperado (gap de `stage_advanced`/`opportunity_
+  result` documentado). **Achado a investigar em rodada futura**:
+  `USED` puro é raro (6/231, 2,6%) frente a `PARTIALLY_USED`
+  (50,2%) — pode ser comportamento real do vendedor (resposta
+  parcialmente alinhada à recomendação) ou o limiar de similaridade
+  `LIMIAR_USED_PADRAO=0.55` (Tarefa 10.2) estar mais rígido que o
+  necessário pra linguagem natural de conversa real; não investigado
+  nesta rodada. Relatório completo em `docs/
+  RECOMMENDATION_QUALITY_REPORT.json`.
 
 ---
 
