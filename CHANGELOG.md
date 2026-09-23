@@ -3,6 +3,17 @@
 
 ---
 
+## policy_violation medido em produção real (23/09/2026, sem bump de versão — só consulta read-only)
+
+`contar_policy_violations()` (V.1.4.137) consultado direto na VPS
+(~3h de tráfego real desde o deploy) retornou **`0`** — bate
+exatamente o alvo literal da Fase 25 (`policy violation = 0`).
+Nenhuma tentativa de prompt injection detectada em produção no
+período observado. Primeiro dos 9 critérios objetivos da Fase 25 a
+bater o alvo com número real (não proxy, não gap explícito).
+
+---
+
 ## V.1.4.139 — Recálculo em lote de recommendation_quality (Fase 25 — medindo os 9 critérios de verdade)
 
 > Data: 23/09/2026 | Local, pendente deploy (código novo, sem tabela/coluna nova)

@@ -1,5 +1,12 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-09-23 — **`policy_violation` medido em produção
+real**: `contar_policy_violations()` consultado direto na VPS (~3h de
+tráfego real desde o deploy da V.1.4.137) retornou **`0`** — bate
+exatamente o alvo literal da Fase 25 (`policy violation = 0`). Nenhuma
+tentativa de prompt injection detectada no período. Primeiro dos 9
+critérios a bater o alvo com número real (não proxy, não gap).
+
 Atualizado em: 2026-09-23 — Backend **V.1.4.139** (local, pendente
 deploy): recálculo em lote de `recommendation_quality` (Fase 25).
 `agent/recommendation_effectiveness_rules.py::resumir_uso_geral()`
