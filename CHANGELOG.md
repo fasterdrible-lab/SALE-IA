@@ -3,6 +3,63 @@
 
 ---
 
+## V.1.4.138 — Dataset real + 1ª medição de transcription_reliability (Fase 25 — medindo os 9 critérios de verdade, item 4/5)
+
+> Data: 23/09/2026 | Local, pendente deploy (dataset novo + script, sem impacto em código de produção)
+
+Usuário confirmou começar o dataset de áudio real (item mais
+trabalhoso da Fase 25) — a partir do motor de cálculo já pronto desde
+a V.1.4.133 (`agent/transcription_benchmark_rules.py`), nunca rodado
+contra dado real até agora.
+
+- **8 falas sintéticas** de vendas em português, escritas pra este
+  dataset (apresentação, objeção de orçamento, objeção de
+  implementação, fechamento, comparação com concorrente, adiamento de
+  decisão, contexto atual, pergunta de prazo) —
+  `evals/datasets/transcription_benchmark/gabarito.yaml`.
+- **Áudio gerado via gTTS** (Google Translate TTS, gratuito) em vez de
+  OpenAI TTS — achado real ao tentar: **OpenAI está sem crédito**
+  (`RateLimitError: credit_balance_exhausted`), mesmo incidente já
+  documentado desde 15-16/09/2026. Decisão pragmática pra não
+  bloquear a medição por uma questão financeira separada. gTTS
+  instalado/desinstalado no venv da VPS só pra gerar o áudio
+  (`pip install`/`uninstall`, confirmado sem afetar o serviço rodando
+  nem deixar rastro — `click` restaurado pra versão compatível com
+  `huggingface-hub` depois).
+- **Transcrito contra os 3 provedores reais do projeto**
+  (`api/main.py::_transcrever_via_openai`/`_transcrever_via_groq`/
+  `_transcrever_via_whisper_local`, reaproveitados sem duplicar
+  lógica) rodando na VPS (mesmas chaves/modelo já validados em
+  produção).
+- **`scripts/transcription_benchmark_run.py`** (novo, mesmo padrão de
+  `scripts/quality_monitoring_golden_run.py`: `--dry-run` padrão sem
+  custo, `--real` chama de verdade, `--out` salva relatório).
+- **Resultado real (23/09/2026)**:
+
+  | Provider | WER médio | Atinge meta (≤10%) | Latência p50 |
+  |---|---|---|---|
+  | `groq` | **7.3%** | ✅ sim | ~414 ms |
+  | `whisper_local` | **11.0%** | ❌ não (por pouco) | ~1.592 ms (sem GPU na VPS) |
+  | `whisper` (OpenAI) | 100%* | — | — (0/8 chamadas com sucesso) |
+
+  \*Artefato do incidente de saldo — `wer=1.0` vem de hipótese vazia
+  (chamada falhou), não mede qualidade real do Whisper via API
+  OpenAI. Remedir quando o saldo for resolvido.
+- Relatório completo em `docs/TRANSCRIPTION_BENCHMARK_REPORT.json`.
+  4 testes novos (`tests/test_transcription_benchmark_run.py`, só a
+  parte pura — carregar o dataset, sem IA). Suite completa sem
+  regressão.
+- **Decisão deliberada de escopo**: sem integração com
+  `orquestrador.py`/endpoint HTTP — mesma disciplina do resto da Fase
+  25. Dataset de 8 falas é uma amostra pequena pra um primeiro sinal
+  real, não uma amostra estatisticamente robusta — expandir o dataset
+  é decisão de escopo futura.
+- Versão: `1.4.137` → `1.4.138`.
+- **Pendente**: push + deploy na VPS (aditivo — só script + dataset
+  novos, zero mudança em código de produção).
+
+---
+
 ## V.1.4.137 — Contador real de policy_violation (Fase 25 — medindo os 9 critérios de verdade)
 
 > Data: 23/09/2026 | Local, pendente deploy (tabela nova, aditiva, `create_all()` cria sozinha no startup)

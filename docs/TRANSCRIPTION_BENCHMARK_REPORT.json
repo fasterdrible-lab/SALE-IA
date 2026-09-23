@@ -1,0 +1,86 @@
+{
+  "resumo_por_provider": {
+    "whisper": {
+      "n": 8,
+      "wer_medio": 1.0,
+      "wer_n_outliers": 0,
+      "latencia": {
+        "amostra": 0,
+        "media_ms": null,
+        "minimo_ms": null,
+        "maximo_ms": null,
+        "p50_ms": null,
+        "p95_ms": null
+      },
+      "custo_medio_usd": null,
+      "atinge_meta": false
+    },
+    "groq": {
+      "n": 8,
+      "wer_medio": 0.073,
+      "wer_n_outliers": 1,
+      "latencia": {
+        "amostra": 8,
+        "media_ms": 442.8,
+        "minimo_ms": 367.61010996997356,
+        "maximo_ms": 639.2429284751415,
+        "p50_ms": 413.56049850583076,
+        "p95_ms": 639.2429284751415
+      },
+      "custo_medio_usd": null,
+      "atinge_meta": true
+    },
+    "whisper_local": {
+      "n": 8,
+      "wer_medio": 0.1103,
+      "wer_n_outliers": 0,
+      "latencia": {
+        "amostra": 8,
+        "media_ms": 1751.6,
+        "minimo_ms": 1484.4343923032284,
+        "maximo_ms": 2905.57605586946,
+        "p50_ms": 1591.8949134647846,
+        "p95_ms": 2905.57605586946
+      },
+      "custo_medio_usd": null,
+      "atinge_meta": false
+    }
+  },
+  "resultados": [
+    {"provider": "whisper", "frase_id": "frase_00", "wer": 1.0, "substitutions": 0, "deletions": 28, "insertions": 0, "referencia_palavras": 28, "latencia_ms": null},
+    {"provider": "groq", "frase_id": "frase_00", "wer": 0.0, "substitutions": 0, "deletions": 0, "insertions": 0, "referencia_palavras": 28, "latencia_ms": 504.44264337420464},
+    {"provider": "whisper_local", "frase_id": "frase_00", "wer": 0.0, "substitutions": 0, "deletions": 0, "insertions": 0, "referencia_palavras": 28, "latencia_ms": 2905.57605586946},
+    {"provider": "whisper", "frase_id": "frase_01", "wer": 1.0, "substitutions": 0, "deletions": 31, "insertions": 0, "referencia_palavras": 31, "latencia_ms": null},
+    {"provider": "groq", "frase_id": "frase_01", "wer": 0.0968, "substitutions": 1, "deletions": 2, "insertions": 0, "referencia_palavras": 31, "latencia_ms": 367.61010996997356},
+    {"provider": "whisper_local", "frase_id": "frase_01", "wer": 0.2258, "substitutions": 4, "deletions": 3, "insertions": 0, "referencia_palavras": 31, "latencia_ms": 1649.1184961050749},
+    {"provider": "whisper", "frase_id": "frase_02", "wer": 1.0, "substitutions": 0, "deletions": 25, "insertions": 0, "referencia_palavras": 25, "latencia_ms": null},
+    {"provider": "groq", "frase_id": "frase_02", "wer": 0.08, "substitutions": 2, "deletions": 0, "insertions": 0, "referencia_palavras": 25, "latencia_ms": 432.36282654106617},
+    {"provider": "whisper_local", "frase_id": "frase_02", "wer": 0.08, "substitutions": 2, "deletions": 0, "insertions": 0, "referencia_palavras": 25, "latencia_ms": 1699.8251397162676},
+    {"provider": "whisper", "frase_id": "frase_03", "wer": 1.0, "substitutions": 0, "deletions": 18, "insertions": 0, "referencia_palavras": 18, "latencia_ms": null},
+    {"provider": "groq", "frase_id": "frase_03", "wer": 0.3333, "substitutions": 4, "deletions": 2, "insertions": 0, "referencia_palavras": 18, "latencia_ms": 639.2429284751415},
+    {"provider": "whisper_local", "frase_id": "frase_03", "wer": 0.3333, "substitutions": 4, "deletions": 2, "insertions": 0, "referencia_palavras": 18, "latencia_ms": 1540.5510440468788},
+    {"provider": "whisper", "frase_id": "frase_04", "wer": 1.0, "substitutions": 0, "deletions": 22, "insertions": 0, "referencia_palavras": 22, "latencia_ms": null},
+    {"provider": "groq", "frase_id": "frase_04", "wer": 0.0909, "substitutions": 2, "deletions": 0, "insertions": 0, "referencia_palavras": 22, "latencia_ms": 386.8853319436312},
+    {"provider": "whisper_local", "frase_id": "frase_04", "wer": 0.0, "substitutions": 0, "deletions": 0, "insertions": 0, "referencia_palavras": 22, "latencia_ms": 1591.8949134647846},
+    {"provider": "whisper", "frase_id": "frase_05", "wer": 1.0, "substitutions": 0, "deletions": 21, "insertions": 0, "referencia_palavras": 21, "latencia_ms": null},
+    {"provider": "groq", "frase_id": "frase_05", "wer": 0.0476, "substitutions": 1, "deletions": 0, "insertions": 0, "referencia_palavras": 21, "latencia_ms": 409.9377207458019},
+    {"provider": "whisper_local", "frase_id": "frase_05", "wer": 0.0476, "substitutions": 1, "deletions": 0, "insertions": 0, "referencia_palavras": 21, "latencia_ms": 1560.1297318935394},
+    {"provider": "whisper", "frase_id": "frase_06", "wer": 1.0, "substitutions": 0, "deletions": 21, "insertions": 0, "referencia_palavras": 21, "latencia_ms": null},
+    {"provider": "groq", "frase_id": "frase_06", "wer": 0.1429, "substitutions": 3, "deletions": 0, "insertions": 0, "referencia_palavras": 21, "latencia_ms": 388.2067147642374},
+    {"provider": "whisper_local", "frase_id": "frase_06", "wer": 0.1429, "substitutions": 3, "deletions": 0, "insertions": 0, "referencia_palavras": 21, "latencia_ms": 1580.9368323534727},
+    {"provider": "whisper", "frase_id": "frase_07", "wer": 1.0, "substitutions": 0, "deletions": 19, "insertions": 0, "referencia_palavras": 19, "latencia_ms": null},
+    {"provider": "groq", "frase_id": "frase_07", "wer": 0.0526, "substitutions": 1, "deletions": 0, "insertions": 0, "referencia_palavras": 19, "latencia_ms": 413.56049850583076},
+    {"provider": "whisper_local", "frase_id": "frase_07", "wer": 0.0526, "substitutions": 1, "deletions": 0, "insertions": 0, "referencia_palavras": 19, "latencia_ms": 1484.4343923032284}
+  ],
+  "erros": [
+    "frase_00/whisper: RateLimitError: credit_balance_exhausted (OpenAI sem creditos)",
+    "frase_01/whisper: RateLimitError: credit_balance_exhausted (OpenAI sem creditos)",
+    "frase_02/whisper: RateLimitError: credit_balance_exhausted (OpenAI sem creditos)",
+    "frase_03/whisper: RateLimitError: credit_balance_exhausted (OpenAI sem creditos)",
+    "frase_04/whisper: RateLimitError: credit_balance_exhausted (OpenAI sem creditos)",
+    "frase_05/whisper: RateLimitError: credit_balance_exhausted (OpenAI sem creditos)",
+    "frase_06/whisper: RateLimitError: credit_balance_exhausted (OpenAI sem creditos)",
+    "frase_07/whisper: RateLimitError: credit_balance_exhausted (OpenAI sem creditos)"
+  ],
+  "nota": "whisper (OpenAI) falhou em 100% das chamadas por saldo esgotado (incidente ja documentado desde 15-16/09/2026) -- wer=1.0 e artefato do incidente financeiro, nao mede qualidade real do Whisper via API OpenAI. groq e whisper_local rodaram normalmente com dado real."
+}

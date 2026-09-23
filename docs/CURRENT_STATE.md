@@ -1,5 +1,33 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-09-23 — Backend **V.1.4.138** (local, pendente
+deploy): 1ª medição real de `transcription_reliability` (Fase 25,
+item 4/5). Dataset novo de 8 falas sintéticas
+(`evals/datasets/transcription_benchmark/`), áudio via gTTS (OpenAI
+TTS indisponível — sem crédito, mesmo incidente já documentado).
+**Resultado real**: `groq` WER 7,3% (atinge a meta ≤10%, latência
+~414ms), `whisper_local` WER 11,0% (não atinge, por pouco; ~1,6s de
+latência sem GPU na VPS), `whisper` (OpenAI) 100% de falha — incidente
+de saldo, não reflete qualidade real. `scripts/
+transcription_benchmark_run.py` (novo) permite remedir quando o saldo
+OpenAI for resolvido. Detalhe completo no CHANGELOG.md e no relatório
+`docs/TRANSCRIPTION_BENCHMARK_REPORT.json`. Versão: `1.4.137` →
+`1.4.138`. **Pendente: push + deploy na VPS.**
+
+**Estado real dos 9 critérios da Fase 25 até agora**: `objection_
+classification` (75%) e `critical_hallucination_rate` (14,44%) têm
+número real (Golden Dataset, V.1.4.135); `transcription_reliability`
+tem número real parcial (`groq`/`whisper_local`, V.1.4.138 —
+`whisper` bloqueado pelo incidente de saldo); `E2E_success` tem proxy
+real (85,5% últimos 7 dias); `audit_coverage` tem número real, mas
+**instável** (bug em investigação, V.1.4.136); `policy_violation` tem
+o contador pronto (V.1.4.137) mas **ainda sem deploy — nenhuma
+contagem real coletada em produção ainda**; `event_precision` e
+`recommendation_quality` seguem gap explícito (exigiriam construir
+extrator/recálculo novo); `human_escalation_functional` tem o
+mecanismo pronto (V.1.4.134) mas nunca disparou de verdade (nada
+autônomo roda em produção ainda).
+
 Atualizado em: 2026-09-23 — Backend **V.1.4.137** (local, pendente
 deploy): contador real de `policy_violation` (Fase 25). Só
 `prompt_injection` tem detector real hoje — `agent/

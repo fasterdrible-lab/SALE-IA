@@ -1,0 +1,76 @@
+# Gabarito do benchmark de transcrição — Fase 25 do "PROMPT MESTRE —
+# SALE-IA V2" (Critério para iniciar o Digital Sales Twin), item 4/5
+# ("transcription reliability >= alvo definido").
+#
+# 8 falas sintéticas de vendas em português (variedade: apresentação,
+# objeção de orçamento, objeção de implementação, fechamento,
+# comparação com concorrente, adiamento de decisão, contexto atual,
+# pergunta de prazo — mistura números/jargão pra ser um teste real de
+# WER, não trivial). Áudio gerado via gTTS (`audio/frase_NN.mp3`,
+# voz "pt-br") — OpenAI TTS estava indisponível no momento da geração
+# (créditos esgotados, incidente já documentado desde 15-16/09/2026).
+# Nenhum dado pessoal real — texto 100% sintético, escrito pra este
+# dataset.
+#
+# Ver README.md nesta pasta para a metodologia completa e
+# docs/TRANSCRIPTION_BENCHMARK_REPORT.json para o resultado real mais
+# recente.
+
+- id: frase_00
+  categoria: apresentacao
+  audio: audio/frase_00.mp3
+  texto: >-
+    Bom dia! Meu nome é Ricardo e eu represento a empresa Vendas Prime.
+    Eu gostaria de entender melhor como vocês fazem a gestão do funil
+    de vendas hoje.
+
+- id: frase_01
+  categoria: objecao_orcamento
+  audio: audio/frase_01.mp3
+  texto: >-
+    Olha, eu preciso pensar melhor sobre isso. O orçamento que a gente
+    tem pra esse trimestre é de vinte e cinco mil reais e eu não sei
+    se cabe dentro disso.
+
+- id: frase_02
+  categoria: objecao_implementacao
+  audio: audio/frase_02.mp3
+  texto: >-
+    Já falei três vezes que o problema não é o preço, é a
+    implementação. A gente não tem tempo pra treinar a equipe inteira
+    agora.
+
+- id: frase_03
+  categoria: fechamento
+  audio: audio/frase_03.mp3
+  texto: >-
+    Perfeito, então fechamos o contrato de doze meses com desconto de
+    dez por cento na primeira parcela, combinado?
+
+- id: frase_04
+  categoria: comparacao_concorrente
+  audio: audio/frase_04.mp3
+  texto: >-
+    O concorrente de vocês ofereceu um preço bem mais baixo, só que o
+    suporte deles é péssimo, segundo o que ouvi falar.
+
+- id: frase_05
+  categoria: adiamento_decisao
+  audio: audio/frase_05.mp3
+  texto: >-
+    Eu preciso validar isso com o meu sócio antes de dar uma resposta
+    definitiva, mas acho que estamos no caminho certo.
+
+- id: frase_06
+  categoria: contexto_atual
+  audio: audio/frase_06.mp3
+  texto: >-
+    Nosso time tem doze pessoas hoje e usamos uma planilha de Excel
+    pra controlar tudo, o que já está ficando insustentável.
+
+- id: frase_07
+  categoria: pergunta_prazo
+  audio: audio/frase_07.mp3
+  texto: >-
+    Quanto tempo leva pra implementar essa solução? A gente precisa
+    estar operacional antes do fim do mês que vem.
