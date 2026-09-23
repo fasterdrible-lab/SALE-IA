@@ -3,6 +3,60 @@
 
 ---
 
+## V.1.4.137 — Contador real de policy_violation (Fase 25 — medindo os 9 critérios de verdade)
+
+> Data: 23/09/2026 | Local, pendente deploy (tabela nova, aditiva, `create_all()` cria sozinha no startup)
+
+Usuário confirmou construir o contador de `policy_violation` (critério
+literal da Fase 25, alvo: `= 0`). Investigação prévia (antes de
+codar, mesma disciplina de sempre): só existe **1 detector
+determinístico real** hoje — `agent/prompt_injection_rules.py::
+detectar_tentativas_injection()` (Tarefa 18.2), já ligado no único
+choke-point de IA (`api/ai_router.py::chamar_ia`), mas até esta rodada
+só gerava `logger.warning`, nunca persistia nada. Os outros 2 tipos
+potenciais de violação **não têm detector nenhum**: tentativa
+adversarial (Fase 21, `agent/adversarial_sales_rules.py`) só tem texto
+de guarda no prompt, sem detector do lado de entrada; `FORBIDDEN` do
+AutonomyPolicy (Fase 17) nunca roda em produção (dormente).
+
+- **`agent/policy_violation_rules.py`** (novo, função pura, sem
+  IA/banco, mesmo padrão de `audit_trail_rules.py`): `POLICY_
+  VIOLATION_TIPOS = ("PROMPT_INJECTION",)` — vocabulário fechado, só
+  1 valor hoje (documentação honesta do gap, não fabricação dos outros
+  2). `validar_policy_violation_event()` exige `tipo` no vocabulário e
+  `trechos_detectados` não-vazio — mesma disciplina de evidência
+  obrigatória de `SalesEvent`/`AuditTrailEntry`.
+- **`api/database.py::PolicyViolationEvent`** (tabela
+  `policy_violation_events`, aditiva): `meeting_id` solto (sem FK,
+  mesmo padrão de `SalesEvent`), `usuario_id`/`feature` opcionais,
+  `trechos_detectados_json` (lista dos trechos que combinaram com os
+  padrões de regex). `criar_policy_violation_event()` (dado de
+  domínio, propaga `ValueError`) + `listar_policy_violation_events()`
+  + `contar_policy_violations(date_from, date_to)` — o número real do
+  critério.
+- **Wiring real em `api/ai_router.py::chamar_ia`**: quando
+  `detectar_tentativas_injection()` retorna trechos suspeitos, além do
+  `logger.warning` já existente, agora persiste um
+  `PolicyViolationEvent` (best-effort, `try/except` isolado — uma
+  falha ao persistir nunca pode derrubar a chamada de IA real que está
+  sendo observada, mesmo princípio de `_registrar_evento_uso`/Shadow
+  Mode/Prompt Injection Guard).
+- 25 testes novos (9 em `tests/test_policy_violation_rules.py`, 9 em
+  `tests/test_policy_violation_event.py`, 3 novos em
+  `tests/test_ai_router.py::PromptInjectionGuardTest` — persistência
+  real, conteúdo normal nunca persiste, falha ao persistir nunca
+  quebra `chamar_ia`). Suite completa: **1501 testes** (1485 + os
+  novos desta e da rodada de monitoramento), **0 falhas**, 1 skip
+  pré-existente — sem regressão.
+- **Decisão deliberada de escopo**: sem endpoint HTTP novo, sem
+  integração com os outros 2 tipos potenciais de violação (exigiriam
+  construir detectores novos, fora do escopo desta rodada).
+- Versão: `1.4.136` → `1.4.137`.
+- **Pendente**: push + deploy na VPS (aditivo — tabela nova via
+  `create_all()`, sem coluna nova em tabela existente).
+
+---
+
 ## V.1.4.136 — Achado real: audit_coverage degrada ao longo do uptime (Fase 25 — medindo os 9 critérios de verdade, diagnóstico temporário)
 
 > Data: 23/09/2026 | Local, pendente deploy (mudança de nível de log, diagnóstico — sem alterar comportamento)

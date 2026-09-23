@@ -3416,6 +3416,105 @@ def listar_audit_trail_entries(
         return [_audit_trail_entry_to_dict(r) for r in rows]
 
 
+class PolicyViolationEvent(SQLModel, table=True):
+    """Fase 25 ("o que falta pra ligar") — alimenta o critério literal
+    `policy violation = 0`. Um registro por detecção real de
+    `agent/prompt_injection_rules.py::detectar_tentativas_injection()`
+    no choke-point único de IA (`api/ai_router.py::chamar_ia`) — o
+    único tipo de violação com detector determinístico hoje (Tarefa
+    18.2). `meeting_id` fica solto (sem FK), mesmo padrão de
+    `SalesEvent`/`AuditTrailEntry` — nem toda chamada de IA está
+    ligada a uma reunião específica.
+
+    Escrita best-effort (mesma disciplina de `AiUsageEvent`) — uma
+    falha aqui nunca pode derrubar a chamada de IA real que ela está
+    observando."""
+
+    __tablename__ = "policy_violation_events"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    meeting_id: Optional[str] = Field(default=None, sa_column=Column(String(200), index=True))
+    usuario_id: Optional[str] = Field(default=None, sa_column=Column(String(36), index=True))
+    feature: Optional[str] = Field(default=None, sa_column=Column(String(80), index=True))
+    tipo: str = Field(sa_column=Column(String(40), index=True, nullable=False))
+    trechos_detectados_json: str = Field(sa_column=Column(Text, nullable=False))
+    criado_em: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False, index=True))
+
+
+def _policy_violation_event_to_dict(row: "PolicyViolationEvent") -> dict:
+    return {
+        "id": row.id,
+        "meeting_id": row.meeting_id,
+        "usuario_id": row.usuario_id,
+        "feature": row.feature,
+        "tipo": row.tipo,
+        "trechos_detectados": json.loads(row.trechos_detectados_json),
+        "criado_em": row.criado_em.isoformat() if row.criado_em else None,
+    }
+
+
+def criar_policy_violation_event(
+    *,
+    tipo: str,
+    trechos_detectados: list,
+    meeting_id: Optional[str] = None,
+    usuario_id: Optional[str] = None,
+    feature: Optional[str] = None,
+) -> dict:
+    """Cria e persiste um PolicyViolationEvent (Fase 25). Valida via
+    agent/policy_violation_rules antes de tocar no banco — ValueError
+    propaga pro chamador (dado de domínio, nunca falha silenciosa como
+    AiUsageEvent)."""
+    from agent.policy_violation_rules import validar_policy_violation_event
+
+    dados = {"tipo": tipo, "trechos_detectados": trechos_detectados}
+    validar_policy_violation_event(dados)
+
+    with Session(engine) as session:
+        row = PolicyViolationEvent(
+            meeting_id=meeting_id,
+            usuario_id=usuario_id,
+            feature=feature,
+            tipo=tipo,
+            trechos_detectados_json=json.dumps(trechos_detectados, ensure_ascii=False),
+        )
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _policy_violation_event_to_dict(row)
+
+
+def listar_policy_violation_events(
+    meeting_id: Optional[str] = None,
+    tipo: Optional[str] = None,
+    limit: int = 200,
+) -> List[dict]:
+    with Session(engine) as session:
+        stmt = select(PolicyViolationEvent)
+        if meeting_id:
+            stmt = stmt.where(PolicyViolationEvent.meeting_id == meeting_id)
+        if tipo:
+            stmt = stmt.where(PolicyViolationEvent.tipo == tipo)
+        stmt = stmt.order_by(PolicyViolationEvent.criado_em.asc()).limit(limit)
+        rows = session.exec(stmt).all()
+        return [_policy_violation_event_to_dict(r) for r in rows]
+
+
+def contar_policy_violations(
+    date_from: Optional[datetime] = None,
+    date_to: Optional[datetime] = None,
+) -> int:
+    """Total de `PolicyViolationEvent` no período — o número real do
+    critério `policy_violation` da Fase 25 (alvo: 0)."""
+    with Session(engine) as session:
+        stmt = select(func.count(PolicyViolationEvent.id))
+        if date_from:
+            stmt = stmt.where(PolicyViolationEvent.criado_em >= date_from)
+        if date_to:
+            stmt = stmt.where(PolicyViolationEvent.criado_em <= date_to)
+        return session.exec(stmt).one()
+
+
 class ShadowModeComparison(SQLModel, table=True):
     """Fase 23 do "PROMPT MESTRE — SALE-IA V2" — Teste em Shadow Mode.
     Um registro por ciclo de `/tempo-real` em que o

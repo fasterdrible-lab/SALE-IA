@@ -536,13 +536,29 @@ def chamar_ia(
     )
 
     try:
-        if detectar_tentativas_injection(user_content):
+        trechos_suspeitos = detectar_tentativas_injection(user_content)
+        if trechos_suspeitos:
             logger.warning(
                 "[PromptInjection] Padrao suspeito detectado no conteudo de entrada "
                 "(feature=%s, meeting_id=%s) — tratado apenas como dado da conversa, "
                 "nao como comando; nenhuma acao bloqueada ou alterada.",
                 feature, meeting_id,
             )
+            # Fase 25 ("o que falta pra ligar") — persiste pra medir o
+            # criterio policy_violation de verdade (antes so logava,
+            # sem lastro pra contar nada). Best-effort, nunca pode
+            # derrubar a chamada de IA real que esta observando.
+            try:
+                from api.database import criar_policy_violation_event
+                criar_policy_violation_event(
+                    tipo="PROMPT_INJECTION",
+                    trechos_detectados=trechos_suspeitos,
+                    meeting_id=meeting_id,
+                    usuario_id=usuario_id,
+                    feature=feature,
+                )
+            except Exception as exc_persist:
+                logger.warning("Falha ao persistir PolicyViolationEvent (ignorado): %s", exc_persist)
     except Exception as exc:
         logger.warning("Erro ao verificar tentativa de prompt injection (ignorado): %s", exc)
 

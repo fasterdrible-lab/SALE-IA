@@ -1,5 +1,17 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-09-23 — Backend **V.1.4.137** (local, pendente
+deploy): contador real de `policy_violation` (Fase 25). Só
+`prompt_injection` tem detector real hoje — `agent/
+policy_violation_rules.py` (novo) + `api/database.py::
+PolicyViolationEvent` (tabela nova) + wiring em `api/ai_router.py::
+chamar_ia` (best-effort, nunca quebra a chamada real). Os outros 2
+tipos potenciais (adversarial sales, FORBIDDEN do AutonomyPolicy)
+seguem sem detector, documentados como gap. 25 testes novos. Suite
+completa: 1501 testes, 0 falhas, 1 skip pré-existente. Versão:
+`1.4.136` → `1.4.137`. Detalhe completo no CHANGELOG.md. **Pendente:
+push + deploy na VPS.**
+
 Atualizado em: 2026-09-23 — Backend **V.1.4.136** (local, pendente
 deploy): medindo `E2E_success`/`audit_coverage`/`recommendation_
 quality` (Fase 25). `recommendation_quality` confirmado como NÃO
