@@ -134,6 +134,39 @@ def verificar_orcamento(gasto_mes_usd: float, limite_usd: float | None) -> None:
         )
 
 
+def escalar_para_humano(escalonamento: dict) -> None:
+    """Dispara o alerta Telegram real de 1 escalonamento — Fase 25
+    (Critério para iniciar o Digital Sales Twin), item 5/5
+    (`human escalation functional`). `escalonamento` vem de
+    `agent/human_escalation_rules.py::montar_escalonamento()`.
+
+    Diferente dos demais alertas deste módulo, **nunca tem cooldown**:
+    um escalonamento real precisa notificar sempre, mesmo repetido —
+    quem decide ignorar é o humano, nunca o sistema silenciosamente.
+    """
+    acao = escalonamento["acao"]
+    fronteira = escalonamento["fronteira"]
+    motivo = escalonamento["motivo"]
+    nivel = escalonamento.get("urgencia", "⚠️")
+    contexto = escalonamento.get("contexto") or {}
+
+    linhas = [
+        "🙋 Escalonamento humano necessário",
+        f"Ação: *{acao}*",
+        f"Fronteira: `{fronteira}`",
+        f"Motivo: {motivo}",
+    ]
+    if contexto:
+        detalhes = ", ".join(f"{k}={v}" for k, v in contexto.items())
+        linhas.append(f"Contexto: {detalhes}")
+
+    alertar("\n".join(linhas), nivel=nivel)
+    logger.info(
+        "Escalonamento humano: acao=%s fronteira=%s motivo=%s",
+        acao, fronteira, motivo,
+    )
+
+
 def verificar_anomalia(feature: str, media_atual: float, media_anterior: float, multiplicador: float) -> None:
     """Alerta quando o custo medio por chamada de uma feature dispara em
     relacao a janela anterior (Cost Intelligence Fase 5). Cooldown de 1h

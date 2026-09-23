@@ -77,5 +77,54 @@ class VerificarAnomaliaTest(unittest.TestCase):
         self.assertEqual(m.call_count, 2)
 
 
+class EscalarParaHumanoTest(unittest.TestCase):
+    def setUp(self):
+        alertas._last_alerta.clear()
+
+    def test_dispara_alerta_com_urgencia_do_escalonamento(self):
+        escalonamento = {
+            "acao": "enviar_followup",
+            "fronteira": "HUMAN_APPROVAL",
+            "motivo": "desconto de 15% acima do limite de 5%",
+            "urgencia": "⚠️",
+            "contexto": {},
+        }
+        with patch.object(alertas, "alertar") as m:
+            alertas.escalar_para_humano(escalonamento)
+        m.assert_called_once()
+        args, kwargs = m.call_args
+        self.assertIn("enviar_followup", args[0])
+        self.assertIn("HUMAN_APPROVAL", args[0])
+        self.assertIn("desconto de 15%", args[0])
+        self.assertEqual(kwargs.get("nivel"), "⚠️")
+
+    def test_contexto_aparece_na_mensagem(self):
+        escalonamento = {
+            "acao": "alteracao_juridica",
+            "fronteira": "HUMAN_REQUIRED",
+            "motivo": "cláusula contratual não padrão",
+            "urgencia": "🔴",
+            "contexto": {"opportunity_id": 42},
+        }
+        with patch.object(alertas, "alertar") as m:
+            alertas.escalar_para_humano(escalonamento)
+        args, _ = m.call_args
+        self.assertIn("opportunity_id=42", args[0])
+
+    def test_nunca_tem_cooldown_dispara_toda_vez(self):
+        escalonamento = {
+            "acao": "promessa_nao_documentada",
+            "fronteira": "FORBIDDEN",
+            "motivo": "IA tentou prometer resultado sem base",
+            "urgencia": "🔴",
+            "contexto": {},
+        }
+        with patch.object(alertas, "alertar") as m:
+            alertas.escalar_para_humano(escalonamento)
+            alertas.escalar_para_humano(escalonamento)
+            alertas.escalar_para_humano(escalonamento)
+        self.assertEqual(m.call_count, 3)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
