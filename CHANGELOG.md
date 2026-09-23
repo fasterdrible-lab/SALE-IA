@@ -3,6 +3,130 @@
 
 ---
 
+## V.1.4.132 — Golden Dataset → Quality Monitoring (Fase 25 — "o que falta pra ligar", item 3/5)
+
+> Data: 22/09/2026 | Local (sem impacto em produção — ferramenta de avaliação offline, nunca chamada por nenhum caminho real do app)
+
+Terceira frente da Fase 25. Diferente das 2 anteriores (Audit Trail,
+Recommendation Usage — wiring em produção), esta é uma **ferramenta de
+avaliação** que roda o Golden Sales Dataset (Fase 20, 40 cenários)
+contra o pipeline real pra alimentar `framework_accuracy`/
+`objection_precision`/`hallucination_rate`/`evidence_coverage` (Tarefa
+19.1) com número de verdade. Investigação prévia (antes de codar)
+achou que `event_precision` está bloqueada — `SalesEvent` (Fase 1)
+tem **zero chamada em produção** desde que foi criado (confirmado por
+grep), então medir isso exigiria um extrator novo do zero pra uma
+estrutura que não alimenta nada real hoje — fora do escopo desta
+rodada. `recommendation_relevance` também ficou fora (exigiria
+LLM-judge, custo extra).
+
+### O runner (`agent/quality_monitoring_golden_runner.py` + `scripts/quality_monitoring_golden_run.py`)
+- `objection_precision`: só nos 4 cenários de `objections.yaml`
+  (único arquivo com categoria extraível com segurança de
+  `expected_facts[0].valor`), via `objection_category_classifier.py`
+  já em produção.
+- `framework_accuracy`: `raciocinar_async()` com `meeting_memory.
+  transcricao_parcial=input`, compara `recommended_framework` contra
+  o esperado (27 dos 40 cenários têm `expected_framework` não-nulo).
+- `hallucination_rate`/`evidence_coverage`: cada item de `evidence`
+  checado como substring literal do `input` do cenário.
+- `--dry-run` (padrão) mostra a contagem de chamadas sem gastar nada;
+  `--real` executa de verdade. 23 testes novos
+  (`tests/test_quality_monitoring_golden_runner.py`).
+
+### Investigação — 4 rodadas reais de IA, um achado por rodada
+**Rodada 1 (44 chamadas, cenários sintéticos isolados)**:
+`objection_precision=75%`, `framework_accuracy=33,3%` (9/27),
+`hallucination_rate=42%`, `evidence_coverage=58%`.
+
+**Diagnóstico por cenário dos 18 erros de `framework_accuracy`**:
+maioria não é raciocínio ruim — é o motor seguindo à risca suas
+próprias regras de segurança (Fases 4.2/6.1: nunca fechar sem
+economic buyer/champion confirmado, nunca negociar sem investigar
+objeção) quando os 10 campos estruturados chegam vazios — situação
+normal pra um cenário sintético isolado, mas que o gabarito escreveu
+assumindo contexto de produção já preenchido. 4 erros são confusão de
+sub-estágio SPIN vizinho (esperado, dado só 1 fala sem histórico). **2
+erros são achado real**: o motor não reconheceu que a causa raiz de
+uma objeção já tinha sido investigada dentro do próprio input recebido
+(`objections-04`, `pricing-04`).
+
+**Rodada 2 (164 chamadas — v2 do runner, contexto estruturado real via
+Bloco 4)**: usuário confirmou rodar de novo alimentando
+`spin_state`/`behavioral_signals`/`buyer_motivation` via os extratores
+reais (`meddpicc_state` continua sempre `None`, sem extrator).
+`framework_accuracy` **não mudou nem 1 ponto** (mesmo 9/27 exato) —
+`objection_precision` igual. `hallucination_rate`/`evidence_coverage`
+**pioraram** (89,5%/10,5%) — não porque a IA passou a alucinar mais,
+mas porque a checagem por substring literal contra o texto bruto
+passou a falhar quando `evidence` referencia fatos dos campos
+estruturados (parafraseados, não citados literalmente) — metodologia
+de checagem, não qualidade real.
+
+**Rodada 3 (diagnóstico com 3 reuniões reais da VPS, SSH só leitura,
+processado 100% no servidor — nenhuma transcrição real saiu de lá, só
+contagens agregadas voltaram)**: histórico bruto (42K-294K chars)
+passado direto aos extratores — **0 fatos extraídos nas 3 reuniões**
+em `spin_state`/`behavioral_signals`/`buyer_motivation`. Achado, sem
+gastar IA (só leitura de código): `api/processador_tempo_real.py::
+_limitar_contexto_ia()` já corta `historico` pra 6.000 chars **antes**
+de chegar em qualquer extrator em produção real — meu teste usou
+histórico bruto, não reflete produção. `api/otimizacao.py::
+aplicar_corte_contexto()` (Fase 5) faz tail-slice cego de
+`system_prompt+user_content`; como as instruções do prompt de cada
+extrator vêm ANTES de `{historico}` no template
+(`agent/prompt_templates/spin_extractor.txt` confirmado), histórico
+>19.900 chars faz o corte remover as instruções inteiras — bug real
+de metodologia do MEU teste, não da produção (que nunca envia
+histórico sem cortar antes).
+
+**Rodada 4 (36 chamadas — 3 reuniões reais × 3 cortes cada, histórico
+corretamente limitado a 6.000 chars igual produção)**: `spin_state` e
+`behavioral_signals` **0/9 em todas as janelas testadas**;
+`buyer_motivation` 3/9 (todas da mesma reunião). Padrão consistente
+demais pra ser coincidência — explicação: `spin_state` (6 campos bem
+específicos: tamanho exato do time, nome da ferramenta, impacto
+financeiro em número) e `behavioral_signals` (6 padrões psicológicos
+estreitos) têm taxa-base de ocorrência muito menor numa janela curta
+qualquer (~1.200 chars) do que `buyer_motivation` (12 categorias
+amplas, mais fácil de aparecer em qualquer trecho comercial). Bate com
+o design já documentado desde o Bloco 4: "cobertura vazia é
+informação real, não ausência de dado" — o sistema sempre esperou que
+a maioria dos ciclos volte vazia; só a leitura acumulada de uma
+reunião inteira (dezenas de ciclos), não uma janela isolada, deveria
+ser julgada.
+
+### Conclusão final, documentada pra nunca ser mal-interpretada depois
+`framework_accuracy=33%` **não significa** "o SalesReasoningEngine
+erra 2 em cada 3 vezes em produção real" — é o resultado de testar o
+motor contra falas sintéticas isoladas, formato que nem o motor nem os
+extratores do Bloco 4 foram desenhados pra encarar sozinhos. Os
+achados realmente acionáveis desta investigação inteira são bem mais
+estreitos que o número sugere:
+1. O motor às vezes não reconhece quando uma causa raiz de objeção
+   **já foi investigada dentro do próprio texto recebido**
+   (`objections-04`/`pricing-04` do Golden Dataset).
+2. Ambiguidade de sub-estágio SPIN vizinho sem histórico completo —
+   esperado, não é defeito.
+- **Decisão deliberada de escopo**: a metodologia de `hallucination_
+  rate`/`evidence_coverage` (substring literal contra texto bruto) não
+  é confiável quando `evidence` referencia campos estruturados
+  parafraseados — precisaria checar contra o bundle inteiro
+  serializado, não só `input`. Não corrigido nesta rodada.
+- Suite completa: **1436 testes, 0 falhas**, 1 skip pré-existente —
+  sem regressão.
+- Versão: `1.4.131` → `1.4.132`.
+- **Sem impacto em produção** — `agent/quality_monitoring_golden_
+  runner.py`/`scripts/quality_monitoring_golden_run.py` não são
+  chamados por nenhum caminho real do app (Dashboard, `/tempo-real`,
+  orquestrador). Deploy na VPS não muda comportamento nenhum, mas
+  segue a mesma disciplina de versionamento do resto do projeto.
+- Item 4/5 da Fase 25 (benchmark de transcrição) e item 5/5
+  (escalonamento humano) não começam sem nova confirmação explícita
+  do usuário.
+
+---
+
 ## V.1.4.131 — Recommendation Usage ligado em produção (Fase 25 — "o que falta pra ligar", item 2/5)
 
 > Data: 22/09/2026 | Local + GitHub (commit `d564807`) + **produção confirmada**, `/health` = `versao 1.4.131`

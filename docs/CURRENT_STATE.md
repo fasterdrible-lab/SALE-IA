@@ -1,5 +1,44 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-09-22 — Backend **V.1.4.132** (local, sem impacto
+em produção): terceira frente da Fase 25 ("o que falta pra ligar",
+item 3/5) — **Golden Dataset → Quality Monitoring**. Construído
+`agent/quality_monitoring_golden_runner.py` + `scripts/quality_
+monitoring_golden_run.py` (23 testes novos) pra rodar os 40 cenários
+do Golden Sales Dataset (Fase 20) contra o pipeline real e alimentar
+`framework_accuracy`/`objection_precision`/`hallucination_rate`/
+`evidence_coverage` (Tarefa 19.1) com número real. `event_precision`
+segue gap (nenhum extrator de `SalesEvent` existe — `SalesEvent`,
+Fase 1, tem zero chamada em produção desde que foi criado).
+
+**Investigação em 4 rodadas de IA real (~247 chamadas no total) achou
+que o número inicial (`framework_accuracy=33%`) não reflete a
+qualidade real do motor em produção** — é artefato de testar contra
+falas sintéticas isoladas, sem o contexto acumulado que uma reunião
+real tem. Achado técnico relevante no caminho: `api/
+processador_tempo_real.py::_limitar_contexto_ia()` já corta
+`historico` pra 6.000 chars antes de qualquer extrator em produção
+real (confirmado lendo código, sem gastar IA) — meu primeiro teste com
+reuniões reais usava histórico bruto (até 294K chars) e não refletia
+produção; corrigido na rodada seguinte. Com histórico do tamanho
+correto, `spin_state`/`behavioral_signals` voltaram vazios em 9/9
+janelas de 3 reuniões reais — consistente com o design já documentado
+("cobertura vazia é informação real"): esses campos têm vocabulário
+muito específico (taxa de ocorrência baixa numa janela curta
+qualquer), diferente de `buyer_motivation` (vocabulário amplo, achou
+sinal em 3/9). **Achados acionáveis reais, bem mais estreitos que o
+número de 33% sugere**: o motor às vezes não reconhece causa raiz de
+objeção já investigada dentro do próprio texto recebido (2 casos
+concretos no Golden Dataset), e há ambiguidade esperada de sub-estágio
+SPIN sem histórico completo (4 casos). Detalhe completo (as 4 rodadas)
+em CHANGELOG.md.
+
+Suite completa: **1436 testes, 0 falhas**, 1 skip pré-existente — sem
+regressão. **Sem impacto em produção** — o runner não é chamado por
+nenhum caminho real do app. Versão: `1.4.131` → `1.4.132`. **Item 4/5
+da Fase 25 (benchmark de transcrição) e item 5/5 (escalonamento
+humano) não começam sem nova confirmação explícita do usuário.**
+
 Atualizado em: 2026-09-22 — Backend **V.1.4.131** (local + GitHub +
 **produção confirmada**, `/health` = `versao 1.4.131`): segunda frente
 da Fase 25 ("o que falta pra ligar",
