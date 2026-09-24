@@ -773,7 +773,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.142",
+        "versao":              "1.4.143",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -811,7 +811,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.142",
+        "versao":          "1.4.143",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -4356,6 +4356,25 @@ from agent.observability_metrics_rules import (
 # campo formal em ai_features.py — nenhum outro lugar do sistema
 # categoriza "feature de recomendação" hoje.
 _FEATURES_RECOMENDACAO = (ai_features.REALTIME_COACH, ai_features.SALES_REASONING_RACIOCINIO)
+
+
+@app.get("/admin/data-quality")
+def admin_data_quality(
+    dias_sem_desfecho: int = 90,
+    authorization: str | None = _Header(default=None),
+):
+    """Tarefa B1 / seção 33 do PROMPT MESTRE V2 — validações automáticas
+    de qualidade de dado (missing seller/opportunity, valor negativo,
+    timestamp inválido, duplicata, referência órfã, desfecho
+    desconhecido). Leitura pura, nunca corrige nada; `exemplos` traz até
+    5 ids por verificação para investigação."""
+    _req_admin(authorization)
+    from agent.data_quality_rules import gerar_relatorio_qualidade
+    from api.database import coletar_dados_qualidade
+
+    if dias_sem_desfecho < 1:
+        raise HTTPException(status_code=422, detail="dias_sem_desfecho deve ser >= 1")
+    return gerar_relatorio_qualidade(coletar_dados_qualidade(), datetime.now(), dias_sem_desfecho=dias_sem_desfecho)
 
 
 @app.get("/admin/observabilidade/metricas")

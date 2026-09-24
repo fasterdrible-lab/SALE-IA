@@ -3,6 +3,53 @@
 
 ---
 
+## V.1.4.143 — Data Quality (Tarefa B1 / seção 33 do PROMPT MESTRE V2)
+
+> Data: 24/09/2026 | Local, pendente deploy (só leitura, sem tabela/coluna nova)
+
+"Sem dados confiáveis não existe Sales Science confiável." As 7
+validações literais da seção 33, como ferramenta de leitura pura — nunca
+corrige nem apaga nada, só aponta com amostra de ids.
+
+- **`agent/data_quality_rules.py`** (novo, função pura): `missing_
+  seller_id`, `missing_opportunity_id`, `negative_deal_value`,
+  `invalid_timestamps`, `duplicate_events`, `orphan_meetings`,
+  `unknown_outcomes`, aplicadas por tabela (`meeting_memory`,
+  `opportunities`, `recommendation_events`, `sales_events`). Severidade
+  `erro` (distorce análise: valor negativo, timestamp impossível,
+  referência quebrada, duplicata) × `aviso` (incompleto mas legítimo
+  hoje: reunião anônima, sem oportunidade, desfecho não registrado).
+  `ok` só cai com `erro`. Decisões desta rodada: tolerância de 10 min
+  para relógio no "futuro"; `close_date` comparada por dia (é data
+  informada pelo usuário, não instante); duplicata = mesmo conteúdo
+  normalizado na mesma reunião em ≤ 5 min; desfecho desconhecido =
+  status fora do vocabulário, `won` sem valor/produto/data, `lost` sem
+  motivo, ou `open` há mais de 90 dias (configurável).
+- **`api/database.py::coletar_dados_qualidade()`** (novo): carrega só as
+  colunas necessárias — nunca `transcript_full` e afins (MEDIUMTEXT).
+- **`GET /admin/data-quality?dias_sem_desfecho=90`** (novo, admin).
+- 20 testes novos (`tests/test_data_quality.py`).
+
+**1º relatório real (produção, leitura, 24/09/2026)** — `ok: false`, 17
+erros, 859 avisos:
+- **0 `Opportunity` em produção** — Win/Loss, Seasonality, Conversion
+  Drivers e o Learning Loop não têm nenhum dado para analisar. O
+  pré-requisito P3 do plano é o maior bloqueio real hoje.
+- **98,7% das reuniões sem vendedor** (309/313 — extensão usada sem
+  login) e **100% sem oportunidade** vinculada (313/313, e 237/237
+  `RecommendationEvent`).
+- **17 `RecommendationEvent` duplicadas (7,2%)**, 2 causas: padrão
+  A→B→A (o tracking grava a cada troca e o Coach alterna formulações) e
+  pares a ~4s de distância (análises concorrentes — o reenvio corrigido
+  na A1, some com a extensão V.1.4.17).
+- 0 timestamp inválido, 0 referência órfã.
+- **Achado lateral**: na reunião `swr-…` o Coach recomendou a mesma
+  pergunta de Situação reformulada a cada ~45s por mais de 30 min —
+  estagnação de recomendação, registrada para o Bloco C.
+- Versão: `1.4.142` → `1.4.143`.
+
+---
+
 ## V.1.4.142 + extensão V.1.4.17 — Transcrição limpa: duplicatas e ruído de UI (Tarefa A1 de `docs/tasks-prompt-mestre-v2-restante.md`)
 
 > Data: 24/09/2026 | Local, pendente deploy (backend) + reinstalação manual (extensão)

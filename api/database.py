@@ -3675,3 +3675,51 @@ def obter_ultimo_ai_usage_event(feature: str, meeting_id: Optional[str]) -> Opti
         if not row:
             return None
         return {"cost_usd": row.cost_usd, "latency_ms": row.latency_ms, "success": row.success}
+
+
+def coletar_dados_qualidade() -> dict:
+    """Tarefa B1 (Data Quality, seção 33): carrega só as colunas que
+    `agent/data_quality_rules.py` precisa — nunca `transcript_full` e
+    afins (MEDIUMTEXT), para a varredura continuar barata com o banco
+    crescendo. Datas voltam como `datetime` (não ISO), prontas pra
+    comparação. Leitura pura."""
+    with Session(engine) as session:
+        meetings = [
+            {"meeting_id": r[0], "usuario_id": r[1], "opportunity_id": r[2], "created_at": r[3], "updated_at": r[4]}
+            for r in session.exec(select(
+                MeetingMemory.meeting_id, MeetingMemory.usuario_id, MeetingMemory.opportunity_id,
+                MeetingMemory.created_at, MeetingMemory.updated_at,
+            )).all()
+        ]
+        opportunities = [
+            {"id": r[0], "seller_id": r[1], "status": r[2], "estimated_value": r[3], "outcome_value": r[4],
+             "product": r[5], "loss_reason": r[6], "created_at": r[7], "close_date": r[8],
+             "won_at": r[9], "lost_at": r[10]}
+            for r in session.exec(select(
+                Opportunity.id, Opportunity.seller_id, Opportunity.status, Opportunity.estimated_value,
+                Opportunity.outcome_value, Opportunity.product, Opportunity.loss_reason, Opportunity.created_at,
+                Opportunity.close_date, Opportunity.won_at, Opportunity.lost_at,
+            )).all()
+        ]
+        recommendation_events = [
+            {"id": r[0], "meeting_id": r[1], "opportunity_id": r[2], "recommendation": r[3],
+             "shown_at": r[4], "used_at": r[5]}
+            for r in session.exec(select(
+                RecommendationEvent.id, RecommendationEvent.meeting_id, RecommendationEvent.opportunity_id,
+                RecommendationEvent.recommendation, RecommendationEvent.shown_at, RecommendationEvent.used_at,
+            )).all()
+        ]
+        sales_events = [
+            {"id": r[0], "meeting_id": r[1], "seller_id": r[2], "event_type": r[3],
+             "evidence_quote": r[4], "timestamp": r[5]}
+            for r in session.exec(select(
+                SalesEvent.id, SalesEvent.meeting_id, SalesEvent.seller_id, SalesEvent.event_type,
+                SalesEvent.evidence_quote, SalesEvent.timestamp,
+            )).all()
+        ]
+    return {
+        "meetings": meetings,
+        "opportunities": opportunities,
+        "recommendation_events": recommendation_events,
+        "sales_events": sales_events,
+    }

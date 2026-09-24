@@ -122,7 +122,7 @@ nova), depois extratores novos.
 
 ## Bloco B — Sales Science: dados confiáveis e pipeline analítico
 
-### B1 — Data Quality (seção 33) [determinístico]
+### B1 — Data Quality (seção 33) [CONCLUÍDA — 24/09/2026, V.1.4.143]
 - Validações: `seller_id`/`opportunity_id` ausente, valor negativo,
   timestamp inválido, evento duplicado, reunião órfã, desfecho
   desconhecido. Endpoint admin + relatório.
@@ -239,3 +239,13 @@ explícita, uma de cada vez — mesma disciplina de todo o roadmap.
   do microfone continua sempre "vendedor" (eco do alto-falante pode
   atribuir fala do cliente ao vendedor quando não há legenda) —
   limitação conhecida, só resolvível com diarização (fora do escopo).
+- **B1 — CONCLUÍDA (24/09/2026)**, V.1.4.143: `GET /admin/data-quality`.
+  1º relatório real mudou prioridades: **0 `Opportunity` em produção**
+  (P3 é o bloqueio nº 1 de Sales Science/Learning Loop — nenhuma
+  oportunidade é criada automaticamente, só pelo dashboard), 98,7% das
+  reuniões sem vendedor (sem login na extensão → Seller DNA/benchmark
+  sem dado). Novas tarefas candidatas: **B7 — criar Opportunity
+  automaticamente** (ex.: ao vincular cliente a uma reunião) e **B8 —
+  incentivar/forçar login na extensão**; **C7 — estagnação de
+  recomendação** (Coach repetiu a mesma pergunta de Situação por 30+
+  min numa reunião real).

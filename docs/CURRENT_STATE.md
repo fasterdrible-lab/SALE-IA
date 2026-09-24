@@ -1,5 +1,14 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-09-24 — **V.1.4.143 (local, pendente deploy): Tarefa
+B1 — Data Quality.** `GET /admin/data-quality` (admin, leitura pura)
+com as 7 validações da seção 33. 1º relatório real: **0 oportunidades em
+produção** (Sales Science/Learning Loop sem dado nenhum), 98,7% das
+reuniões sem vendedor (extensão sem login), 100% sem oportunidade, 17
+recomendações duplicadas (7,2%), 0 timestamps inválidos/órfãos. Achado
+lateral: Coach estagnado repetindo a mesma pergunta de Situação por 30+
+min numa reunião real. Detalhe no CHANGELOG.md.
+
 Atualizado em: 2026-09-24 — **V.1.4.142 + extensão V.1.4.17 (local,
 pendente deploy + reinstalação da extensão): Tarefa A1 — transcrição
 limpa.** Em 12 reuniões reais, 21,9% das linhas eram duplicatas: reenvio
