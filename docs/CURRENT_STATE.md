@@ -1,5 +1,23 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-09-23 — **V.1.4.140, fix real de recommendation
+tracking**: investigando o achado "USED raro" da V.1.4.139, amostra
+real (recomendação × seller_action) revelou que `_rastrear_
+recomendacao()` comparava contra `transcricao_parcial` (transcript
+ACUMULADO, até 6.000 chars) em vez de `transcricao_nova` (o delta
+real — a extensão Chrome já envia os 2 campos corretos, mas
+`processador_tempo_real.py` só repassava o errado pro rastreamento de
+recomendação). Corrigido — `analisar_fragmento_multi()` ganha
+parâmetro `transcricao_nova`, `_rastrear_recomendacao()` usa ele.
+**Impacto esperado**: `taxa_uso_real=52,8%` medido na V.1.4.139
+estava subestimado; remedir depois do deploy. **Achado secundário não
+investigado**: padrão de linhas quase-duplicadas entre 2 rótulos de
+falante nos transcripts reais — pode ser bug de captura de legenda
+separado, documentado pra decisão futura. 1 teste novo, suite
+completa 1516 testes/0 falhas. Detalhe completo no CHANGELOG.md.
+Versão: `1.4.139` → `1.4.140`. **Pendente: push + deploy, depois
+remedir recommendation_quality com o fix aplicado.**
+
 Atualizado em: 2026-09-23 — **`policy_violation` medido em produção
 real**: `contar_policy_violations()` consultado direto na VPS (~3h de
 tráfego real desde o deploy da V.1.4.137) retornou **`0`** — bate

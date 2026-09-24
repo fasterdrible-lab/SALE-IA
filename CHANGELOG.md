@@ -3,6 +3,66 @@
 
 ---
 
+## V.1.4.140 — Fix: recommendation tracking usava transcript acumulado em vez do delta real (Fase 25 — investigando o achado de USED raro)
+
+> Data: 23/09/2026 | Local, pendente deploy (fix em código de produção sensível — ciclo real de `/tempo-real`)
+
+Usuário pediu pra investigar o achado da V.1.4.139 (`USED` puro raro,
+2,6%, frente a `PARTIALLY_USED`, 50,2%). Investigação com amostra real
+de pares (recomendação, seller_action) do banco de produção revelou a
+causa raiz: **bug de escopo de dado, não calibração de limiar**.
+
+- **Achado**: `_rastrear_recomendacao()` (Fase 10.2) usava
+  `transcricao_parcial` como `seller_action` — mas esse parâmetro,
+  dentro de `analisar_fragmento_multi()`, é o TRANSCRIPT ACUMULADO da
+  reunião inteira (limitado a 6.000 chars por `_limitar_contexto_ia()`
+  em `api/processador_tempo_real.py`), não a fala nova do vendedor.
+  Amostra real confirmou: `seller_action` continha milhares de
+  caracteres cobrindo múltiplos tópicos não relacionados à
+  recomendação pendente — comparar isso via embedding contra uma
+  recomendação curta e específica dilui a similaridade
+  sistematicamente, empurrando classificações que deveriam ser `USED`
+  pra `PARTIALLY_USED`/`IGNORED`.
+- **Causa raiz confirmada**: a extensão Chrome (`chrome-extension/
+  content.js`) já envia os 2 campos corretos há tempos —
+  `transcricao_parcial` (acumulado) e `transcricao_nova` (rotulado
+  `transcricaoDelta` no código, "apenas novas entradas"). Mas
+  `api/processador_tempo_real.py::analyzeRealtimeMeeting()` só
+  repassava `transcricao_parcial` pra `analisar_fragmento_multi()` —
+  `transcricao_nova` era usado só pra gravar em `MeetingMemory`
+  (evitar duplicar no banco), nunca chegava no rastreamento de
+  recomendação.
+- **Fix**: `analisar_fragmento_multi()` ganha parâmetro novo
+  `transcricao_nova: str = ""`; `_rastrear_recomendacao()` passa a
+  receber e usar `transcricao_nova` (não `transcricao_parcial`) tanto
+  pra decidir se há "fala nova" quanto como `seller_action` real.
+  `api/processador_tempo_real.py` repassa `transcricao_nova` (já
+  limitada por `_limitar_contexto_ia()`, mesma disciplina defensiva)
+  no lugar certo.
+- **Achado secundário, não investigado nesta rodada**: durante a
+  amostragem, vários `seller_action` reais mostraram um padrão de
+  linhas quase-duplicadas alternando entre 2 rótulos de falante (ex.:
+  "Felipe:"/"Paulo:") dizendo quase o mesmo conteúdo — pode ser um
+  problema separado na captura/atribuição de legendas (2 fontes de
+  transcrição se sobrepondo). Não confirmado como bug real nem
+  investigado a fundo — fica documentado pra decisão futura do
+  usuário.
+- 1 teste novo (`tests/test_orquestrador_recommendation_tracking.py::
+  IntegracaoComOCicloRealTest::test_classificacao_usa_transcricao_
+  nova_nao_a_acumulada`) confirmando que a classificação recebe
+  `transcricao_nova`, nunca o transcript acumulado. Suite completa:
+  **1516 testes**, 0 falhas, 1 skip pré-existente — sem regressão.
+- **Impacto esperado**: o número real de `recommendation_quality`
+  medido na V.1.4.139 (`taxa_uso_real=52,8%`) estava **subestimado**
+  por este bug — remedir depois do deploy deve mostrar `USED` mais
+  frequente. Não remedido nesta rodada (decisão: fix primeiro, medir
+  de novo depois de confirmar em produção real).
+- Versão: `1.4.139` → `1.4.140`.
+- **Pendente**: push + deploy na VPS, depois remedir
+  `recommendation_quality` com o fix aplicado.
+
+---
+
 ## policy_violation medido em produção real (23/09/2026, sem bump de versão — só consulta read-only)
 
 `contar_policy_violations()` (V.1.4.137) consultado direto na VPS

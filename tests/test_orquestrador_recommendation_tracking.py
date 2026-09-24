@@ -224,6 +224,37 @@ class IntegracaoComOCicloRealTest(unittest.TestCase):
                     p.stop()
         mock_criar.assert_called_once()
 
+    def test_classificacao_usa_transcricao_nova_nao_a_acumulada(self):
+        # Achado real (Fase 25, 23/09/2026): usar transcricao_parcial
+        # (acumulada, até 6.000 chars) como seller_action diluía a
+        # similaridade sistematicamente. A classificação precisa
+        # receber transcricao_nova (o delta real), nunca o transcript
+        # inteiro passado como `transcricao_parcial` pro resto do
+        # ciclo (RAG/agentes).
+        rag_patches = _mock_rag()
+        agente_patches = _mock_agentes({"message": "Pergunte sobre o impacto.", "category": "x", "reason": "y"})
+        pendente = {"id": 1, "recommendation": "Pergunta anterior", "used_at": None}
+        with patch("api.database.listar_recommendation_events", return_value=[pendente]), \
+             patch("api.database.registrar_uso_recommendation_event") as mock_registrar, \
+             patch(
+                 "agent.recommendation_usage_rules.detectar_uso_recomendacao",
+                 new=AsyncMock(return_value={"state": "USED", "similarity": 0.9}),
+             ) as mock_detectar:
+            for p in (*rag_patches, *agente_patches):
+                p.start()
+            try:
+                asyncio.run(analisar_fragmento_multi(
+                    "transcricao acumulada gigante, muitos topicos nao relacionados",
+                    meeting_id="m1",
+                    transcricao_nova="fala nova curta do vendedor",
+                ))
+            finally:
+                for p in (*rag_patches, *agente_patches):
+                    p.stop()
+
+        mock_detectar.assert_awaited_once_with("Pergunta anterior", "fala nova curta do vendedor")
+        mock_registrar.assert_called_once_with(1, seller_action="fala nova curta do vendedor")
+
 
 if __name__ == "__main__":
     unittest.main()

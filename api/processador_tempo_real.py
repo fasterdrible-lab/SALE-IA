@@ -556,6 +556,7 @@ async def analyzeRealtimeMeeting(
             usuario_id=usuario_id,
             meeting_id=meeting_id,
             perfil_bigfive_atual=(diagnostico_atual or {}).get("perfil_bigfive") or {},
+            transcricao_nova=_limitar_contexto_ia(transcricao_nova),
         )
     except Exception as _e:
         logger.exception("[TempoReal] Falha ao analisar fragmento: %s", _e)

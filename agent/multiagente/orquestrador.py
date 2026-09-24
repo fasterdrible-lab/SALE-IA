@@ -78,7 +78,7 @@ def recommendation_tracking_ativo() -> bool:
 
 async def _rastrear_recomendacao(
     resultado: dict,
-    transcricao_parcial: str,
+    transcricao_nova: str,
     meeting_id: str | None,
 ) -> None:
     """Fase 10 (Tarefas 10.1+10.2) — 2 passos por ciclo, nesta ordem:
@@ -97,6 +97,20 @@ async def _rastrear_recomendacao(
        registrada, cria uma `RecommendationEvent` nova, que vira a
        pendente do próximo ciclo.
 
+    **`transcricao_nova` (achado real, Fase 25 — medindo
+    recommendation_quality, 23/09/2026), não `transcricao_parcial`**:
+    a versão anterior usava `transcricao_parcial` (o transcript
+    ACUMULADO da reunião inteira, limitado a 6.000 chars por
+    `_limitar_contexto_ia()`) como `seller_action` — comparar a
+    recomendação contra um blob de até 6.000 chars (múltiplos tópicos,
+    não só a reação ao que foi recomendado) diluía a similaridade de
+    embedding sistematicamente, mascarando classificações `USED` reais
+    como `PARTIALLY_USED`/`IGNORED`. `transcricao_nova` é o delta real
+    ("apenas novas entradas", já enviado pela extensão desde sempre —
+    `chrome-extension/content.js`) — representa literalmente a fala
+    nova do vendedor desde o ciclo anterior, o dado certo pra saber se
+    ele reagiu à recomendação pendente.
+
     Best-effort absoluto (mesma disciplina de Shadow Mode/Prompt
     Injection) — nunca pode atrasar nem quebrar o ciclo real; reunião
     anônima (`meeting_id` ausente/`"default"`, mesmo padrão de
@@ -110,10 +124,10 @@ async def _rastrear_recomendacao(
         eventos = listar_recommendation_events(meeting_id=meeting_id)
         ultimo = eventos[-1] if eventos else None
 
-        if ultimo and ultimo.get("used_at") is None and (transcricao_parcial or "").strip():
+        if ultimo and ultimo.get("used_at") is None and (transcricao_nova or "").strip():
             try:
-                classificacao = await detectar_uso_recomendacao(ultimo["recommendation"], transcricao_parcial)
-                registrar_uso_recommendation_event(ultimo["id"], seller_action=transcricao_parcial)
+                classificacao = await detectar_uso_recomendacao(ultimo["recommendation"], transcricao_nova)
+                registrar_uso_recommendation_event(ultimo["id"], seller_action=transcricao_nova)
                 logger.info(
                     "[RecommendationTracking] meeting=%s event=%s estado=%s similaridade=%s",
                     meeting_id, ultimo["id"], classificacao["state"], classificacao.get("similarity"),
@@ -648,6 +662,7 @@ async def analisar_fragmento_multi(
     usuario_id: str | None = None,
     meeting_id: str | None = None,
     perfil_bigfive_atual: dict = None,
+    transcricao_nova: str = "",
 ) -> dict:
     diag = diagnostico_atual or {}
     scores = historico_scores or []
@@ -825,7 +840,7 @@ async def analisar_fragmento_multi(
     # (resultado["next_best_action"] já reflete a substituição do
     # Piloto quando aplicável).
     try:
-        await _rastrear_recomendacao(resultado, transcricao_parcial, meeting_id)
+        await _rastrear_recomendacao(resultado, transcricao_nova, meeting_id)
     except Exception as _e:
         logger.debug("[RecommendationTracking] Falha inesperada (melhor esforço): %s", _e)
 
