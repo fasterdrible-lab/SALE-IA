@@ -471,7 +471,12 @@ async def analyzeRealtimeMeeting(
     fragmento_para_memoria = _limpar_transcricao((transcricao_nova or transcricao_parcial or "").strip())
     if fragmento_para_memoria:
         try:
-            registrar_transcricao_meeting(meeting_id, fragmento_para_memoria, substituir=False, usuario_id=usuario_id)
+            registrado = registrar_transcricao_meeting(meeting_id, fragmento_para_memoria, substituir=False, usuario_id=usuario_id)
+            # Tarefa A1: o gate de "texto novo mínimo" mede só o que foi
+            # de fato aceito — um delta reenviado (só duplicatas) não
+            # dispara ciclo de IA.
+            if isinstance(registrado, dict) and "fragmento_aceito" in registrado:
+                fragmento_para_memoria = registrado["fragmento_aceito"]
         except Exception as _e:
             logger.warning("[MeetingMemory] Nao foi possivel salvar transcript: %s", _e)
 

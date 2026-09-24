@@ -72,6 +72,7 @@
     timerEnvio: null,
     backendOnline: true,
     ultimoIndexEnviado: 0,  // tracks last committed entry sent to DB
+    envioEmAndamento: 0,    // timestamp do /tempo-real em voo (0 = livre) — Tarefa A1
     participantes: {
       vendedor: 'Vendedor',
       clientes: ['Cliente'],
@@ -666,6 +667,39 @@
   let legendasDetectadas = false;
   let verificacaoLegendaTimer = null;
 
+  // Tarefa A1 (24/09/2026): a mesma fala chega por 2 fontes — legenda do
+  // Meet (rótulo real do falante, sem pontuação) e Whisper do microfone
+  // (rótulo do vendedor, pontuado, ~15s depois). Comparação exata não
+  // pega isso; Dice sobre palavras normalizadas pega (par real medido:
+  // 0.80). Fica sempre a primeira que chegou — em geral a legenda, que
+  // traz o falante certo. Espelha agent/transcript_dedup_rules.py.
+  var DEDUP_JANELA = 15;
+  var DEDUP_LIMIAR = 0.75;
+  var DEDUP_MIN_CHARS = 20;
+
+  function palavrasNormalizadas(texto) {
+    return String(texto || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^\w\s]/g, ' ').split(/\s+/).filter(Boolean);
+  }
+
+  function similaridadeDice(a, b) {
+    if (!a.length || !b.length) return 0;
+    var contagem = {};
+    a.forEach(function (w) { contagem[w] = (contagem[w] || 0) + 1; });
+    var comuns = 0;
+    b.forEach(function (w) { if (contagem[w] > 0) { contagem[w]--; comuns++; } });
+    return (2 * comuns) / (a.length + b.length);
+  }
+
+  function ehFalaDuplicada(t, ultimas) {
+    var p = palavrasNormalizadas(t);
+    if (p.join(' ').length < DEDUP_MIN_CHARS) return false;
+    return ultimas.some(function (e) {
+      var q = palavrasNormalizadas(e.text);
+      return q.join(' ').length >= DEDUP_MIN_CHARS && similaridadeDice(p, q) >= DEDUP_LIMIAR;
+    });
+  }
+
   function commitarFrase(speaker, texto) {
     if (!texto || texto.trim().length < 10) return;
     if (eRuidoUI(texto.trim())) return;
@@ -678,6 +712,7 @@
     if (ultimas.some(function(e) {
       return e.text === t || e.text.startsWith(t) || t.startsWith(e.text);
     })) return;
+    if (ehFalaDuplicada(t, estado.transcricao.slice(-DEDUP_JANELA))) return;
     jaCommitado.add(chave);
     estado.transcricao.push({ speaker: speaker, text: t, timestamp: new Date().toISOString() });
     legendasDetectadas = true;
@@ -817,6 +852,16 @@
     if (/^Notifica[cç][oõ]es do recurso Pe[cç]a ao Gemini$/i.test(texto)) return true;
     if (/^Pe[cç]a ao Gemini$/i.test(texto)) return true;
     if (/^Fazer anota[cç][oõ]es com o Gemini$/i.test(texto)) return true;
+    // Tarefa A1 (24/09/2026) — ruído de UI achado em transcripts reais de
+    // produção, sempre por frase exata/prefixo de sistema, nunca "contém".
+    if (/^O Gemini vai analisar sua conversa/i.test(texto)) return true;
+    if (/^Saiba mais$/i.test(texto)) return true;
+    if (/^h[aá] \d+ (segundos?|minutos?|horas?)$/i.test(texto)) return true;
+    if (/^\d+ (segundos?|minutos?) restantes?$/i.test(texto)) return true;
+    if (/^(Transcribing|Transcri[cç][aã]o|Transcrevendo): /i.test(texto)) return true;
+    if (/^Configurar o modo de exibi[cç][aã]o/i.test(texto)) return true;
+    // Declarações CSS (texto de <style> capturado como folha de texto)
+    if (/[a-z-]+\s*:\s*[^;{}]+;/i.test(texto) && /^[\sa-z0-9%:;.,#(){}"'\/-]+$/i.test(texto)) return true;
     // Atalhos de teclado (ex: "Desativar microfone (ctrl + d)", "Ativar legendas (c ou shift + c)")
     if (/\(ctrl\s*\+/i.test(texto)) return true;
     if (/\([a-z]\s+ou\s+shift\s*\+|shift\s*\+\s*[a-z]\)/i.test(texto)) return true;
@@ -843,6 +888,9 @@
   function processarElementoLegenda(el) {
     if (!el || !el.textContent) return;
     if (el.closest && el.closest('#saleia-sidebar')) return;
+    // Tarefa A1: <style>/<script> são "folhas" de texto para o observer e
+    // vazavam CSS ("height: 100%;") como se fosse fala.
+    if (el.closest && el.closest('style,script,noscript,template')) return;
     var texto = el.textContent.trim();
     // Mínimo: 2 palavras e 10 chars para ser fala real
     if (!texto || texto.length < 10) return;
@@ -1138,6 +1186,15 @@
       return;
     }
 
+    // Tarefa A1: só 1 envio em andamento por vez. Sem isso, cada chunk do
+    // Whisper (~15s) disparava um novo envio enquanto a análise anterior
+    // ainda rodava, reenviando o mesmo delta (ultimoIndexEnviado só avança
+    // na resposta) — o backend anexava de novo e rodava IA à toa. O timer
+    // periódico pega o que ficou pendente. Trava liberada em toda resposta
+    // e, por segurança, após 120s sem resposta.
+    if (estado.envioEmAndamento && Date.now() - estado.envioEmAndamento < 120000) return;
+    estado.envioEmAndamento = Date.now();
+
     // Captura delta e índice ANTES da chamada async (evita race condition)
     var indexSnapshot = estado.transcricao.length;
     var transcricaoDelta = montarTranscricaoDelta();
@@ -1157,11 +1214,12 @@
     // O fetch é delegado ao background.js para contornar o bloqueio do
     // Service Worker do Google Meet (meetsw.js) que intercepta requisições
     // externas feitas diretamente por content scripts.
-    if (!chrome.runtime || !chrome.runtime.id) return;
+    if (!chrome.runtime || !chrome.runtime.id) { estado.envioEmAndamento = 0; return; }
     console.log('[SALEIA-DBG] enviando /tempo-real, tamanho da transcricao:', transcricaoParcial.length);
     chrome.runtime.sendMessage(
       { tipo: 'fetchBackend', url: url, payload: payload },
       function (resp) {
+        estado.envioEmAndamento = 0;
         if (chrome.runtime.lastError) {
           console.error('[SALEIA] sendMessage falhou (fetchBackend):', chrome.runtime.lastError.message);
           estado.backendOnline = false;

@@ -791,6 +791,13 @@ def registrar_transcricao_meeting(
             row.transcript_full = fragmento
             row.transcript_buffer = _merge_transcript_buffer("", fragmento)
         else:
+            # Tarefa A1: append idempotente — descarta reenvio do mesmo
+            # delta e a mesma fala vinda de 2 fontes (legenda + Whisper).
+            from agent.transcript_dedup_rules import deduplicar_fragmento
+
+            fragmento, descartadas = deduplicar_fragmento(row.transcript_full, fragmento)
+            if descartadas:
+                logger.info("[MeetingMemory] %s linha(s) duplicada(s) descartada(s) meeting=%s", descartadas, meeting_id)
             row.transcript_full = _append_transcript(row.transcript_full, fragmento)
             row.transcript_buffer = _merge_transcript_buffer(row.transcript_buffer, fragmento)
 
@@ -798,7 +805,9 @@ def registrar_transcricao_meeting(
         session.add(row)
         session.commit()
         session.refresh(row)
-        return _meeting_memory_to_dict(row)
+        resultado = _meeting_memory_to_dict(row)
+        resultado["fragmento_aceito"] = fragmento
+        return resultado
 
 
 def _normalizar_estruturado_item(

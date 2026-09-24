@@ -3,6 +3,64 @@
 
 ---
 
+## V.1.4.142 + extensão V.1.4.17 — Transcrição limpa: duplicatas e ruído de UI (Tarefa A1 de `docs/tasks-prompt-mestre-v2-restante.md`)
+
+> Data: 24/09/2026 | Local, pendente deploy (backend) + reinstalação manual (extensão)
+
+Investigação do achado lateral da V.1.4.140 ("linhas quase duplicadas
+entre 2 falantes"), com medição read-only em 12 reuniões reais de
+produção (12.725 linhas). **Não era 1 problema, eram 3**:
+
+1. **Reenvio do mesmo delta (a maior causa)** — `content.js::
+   enviarParaBackend()` só avança `ultimoIndexEnviado` na resposta de
+   sucesso, mas é disparada também a cada chunk do Whisper (~15s)
+   enquanto a análise anterior ainda roda. O mesmo `transcricao_nova` ia
+   de novo e `api/database.py::_append_transcript` anexava sem checar
+   nada. Linhas 100% idênticas a 2-3 posições de distância, e ciclos
+   de `/tempo-real` extras.
+2. **Mesma fala por 2 fontes** — legenda do Meet (rótulo real, sem
+   pontuação) + Whisper do microfone (sempre rotulado como vendedor,
+   pontuado, ~15s depois). 317 linhas com falante trocado
+   (ex.: "Felipe:" vs "Paulo:" para a mesma frase).
+3. **UI do Meet e CSS como fala** — aviso do Gemini, "Saiba mais",
+   "há 19 minutos", "45 segundos restantes", "Transcribing: …" e
+   blocos `height: 100%;` (texto de `<style>` tratado como folha).
+
+Simulação da nova regra nas mesmas 12 reuniões: **2.785/12.725 linhas
+(21,9%) seriam descartadas**; 15 descartes não-exatos sorteados
+revisados à mão — todos duplicatas reais (0 falso positivo na amostra).
+Custo aceito: na evolução de legenda, fica a 1ª versão, às vezes um
+pouco mais curta.
+
+**Backend (vale para todos no deploy, mesmo com extensão antiga)**:
+- `agent/transcript_dedup_rules.py` (novo, função pura): descarta
+  linha nova se já existe exata entre as últimas 80, ou se o corpo
+  (sem rótulo, sem pontuação) tem similaridade ≥ 0,85 com uma das
+  últimas 15 de qualquer falante. Falas < 20 chars nunca são
+  descartadas ("Sim, perfeito." repetido é legítimo). Fica sempre a
+  primeira que chegou (em geral a legenda, que tem o falante certo).
+- `registrar_transcricao_meeting()` aplica a regra no append (nunca no
+  `substituir=True`) e devolve `fragmento_aceito`.
+- `processador_tempo_real.py`: o gate de "texto novo mínimo" mede só o
+  `fragmento_aceito` — delta reenviado (só duplicatas) não dispara IA.
+
+**Extensão V.1.4.17 (limpa também o texto enviado à IA em tempo real)**:
+- Trava de 1 envio `/tempo-real` em andamento por vez (liberada em toda
+  resposta ou após 120s).
+- `ehFalaDuplicada()` em `commitarFrase()`: Dice sobre palavras
+  normalizadas ≥ 0,75 contra as últimas 15 falas (par real medido: 0,80).
+- Filtros de ruído novos em `eRuidoUI()` (frase exata/prefixo de
+  sistema) + `processarElementoLegenda()` ignora `<style>/<script>`.
+
+**Testes**: 16 novos (`tests/test_transcript_dedup_rules.py`, incluindo
+reenvio e 2ª fonte via `registrar_transcricao_meeting` real em SQLite).
+Extensão: `node --check` + teste node das funções puras novas (pares
+reais, 9 ruídos bloqueados, 4 falas reais preservadas). Transcripts
+antigos já gravados **não** são reescritos.
+- Versão: `1.4.141` → `1.4.142`; extensão `1.4.16` → `1.4.17`.
+
+---
+
 ## V.1.4.141 — audit_coverage: "degradação" era artefato de medição, não bug (Fase 25 — fecha a investigação da V.1.4.136)
 
 > Data: 24/09/2026 | Local, pendente deploy (só nível de log, sem mudança de comportamento)

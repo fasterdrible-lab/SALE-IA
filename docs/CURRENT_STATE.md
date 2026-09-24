@@ -1,5 +1,16 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-09-24 — **V.1.4.142 + extensão V.1.4.17 (local,
+pendente deploy + reinstalação da extensão): Tarefa A1 — transcrição
+limpa.** Em 12 reuniões reais, 21,9% das linhas eram duplicatas: reenvio
+do mesmo delta enquanto a análise anterior rodava (maior causa), mesma
+fala por legenda + Whisper com rótulo trocado, e UI do Meet/CSS como
+fala. Backend: append idempotente (`agent/transcript_dedup_rules.py`) +
+gate de IA medindo só o texto aceito. Extensão: trava de envio único,
+dedup por similaridade e filtros de ruído. Detalhe no CHANGELOG.md.
+Plano geral do que falta do PROMPT MESTRE V2:
+`docs/tasks-prompt-mestre-v2-restante.md`.
+
 Atualizado em: 2026-09-24 — **V.1.4.141 (local, pendente deploy):
 `audit_coverage` = 100% real, o "bug" da V.1.4.136 era artefato de
 medição.** Zero warnings de falha de audit trail em 6 dias de journal.
