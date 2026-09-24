@@ -1,5 +1,17 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-09-24 — **V.1.4.141 (local, pendente deploy):
+`audit_coverage` = 100% real, o "bug" da V.1.4.136 era artefato de
+medição.** Zero warnings de falha de audit trail em 6 dias de journal.
+O audit trail só existe desde a V.1.4.130 (deploy 22/09 22:04 UTC); a
+medição antiga contava chamadas anteriores ao código existir. Desde a
+1ª audit entry: 322 chamadas, 322 audits. Diagnóstico temporário
+(`warning`) revertido pra `debug`. Nenhuma chamada de IA em produção
+desde 23/09 14:12 UTC (sem reuniões) — remedição de
+`recommendation_quality` (V.1.4.140) segue esperando dado novo.
+**Estado dos 9 critérios da Fase 25 muda**: `audit_coverage` sai de
+"instável/bug em investigação" para **100%, bate o alvo**.
+
 Atualizado em: 2026-09-23 — **V.1.4.140, fix real de recommendation
 tracking**: investigando o achado "USED raro" da V.1.4.139, amostra
 real (recomendação × seller_action) revelou que `_rastrear_
@@ -15,8 +27,12 @@ investigado**: padrão de linhas quase-duplicadas entre 2 rótulos de
 falante nos transcripts reais — pode ser bug de captura de legenda
 separado, documentado pra decisão futura. 1 teste novo, suite
 completa 1516 testes/0 falhas. Detalhe completo no CHANGELOG.md.
-Versão: `1.4.139` → `1.4.140`. **Pendente: push + deploy, depois
-remedir recommendation_quality com o fix aplicado.**
+Versão: `1.4.139` → `1.4.140`. **Push + deploy confirmados
+(24/09/2026)**: commit `bea5ede`, `/health` = `versao 1.4.140`,
+journal sem erros. Remedição imediata deu números idênticos (231
+eventos, 52,8%) — esperado: os eventos existentes (ids 1-236) já
+foram gravados com o transcript acumulado. **Pendente: remedir depois
+de novas reuniões reais, comparando só eventos com id > 236.**
 
 Atualizado em: 2026-09-23 — **`policy_violation` medido em produção
 real**: `contar_policy_violations()` consultado direto na VPS (~3h de

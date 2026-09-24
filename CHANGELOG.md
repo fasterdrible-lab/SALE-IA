@@ -3,6 +3,40 @@
 
 ---
 
+## V.1.4.141 — audit_coverage: "degradação" era artefato de medição, não bug (Fase 25 — fecha a investigação da V.1.4.136)
+
+> Data: 24/09/2026 | Local, pendente deploy (só nível de log, sem mudança de comportamento)
+
+Próximo passo documentado da V.1.4.136 era capturar no journal o
+warning real da falha de audit trail. **Resultado: zero ocorrências**
+de `"audit trail"`/`"ShadowMode"` em 6 dias de journal (85 mil linhas)
+— nenhuma falha de gravação aconteceu.
+
+- **Causa real do número baixo**: o audit trail só foi conectado ao
+  `SalesReasoningEngine` na **V.1.4.130** (deploy em 22/09/2026). A
+  medição da V.1.4.136 dividia audits por *todas* as chamadas
+  `sales_reasoning.raciocinio` do dia, inclusive as feitas antes do
+  código de auditoria existir: 21/09 = 0% (dia inteiro pré-V.1.4.130),
+  22/09 = 10,8% (deploy no fim do dia), 23/09 = 100%. Não era
+  degradação ao longo do uptime — era a data de corte do deploy.
+- **Medição corrigida (read-only, MySQL de produção)**: 1ª
+  `AuditTrailEntry` em 22/09 22:04:30; depois disso, **322 chamadas
+  reais, 322 audits → `audit_coverage = 100%`**, bate o alvo da Fase 25.
+  1017 chamadas anteriores ficam fora do denominador (código inexistente
+  na época, não falha).
+- **Diagnóstico temporário revertido**, como a V.1.4.136 previa: os 2
+  `logger.warning` voltam pra `logger.debug` (`agent/
+  sales_reasoning_engine.py::_registrar_audit_trail`, `agent/
+  multiagente/orquestrador.py::_rodar_shadow_mode`). Zero mudança de
+  comportamento.
+- **Achado lateral**: nenhuma chamada de IA em produção desde 23/09
+  14:12 UTC (nenhuma reunião real desde então) — também explica por
+  que ainda não há `RecommendationEvent`s novos (id > 236) para
+  remedir o fix da V.1.4.140.
+- Versão: `1.4.140` → `1.4.141`.
+
+---
+
 ## V.1.4.140 — Fix: recommendation tracking usava transcript acumulado em vez do delta real (Fase 25 — investigando o achado de USED raro)
 
 > Data: 23/09/2026 | Local, pendente deploy (fix em código de produção sensível — ciclo real de `/tempo-real`)
@@ -58,8 +92,18 @@ causa raiz: **bug de escopo de dado, não calibração de limiar**.
   frequente. Não remedido nesta rodada (decisão: fix primeiro, medir
   de novo depois de confirmar em produção real).
 - Versão: `1.4.139` → `1.4.140`.
-- **Pendente**: push + deploy na VPS, depois remedir
-  `recommendation_quality` com o fix aplicado.
+- **Push + deploy confirmados (24/09/2026)**: commit `bea5ede`.
+  `reunioes_ativas: 0` checado antes do `git pull` e antes do
+  `systemctl restart saleia` — `active`, journal sem erros.
+  Pós-restart: `/health` = `versao 1.4.140`, `status online`.
+- **Remedição imediata (`--real`, $0,00) — números idênticos,
+  esperado**: 231 eventos, `USED` 6 / `PARTIALLY_USED` 116 / `IGNORED`
+  109, `taxa_uso_real=52,8%`. O fix só muda o `seller_action` gravado
+  daqui em diante — os 231 eventos existentes (ids 1-236) já foram
+  persistidos com o transcript acumulado e o script recalcula sobre o
+  mesmo dado. **Remedição com significado exige novos
+  `RecommendationEvent`s de reuniões reais pós-deploy** (comparar só
+  ids > 236 contra a base antiga).
 
 ---
 

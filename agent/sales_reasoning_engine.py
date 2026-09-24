@@ -253,13 +253,7 @@ def _registrar_audit_trail(
             rule_version=_RULE_VERSION,
         )
     except Exception as _e:
-        # Diagnóstico temporário (V.1.4.136) — audit_coverage real medido
-        # em 23/09/2026 caiu de ~100% (logo após restart) pra 0-10% ao
-        # longo do uptime; debug nunca aparece em produção (log level
-        # INFO), então subiu pra warning pra investigar a causa real
-        # antes de decidir um fix. Reverter pra debug depois de
-        # confirmar a causa.
-        logger.warning("[SalesReasoningEngine] Falha ao gravar audit trail (melhor esforço): %s", _e)
+        logger.debug("[SalesReasoningEngine] Falha ao gravar audit trail (melhor esforço): %s", _e)
 
 
 async def raciocinar_async(
