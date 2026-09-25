@@ -3,6 +3,34 @@
 
 ---
 
+## V.1.4.145 — Fix: astrologia opcional nunca disparava em produção
+
+> Data: 25/09/2026 | Local, pendente deploy
+
+Achado lateral da V.1.4.144. `api/main.py::_processar_perfil_astrologico()`
+lia `resultado["data_nascimento_mencionada"]`, mas os 2 endpoints reais
+(`/recapitulacao-manual`, `/recapitulacao-completa`) entregam o campo
+dentro de `resultado["recapitulacao"]` (saída do `PROMPT_RECAPITULACAO`).
+A função sempre saía cedo: `perfil_astrologico` era sempre `null` desde
+a V.1.4.71. **Os testes escondiam o bug** — todos passavam o campo no
+nível de cima, formato que nenhum endpoint produz.
+
+- Leitura corrigida: `resultado["recapitulacao"]` primeiro, nível de
+  cima como fallback (compatibilidade). A saída continua em
+  `resultado["perfil_astrologico"]`, onde o dashboard já lê.
+- **2º problema, de ordem**: a astrologia roda antes do vínculo
+  reunião→cliente da B7 (background), então na 1ª reunião de um cliente
+  o nascimento nunca era gravado. `agent/auto_opportunity_rules.py`
+  agora grava o nascimento logo após vincular (`salvar_nascimento_
+  cliente` nunca sobrescreve; placeholder `{dia:0, mes:0}` do schema é
+  descartado por `calcular_signo`).
+- 4 testes novos (2 de regressão com o formato real do endpoint + 2 na
+  B7). Guardas arquiteturais da astrologia (`test_signo_solar_rules.py`)
+  continuam passando — nenhum prompt de IA recebe signo como entrada.
+- Versão: `1.4.144` → `1.4.145`.
+
+---
+
 ## V.1.4.144 — Cliente + oportunidade automáticos a partir da recapitulação (Tarefa B7)
 
 > Data: 24/09/2026 | Local, pendente deploy (muda o PROMPT_RECAPITULACAO em produção — campo aditivo)

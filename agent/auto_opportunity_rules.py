@@ -119,6 +119,25 @@ def estagio_da_reuniao(memoria: Optional[dict]) -> str:
     return str(estagio).strip()[:60] if isinstance(estagio, str) else ""
 
 
+def _salvar_nascimento_se_mencionado(client_id: str, recapitulacao) -> None:
+    """`_processar_perfil_astrologico()` (api/main.py) roda antes desta
+    função — na 1ª reunião o cliente ainda não estava vinculado e o
+    nascimento nunca era gravado. Grava aqui, logo após o vínculo.
+    `salvar_nascimento_cliente` nunca sobrescreve; data inválida é
+    descartada por `calcular_signo`."""
+    try:
+        nasc = recapitulacao.get("data_nascimento_mencionada") if isinstance(recapitulacao, dict) else None
+        if not isinstance(nasc, dict):
+            return
+        from agent.signo_solar_rules import calcular_signo
+        if not calcular_signo(nasc.get("dia"), nasc.get("mes")):
+            return
+        from agent.client_intelligence import salvar_nascimento_cliente
+        salvar_nascimento_cliente(client_id, nasc["dia"], nasc["mes"])
+    except Exception as e:
+        logger.debug("[B7] Falha ao salvar nascimento do cliente: %s", e)
+
+
 def processar_cliente_e_oportunidade(
     resultado: dict,
     meeting_id: str,
@@ -167,6 +186,7 @@ def processar_cliente_e_oportunidade(
         resumo["client_id"] = client_id
         vincular_reuniao(client_id=client_id, meeting_id=meeting_id,
                          titulo=titulo or (resultado or {}).get("titulo") or "")
+        _salvar_nascimento_se_mencionado(client_id, (resultado or {}).get("recapitulacao"))
 
         if not dono:
             resumo["status"] = "cliente_sem_dono"

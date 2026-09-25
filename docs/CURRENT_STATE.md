@@ -1,5 +1,11 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-09-25 — **V.1.4.145 (local, pendente deploy): fix da
+astrologia opcional**, que nunca disparou em produção desde a V.1.4.71
+(lia `data_nascimento_mencionada` no nível errado do resultado; testes
+usavam o formato errado e escondiam o bug). Nascimento agora também é
+gravado logo após a B7 vincular o cliente.
+
 Atualizado em: 2026-09-24 — **V.1.4.144 (local, pendente deploy): Tarefa
 B7 — cliente + oportunidade automáticos.** A recapitulação passa a
 extrair `cliente_identificado` (nome/empresa só se ditos); após cada

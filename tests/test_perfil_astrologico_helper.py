@@ -43,6 +43,19 @@ class ProcessarPerfilAstrologicoTest(unittest.TestCase):
             _processar_perfil_astrologico(resultado, "m1")
         mock_salvar.assert_called_once_with("c1", 21, 3)
 
+    def test_formato_real_do_endpoint_campo_dentro_de_recapitulacao(self):
+        # Regressão V.1.4.145: /recapitulacao-manual|completa entregam o
+        # campo aninhado; antes só o nível de cima era lido.
+        resultado = {"recapitulacao": {"data_nascimento_mencionada": {"dia": 21, "mes": 3}}}
+        with patch("agent.client_intelligence.buscar_cliente_por_reuniao", return_value=None):
+            _processar_perfil_astrologico(resultado, "m1")
+        self.assertEqual(resultado["perfil_astrologico"]["nome"], "Áries")
+
+    def test_placeholder_do_schema_dia_zero_fica_none(self):
+        resultado = {"recapitulacao": {"data_nascimento_mencionada": {"dia": 0, "mes": 0}}}
+        _processar_perfil_astrologico(resultado, "m1")
+        self.assertIsNone(resultado["perfil_astrologico"])
+
     def test_sem_cliente_vinculado_nao_persiste(self):
         resultado = {"data_nascimento_mencionada": {"dia": 21, "mes": 3}}
         with patch("agent.client_intelligence.buscar_cliente_por_reuniao", return_value=None), \

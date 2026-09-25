@@ -167,6 +167,20 @@ class OrquestracaoTest(unittest.TestCase):
         self.assertEqual(r["status"], "oportunidade_ambigua")
         self.assertEqual(len(self.db.listar_opportunities()), 2)
 
+    def test_grava_nascimento_mencionado_apos_vincular(self):
+        resultado = _resultado()
+        resultado["recapitulacao"]["data_nascimento_mencionada"] = {"dia": 21, "mes": 3}
+        with patch("agent.client_intelligence.salvar_nascimento_cliente") as salvar:
+            r = processar_cliente_e_oportunidade(resultado, "manual_n", usuario_id_requisicao="v")
+        salvar.assert_called_once_with(r["client_id"], 21, 3)
+
+    def test_nascimento_placeholder_nao_grava(self):
+        resultado = _resultado()
+        resultado["recapitulacao"]["data_nascimento_mencionada"] = {"dia": 0, "mes": 0}
+        with patch("agent.client_intelligence.salvar_nascimento_cliente") as salvar:
+            processar_cliente_e_oportunidade(resultado, "manual_n", usuario_id_requisicao="v")
+        salvar.assert_not_called()
+
     def test_kill_switch(self):
         with patch.dict(os.environ, {"AUTO_OPPORTUNITY_ENABLED": "false"}):
             r = processar_cliente_e_oportunidade(_resultado(), "m1", usuario_id_requisicao="v")

@@ -594,7 +594,13 @@ def _processar_perfil_astrologico(resultado: dict, meeting_id: str) -> None:
     o dado (só uma vez — salvar_nascimento_cliente nunca sobrescreve).
     Síncrono e sem custo de IA — roda antes da resposta ser devolvida."""
     resultado["perfil_astrologico"] = None
-    nascimento = resultado.get("data_nascimento_mencionada")
+    # O campo vem dentro de resultado["recapitulacao"] (saída do
+    # PROMPT_RECAPITULACAO). Até a V.1.4.144 só o nível de cima era lido,
+    # então a astrologia nunca disparava em produção — o fallback mantém
+    # compatibilidade com chamadores que já passam o campo achatado.
+    recap = resultado.get("recapitulacao")
+    nascimento = (recap.get("data_nascimento_mencionada") if isinstance(recap, dict) else None) \
+        or resultado.get("data_nascimento_mencionada")
     if not isinstance(nascimento, dict):
         return
     dia, mes = nascimento.get("dia"), nascimento.get("mes")
@@ -782,7 +788,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.144",
+        "versao":              "1.4.145",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -820,7 +826,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.144",
+        "versao":          "1.4.145",
         "timestamp":       datetime.now().isoformat(),
     }
 
