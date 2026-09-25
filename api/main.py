@@ -650,6 +650,14 @@ REGRAS PARA "data_nascimento_mencionada":
   NUNCA pergunte, NUNCA infira, NUNCA invente — se não houver menção
   clara e literal, retorne null.
 
+REGRAS PARA "cliente_identificado":
+- "nome": nome da pessoa do lado do CLIENTE (nunca o vendedor), só se
+  for dito ou aparecer como rótulo de falante na transcrição.
+- "empresa": nome da empresa/negócio do cliente, só se for dito
+  explicitamente na conversa.
+- NUNCA infira, NUNCA invente, NUNCA use termos genéricos ("Cliente",
+  "Prospect", "a empresa") — o que não estiver claro vira null.
+
 REGRAS PARA "perfil_bigfive" (inferência comportamental, não questionário):
 - Mesma lógica do DISC: infira as 5 dimensões (0-100) a partir de COMO o
   cliente se comportou na conversa, nunca do signo/astrologia. Se não
@@ -707,6 +715,7 @@ Retorne APENAS um JSON válido (sem markdown):
     "confianca": "alta|media|baixa"
   },
   "data_nascimento_mencionada": {"dia": 0, "mes": 0},
+  "cliente_identificado": {"nome": "nome do cliente ou null", "empresa": "empresa do cliente ou null"},
   "objecoes_com_motivo": [
     {"objecao": "objeção real levantada", "motivo_provavel": "causa comportamental, citando DISC/Big Five"}
   ],
@@ -773,7 +782,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.143",
+        "versao":              "1.4.144",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -811,7 +820,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.143",
+        "versao":          "1.4.144",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -1062,7 +1071,7 @@ def recapitulacao_completa(req: RecapitulacaoRequest, background_tasks: Backgrou
     Substitui o processo manual de colar transcrição no Claude.
     Após gerar, dispara extração de memórias comerciais em background.
     """
-    _req_auth(authorization)
+    payload_auth = _req_auth(authorization)
     if not req.transcricao:
         raise HTTPException(status_code=400, detail="Transcrição vazia")
 
@@ -1090,6 +1099,9 @@ def recapitulacao_completa(req: RecapitulacaoRequest, background_tasks: Backgrou
         from agent.semantic_search import indexar_relatorio, indexar_transcricao
         meeting_id = req.meeting_id or f"completa_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         _processar_perfil_astrologico(resultado, meeting_id)
+        from agent.auto_opportunity_rules import processar_cliente_e_oportunidade
+        background_tasks.add_task(processar_cliente_e_oportunidade, resultado, meeting_id,
+                                  req.titulo_reuniao, payload_auth.get("sub"))
         background_tasks.add_task(extrair_e_salvar_memorias, resultado, req.transcricao, meeting_id)
         if _eh_reuniao_de_sucesso(resultado, meeting_id):
             background_tasks.add_task(gerar_e_salvar_playbook, resultado, req.transcricao, meeting_id)
@@ -2175,7 +2187,7 @@ def recapitulacao_manual(req: RecapitulacaoRequest, background_tasks: Background
     Ideal para uso no painel HTML sem a extensão Chrome.
     Após salvar o relatório, dispara extração de memórias comerciais em background.
     """
-    _req_auth(authorization)
+    payload_auth = _req_auth(authorization)
     if not req.transcricao:
         raise HTTPException(status_code=400, detail="Transcrição vazia")
 
@@ -2220,6 +2232,9 @@ def recapitulacao_manual(req: RecapitulacaoRequest, background_tasks: Background
         from agent.playbook_generator import _eh_reuniao_de_sucesso, gerar_e_salvar_playbook
         from agent.semantic_search import indexar_relatorio, indexar_transcricao
         meeting_id = meeting_id_manual
+        from agent.auto_opportunity_rules import processar_cliente_e_oportunidade
+        background_tasks.add_task(processar_cliente_e_oportunidade, resultado, meeting_id,
+                                  req.titulo_reuniao, payload_auth.get("sub"))
         background_tasks.add_task(extrair_e_salvar_memorias, resultado, req.transcricao, meeting_id)
         if _eh_reuniao_de_sucesso(resultado, meeting_id):
             background_tasks.add_task(gerar_e_salvar_playbook, resultado, req.transcricao, meeting_id)

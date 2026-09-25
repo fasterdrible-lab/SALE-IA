@@ -249,3 +249,10 @@ explícita, uma de cada vez — mesma disciplina de todo o roadmap.
   incentivar/forçar login na extensão**; **C7 — estagnação de
   recomendação** (Coach repetiu a mesma pergunta de Situação por 30+
   min numa reunião real).
+- **B7 — CONCLUÍDA (24/09/2026)**, V.1.4.144: `cliente_identificado` no
+  PROMPT_RECAPITULACAO + `agent/auto_opportunity_rules.py` (casa/cria
+  cliente, vincula reunião, reaproveita/cria oportunidade só com dono
+  real). Achado: 0 clientes em produção e
+  `enriquecer_perfil_apos_relatorio()` nunca chamada. Efeito real
+  depende de recapitulações novas — medir com `GET /admin/data-quality`
+  (`opportunities` deve deixar de ser 0/0).

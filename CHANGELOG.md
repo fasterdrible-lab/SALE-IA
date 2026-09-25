@@ -3,6 +3,56 @@
 
 ---
 
+## V.1.4.144 — Cliente + oportunidade automáticos a partir da recapitulação (Tarefa B7)
+
+> Data: 24/09/2026 | Local, pendente deploy (muda o PROMPT_RECAPITULACAO em produção — campo aditivo)
+
+A B1 mostrou 0 `Opportunity` em produção. Investigação: a cadeia
+reunião → cliente → oportunidade **nunca teve caminho automático** —
+0 `client_profiles`, 0 `client_meetings`, 0 `meeting_status`;
+`client_intelligence.enriquecer_perfil_apos_relatorio()` (que vincularia
+reunião a cliente) existe mas nunca é chamada; a recapitulação não
+extraía quem é o cliente; o dashboard não envia `meeting_id` nem o nome
+de cliente digitado no formulário.
+
+Decisão confirmada com o usuário: identificar o cliente **na própria
+recapitulação** (mesma chamada de IA, sem custo extra).
+
+- **`PROMPT_RECAPITULACAO`**: campo aditivo `cliente_identificado`
+  (`{nome, empresa}`), com regra explícita — só o que for dito ou
+  aparecer como rótulo de falante, nunca inferir, nunca termo genérico;
+  o resto vira `null`. Nenhum campo existente mudou de tipo.
+- **`agent/auto_opportunity_rules.py`** (novo): partes puras
+  (`extrair_cliente_identificado` descarta placeholders tipo
+  "Cliente"/"Prospect"; `escolher_cliente_existente` casa por empresa
+  normalizada — sem acento, caixa, sufixo Ltda/S.A. — ou por nome quando
+  não há empresa; empresas diferentes nunca casam) + orquestração
+  `processar_cliente_e_oportunidade()`, melhor esforço (nunca lança):
+  1. reaproveita cliente já vinculado à reunião, senão casa com cliente
+     existente do mesmo dono, senão cria (nota "Criado automaticamente");
+  2. vincula a reunião ao cliente (`client_meetings`);
+  3. **só com dono real** — dono da `MeetingMemory`, ou, na recapitulação
+     manual do dashboard (sem `MeetingMemory`), o usuário autenticado que
+     a gerou — reaproveita a única oportunidade aberta ou cria uma
+     (`stage` = estágio SPIN do diagnóstico em tempo real); 2+ abertas →
+     não escolhe (mesma regra da Tarefa 3.1). Sem dono → só cliente,
+     nunca `seller_id` inventado. Reunião anônima nunca casa com cliente
+     de outro vendedor.
+  4. vincula `MeetingMemory.opportunity_id` quando a reunião existe.
+- Candidatos comparados em Python, nunca via `LIKE` (acento/caixa
+  dependem da collation — achado pelo próprio teste).
+- Plugado como background task em `/recapitulacao-completa` e
+  `/recapitulacao-manual`. Kill-switch `AUTO_OPPORTUNITY_ENABLED`
+  (default `true`).
+- 18 testes novos (`tests/test_auto_opportunity_rules.py`).
+- **Achado lateral, não corrigido**: `_processar_perfil_astrologico()`
+  lê `resultado["data_nascimento_mencionada"]`, mas o campo vem dentro
+  de `resultado["recapitulacao"]` — a astrologia opcional (V.1.4.71)
+  provavelmente nunca disparou em produção.
+- Versão: `1.4.143` → `1.4.144`.
+
+---
+
 ## V.1.4.143 — Data Quality (Tarefa B1 / seção 33 do PROMPT MESTRE V2)
 
 > Data: 24/09/2026 | Local, pendente deploy (só leitura, sem tabela/coluna nova)

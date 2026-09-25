@@ -1,5 +1,13 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-09-24 — **V.1.4.144 (local, pendente deploy): Tarefa
+B7 — cliente + oportunidade automáticos.** A recapitulação passa a
+extrair `cliente_identificado` (nome/empresa só se ditos); após cada
+recapitulação, o cliente é casado/criado, a reunião vinculada e, com
+vendedor identificado, a oportunidade aberta é reaproveitada ou criada.
+Kill-switch `AUTO_OPPORTUNITY_ENABLED`. Achado lateral: astrologia
+opcional lê o campo no nível errado, provavelmente nunca disparou.
+
 Atualizado em: 2026-09-24 — **V.1.4.143 (local, pendente deploy): Tarefa
 B1 — Data Quality.** `GET /admin/data-quality` (admin, leitura pura)
 com as 7 validações da seção 33. 1º relatório real: **0 oportunidades em
