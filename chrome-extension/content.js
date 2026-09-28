@@ -464,6 +464,7 @@
           ⚠️ Ative as legendas no Meet:<br>
           Clique em "CC" na barra inferior do Meet
         </div>
+        <div id="saleia-login-aviso" class="saleia-secao saleia-aviso" style="display:none"></div>
         <div id="saleia-debug-count" style="font-size:.75rem;color:#666;margin-top:4px"></div>
         <button id="saleia-btn-audio-capture"
           style="margin:6px 0 2px;width:100%;padding:7px;background:#1a1a2e;border:1px solid #00d4aa;
@@ -960,6 +961,34 @@
     if (ccAtivo) { ocultarAvisoLegenda(); return; }
     exibirAvisoLegenda();
   }
+  // Tarefa B8: /tempo-real devolve auth_status. Sem isso, token expirado
+  // virava anônimo em silêncio e a reunião ficava sem vendedor. O aviso
+  // só orienta o vendedor — nunca mostra detalhe técnico (regra da
+  // sidebar desde a V.1.4.40).
+  var TEXTOS_AVISO_LOGIN = {
+    expirado: '🔒 Sua sessão expirou. Clique no ícone da SALEIA na barra do Chrome e entre de novo para que esta reunião fique no seu histórico.',
+    invalido: '🔒 Sua sessão não é mais válida. Clique no ícone da SALEIA na barra do Chrome e entre de novo.',
+    anonimo: '👤 Você não está conectado. Entre pelo ícone da SALEIA na barra do Chrome para esta reunião ficar no seu histórico.',
+  };
+
+  function tratarSessaoDaResposta(dados) {
+    if (!dados || !dados.auth_status) return;
+    if (dados.token_renovado || dados.auth_status === 'expirado' || dados.auth_status === 'invalido') {
+      if (chrome.runtime && chrome.runtime.id) {
+        chrome.runtime.sendMessage({
+          tipo: 'atualizarSessao',
+          token_renovado: dados.token_renovado || null,
+          encerrar: dados.auth_status === 'expirado' || dados.auth_status === 'invalido',
+        });
+      }
+    }
+    var aviso = document.getElementById('saleia-login-aviso');
+    if (!aviso) return;
+    var texto = TEXTOS_AVISO_LOGIN[dados.auth_status];
+    aviso.textContent = texto || '';
+    aviso.style.display = texto ? 'block' : 'none';
+  }
+
   function exibirAvisoLegenda() { const a = document.getElementById('saleia-legenda-aviso'); if (a) a.style.display = 'block'; }
   function ocultarAvisoLegenda() { const a = document.getElementById('saleia-legenda-aviso'); if (a) a.style.display = 'none'; }
 
@@ -1252,6 +1281,7 @@
             });
           }
           atualizarSidebarComResposta(dados);
+          tratarSessaoDaResposta(dados);
           if (dados.perfil_disc && dados.perfil_disc.tipo) estado.perfilDiscAtual = dados.perfil_disc.tipo;
           estado.contador = CONFIG.intervaloAnalise;
           // Avança índice para não reenviar as mesmas entradas ao DB

@@ -513,6 +513,25 @@ def obter_nomes_usuarios(ids: list) -> dict:
         return {}
 
 
+def usuario_esta_ativo(usuario_id: str) -> bool:
+    """Tarefa B8: usado antes de renovar o token da extensão — usuário
+    inativado/excluído nunca tem a sessão estendida. Banco indisponível
+    → False (na dúvida, não renova; o token atual segue válido até
+    expirar)."""
+    if not usuario_id:
+        return False
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute("SELECT status FROM usuarios WHERE id = %s", (usuario_id,))
+            row = cur.fetchone()
+        conn.close()
+        return bool(row) and row[0] == "ativo"
+    except Exception as e:
+        logger.error("[Sessões] Erro ao checar status do usuario: %s", e)
+        return False
+
+
 def obter_usuarios_ativos_por_plano() -> dict:
     """Conta usuários com status='ativo' agrupados por plano (Cost
     Intelligence Fase 3 — base de "usuários ativos" da margem por plano).

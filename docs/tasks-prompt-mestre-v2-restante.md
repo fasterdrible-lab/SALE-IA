@@ -256,3 +256,7 @@ explícita, uma de cada vez — mesma disciplina de todo o roadmap.
   `enriquecer_perfil_apos_relatorio()` nunca chamada. Efeito real
   depende de recapitulações novas — medir com `GET /admin/data-quality`
   (`opportunities` deve deixar de ser 0/0).
+- **B8 — CONCLUÍDA (28/09/2026)**, V.1.4.146 + extensão V.1.4.18:
+  sessão deslizante + `auth_status` em `/tempo-real` + aviso/logout na
+  extensão. O "98,7% sem vendedor" era histórico (desde 22/09: 4/4 com
+  dono); o risco real era o token de 72h expirar em silêncio.

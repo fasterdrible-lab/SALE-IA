@@ -3,6 +3,45 @@
 
 ---
 
+## V.1.4.146 + extensão V.1.4.18 — Sessão da extensão: renovação automática + aviso (Tarefa B8)
+
+> Data: 28/09/2026 | Local, pendente deploy (backend) + reinstalação manual (extensão)
+
+A B1 reportou 98,7% das reuniões sem vendedor. **Leitura corrigida**: o
+dono da reunião só passou a ser gravado na V.1.4.105 (17/09); a partir
+de 22/09 — quando o vendedor logou — **4/4 reuniões têm dono** (17-21/09:
+0/19). O problema real era outro: o JWT dura 72h e, com token
+expirado/inválido, `/tempo-real` caía para anônimo **em silêncio** — o
+popup seguia mostrando "Conectado" e a reunião voltava a ficar sem
+vendedor (sem oportunidade da B7, sem Seller DNA). O login de 22/09
+expirava em 25/09.
+
+Decisão confirmada com o usuário: renovar + avisar, nunca bloquear a
+análise.
+
+- **`api/main.py::_avaliar_sessao_extensao()`** (novo): devolve
+  `auth_status` (`ok`/`anonimo`/`expirado`/`invalido`) e, com token
+  válido a menos de 24h de expirar e usuário ainda `ativo`
+  (`agent/sessao_manager.py::usuario_esta_ativo`, novo), um
+  `token_renovado` de 72h — sessão deslizante: quem usa a extensão ao
+  menos a cada 72h nunca é deslogado. Nunca lança; banco fora → não
+  renova (token atual segue até expirar).
+- **`/tempo-real`** usa o helper e acrescenta `auth_status` (e
+  `token_renovado`, quando houver) à resposta — campos aditivos.
+- **Extensão V.1.4.18**: `content.js::tratarSessaoDaResposta()` repassa
+  token renovado ao `background.js` (mensagem `atualizarSessao`, que
+  grava em `chrome.storage`); expirado/inválido limpa o login (o popup
+  volta a pedir e-mail/senha) e mostra aviso na sidebar orientando a
+  entrar pelo ícone da extensão; anônimo mostra aviso discreto. Janela
+  de 2 min após um login ignora "encerrar" (resposta em voo com o token
+  antigo não apaga login recém-feito). Popup ganhou 1 linha explicando
+  por que entrar. Nada técnico na sidebar (regra da V.1.4.40).
+- 10 testes novos (`tests/test_sessao_extensao.py`). Extensão:
+  `node --check` em `content.js`/`background.js`.
+- Versão: `1.4.145` → `1.4.146`; extensão `1.4.17` → `1.4.18`.
+
+---
+
 ## V.1.4.145 — Fix: astrologia opcional nunca disparava em produção
 
 > Data: 25/09/2026 | Local, pendente deploy

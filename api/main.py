@@ -23,7 +23,7 @@ import asyncio
 import html as html_module
 import logging
 from contextvars import ContextVar
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional, List
 
@@ -788,7 +788,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.145",
+        "versao":              "1.4.146",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -826,7 +826,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.145",
+        "versao":          "1.4.146",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -881,12 +881,10 @@ async def analisar_tempo_real(req: TempoRealRequest, authorization: str | None =
     # o usuario_id habilita o fallback pra conta Claude pessoal se os 4
     # provedores centrais falharem (agent/multiagente/claude_fallback.py).
     # Token ausente/invalido/expirado nunca pode quebrar o tempo real.
-    usuario_id = None
-    if authorization:
-        try:
-            usuario_id = _req_auth(authorization)["sub"]
-        except HTTPException:
-            pass
+    # Tarefa B8: o status volta na resposta (a extensão avisa o vendedor)
+    # e a sessão é renovada perto de expirar.
+    sessao = _avaliar_sessao_extensao(authorization)
+    usuario_id = sessao["usuario_id"]
 
     try:
         from services.observability.factory import get_observability_provider
@@ -945,6 +943,10 @@ async def analisar_tempo_real(req: TempoRealRequest, authorization: str | None =
     except Exception as _e:
         logger.warning("[Cenário] Não foi possível salvar análise: %s", _e)
 
+    if isinstance(resultado, dict):
+        resultado["auth_status"] = sessao["auth_status"]
+        if sessao["token_renovado"]:
+            resultado["token_renovado"] = sessao["token_renovado"]
     return resultado
 
 
@@ -3234,6 +3236,41 @@ def _gerar_token(user_id: str, email: str, perfil: str) -> str:
         "exp": datetime.utcnow() + timedelta(hours=_JWT_EXP_HOURS),
     }
     return _jwt.encode(payload, _JWT_SECRET, algorithm=_JWT_ALGO)
+
+
+_JWT_RENOVAR_ANTES_HORAS = 24
+
+
+def _avaliar_sessao_extensao(authorization: str | None) -> dict:
+    """Tarefa B8 — login da extensão. Antes, token ausente/inválido/
+    expirado virava anônimo em silêncio: o popup seguia "Conectado" e a
+    reunião ficava sem vendedor. Devolve `usuario_id`, `auth_status`
+    (`ok`|`anonimo`|`expirado`|`invalido`) e `token_renovado` — sessão
+    deslizante: token válido a menos de 24h de expirar, de usuário ainda
+    ativo, ganha um novo de 72h. Nunca lança (o tempo real não pode
+    quebrar por causa de login)."""
+    sessao = {"usuario_id": None, "auth_status": "anonimo", "token_renovado": None}
+    if not authorization or not authorization.startswith("Bearer "):
+        return sessao
+    try:
+        payload = _jwt.decode(authorization[7:], _JWT_SECRET, algorithms=[_JWT_ALGO])
+    except _jwt.ExpiredSignatureError:
+        sessao["auth_status"] = "expirado"
+        return sessao
+    except Exception:
+        sessao["auth_status"] = "invalido"
+        return sessao
+    sessao["usuario_id"] = payload.get("sub")
+    sessao["auth_status"] = "ok"
+    try:
+        restante = datetime.fromtimestamp(payload["exp"], tz=timezone.utc) - datetime.now(timezone.utc)
+        if restante < timedelta(hours=_JWT_RENOVAR_ANTES_HORAS):
+            from agent.sessao_manager import usuario_esta_ativo
+            if usuario_esta_ativo(payload.get("sub")):
+                sessao["token_renovado"] = _gerar_token(payload.get("sub"), payload.get("email"), payload.get("perfil"))
+    except Exception as e:
+        logger.debug("[Auth] Falha ao renovar token da extensão: %s", e)
+    return sessao
 
 
 class AuthLoginRequest(BaseModel):

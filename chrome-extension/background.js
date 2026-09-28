@@ -115,6 +115,7 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
         }
         estadoExtensao.token = r.data.token;
         estadoExtensao.usuario = r.data.usuario || null;
+        estadoExtensao.loginEm = Date.now();
         chrome.storage.local.set({ saleiaToken: r.data.token, saleiaUsuario: r.data.usuario || null });
         sendResponse({ ok: true, usuario: estadoExtensao.usuario });
       })
@@ -127,6 +128,24 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     estadoExtensao.token = null;
     estadoExtensao.usuario = null;
     chrome.storage.local.remove(['saleiaToken', 'saleiaUsuario']);
+    sendResponse({ ok: true });
+  }
+
+  // Content script → resposta do /tempo-real trouxe token renovado
+  // (sessão deslizante) ou avisou que o token expirou/é inválido
+  // (Tarefa B8). Encerrar limpa o login para o popup voltar a pedir
+  // e-mail/senha em vez de seguir mostrando "Conectado".
+  if (msg.tipo === 'atualizarSessao') {
+    if (msg.token_renovado) {
+      estadoExtensao.token = msg.token_renovado;
+      chrome.storage.local.set({ saleiaToken: msg.token_renovado });
+    } else if (msg.encerrar && Date.now() - (estadoExtensao.loginEm || 0) > 120000) {
+      // A janela de 2 min evita que uma resposta ainda em voo, calculada
+      // com o token antigo, apague um login que o vendedor acabou de fazer.
+      estadoExtensao.token = null;
+      estadoExtensao.usuario = null;
+      chrome.storage.local.remove(['saleiaToken', 'saleiaUsuario']);
+    }
     sendResponse({ ok: true });
   }
 

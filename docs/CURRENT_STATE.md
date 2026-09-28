@@ -1,5 +1,13 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-09-28 — **V.1.4.146 + extensão V.1.4.18 (local,
+pendente deploy + reinstalação): Tarefa B8 — sessão da extensão.** O
+"98,7% sem vendedor" era majoritariamente histórico (dono só é gravado
+desde 17/09; desde 22/09, 4/4 com dono). Risco real corrigido: token de
+72h expirava e `/tempo-real` virava anônimo em silêncio. Agora: sessão
+deslizante (`token_renovado` perto de expirar) + `auth_status` na
+resposta + aviso na sidebar e logout automático quando expira.
+
 Atualizado em: 2026-09-25 — **V.1.4.145 (local, pendente deploy): fix da
 astrologia opcional**, que nunca disparou em produção desde a V.1.4.71
 (lia `data_nascimento_mencionada` no nível errado do resultado; testes
