@@ -203,6 +203,14 @@ nova), depois extratores novos.
 ### D8 — Corrigir a corrida de DDL entre workers
 - Serializar `create_all()` antes do fork (achado de V.1.4.108/119).
   Pré-requisito de confiabilidade para E2E ≥ 99%.
+### D12 — Restart diário terminando em timeout [infra, achado 28/09/2026]
+- O reinício automático (`RuntimeMaxSec=86400`) das 19:00 UTC de
+  28/09 terminou em `Failed with result 'timeout'` (`TimeoutStopSec=30`)
+  com chamadas de IA em andamento — pode cortar requisições de reunião
+  ao vivo. Avaliar: agendar o restart para madrugada (fora de horário de
+  reunião, mesmo sinal de `reunioes_ativas`), aumentar o timeout de
+  parada, ou graceful shutdown que espere o ciclo em curso.
+
 ### D9 — 6 documentos obrigatórios (seção 35)
 - `SALES_BRAIN_ARCHITECTURE`, `SALES_SCIENCE`, `AUTONOMY_POLICY`,
   `TEST_STRATEGY`, `SECURITY_MODEL`, `DATA_DICTIONARY`. Nenhum existe.
@@ -260,3 +268,7 @@ explícita, uma de cada vez — mesma disciplina de todo o roadmap.
   sessão deslizante + `auth_status` em `/tempo-real` + aviso/logout na
   extensão. O "98,7% sem vendedor" era histórico (desde 22/09: 4/4 com
   dono); o risco real era o token de 72h expirar em silêncio.
+  Deploy confirmado 28/09 (~20:29 UTC). Nas 5 reuniões do dia, todos
+  ainda na extensão V.1.4.15 e sem vendedor — o efeito depende da
+  reinstalação da V.1.4.18. 180 recomendações novas (id > 236) já
+  permitem executar a C1.

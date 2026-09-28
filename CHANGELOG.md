@@ -39,6 +39,33 @@ análise.
 - 10 testes novos (`tests/test_sessao_extensao.py`). Extensão:
   `node --check` em `content.js`/`background.js`.
 - Versão: `1.4.145` → `1.4.146`; extensão `1.4.17` → `1.4.18`.
+- **Push + deploy confirmados (28/09/2026)**: commit `be070cd`. A 1ª
+  tentativa pegou `502` — coincidiu com o restart diário automático
+  (`RuntimeMaxSec`), nada foi aplicado. Na 2ª, `reunioes_ativas: 1`
+  abortou o deploy; retry automático a cada 3 min aplicou o `git pull` +
+  `systemctl restart saleia` às ~20:29 UTC, assim que a reunião acabou.
+  `/health` = `versao 1.4.146`, `status online`, journal sem erros.
+
+**Achados em produção no mesmo dia (28/09/2026, leitura pura)**:
+- 5 reuniões reais — **todas sem vendedor** e **todas com extensão
+  V.1.4.15** (17.868 requisições com `ext_ver 1.4.15`, 0 com 1.4.17/
+  1.4.18). O token do login de 22/09 venceu em 25/09, exatamente o
+  cenário que esta versão corrige — mas só depois de reinstalar a
+  extensão e entrar de novo.
+- **Dedup do backend (A1) funcionando**: 319 logs de linhas duplicadas
+  descartadas no dia, mesmo com a extensão antiga.
+- **2.008 ocorrências de "All AI providers failed"** durante reuniões
+  reais (circuit breaker aberto nos 4 provedores) — o incidente de
+  saldo DeepSeek/OpenAI segue ativo e é o problema mais grave para quem
+  usa o produto hoje.
+- **180 `RecommendationEvent` novos (id > 236)**, gravados após o fix da
+  V.1.4.140 — base para remedir `recommendation_quality` (Tarefa C1).
+- 0 clientes / 0 oportunidades: nenhuma recapitulação gerada no dia (a
+  B7 só age após recapitulação no dashboard).
+- **Restart diário com timeout**: o reinício automático das 19:00 UTC
+  terminou em `Failed with result 'timeout'` (`TimeoutStopSec=30`) com
+  requisições de IA em andamento — pode cortar chamadas no meio.
+  Registrado como tarefa D12 no plano.
 
 ---
 

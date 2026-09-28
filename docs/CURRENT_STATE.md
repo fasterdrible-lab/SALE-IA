@@ -1,5 +1,27 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-09-28 (noite) — **Produção em V.1.4.146** (commit
+`be070cd`, deploy aplicado ~20:29 UTC após reunião real terminar).
+Extensão publicada no repo: **V.1.4.18** — mas os vendedores ainda usam
+a **V.1.4.15** (nenhuma requisição com 1.4.17/1.4.18).
+
+**Achados do dia (5 reuniões reais, leitura pura)**: todas sem vendedor
+(token vencido em 25/09); dedup de transcrição do backend funcionando
+(319 descartes); **2.008 falhas de todos os provedores de IA** durante
+as reuniões (saldo DeepSeek/OpenAI); 180 recomendações novas (id > 236)
+prontas para remedir `recommendation_quality`; 0 clientes/oportunidades
+(nenhuma recapitulação gerada); restart diário terminou em timeout.
+
+**Ações pendentes do usuário** (sem elas, A1/B7/B8 não valem por
+completo): (1) reinstalar a extensão V.1.4.18 e entrar pelo popup;
+(2) recarregar saldo DeepSeek e/ou OpenAI; (3) gerar recapitulações no
+dashboard para a B7 criar clientes/oportunidades.
+
+**Próximas tarefas técnicas candidatas**: C1 (remedir
+recommendation_quality com os 180 eventos novos, custo $0), D8 (corrida
+de DDL entre workers), D12 (timeout do restart diário), A2 (gravar
+evidências). Plano completo: `docs/tasks-prompt-mestre-v2-restante.md`.
+
 Atualizado em: 2026-09-28 — **V.1.4.146 + extensão V.1.4.18 (local,
 pendente deploy + reinstalação): Tarefa B8 — sessão da extensão.** O
 "98,7% sem vendedor" era majoritariamente histórico (dono só é gravado
