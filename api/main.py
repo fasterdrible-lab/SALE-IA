@@ -309,9 +309,9 @@ async def _loop_metricas() -> None:
         await asyncio.sleep(60)
 
 
-@app.on_event("startup")
-async def on_startup():
-    _configurar_logging()
+def _inicializar_schema():
+    """Todo o DDL do startup (create_all + tabelas/migrações raw).
+    Roda dentro de `lock_de_schema()` — ver on_startup (Tarefa D8)."""
     criar_tabelas()
     logger.info("✅ Banco de dados inicializado.")
     try:
@@ -394,6 +394,17 @@ async def on_startup():
         criar_tabela_teste_provedores()
     except Exception as e:
         logger.warning("Tabela metricas_historico não criada: %s", e)
+
+
+@app.on_event("startup")
+async def on_startup():
+    _configurar_logging()
+    # Tarefa D8: com `--workers 2`, os dois workers faziam o DDL ao mesmo
+    # tempo e podiam colidir (erro 1684), derrubando o processo. O lock
+    # nomeado do MySQL serializa: um cria, o outro só confirma.
+    from api.database import lock_de_schema
+    with lock_de_schema():
+        _inicializar_schema()
     asyncio.create_task(_loop_metricas())
 
 # ─────────────────────────────────────────────
@@ -788,7 +799,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.146",
+        "versao":              "1.4.147",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -826,7 +837,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.146",
+        "versao":          "1.4.147",
         "timestamp":       datetime.now().isoformat(),
     }
 

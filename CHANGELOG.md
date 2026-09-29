@@ -3,6 +3,75 @@
 
 ---
 
+## V.1.4.147 — DDL do startup serializado entre workers (Tarefa D8)
+
+> Data: 29/09/2026 | Local, pendente deploy
+
+Corrida conhecida desde a V.1.4.108: com `--workers 2`, os dois workers
+rodavam `create_all()` e as migrações raw (`CREATE TABLE`/`ALTER TABLE
+... ADD COLUMN` de ~15 módulos) ao mesmo tempo. Em 17/09/2026 um deles
+recebeu `OperationalError 1684` ("skipped since its definition is being
+modified by concurrent DDL"), morreu, e o uvicorn derrubou o processo
+inteiro (~12s fora do ar). **Causa exata**: `_erro_tabela_ja_existe()`
+só reconhecia o 1050 ("already exists") — a V.1.4.119 escapou por sorte
+de ter dado 1050. E mesmo no 1050 o `create_all` parava no meio, sem
+criar as tabelas seguintes naquele worker.
+
+- **`api/database.py::lock_de_schema()`** (novo): context manager com
+  lock nomeado do MySQL (`GET_LOCK('saleia_schema_startup', 120)`) — o
+  1º worker faz o DDL, o 2º espera e depois só confirma que tudo
+  existe. SQLite (dev/teste): sem lock. Nunca impede o boot: lock não
+  obtido ou erro de conexão → segue sem serializar (comportamento
+  anterior) com warning. Lock sempre liberado, mesmo se o DDL falhar.
+- **`on_startup`**: todo o DDL foi para `_inicializar_schema()`, que
+  roda dentro do lock; o loop de métricas continua fora.
+- **Defesa extra**: `_erro_tabela_ja_existe()` reconhece também o 1684;
+  `_criar_metadata_tolerante()` tenta o `create_all` uma 2ª vez após uma
+  corrida (completa o que faltou).
+- **Validado no MySQL real da VPS** (lock de teste, sem DDL): 2 processos
+  simultâneos — o 2º esperou 2,0s até o 1º liberar (serializado).
+- 11 testes novos (`tests/test_schema_startup_lock.py`).
+- Versão: `1.4.146` → `1.4.147`.
+
+---
+
+## Remedição de recommendation_quality após o fix da V.1.4.140 (Tarefa C1, 29/09/2026, sem bump de versão — só medição)
+
+Script avulso, leitura pura, custo $0 (embeddings locais Ollama, mesmas
+funções de `scripts/recommendation_quality_run.py`), separando os
+`RecommendationEvent`s pelo deploy da V.1.4.140 (24/09 12:44 UTC):
+
+| | Antes do fix | Depois do fix |
+|---|---|---|
+| Eventos / reuniões | 231 / 2 | 180 / 8 |
+| `seller_action` (mediana) | 6.000 chars | 702 chars |
+| USED / PARTIALLY_USED / IGNORED | 6 / 116 / 109 | 3 / 79 / 98 |
+| `taxa_uso_real` | 52,8% | **45,6%** |
+| Similaridade mediana | 0,356 | 0,341 |
+
+- **O fix funciona estruturalmente**: o `seller_action` caiu de 6.000
+  para ~700 chars — agora é de fato a fala nova, não o transcript
+  acumulado.
+- **A hipótese da V.1.4.140 estava errada**: o número *não* estava
+  subestimado. `USED` puro continua raro (1,7%) e a taxa caiu. O texto
+  longo inflava `PARTIALLY_USED` (mais assunto em comum com qualquer
+  recomendação), não escondia `USED`.
+- **Causa mais provável do `USED` raro, não confirmada**: (1) o delta
+  ainda mistura falas do vendedor e do cliente — a recomendação é
+  comparada com a conversa toda do ciclo, não só com o que o vendedor
+  disse; filtrar por falante esbarra nos rótulos pouco confiáveis
+  (Whisper do microfone sempre "vendedor", achado da A1); (2) o limiar
+  de `USED` (0,55) nunca foi calibrado contra rótulos humanos — a
+  similaridade mediana é ~0,34 nos dois períodos.
+- **Comparação não controlada**: 2 reuniões antes × 8 depois; a
+  estagnação do Coach (C7) também reduz uso real.
+- **Próximo passo sugerido** (não iniciado): rotular à mão ~50 pares
+  (recomendação, fala) como usado/parcial/ignorado e calibrar os
+  limiares contra isso antes de tratar `recommendation_quality` como
+  critério confiável da Fase 25.
+
+---
+
 ## V.1.4.146 + extensão V.1.4.18 — Sessão da extensão: renovação automática + aviso (Tarefa B8)
 
 > Data: 28/09/2026 | Local, pendente deploy (backend) + reinstalação manual (extensão)

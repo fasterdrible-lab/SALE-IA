@@ -1,5 +1,19 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-09-29 — **V.1.4.147 (local, pendente deploy): Tarefa
+D8 — DDL do startup serializado entre os 2 workers** via `GET_LOCK` do
+MySQL (`api/database.py::lock_de_schema`). Fecha a corrida que derrubou o
+processo em 17/09 (erro 1684, que não era tratado). Validado no MySQL
+real: o 2º processo espera o 1º liberar.
+
+Atualizado em: 2026-09-29 — **Tarefa C1 (medição, sem bump):
+`recommendation_quality` remedido após o fix da V.1.4.140.** O fix
+funciona (`seller_action` de 6.000 → ~700 chars), mas a taxa **caiu**
+de 52,8% para 45,6% e `USED` segue raro (1,7%) — a hipótese de número
+subestimado estava errada. Causas prováveis: delta ainda mistura falas
+do cliente; limiar de `USED` (0,55) nunca calibrado. Sugestão: rotular
+~50 pares à mão e calibrar antes de usar como critério da Fase 25.
+
 Atualizado em: 2026-09-28 (noite) — **Produção em V.1.4.146** (commit
 `be070cd`, deploy aplicado ~20:29 UTC após reunião real terminar).
 Extensão publicada no repo: **V.1.4.18** — mas os vendedores ainda usam

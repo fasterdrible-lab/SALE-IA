@@ -159,7 +159,16 @@ nova), depois extratores novos.
 
 ## Bloco C — Learning Loop: fechar o ciclo
 
-### C1 — Remedir recommendation_quality (ids > 236) [custo $0, depende de P2]
+### C1 — Remedir recommendation_quality (ids > 236) [CONCLUÍDA — 29/09/2026]
+- Resultado: 45,6% depois do fix (52,8% antes), `USED` 1,7%. Fix
+  confirmado estruturalmente, hipótese de subestimação refutada.
+  Detalhe no CHANGELOG.
+
+### C8 — Calibrar recommendation_quality com rótulos humanos [novo, 29/09/2026]
+- Rotular ~50 pares (recomendação, fala nova) como usado/parcial/
+  ignorado e ajustar os limiares (hoje 0,55/0,35, nunca calibrados) —
+  e avaliar comparar só com falas do vendedor. Sem isso,
+  `recommendation_quality` não serve como critério da Fase 25.
 ### C2 — Ligar Seller DNA [flag + wiring, Tarefa 5.1 → 6.1]
 - `SELLER_DNA_OBSERVACAO_ENABLED=true` em produção + agregação ligada
   em `seller_context` → **11/11 campos** (junto com A5).
@@ -200,7 +209,9 @@ nova), depois extratores novos.
   `reasoning_engine_version`, `policy_version`, `knowledge_version`,
   `model_version` em RecommendationEvent + AuditTrailEntry.
 ### D7 — Load test 10/50/100 reuniões (seção 32) + hot path × analytics
-### D8 — Corrigir a corrida de DDL entre workers
+### D8 — Corrigir a corrida de DDL entre workers [CONCLUÍDA — 29/09/2026, V.1.4.147]
+- `GET_LOCK` nomeado em volta de todo o DDL do startup + tratamento do
+  erro 1684 + 2ª tentativa do `create_all`. Validado no MySQL real.
 - Serializar `create_all()` antes do fork (achado de V.1.4.108/119).
   Pré-requisito de confiabilidade para E2E ≥ 99%.
 ### D12 — Restart diário terminando em timeout [infra, achado 28/09/2026]

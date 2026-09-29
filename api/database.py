@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import time
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, List
@@ -1919,24 +1920,78 @@ def taxa_resposta_recomendacoes(date_from: Optional[datetime] = None, date_to: O
 
 
 def _erro_tabela_ja_existe(exc: OperationalError) -> bool:
-    """Detecta corrida benigna de create_all em apps com multiplos workers."""
+    """Detecta corrida benigna de create_all em apps com multiplos workers.
+
+    1050 = tabela já existe; 1684 = tabela "pulada" porque outro worker
+    está alterando a definição dela (incidente real de 17/09/2026, V.1.4.108
+    — derrubou o processo inteiro por ~12s)."""
     original = getattr(exc, "orig", None)
     codigo = None
     if original is not None and getattr(original, "args", None):
         codigo = original.args[0]
 
     mensagem = str(exc).lower()
-    return codigo == 1050 or "already exists" in mensagem or "ja existe" in mensagem
+    return (
+        codigo in (1050, 1684)
+        or "already exists" in mensagem
+        or "ja existe" in mensagem
+        or "concurrent ddl" in mensagem
+    )
 
 
 def _criar_metadata_tolerante():
-    try:
-        SQLModel.metadata.create_all(engine)
-    except OperationalError as exc:
-        if _erro_tabela_ja_existe(exc):
-            logger.warning("Tabela ja existia durante startup concorrente; seguindo normalmente.")
+    """`create_all` com 1 nova tentativa: um erro de corrida interrompe o
+    `create_all` no meio (as tabelas seguintes ficariam sem criar neste
+    worker); a 2ª passada, com `checkfirst`, completa só o que faltou."""
+    for tentativa in (1, 2):
+        try:
+            SQLModel.metadata.create_all(engine)
             return
-        raise
+        except OperationalError as exc:
+            if not _erro_tabela_ja_existe(exc):
+                raise
+            logger.warning("Corrida de DDL no startup (tentativa %s): %s", tentativa, exc.orig if hasattr(exc, "orig") else exc)
+            if tentativa == 2:
+                return
+            time.sleep(1)
+
+
+_NOME_LOCK_SCHEMA = "saleia_schema_startup"
+
+
+@contextmanager
+def lock_de_schema(timeout_s: int = 120):
+    """Tarefa D8: serializa o DDL do startup entre os workers do uvicorn
+    (`--workers 2`). Sem isso, os dois rodavam `create_all()` e as
+    migrações raw (`ALTER TABLE ... ADD COLUMN`) ao mesmo tempo e podiam
+    colidir (erro 1684), derrubando o processo. Lock nomeado do MySQL
+    (`GET_LOCK`, por sessão): o 1º worker faz o DDL, o 2º espera e depois
+    só confirma que tudo já existe. SQLite (dev/teste): sem lock.
+    Nunca impede o boot — se o lock não vier no tempo, segue sem ele
+    (mesmo comportamento de antes) e registra warning."""
+    if engine.dialect.name != "mysql":
+        yield
+        return
+    conn = None
+    obtido = False
+    try:
+        conn = engine.connect()
+        obtido = conn.execute(text("SELECT GET_LOCK(:n, :t)"), {"n": _NOME_LOCK_SCHEMA, "t": timeout_s}).scalar() == 1
+        if not obtido:
+            logger.warning("Lock de schema não obtido em %ss; seguindo sem serializar o DDL.", timeout_s)
+    except Exception as exc:
+        logger.warning("Falha ao obter lock de schema (%s); seguindo sem serializar o DDL.", exc)
+    try:
+        yield
+    finally:
+        if conn is not None:
+            try:
+                if obtido:
+                    conn.execute(text("SELECT RELEASE_LOCK(:n)"), {"n": _NOME_LOCK_SCHEMA})
+            except Exception as exc:
+                logger.warning("Falha ao liberar lock de schema: %s", exc)
+            finally:
+                conn.close()
 
 
 def db_health() -> dict:
