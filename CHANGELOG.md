@@ -49,6 +49,11 @@ com a reunião vinculada a uma oportunidade (Tarefa 3.1 / B7).
   vinculada a uma oportunidade. Hoje isso depende de B7 (recapitulação
   gerando cliente/oportunidade) + login na extensão (B8).
 - Versão: `1.4.148` → `1.4.149`. Sem tabela/coluna nova.
+- **Push + deploy confirmados (30/09/2026)** junto com a V.1.4.148:
+  commit `b6da605`, `reunioes_ativas: 0` checado antes do `git pull` e
+  antes do restart (fast-forward `86d1bb9` → `b6da605`), `systemctl
+  restart saleia` → `active`, journal sem erros. `/health` = `versao
+  1.4.149`, `status online`.
 
 ---
 

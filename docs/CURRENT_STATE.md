@@ -1,7 +1,12 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-09-30 — **V.1.4.149 (local, pendente deploy junto
-com V.1.4.147/148): Tarefa A3 — escritor de OpportunityMemory.** Fatos
+Atualizado em: 2026-09-30 — **Produção em V.1.4.149** (commit
+`b6da605`, A2 + A3 juntas; deploy com `reunioes_ativas: 0`, serviço
+`active`, journal sem erros). A V.1.4.147 já estava em produção antes
+(commit `86d1bb9`), as notas abaixo que dizem "pendente deploy" para
+147/148/149 estão superadas.
+
+Atualizado em: 2026-09-30 — **V.1.4.149: Tarefa A3 — escritor de OpportunityMemory.** Fatos
 do ciclo (dor, impacto, valor da solução, objeções + causa raiz) passam
 a ser gravados na memória da oportunidade vinculada: append-only,
 contradição sem apagar, dedup entre ciclos. Kill-switch
