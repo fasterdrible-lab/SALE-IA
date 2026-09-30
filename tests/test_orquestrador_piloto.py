@@ -78,7 +78,10 @@ class PilotoLigadoTest(unittest.TestCase):
     def _rodar(self, env, raciocinar_mock, criar_comparison_mock, nba_atual, usuario_id="seller-1", finance_result=None, spin_mock=None, behavioral_mock=None, motivation_mock=None):
         rag_patches = _mock_rag()
         agente_patches = _mock_agentes(nba_atual, finance_result=finance_result)
-        with patch.dict(os.environ, env):
+        # SALES_EVIDENCE_PERSIST_ENABLED/OPPORTUNITY_MEMORY_WRITE_ENABLED=false: A2/A3 gravam no banco
+        # real (o .env local aponta DB_HOST pra VPS) — coberta à parte em
+        # tests/test_sales_evidence_persist_rules.py e test_opportunity_memory_writer_rules.py.
+        with patch.dict(os.environ, {**env, "SALES_EVIDENCE_PERSIST_ENABLED": "false", "OPPORTUNITY_MEMORY_WRITE_ENABLED": "false"}):
             with patch("agent.sales_reasoning_engine.raciocinar_async", new=raciocinar_mock), \
                  patch("api.database.criar_shadow_mode_comparison", new=criar_comparison_mock), \
                  patch("api.database.obter_ultimo_ai_usage_event", return_value=None), \
@@ -325,7 +328,7 @@ class PilotoLigadoTest(unittest.TestCase):
         nba_atual = {"type": "insight", "message": "..."}
         rag_patches = _mock_rag()
         agente_patches = _mock_agentes(nba_atual)
-        with patch.dict(os.environ, {"PILOT_MODE": "100pct", "SHADOW_MODE_ENABLED": "true"}):
+        with patch.dict(os.environ, {"PILOT_MODE": "100pct", "SHADOW_MODE_ENABLED": "true", "SALES_EVIDENCE_PERSIST_ENABLED": "false", "OPPORTUNITY_MEMORY_WRITE_ENABLED": "false"}):
             with patch("agent.sales_reasoning_engine.raciocinar_async", new=raciocinar_mock), \
                  patch("api.database.criar_shadow_mode_comparison", new=criar_comparison_mock), \
                  patch("api.database.obter_ultimo_ai_usage_event", return_value=None):

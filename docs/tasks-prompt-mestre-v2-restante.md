@@ -64,7 +64,7 @@ nova), depois extratores novos.
 - **Entrega**: causa confirmada com amostra real + fix ou documentação.
 - **Teste**: reunião de amostra sem duplicação após o fix.
 
-### A2 — Persistir SalesEvidence a partir dos extratores existentes [zero IA nova]
+### A2 — Persistir SalesEvidence a partir dos extratores existentes [CONCLUÍDA — 30/09/2026, V.1.4.148]
 - Os extratores de SPIN/sinais/motivação/causa raiz já produzem
   `evidence_quote` validada literalmente contra a conversa, e hoje ela
   é descartada após o ciclo. Gravar como `SalesEvidence`
@@ -73,7 +73,7 @@ nova), depois extratores novos.
 - **Kill-switch**: `SALES_EVIDENCE_PERSIST_ENABLED`.
 - **Teste**: reunião de 3 ciclos → N evidências únicas, sem duplicata.
 
-### A3 — Escritor de OpportunityMemory [zero IA nova, depende de A2]
+### A3 — Escritor de OpportunityMemory [CONCLUÍDA — 30/09/2026, V.1.4.149]
 - Quando a reunião tem `opportunity_id` (Tarefa 3.1), gravar os fatos
   do ciclo nas categorias de `OpportunityMemory` (`pain_points`,
   `objections`, `champion`…), com append-only + contradição (Fase 2.1).
@@ -283,3 +283,19 @@ explícita, uma de cada vez — mesma disciplina de todo o roadmap.
   ainda na extensão V.1.4.15 e sem vendedor — o efeito depende da
   reinstalação da V.1.4.18. 180 recomendações novas (id > 236) já
   permitem executar a C1.
+- **A2 — CONCLUÍDA (30/09/2026)**, V.1.4.148:
+  `agent/sales_evidence_persist_rules.py` + wiring em Shadow/Piloto.
+  Tipos `SPIN_<STAGE>:<campo>`, `BEHAVIOR:`, `MOTIVATION:`,
+  `OBJECTION:`, `ROOT_CAUSE:`; dedup `(type, citação normalizada)`.
+  O dado só nasce onde os extratores rodam (Shadow Mode ligado em
+  produção). `speaker=None` (rótulos não confiáveis, A1). A A3 pode ler
+  daqui ou direto dos extratores do ciclo.
+- **A3 — CONCLUÍDA (30/09/2026)**, V.1.4.149:
+  `agent/opportunity_memory_writer_rules.py` + wiring em Shadow/Piloto.
+  Lê direto dos extratores do ciclo (precisa do `valor`, que a
+  SalesEvidence não guarda). Categorias preenchidas: `pain_points`,
+  `business_impact`, `goals`, `objections`. As outras 9 continuam sem
+  escritor (sem extrator; A5 destrava champion/economic_buyer/
+  decision_process/metrics). Para a A4: arestas só podem sair dessas 4
+  categorias hoje (ex.: `PAIN → causa → IMPACT` entre `pain_points` e
+  `business_impact`).

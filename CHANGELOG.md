@@ -3,6 +3,100 @@
 
 ---
 
+## V.1.4.149 — Escritor de OpportunityMemory (Tarefa A3)
+
+> Data: 30/09/2026 | Local, pendente deploy
+
+Até aqui, nada na produção escrevia na `OpportunityMemory` (Fase 2.1).
+O SalesReasoningEngine recebia `opportunity_memory` sempre vazio, mesmo
+com a reunião vinculada a uma oportunidade (Tarefa 3.1 / B7).
+
+- **`agent/opportunity_memory_writer_rules.py`** (novo, zero IA nova):
+  `montar_insights_do_ciclo()` (pura) mapeia os fatos do ciclo para as
+  categorias. SPIN `problem.main_pain` → `pain_points`; `implication.*`
+  → `business_impact`; `need_payoff.solution_value` → `goals`. Objeção
+  falada → `objections` (valor = categoria); causa raiz → `objections`
+  (`ROOT_CAUSE:<hipótese>`, com a confidence do extrator).
+  `gravar_opportunity_memory_do_ciclo()` grava pelo caminho append-only
+  + contradição que já existia (`registrar_conhecimento_opportunity()`).
+  Nada é apagado nem sobrescrito.
+- **Contradição**: os fatos SPIN levam `campo`, então outra dor
+  principal numa reunião seguinte preenche `contradiz` e as duas
+  ficam. Objeções vão sem `campo` de propósito: duas objeções de preço
+  com falas diferentes são duas objeções, não contradição.
+- **Dedup**: mesmo `(categoria, campo, valor, evidência)` já registrado
+  em qualquer reunião da oportunidade é pulado. A transcrição acumulada
+  repete os fatos a cada ciclo.
+- **Fora do mapeamento, de propósito**: SPIN `situation` (sem
+  categoria certa), sinais comportamentais e motivação (leitura do
+  comprador, não fato da oportunidade), e `champion`/`economic_buyer`/
+  `decision_process`/`competitors`/`next_steps`/`stakeholders`/
+  `metrics`/`risks`/`unknowns`. Nenhum extrator produz esses hoje; a
+  A5 (MEDDPICC) destrava a maior parte.
+- **Wiring**: `orquestrador.py::_gravar_opportunity_memory()` em
+  `_rodar_shadow_mode()` e `_aplicar_piloto_sales_reasoning()`, depois
+  dos extratores. A leitura da memória para a entrada do motor acontece
+  antes, então cada ciclo vê o que foi gravado até o ciclo anterior.
+  Só grava com oportunidade vinculada. Melhor esforço absoluto.
+- **Kill-switch**: `OPPORTUNITY_MEMORY_WRITE_ENABLED` (default `true`).
+  Desligado nos testes de Shadow/Piloto pelo mesmo motivo da A2 (`.env`
+  local aponta para o MySQL da VPS).
+- 16 testes novos (`tests/test_opportunity_memory_writer_rules.py`),
+  incluindo o teste literal da tarefa: 2 reuniões na mesma oportunidade
+  → memória acumulada; dor divergente → `contradiz` preenchido, nada
+  apagado.
+- **Dependência real em produção**: só tem efeito quando a reunião está
+  vinculada a uma oportunidade. Hoje isso depende de B7 (recapitulação
+  gerando cliente/oportunidade) + login na extensão (B8).
+- Versão: `1.4.148` → `1.4.149`. Sem tabela/coluna nova.
+
+---
+
+## V.1.4.148 — SalesEvidence persistida a partir dos extratores (Tarefa A2)
+
+> Data: 30/09/2026 | Local, pendente deploy
+
+Os extratores do ciclo (SPIN, sinais comportamentais, motivação,
+objeção + causa raiz) já produziam `evidence_quote` validada
+literalmente contra a conversa, mas ela era descartada no fim do ciclo.
+`criar_sales_evidence()` (Fase 1.2) nunca tinha sido chamada.
+
+- **`agent/sales_evidence_persist_rules.py`** (novo, zero IA nova):
+  `coletar_evidencias()` (pura) converte a saída dos extratores em
+  `type` + `quote`: `SPIN_<STAGE>:<campo>`, `BEHAVIOR:<signal>`,
+  `MOTIVATION:<motivation>` (1 por citação), `OBJECTION:<category>` e
+  `ROOT_CAUSE:<hypothesis>`. Objeção falada e causa raiz são sempre 2
+  evidências separadas. `persistir_evidencias_do_ciclo()` grava só o
+  que é novo.
+- **Dedup entre ciclos**: chave `(type, citação normalizada)` (espaços
+  colapsados + minúsculas), comparada com o que já existe na reunião e
+  dentro do próprio lote. A mesma fala reaparece a cada 60s porque os
+  extratores recebem a transcrição acumulada.
+- `confidence` vem do extrator quando ele a produz (motivação, causa
+  raiz); nos outros casos fica o default do schema (`1.0`). `speaker`
+  fica `None`: os rótulos de falante não são confiáveis (achado da A1).
+  Reunião anônima (`default`/sem id) nunca grava.
+- **Wiring**: `orquestrador.py::_persistir_sales_evidence()`, chamado
+  em `_rodar_shadow_mode()` e `_aplicar_piloto_sales_reasoning()` logo
+  após os extratores. É só nesses 2 caminhos que eles rodam. Na
+  prática, o dado nasce com `SHADOW_MODE_ENABLED=true` (já ligado em
+  produção). Melhor esforço absoluto: nunca muda a entrada do
+  SalesReasoningEngine nem quebra o ciclo.
+- **Kill-switch**: `SALES_EVIDENCE_PERSIST_ENABLED` (default `true`).
+- **Achado nos testes**: o `.env` local aponta `DB_HOST` para a VPS. Os
+  testes de Shadow/Piloto passariam a gravar no MySQL real no caso de
+  objeção, então agora desligam o kill-switch. A A2 é coberta à parte
+  com SQLite em memória.
+- **Limitação conhecida**: duas tasks de Shadow Mode de ciclos
+  seguidos podem se sobrepor (fire-and-forget). Nesse caso, uma
+  duplicata rara é possível (leitura do dedup → escrita não é atômica).
+- 19 testes novos (`tests/test_sales_evidence_persist_rules.py`),
+  incluindo o teste literal da tarefa: 3 ciclos → 7 evidências únicas.
+- Versão: `1.4.147` → `1.4.148`. Sem tabela/coluna nova
+  (`sales_evidences` já existe desde a V.1.4.74).
+
+---
+
 ## V.1.4.147 — DDL do startup serializado entre workers (Tarefa D8)
 
 > Data: 29/09/2026 | Local, pendente deploy

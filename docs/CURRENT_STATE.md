@@ -1,5 +1,22 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-09-30 — **V.1.4.149 (local, pendente deploy junto
+com V.1.4.147/148): Tarefa A3 — escritor de OpportunityMemory.** Fatos
+do ciclo (dor, impacto, valor da solução, objeções + causa raiz) passam
+a ser gravados na memória da oportunidade vinculada: append-only,
+contradição sem apagar, dedup entre ciclos. Kill-switch
+`OPPORTUNITY_MEMORY_WRITE_ENABLED`. Só tem efeito com reunião vinculada
+a oportunidade (depende de B7/B8 em uso real). Próxima na ordem: **A4**
+(escritor de OpportunityGraph).
+
+Atualizado em: 2026-09-30 — **V.1.4.148 (local, pendente deploy junto
+com a V.1.4.147): Tarefa A2 — SalesEvidence persistida** a partir dos
+extratores do ciclo (SPIN, sinais, motivação, objeção + causa raiz),
+com dedup entre ciclos por `(type, citação normalizada)`. Zero IA nova.
+Só grava onde os extratores rodam (Shadow Mode, já ligado em produção,
+e Piloto). Kill-switch `SALES_EVIDENCE_PERSIST_ENABLED`. Próxima na
+ordem recomendada: **A3** (escritor de OpportunityMemory).
+
 Atualizado em: 2026-09-29 — **V.1.4.147 (local, pendente deploy): Tarefa
 D8 — DDL do startup serializado entre os 2 workers** via `GET_LOCK` do
 MySQL (`api/database.py::lock_de_schema`). Fecha a corrida que derrubou o

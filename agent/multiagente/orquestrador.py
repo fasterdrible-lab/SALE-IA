@@ -148,6 +148,57 @@ async def _rastrear_recomendacao(
         logger.debug("[RecommendationTracking] Falha (melhor esforço): %s", _e)
 
 
+def _persistir_sales_evidence(
+    meeting_id: str | None,
+    spin_state: dict | None,
+    behavioral_signals: list | None,
+    buyer_motivation: dict | None,
+    objections: list | None,
+    rotulo_log: str,
+) -> None:
+    """Tarefa A2 (docs/tasks-prompt-mestre-v2-restante.md): grava como
+    SalesEvidence as citações que os extratores do ciclo já validaram
+    contra a conversa (antes descartadas). Melhor esforço absoluto —
+    nunca atrasa nem quebra o ciclo; dedup e kill-switch em
+    `agent/sales_evidence_persist_rules.py`."""
+    try:
+        from agent.sales_evidence_persist_rules import persistir_evidencias_do_ciclo
+        criadas = persistir_evidencias_do_ciclo(
+            meeting_id, spin_state, behavioral_signals, buyer_motivation, objections,
+        )
+        if criadas:
+            logger.info("%s SalesEvidence: %d nova(s) meeting=%s", rotulo_log, criadas, meeting_id)
+    except Exception as _e:
+        logger.debug("%s Falha ao persistir SalesEvidence (melhor esforço): %s", rotulo_log, _e)
+
+
+def _gravar_opportunity_memory(
+    opportunity_id: int | None,
+    meeting_id: str | None,
+    spin_state: dict | None,
+    objections: list | None,
+    rotulo_log: str,
+) -> None:
+    """Tarefa A3 (docs/tasks-prompt-mestre-v2-restante.md): grava os
+    fatos do ciclo na OpportunityMemory da oportunidade vinculada
+    (append-only + contradição). Roda depois da leitura da memória para
+    a entrada do SalesReasoningEngine, então o ciclo atual vê o que foi
+    gravado até o ciclo anterior. Melhor esforço absoluto; regras,
+    dedup e kill-switch em `agent/opportunity_memory_writer_rules.py`."""
+    if not opportunity_id:
+        return
+    try:
+        from agent.opportunity_memory_writer_rules import gravar_opportunity_memory_do_ciclo
+        r = gravar_opportunity_memory_do_ciclo(opportunity_id, meeting_id, spin_state, objections)
+        if r["criados"]:
+            logger.info(
+                "%s OpportunityMemory: %d insight(s), %d contradição(ões) opportunity=%s meeting=%s",
+                rotulo_log, r["criados"], r["contradicoes"], opportunity_id, meeting_id,
+            )
+    except Exception as _e:
+        logger.debug("%s Falha ao gravar OpportunityMemory (melhor esforço): %s", rotulo_log, _e)
+
+
 def pilot_usuarios() -> frozenset:
     """Allowlist usada só quando `pilot_mode_atual() == "pilot_user"` —
     `PILOT_USER_IDS` no `.env`, `usuario_id` separados por vírgula
@@ -235,6 +286,7 @@ async def _aplicar_piloto_sales_reasoning(
     historical_patterns = None
     opportunity_memory = None
     opportunity_graph = None
+    opportunity_id = None
     try:
         from agent.historical_pattern_rules import obter_historical_pattern_da_opportunity
         from agent.opportunity_link_rules import vincular_automaticamente_se_possivel
@@ -284,6 +336,9 @@ async def _aplicar_piloto_sales_reasoning(
         )
     except Exception as _e:
         logger.debug("[Piloto] Falha ao extrair buyer_motivation (melhor esforço): %s", _e)
+
+    _persistir_sales_evidence(meeting_id, spin_state, behavioral_signals, buyer_motivation, objections, "[Piloto]")
+    _gravar_opportunity_memory(opportunity_id, meeting_id, spin_state, objections, "[Piloto]")
 
     entrada = {
         "meeting_memory": {
@@ -451,6 +506,7 @@ async def _rodar_shadow_mode(
     historical_patterns = None
     opportunity_memory = None
     opportunity_graph = None
+    opportunity_id = None
     try:
         from agent.historical_pattern_rules import obter_historical_pattern_da_opportunity
         from agent.opportunity_link_rules import vincular_automaticamente_se_possivel
@@ -491,6 +547,9 @@ async def _rodar_shadow_mode(
         )
     except Exception as _e:
         logger.debug("[ShadowMode] Falha ao extrair buyer_motivation (melhor esforço): %s", _e)
+
+    _persistir_sales_evidence(meeting_id, spin_state, behavioral_signals, buyer_motivation, objections, "[ShadowMode]")
+    _gravar_opportunity_memory(opportunity_id, meeting_id, spin_state, objections, "[ShadowMode]")
 
     entrada = {
         "meeting_memory": {
