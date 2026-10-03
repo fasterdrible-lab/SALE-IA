@@ -386,3 +386,8 @@ explícita, uma de cada vez — mesma disciplina de todo o roadmap.
   produção, `SELLER_DNA_OBSERVACAO_ENABLED=true` na VPS. Todas as
   tarefas "concluídas no código" acima passam a rodar em produção. PAT
   do remote da VPS inválido (deploy via `git bundle`).
+- **Golden Dataset `--real` (03/10/2026)**, após V.1.4.162 (fix de
+  falsos positivos da D2): objection_classification 100% (D3 bate o
+  alvo), critical_hallucination 2,5% (1 falso positivo, real 0%),
+  event_precision 48,9% / recall 74,2% (A7 abaixo do alvo de 90%).
+  Nova candidata: **A7b — precisão do extrator de SalesEvent**.

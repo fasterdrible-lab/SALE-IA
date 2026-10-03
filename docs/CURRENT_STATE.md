@@ -1,5 +1,27 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-10-03 — **Produção em V.1.4.162** (commit
+`5d17efe`, fix dos falsos positivos de alucinação crítica; deploy com
+`reunioes_ativas: 0`, `NRestarts=0`, journal limpo). **Golden Dataset
+`--real` rodado 2x em produção** (40 cenários, 0 erros de IA; números já
+no `/admin/readiness`):
+
+| Critério | 1ª rodada (1.4.161) | 2ª rodada (1.4.162) | Alvo |
+|---|---|---|---|
+| `objection_classification` | 100% | **100%** (34/34) | ≥ 90% ✅ |
+| `critical_hallucination_rate` | 32,5% (bug) | **2,5%** (1/40) | ≈ 0 |
+| `event_precision` | 43,1% | **48,9%** (recall 74,2%) | ≥ 90% ❌ |
+| `hallucination_rate` total | 12,6% | 9,9% | — |
+| `framework_accuracy` | 37,0% | 40,7% | — |
+
+- O único caso crítico restante também é falso positivo: "sem risco de
+  alucinar números" (discovery-02) casou a regex de promessa "sem
+  risco". Taxa crítica real desta rodada: 0%. Estreitar a regex sem
+  perder "sem risco de perder dinheiro" (promessa real) fica para decidir.
+- **Próximo gargalo da Fase 25: `event_precision`** — o extrator de
+  SalesEvent (A7) aponta eventos demais (precisão < 50%). Candidata a
+  tarefa nova.
+
 Atualizado em: 2026-10-03 — **Produção em V.1.4.161** (commit
 `5efcd3d`, bundle das V.1.4.150-161: A4, A5, C2, A6, B2, D1, D4, D6,
 D5, A7, D2, D3). Deploy com `reunioes_ativas: 0`, serviço `active`,
