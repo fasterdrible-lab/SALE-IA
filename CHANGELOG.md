@@ -3,6 +3,40 @@
 
 ---
 
+## V.1.4.162 — Alucinação crítica: falsos positivos de fase/estágio em português (fix da D2)
+
+> Data: 03/10/2026
+
+1ª rodada real do Golden Dataset depois do deploy da V.1.4.161 (40
+cenários, 0 erros de IA):
+
+| Critério | Valor | Alvo |
+|---|---|---|
+| `objection_classification` | **100%** (34/34; era 75%) | ≥ 90% |
+| `event_precision` | 43,1% (recall 71,0%) | ≥ 90% |
+| `critical_hallucination_rate` | 32,5% (13/40) — **falso** | ≈ 0 |
+| `hallucination_rate` total | 12,6% (era 14,4%) | — |
+| `framework_accuracy` | 37,0% | — |
+
+- **Os 13 casos críticos eram todos falsos positivos** de
+  `dado_do_cliente_inventado`: "Fase" (11x, o motor cita o próprio
+  prompt, ex. "regra da Fase 6.1"), "Situação", "Problema", "Implicação".
+  A lista `_NAO_SAO_NOMES` tinha os estágios SPIN em inglês, não em
+  português. Sem o bug, a taxa crítica desta rodada seria 0%.
+- **Fix**: termos de fase/estágio/metodologia em português na lista
+  (`agent/critical_hallucination_rules.py`).
+- **Diagnóstico sem rodar IA de novo**: cada achado passa a trazer
+  `contexto` (até 30 caracteres de cada lado do trecho). O relatório
+  antigo só guardava o trecho, o que forçou nova rodada para remedir.
+- Efeito em produção: a guarda do Piloto (D2) teria bloqueado
+  recomendações boas; o Piloto segue `off`, ninguém foi afetado.
+- `event_precision` 43% (modelo aponta eventos demais) fica como tarefa
+  separada.
+- 2 testes novos (`tests/test_critical_hallucination.py`).
+- Versão: `1.4.161` → `1.4.162`. Sem tabela/coluna nova.
+
+---
+
 ## V.1.4.161 — Objection classification: erro de gabarito corrigido + conjunto de 30 casos + desempate no prompt (Tarefa D3)
 
 > Data: 02/10/2026 | Local, pendente deploy

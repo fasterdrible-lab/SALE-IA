@@ -73,6 +73,17 @@ _NAO_SAO_NOMES = frozenset({
     "segunda", "terça", "terca", "quarta", "quinta", "sexta", "sábado", "sabado", "domingo",
     "janeiro", "fevereiro", "março", "marco", "abril", "maio", "junho", "julho", "agosto",
     "setembro", "outubro", "novembro", "dezembro", "brasil", "real", "reais",
+    # V.1.4.162: o motor cita o próprio prompt ("regra da Fase 6.1") e os
+    # estágios SPIN/MEDDPICC em português — 13/13 falsos positivos da 1ª
+    # rodada real do Golden Dataset vieram daqui.
+    "fase", "fases", "etapa", "etapas", "estagio", "estagios", "regra", "regras",
+    "situacao", "problema", "problemas", "implicacao", "implicacoes", "necessidade", "necessidades",
+    "beneficio", "beneficios", "solucao", "retorno", "ganho", "ganhos",
+    "metricas", "metrica", "comprador", "economico", "criterios", "criterio", "processo", "decisao",
+    "decisoes", "papel", "patrocinador", "concorrencia", "concorrente", "concorrentes", "competicao",
+    "qualificacao", "investigacao", "negociacao", "fechamento", "mitigacao", "risco", "riscos",
+    "descoberta", "apresentacao", "abertura", "rapport", "objecoes", "causa", "raiz", "hipotese",
+    "hipoteses", "evidencia", "evidencias", "sinal", "sinais", "motivacao", "proximo", "passo",
 })
 
 
@@ -105,8 +116,10 @@ def _numero_aparece_na_fonte(trecho: str, fonte_bruta: str, fonte_digitos_por_to
 
 
 def detectar_alucinacoes_criticas(saida: Optional[dict], texto_fonte: str) -> list:
-    """`[{"categoria", "campo", "trecho"}]` — vazio quando a saída não
-    traz nenhuma alucinação crítica. Nunca levanta."""
+    """`[{"categoria", "campo", "trecho", "contexto"}]` — vazio quando a
+    saída não traz nenhuma alucinação crítica. `contexto` = até 60
+    caracteres em volta do trecho, para diagnosticar falso positivo sem
+    precisar rodar a IA de novo. Nunca levanta."""
     if not isinstance(saida, dict):
         return []
     fonte = texto_fonte or ""
@@ -117,26 +130,28 @@ def detectar_alucinacoes_criticas(saida: Optional[dict], texto_fonte: str) -> li
 
     achados, vistos = [], set()
 
-    def _registrar(categoria, campo, trecho):
-        chave = (categoria, trecho.strip().lower())
+    def _registrar(categoria, campo, m, texto):
+        trecho = m.group(0).strip()
+        chave = (categoria, trecho.lower())
         if chave not in vistos:
             vistos.add(chave)
-            achados.append({"categoria": categoria, "campo": campo, "trecho": trecho.strip()})
+            contexto = texto[max(0, m.start() - 30):m.end() + 30].strip()
+            achados.append({"categoria": categoria, "campo": campo, "trecho": trecho, "contexto": contexto})
 
     for campo in CAMPOS_CHECADOS:
         for texto in _textos_do_campo(saida.get(campo)):
             for m in _NUMERO.finditer(texto):
                 if not _numero_aparece_na_fonte(m.group(0), fonte, fonte_digitos):
-                    _registrar("numero_inventado", campo, m.group(0))
+                    _registrar("numero_inventado", campo, m, texto)
             for m in _PROMESSA.finditer(texto):
                 if _sem_acento(m.group(0)) not in fonte_normalizada:
-                    _registrar("promessa_de_resultado", campo, m.group(0))
+                    _registrar("promessa_de_resultado", campo, m, texto)
             for m in _EMAIL.finditer(texto):
                 if m.group(0).lower() not in fonte.lower():
-                    _registrar("dado_do_cliente_inventado", campo, m.group(0))
+                    _registrar("dado_do_cliente_inventado", campo, m, texto)
             for m in _TELEFONE.finditer(texto):
                 if _digitos(m.group(0)) not in _digitos(fonte):
-                    _registrar("dado_do_cliente_inventado", campo, m.group(0))
+                    _registrar("dado_do_cliente_inventado", campo, m, texto)
             for m in _NOME.finditer(texto):
                 palavra = m.group(0)
                 if _sem_acento(palavra) in _NAO_SAO_NOMES:
@@ -146,7 +161,7 @@ def detectar_alucinacoes_criticas(saida: Optional[dict], texto_fonte: str) -> li
                 if not antes or antes[-1] in ".!?:\"'(—-":
                     continue
                 if _sem_acento(palavra) not in fonte_normalizada:
-                    _registrar("dado_do_cliente_inventado", campo, palavra)
+                    _registrar("dado_do_cliente_inventado", campo, m, texto)
     return achados
 
 

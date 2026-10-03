@@ -84,6 +84,20 @@ class DetectarTest(unittest.TestCase):
         saida = _saida(next_best_action="Investigue o impacto. Depois, Pergunte sobre SPIN e o MEDDPICC do Cliente.")
         self.assertEqual(detectar_alucinacoes_criticas(saida, _FONTE), [])
 
+    def test_fases_e_estagios_em_portugues_nao_sao_nomes(self):
+        # V.1.4.162: 13/13 falsos positivos da 1ª rodada real do Golden Dataset.
+        saida = _saida(
+            reason="Pela regra da Fase 6.1, a objeção precisa de investigação; a Fase 4.2 pede o decisor.",
+            current_state="Conversa na etapa de Situação, sem Problema nem Implicação mapeados.",
+            next_best_action="Investigue a Necessidade antes do Fechamento e confirme o Comprador Econômico.",
+        )
+        self.assertEqual(detectar_alucinacoes_criticas(saida, _FONTE), [])
+
+    def test_achado_traz_contexto_do_trecho(self):
+        achado = detectar_alucinacoes_criticas(_saida(reason="Ele aceita o plano de R$ 990 agora."), _FONTE)[0]
+        self.assertEqual(achado["trecho"], "R$ 990")
+        self.assertIn("plano de R$ 990 agora", achado["contexto"])
+
     def test_avoid_fica_de_fora(self):
         self.assertEqual(detectar_alucinacoes_criticas(_saida(avoid=["Não ofereça 20% de desconto."]), _FONTE), [])
 
