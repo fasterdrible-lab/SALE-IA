@@ -1,5 +1,22 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-10-03 — **Produção em V.1.4.161** (commit
+`5efcd3d`, bundle das V.1.4.150-161: A4, A5, C2, A6, B2, D1, D4, D6,
+D5, A7, D2, D3). Deploy com `reunioes_ativas: 0`, serviço `active`,
+`NRestarts=0`, journal sem erros (nem 1684), `/dashboard` = 200.
+`SELLER_DNA_OBSERVACAO_ENABLED=true` ligado no `.env` da VPS (backup em
+`.env.bak_pre161`).
+- **Achado de infra**: o PAT do GitHub gravado no remote de
+  `/opt/saleia` foi recusado, então `git pull origin main` falha. O
+  deploy foi feito com `git bundle` via SFTP (`git pull --ff-only
+  <bundle> main`). Precisa de PAT novo no remote para voltar ao pull
+  direto.
+- **Pendentes operacionais**: rodar os 3 scripts `--real` para popular
+  o `/admin/readiness` (Golden Dataset até 234 chamadas de IA: 1º número
+  de `event_precision`, `critical_hallucination` e
+  `objection_classification`); medir o custo real do MEDDPICC e do
+  extrator de SalesEvent (+2 chamadas de IA por ciclo em Shadow/Piloto).
+
 Atualizado em: 2026-10-02 — **V.1.4.160 + V.1.4.161 (local, pendente
 deploy junto com V.1.4.150-159): Tarefas D2 e D3.**
 - **D2**: alucinação crítica definida (número/preço, promessa ou dado

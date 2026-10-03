@@ -382,3 +382,7 @@ explícita, uma de cada vez — mesma disciplina de todo o roadmap.
   no código**; pendente rodar o Golden Dataset `--real` (até 234
   chamadas) para remedir A7/D2/D3. Próximo na ordem: passo 7 (com
   volume real: C1, C3, B4, B5, C5 → C6).
+- **Deploy das V.1.4.150-161 (03/10/2026)**: commit `5efcd3d` em
+  produção, `SELLER_DNA_OBSERVACAO_ENABLED=true` na VPS. Todas as
+  tarefas "concluídas no código" acima passam a rodar em produção. PAT
+  do remote da VPS inválido (deploy via `git bundle`).
