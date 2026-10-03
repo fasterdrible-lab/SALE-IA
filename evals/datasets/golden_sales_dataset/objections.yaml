@@ -61,8 +61,16 @@
     Vendedor: "Entendi. Só pra eu entender melhor, é o valor mesmo ou tem mais alguma coisa pesando na decisão?"
     Cliente: "Na real, tenho medo da minha equipe não usar isso no dia a dia."
   expected_facts:
+    # v1.1.0 (Tarefa D3): antes era 1 fato só, com valor "PRICE (fala
+    # literal), mas root cause é ADOPTION" e a citação da causa raiz —
+    # o runner mandava a fala de adoção ao classificador e esperava
+    # PRICE (erro de gabarito, era o único erro dos 75%). Agora a fala
+    # e a causa raiz são 2 fatos separados, cada um com sua citação.
     - campo: "objection_spoken"
-      valor: "categoria PRICE (fala literal), mas root cause é ADOPTION"
+      valor: "categoria PRICE"
+      evidence_quote: "Está caro pra gente agora."
+    - campo: "root_cause_hypothesis"
+      valor: "ADOPTION"
       evidence_quote: "tenho medo da minha equipe não usar isso no dia a dia"
   expected_events:
     - "OBJECTION_RAISED"

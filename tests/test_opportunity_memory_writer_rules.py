@@ -174,7 +174,7 @@ class WiringOrquestradorTest(_ComBancoEmMemoria):
     def _rodar_shadow(self, opportunity_id, registrar=None):
         raciocinar_mock = AsyncMock(return_value=None)
         patches = [
-            patch.dict(os.environ, {"SALES_EVIDENCE_PERSIST_ENABLED": "false"}),
+            patch.dict(os.environ, {"SALES_EVIDENCE_PERSIST_ENABLED": "false", "MEDDPICC_EXTRACTOR_ENABLED": "false", "SALES_EVENT_EXTRACTOR_ENABLED": "false", "SELLER_CONTEXT_ENABLED": "false"}),
             patch("agent.sales_reasoning_engine.raciocinar_async", new=raciocinar_mock),
             patch("api.database.criar_shadow_mode_comparison", new=MagicMock(return_value=None)),
             patch("api.database.obter_ultimo_ai_usage_event", return_value=None),

@@ -315,6 +315,12 @@ def _inicializar_schema():
     criar_tabelas()
     logger.info("✅ Banco de dados inicializado.")
     try:
+        # Tarefa D6: 4 colunas de versão em recommendation_events/audit_trail_entries.
+        from api.database import migrar_colunas_versionamento
+        migrar_colunas_versionamento()
+    except Exception as e:
+        logger.warning("Colunas de versionamento não migradas: %s", e)
+    try:
         from agent.sessao_manager import criar_tabela_sessoes, criar_tabela_usuarios, migrar_colunas_usuarios
         criar_tabela_sessoes()
         criar_tabela_usuarios()
@@ -799,7 +805,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.149",
+        "versao":              "1.4.161",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -837,7 +843,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.149",
+        "versao":          "1.4.161",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -954,10 +960,51 @@ async def analisar_tempo_real(req: TempoRealRequest, authorization: str | None =
     except Exception as _e:
         logger.warning("[Cenário] Não foi possível salvar análise: %s", _e)
 
-    if isinstance(resultado, dict):
-        resultado["auth_status"] = sessao["auth_status"]
-        if sessao["token_renovado"]:
-            resultado["token_renovado"] = sessao["token_renovado"]
+    resultado = _aplicar_contrato_sidebar(resultado, req.meeting_id or "default")
+    resultado["auth_status"] = sessao["auth_status"]
+    if sessao["token_renovado"]:
+        resultado["token_renovado"] = sessao["token_renovado"]
+    return resultado
+
+
+def _aplicar_contrato_sidebar(resultado, meeting_id: str) -> dict:
+    """Tarefa D5 (seção 29): último ponto antes da extensão — valida e
+    repara o que a sidebar lê (`agent/contract_repair_rules.py`), cai no
+    fallback seguro quando não há reparo e registra o que aconteceu (log
+    + AuditTrailEntry `contract_guard`, melhor esforço). Nunca levanta:
+    JSON quebrado nunca chega à sidebar."""
+    from api.processador_tempo_real import _fallback_next_best_action, _nba_para_nbq
+
+    reparos = []
+    try:
+        from agent.contract_repair_rules import reparar_contrato_sidebar
+        if isinstance(resultado, dict):
+            reparos += list(resultado.pop("_reparos_contrato", None) or [])
+        resultado, reparos_endpoint = reparar_contrato_sidebar(resultado, _fallback_next_best_action())
+        reparos += reparos_endpoint
+        if reparos_endpoint:
+            resultado["next_best_question"] = _nba_para_nbq(resultado["next_best_action"])
+    except Exception as e:
+        logger.warning("[ContractRepair] Falha ao aplicar contrato, usando fallback seguro: %s", e)
+        resultado = resultado if isinstance(resultado, dict) else {}
+        resultado["next_best_action"] = _fallback_next_best_action()
+        resultado["next_best_question"] = _nba_para_nbq(resultado["next_best_action"])
+        reparos.append("contrato:erro_interno:fallback_aplicado")
+
+    if reparos:
+        logger.warning("[ContractRepair] meeting=%s reparos=%s", meeting_id, reparos)
+        try:
+            from api.database import criar_audit_trail_entry
+            criar_audit_trail_entry(
+                actor="contract_guard",
+                action="reparar_resposta_sidebar",
+                reason="; ".join(reparos)[:2000],
+                result="fallback_aplicado" if any("fallback_aplicado" in r for r in reparos) else "reparado",
+                meeting_id=meeting_id,
+                data_used={"reparos": reparos},
+            )
+        except Exception as e:
+            logger.debug("[ContractRepair] Falha ao registrar reparo (melhor esforço): %s", e)
     return resultado
 
 
@@ -4446,6 +4493,24 @@ def admin_data_quality(
     return gerar_relatorio_qualidade(coletar_dados_qualidade(), datetime.now(), dias_sem_desfecho=dias_sem_desfecho)
 
 
+@app.get("/admin/readiness")
+def admin_readiness(dias: int = 7, authorization: str | None = _Header(default=None)):
+    """Tarefa D1 (docs/tasks-prompt-mestre-v2-restante.md): painel único
+    de prontidão — os 9 critérios da Fase 25 com valor atual, alvo,
+    status e origem do número (real/proxy/gap). Audit coverage, E2E
+    (proxy) e policy violation são calculados na hora; os critérios de
+    lote mostram a última medição registrada pelos scripts `--real`.
+    Admin-only, leitura pura."""
+    _req_admin(authorization)
+    if dias < 1:
+        raise HTTPException(status_code=422, detail="dias deve ser >= 1")
+    from agent.readiness_rules import montar_painel
+    from api.database import readiness_contagens_ao_vivo, ultimas_readiness_medicoes
+
+    painel = montar_painel(readiness_contagens_ao_vivo(dias=dias), ultimas_readiness_medicoes())
+    return {"gerado_em": datetime.now().isoformat(), "janela_dias": dias, **painel}
+
+
 @app.get("/admin/observabilidade/metricas")
 def admin_observabilidade_metricas(
     date_from: str | None = None,
@@ -4593,20 +4658,21 @@ def obter_opportunity_intelligence_endpoint(
     campos literais (Opportunity Health, SPIN Coverage, MEDDPICC, Pain,
     Impact, Champion, Economic Buyer, Decision Process, Objections,
     Competitors, Risks, Next Steps) a partir de `Opportunity` +
-    `OpportunityMemory` (Fase 2) já persistidas. SPIN Coverage, MEDDPICC e
-    os riscos *calculados* (`deal_risk_rules.calcular_riscos`) vêm como gap
-    explícito, nunca número inventado — ver
+    `OpportunityMemory` (Fase 2) já persistidas. SPIN Coverage e MEDDPICC
+    vêm como gap explícito, nunca número inventado; os riscos *calculados*
+    são reais desde a Tarefa A6 (`agent/deal_risk_signals_rules.py`) — ver
     `agent/opportunity_intelligence_rules.py`."""
     payload = _req_auth(authorization)
     try:
-        from api.database import obter_opportunity, obter_opportunity_memory
+        from api.database import listar_meetings_da_opportunity, obter_opportunity, obter_opportunity_memory
         from agent.opportunity_intelligence_rules import montar_opportunity_intelligence
         opp = obter_opportunity(opportunity_id)
         if not opp:
             raise HTTPException(status_code=404, detail="Oportunidade não encontrada.")
         _verificar_dono_ou_admin(payload, opp.get("seller_id"))
         memoria = obter_opportunity_memory(opportunity_id, criar_se_ausente=False) or {}
-        return montar_opportunity_intelligence(opp, memoria)
+        reunioes = listar_meetings_da_opportunity(opportunity_id)
+        return montar_opportunity_intelligence(opp, memoria, reunioes)
     except HTTPException:
         raise
     except Exception as e:

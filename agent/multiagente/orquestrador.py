@@ -80,6 +80,7 @@ async def _rastrear_recomendacao(
     resultado: dict,
     transcricao_nova: str,
     meeting_id: str | None,
+    origem: str = "multiagente",
 ) -> None:
     """Fase 10 (Tarefas 10.1+10.2) — 2 passos por ciclo, nesta ordem:
 
@@ -138,14 +139,109 @@ async def _rastrear_recomendacao(
         nba = resultado.get("next_best_action") or {}
         texto = (nba.get("message") or "").strip()
         if texto and (not ultimo or ultimo.get("recommendation") != texto):
+            # Tarefa D6: qual versão (motor/política/conhecimento/modelo)
+            # gerou esta recomendação. `origem` vem do Piloto: motor novo
+            # quando aplicado, multiagente (Coach) no caminho atual.
+            versoes = None
+            try:
+                from agent.intelligence_version_rules import ORIGEM_MOTOR, versoes_da_inteligencia
+                from api import ai_features
+                feature = (ai_features.SALES_REASONING_RACIOCINIO if origem == ORIGEM_MOTOR
+                           else ai_features.REALTIME_COACH)
+                versoes = versoes_da_inteligencia(origem, feature=feature, meeting_id=meeting_id)
+            except Exception as _e:
+                logger.debug("[RecommendationTracking] Versões indisponíveis (melhor esforço): %s", _e)
             criar_recommendation_event(
                 meeting_id=meeting_id,
                 strategy=nba.get("category") or "generico",
                 recommendation=texto,
                 reason=nba.get("reason") or "sem motivo informado",
+                versoes=versoes,
             )
     except Exception as _e:
         logger.debug("[RecommendationTracking] Falha (melhor esforço): %s", _e)
+
+
+async def _extrair_meddpicc(
+    transcricao_parcial: str,
+    historico: str,
+    usuario_id: str | None,
+    meeting_id: str | None,
+    rotulo_log: str,
+) -> list | None:
+    """Tarefa A5 (docs/tasks-prompt-mestre-v2-restante.md): fatos
+    MEDDPICC reais da conversa via IA (`agent/meddpicc_extractor.py`).
+    `None` = sem dado (kill-switch desligado ou falha de IA, melhor
+    esforço); `[]` = extraiu e nada foi qualificado ainda (informação
+    real, mesma semântica de `spin_state`)."""
+    try:
+        from agent.meddpicc_extractor import extrair_fatos_meddpicc_async, meddpicc_extractor_ativo
+        if not meddpicc_extractor_ativo():
+            return None
+        return await extrair_fatos_meddpicc_async(
+            transcricao_parcial, historico, usuario_id=usuario_id, meeting_id=meeting_id,
+        )
+    except Exception as _e:
+        logger.debug("%s Falha ao extrair MEDDPICC (melhor esforço): %s", rotulo_log, _e)
+        return None
+
+
+async def _extrair_e_persistir_sales_events(
+    transcricao_parcial: str,
+    historico: str,
+    usuario_id: str | None,
+    meeting_id: str | None,
+    opportunity_id: int | None,
+    rotulo_log: str,
+) -> None:
+    """Tarefa A7 (docs/tasks-prompt-mestre-v2-restante.md): eventos de
+    venda da conversa via IA (`agent/sales_event_extractor.py`) gravados
+    como SalesEvent, com dedup entre ciclos. Não entra na entrada do
+    SalesReasoningEngine (o contrato de 11 campos não tem eventos) —
+    alimenta o modelo canônico da venda e o `event_precision`. Reunião
+    anônima nunca chama a IA. Melhor esforço absoluto."""
+    if not meeting_id or meeting_id == "default":
+        return
+    try:
+        from agent.sales_event_extractor import (
+            extrair_sales_events_async,
+            persistir_sales_events_do_ciclo,
+            sales_event_extractor_ativo,
+        )
+        if not sales_event_extractor_ativo():
+            return
+        eventos = await extrair_sales_events_async(
+            transcricao_parcial, historico, usuario_id=usuario_id, meeting_id=meeting_id,
+        )
+        criados = persistir_sales_events_do_ciclo(meeting_id, eventos, opportunity_id=opportunity_id, seller_id=usuario_id)
+        if criados:
+            logger.info("%s SalesEvent: %d novo(s) meeting=%s", rotulo_log, criados, meeting_id)
+    except Exception as _e:
+        logger.debug("%s Falha ao extrair/gravar SalesEvent (melhor esforço): %s", rotulo_log, _e)
+
+
+def _meddpicc_state(meddpicc_fatos: list | None) -> dict | None:
+    if meddpicc_fatos is None:
+        return None
+    try:
+        from agent.meddpicc_extractor import estado_meddpicc
+        return estado_meddpicc(meddpicc_fatos)
+    except Exception as _e:
+        logger.debug("Falha ao calcular meddpicc_state (melhor esforço): %s", _e)
+        return None
+
+
+def _seller_context(usuario_id: str | None) -> dict | None:
+    """Tarefa C2 (docs/tasks-prompt-mestre-v2-restante.md): SellerDNA
+    agregado do vendedor do ciclo (`agent/seller_context_rules.py`) —
+    `None` sem vendedor, com menos de 10 reuniões observadas ou em
+    qualquer falha (melhor esforço absoluto)."""
+    try:
+        from agent.seller_context_rules import obter_seller_context
+        return obter_seller_context(usuario_id)
+    except Exception as _e:
+        logger.debug("Falha ao montar seller_context (melhor esforço): %s", _e)
+        return None
 
 
 def _persistir_sales_evidence(
@@ -155,6 +251,7 @@ def _persistir_sales_evidence(
     buyer_motivation: dict | None,
     objections: list | None,
     rotulo_log: str,
+    meddpicc_fatos: list | None = None,
 ) -> None:
     """Tarefa A2 (docs/tasks-prompt-mestre-v2-restante.md): grava como
     SalesEvidence as citações que os extratores do ciclo já validaram
@@ -164,7 +261,7 @@ def _persistir_sales_evidence(
     try:
         from agent.sales_evidence_persist_rules import persistir_evidencias_do_ciclo
         criadas = persistir_evidencias_do_ciclo(
-            meeting_id, spin_state, behavioral_signals, buyer_motivation, objections,
+            meeting_id, spin_state, behavioral_signals, buyer_motivation, objections, meddpicc_fatos,
         )
         if criadas:
             logger.info("%s SalesEvidence: %d nova(s) meeting=%s", rotulo_log, criadas, meeting_id)
@@ -178,6 +275,7 @@ def _gravar_opportunity_memory(
     spin_state: dict | None,
     objections: list | None,
     rotulo_log: str,
+    meddpicc_fatos: list | None = None,
 ) -> None:
     """Tarefa A3 (docs/tasks-prompt-mestre-v2-restante.md): grava os
     fatos do ciclo na OpportunityMemory da oportunidade vinculada
@@ -189,7 +287,7 @@ def _gravar_opportunity_memory(
         return
     try:
         from agent.opportunity_memory_writer_rules import gravar_opportunity_memory_do_ciclo
-        r = gravar_opportunity_memory_do_ciclo(opportunity_id, meeting_id, spin_state, objections)
+        r = gravar_opportunity_memory_do_ciclo(opportunity_id, meeting_id, spin_state, objections, meddpicc_fatos)
         if r["criados"]:
             logger.info(
                 "%s OpportunityMemory: %d insight(s), %d contradição(ões) opportunity=%s meeting=%s",
@@ -197,6 +295,25 @@ def _gravar_opportunity_memory(
             )
     except Exception as _e:
         logger.debug("%s Falha ao gravar OpportunityMemory (melhor esforço): %s", rotulo_log, _e)
+
+
+def _gravar_opportunity_graph(opportunity_id: int | None, rotulo_log: str) -> None:
+    """Tarefa A4 (docs/tasks-prompt-mestre-v2-restante.md): deriva as
+    arestas do OpportunityGraph da memória já atualizada pela A3 (regras
+    fixas por categoria, nunca IA). Roda depois de
+    `_gravar_opportunity_memory()`; o motor lê o grafo antes, então o
+    ciclo atual vê as arestas até o ciclo anterior. Melhor esforço
+    absoluto; regras, dedup e kill-switch em
+    `agent/opportunity_graph_writer_rules.py`."""
+    if not opportunity_id:
+        return
+    try:
+        from agent.opportunity_graph_writer_rules import gravar_opportunity_graph
+        criadas = gravar_opportunity_graph(opportunity_id)
+        if criadas:
+            logger.info("%s OpportunityGraph: %d aresta(s) opportunity=%s", rotulo_log, criadas, opportunity_id)
+    except Exception as _e:
+        logger.debug("%s Falha ao gravar OpportunityGraph (melhor esforço): %s", rotulo_log, _e)
 
 
 def pilot_usuarios() -> frozenset:
@@ -337,8 +454,14 @@ async def _aplicar_piloto_sales_reasoning(
     except Exception as _e:
         logger.debug("[Piloto] Falha ao extrair buyer_motivation (melhor esforço): %s", _e)
 
-    _persistir_sales_evidence(meeting_id, spin_state, behavioral_signals, buyer_motivation, objections, "[Piloto]")
-    _gravar_opportunity_memory(opportunity_id, meeting_id, spin_state, objections, "[Piloto]")
+    meddpicc_fatos = await _extrair_meddpicc(transcricao_parcial, historico, usuario_id, meeting_id, "[Piloto]")
+    await _extrair_e_persistir_sales_events(transcricao_parcial, historico, usuario_id, meeting_id, opportunity_id, "[Piloto]")
+
+    _persistir_sales_evidence(meeting_id, spin_state, behavioral_signals, buyer_motivation, objections, "[Piloto]",
+                              meddpicc_fatos=meddpicc_fatos)
+    _gravar_opportunity_memory(opportunity_id, meeting_id, spin_state, objections, "[Piloto]",
+                               meddpicc_fatos=meddpicc_fatos)
+    _gravar_opportunity_graph(opportunity_id, "[Piloto]")
 
     entrada = {
         "meeting_memory": {
@@ -358,6 +481,8 @@ async def _aplicar_piloto_sales_reasoning(
         "spin_state": spin_state,
         "behavioral_signals": behavioral_signals,
         "buyer_motivation": buyer_motivation,
+        "meddpicc_state": _meddpicc_state(meddpicc_fatos),
+        "seller_context": _seller_context(usuario_id),
     }
 
     inicio = _time.monotonic()
@@ -370,11 +495,47 @@ async def _aplicar_piloto_sales_reasoning(
         logger.warning("[Piloto] raciocinar_async falhou, mantendo modelo atual: %s", erro)
     latency_ms = int((_time.monotonic() - inicio) * 1000)
 
+    # Tarefa D2: guarda de alucinação crítica — recomendação do motor com
+    # preço/número, promessa ou dado do cliente que não está em nada do
+    # que ele recebeu nunca chega ao vendedor (fail open: fica a do
+    # modelo atual). Registrada para auditoria.
     if recomendacao_nova is not None:
+        try:
+            import json as _json
+
+            from agent.critical_hallucination_rules import detectar_alucinacoes_criticas
+            achados = detectar_alucinacoes_criticas(
+                recomendacao_nova, _json.dumps(entrada, ensure_ascii=False, default=str),
+            )
+            if achados:
+                logger.warning("[Piloto] Recomendação bloqueada por alucinação crítica meeting=%s: %s", meeting_id, achados)
+                erro = f"alucinacao_critica_bloqueada: {achados}"[:500]
+                try:
+                    from api.database import criar_audit_trail_entry
+                    criar_audit_trail_entry(
+                        actor="critical_hallucination_guard", action="bloquear_recomendacao",
+                        reason="; ".join(f"{a['categoria']}: {a['trecho']}" for a in achados)[:2000],
+                        result="recomendacao_do_modelo_atual_mantida", meeting_id=meeting_id,
+                        data_used={"achados": achados},
+                    )
+                except Exception as _e:
+                    logger.debug("[Piloto] Falha ao registrar bloqueio (melhor esforço): %s", _e)
+                recomendacao_nova_aplicavel = None
+            else:
+                recomendacao_nova_aplicavel = recomendacao_nova
+        except Exception as _e:
+            logger.debug("[Piloto] Falha na guarda de alucinação crítica (melhor esforço): %s", _e)
+            recomendacao_nova_aplicavel = recomendacao_nova
+    else:
+        recomendacao_nova_aplicavel = None
+
+    aplicado = False
+    if recomendacao_nova_aplicavel is not None:
         try:
             nova_nba = mapear_para_next_best_action(recomendacao_nova)
             resultado["next_best_action"] = nova_nba
             resultado["next_best_question"] = _nba_para_nbq(nova_nba)
+            aplicado = True
         except Exception as _e:
             logger.warning("[Piloto] Falha ao aplicar recomendação nova, mantendo modelo atual: %s", _e)
 
@@ -394,6 +555,10 @@ async def _aplicar_piloto_sales_reasoning(
         criar_shadow_mode_comparison(meeting_id=meeting_id, usuario_id=usuario_id, origem="piloto", **registro)
     except Exception as _e:
         logger.debug("[Piloto] Falha ao persistir comparação (melhor esforço): %s", _e)
+
+    # Tarefa D6: diz ao chamador se a recomendação do vendedor veio do
+    # motor novo (para o versionamento do RecommendationEvent).
+    return aplicado
 
 
 # Referencias fortes das tasks de shadow mode em voo — sem isso, o
@@ -467,7 +632,7 @@ async def _rodar_shadow_mode(
     from agent.sales_reasoning_engine import raciocinar_async
     from agent.shadow_mode_rules import montar_registro_shadow
 
-    # 9 dos 11 campos do contrato têm dado real hoje no ciclo de
+    # Os 11 campos do contrato têm dado real hoje no ciclo de
     # tempo real — meeting_memory (subconjunto do estado ao vivo da
     # reunião, nunca o registro completo do banco), rag_context (o
     # mesmo client_context — RAG + Sales Memory + Knowledge Compiler —
@@ -487,11 +652,11 @@ async def _rodar_shadow_mode(
     # (Bloco 4 / Tarefa 4.2 — extrai sinais comportamentais reais da
     # conversa via IA) e buyer_motivation (Bloco 4 / Tarefa 4.3 —
     # extrai a motivação de compra dominante real da conversa via IA,
-    # fecha o Bloco 4). Os outros 2 (meddpicc_state, seller_context)
-    # ficam `None` — meddpicc_state segue bloqueado (Tarefa 1.1, sem
-    # citação real disponível no maturity_score do Closer),
-    # seller_context depende do Bloco 5 (SellerDNA persistido), ainda
-    # não iniciado.
+    # fecha o Bloco 4). meddpicc_state vem do extrator próprio da Tarefa
+    # A5 (docs/tasks-prompt-mestre-v2-restante.md — IA com citação
+    # checada, sem mexer no prompt do Closer). seller_context (Tarefa
+    # C2) é o SellerDNA agregado do vendedor — `None` até ele ter 10+
+    # reuniões observadas (amostra mínima da Fase 15.1).
     objections = None
     try:
         objecao = await extrair_objecao_do_ciclo(
@@ -548,8 +713,14 @@ async def _rodar_shadow_mode(
     except Exception as _e:
         logger.debug("[ShadowMode] Falha ao extrair buyer_motivation (melhor esforço): %s", _e)
 
-    _persistir_sales_evidence(meeting_id, spin_state, behavioral_signals, buyer_motivation, objections, "[ShadowMode]")
-    _gravar_opportunity_memory(opportunity_id, meeting_id, spin_state, objections, "[ShadowMode]")
+    meddpicc_fatos = await _extrair_meddpicc(transcricao_parcial, historico, usuario_id, meeting_id, "[ShadowMode]")
+    await _extrair_e_persistir_sales_events(transcricao_parcial, historico, usuario_id, meeting_id, opportunity_id, "[ShadowMode]")
+
+    _persistir_sales_evidence(meeting_id, spin_state, behavioral_signals, buyer_motivation, objections, "[ShadowMode]",
+                              meddpicc_fatos=meddpicc_fatos)
+    _gravar_opportunity_memory(opportunity_id, meeting_id, spin_state, objections, "[ShadowMode]",
+                               meddpicc_fatos=meddpicc_fatos)
+    _gravar_opportunity_graph(opportunity_id, "[ShadowMode]")
 
     entrada = {
         "meeting_memory": {
@@ -569,6 +740,8 @@ async def _rodar_shadow_mode(
         "spin_state": spin_state,
         "behavioral_signals": behavioral_signals,
         "buyer_motivation": buyer_motivation,
+        "meddpicc_state": _meddpicc_state(meddpicc_fatos),
+        "seller_context": _seller_context(usuario_id),
     }
 
     inicio = _time.monotonic()
@@ -871,12 +1044,13 @@ async def analisar_fragmento_multi(
     except Exception as _e:
         logger.debug("[Piloto] Falha ao avaliar rollout (fail-safe, modelo atual mantido): %s", _e)
 
+    piloto_aplicado = False
     if usar_piloto:
         try:
-            await _aplicar_piloto_sales_reasoning(
+            piloto_aplicado = bool(await _aplicar_piloto_sales_reasoning(
                 resultado, transcricao_parcial, historico, rv, diag, mapa,
                 scores, evts, client_context, usuario_id, meeting_id,
-            )
+            ))
         except Exception as _e:
             logger.warning("[Piloto] Falha inesperada, modelo atual preservado: %s", _e)
     else:
@@ -897,7 +1071,10 @@ async def analisar_fragmento_multi(
     # (resultado["next_best_action"] já reflete a substituição do
     # Piloto quando aplicável).
     try:
-        await _rastrear_recomendacao(resultado, transcricao_nova, meeting_id)
+        await _rastrear_recomendacao(
+            resultado, transcricao_nova, meeting_id,
+            origem="sales_reasoning_engine" if piloto_aplicado else "multiagente",
+        )
     except Exception as _e:
         logger.debug("[RecommendationTracking] Falha inesperada (melhor esforço): %s", _e)
 

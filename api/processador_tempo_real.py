@@ -339,6 +339,20 @@ def _normalizar_resposta_realtime(resultado: dict | str | None, memoria: Optiona
         resultado["next_best_action"] = _fallback_next_best_action()
     elif not resultado["next_best_action"].get("message"):
         resultado["next_best_action"]["message"] = _FALLBACK_NBQ_QUESTION
+    # Tarefa D5: tipos do next_best_action validados/reparados ANTES de
+    # derivar o next_best_question — confidence em texto ("alta")
+    # quebrava `_nba_para_nbq` (comparação str >= float). Os reparos
+    # viajam em `_reparos_contrato` e são registrados por /tempo-real.
+    try:
+        from agent.contract_repair_rules import reparar_next_best_action
+        resultado["next_best_action"], _reparos = reparar_next_best_action(
+            resultado["next_best_action"], _fallback_next_best_action(),
+        )
+        if _reparos:
+            resultado["_reparos_contrato"] = list(_reparos)
+    except Exception as _e:
+        logger.warning("[ContractRepair] Falha ao reparar next_best_action, usando fallback: %s", _e)
+        resultado["next_best_action"] = _fallback_next_best_action()
     # next_best_question — alias backward-compat gerado a partir do next_best_action
     resultado["next_best_question"] = _nba_para_nbq(resultado["next_best_action"])
     # novos campos

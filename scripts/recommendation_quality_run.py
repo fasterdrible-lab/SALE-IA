@@ -10,12 +10,13 @@ em `recommendation_quality` real (Fase 25,
 efetividade por estratégia (Tarefa 10.3,
 `calcular_efetividade_por_estrategia`).
 
-`taxa_avanco`/`taxa_desfecho_positivo` (Tarefa 10.3) continuam `None`
-nesta rodada — `stage_advanced`/`opportunity_result` não são
-capturados em nenhum lugar da produção ainda (gap documentado à
-parte, fora do escopo deste script). O que este script fecha é só a
-classificação real de USO (state), que antes só era logada, nunca
-agregada.
+`taxa_avanco`/`taxa_desfecho_positivo` (Tarefa 10.3) vêm de
+`stage_advanced`/`opportunity_result`, capturados desde a Tarefa B2
+(`agent/recommendation_outcome_rules.py::anexar_resultados`: reunião →
+oportunidade vinculada → histórico de estágio + status final). Continuam
+`None` para recomendação de reunião sem oportunidade vinculada, sem
+reunião seguinte ou de oportunidade ainda aberta — nunca `False` por
+omissão.
 
 **Custo real de IA: zero** — usa só embeddings locais (Ollama), mesmo
 provedor já usado pelo RAG/Sales Memory, nunca uma API paga.
@@ -70,12 +71,28 @@ async def _real_run(out_path: str | None) -> None:
 
         eventos_classificados.append({
             "id": ev["id"],
+            "meeting_id": ev["meeting_id"],
+            "opportunity_id": ev.get("opportunity_id"),
+            "shown_at": ev.get("shown_at"),
             "strategy": ev["strategy"],
             "state": classificacao["state"],
             "similarity": classificacao.get("similarity"),
-            "stage_advanced": None,
-            "opportunity_result": None,
         })
+
+    # Tarefa B2: stage_advanced/opportunity_result reais (determinístico).
+    try:
+        from agent.recommendation_outcome_rules import anexar_resultados
+        eventos_classificados = anexar_resultados(eventos_classificados)
+    except Exception as e:
+        erros.append(f"resultados (B2): {type(e).__name__}: {e}")
+        eventos_classificados = [
+            {**evento, "stage_advanced": None, "opportunity_result": None} for evento in eventos_classificados
+        ]
+    com_resultado = sum(
+        1 for e in eventos_classificados
+        if e.get("stage_advanced") is not None or e.get("opportunity_result") is not None
+    )
+    print(f"{com_resultado} evento(s) com stage_advanced/opportunity_result conhecido (B2).")
 
     resumo_geral = resumir_uso_geral([e["state"] for e in eventos_classificados])
     efetividade_por_estrategia = calcular_efetividade_por_estrategia(eventos_classificados)
@@ -89,6 +106,18 @@ async def _real_run(out_path: str | None) -> None:
         print(f"\n{len(erros)} erro(s) durante a execução (não derrubaram o script):")
         for erro in erros:
             print(f"  - {erro}")
+
+    # Tarefa D1: registra recommendation_quality para GET /admin/readiness.
+    try:
+        from api.database import registrar_readiness_medicao
+        registrar_readiness_medicao(
+            "recommendation_quality", resumo_geral["taxa_uso_real"], origem="real",
+            fonte="scripts/recommendation_quality_run.py", amostra=resumo_geral["total"],
+            detalhe={"por_estado": resumo_geral["por_estado"]},
+        )
+        print("recommendation_quality registrado no painel de prontidão (/admin/readiness).")
+    except Exception as e:
+        print(f"Aviso: não foi possível registrar no painel de prontidão: {type(e).__name__}: {e}")
 
     if out_path:
         relatorio = {**saida_console, "eventos_classificados": eventos_classificados, "erros": erros}

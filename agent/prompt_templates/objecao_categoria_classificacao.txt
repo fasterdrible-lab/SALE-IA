@@ -15,6 +15,16 @@ LEGAL — questão jurídica/contratual
 PROCUREMENT — processo de compras/burocracia interna
 SECURITY — segurança de dados/compliance
 
+COMO DESEMPATAR CATEGORIAS PARECIDAS:
+- Classifique o que o cliente DISSE, nunca uma causa que você supõe por trás. "Está caro" é PRICE, mesmo que o motivo real possa ser outro — a causa raiz é investigada em outra etapa.
+- PRICE = o preço em si é alto/acima do esperado ("caro", "valor acima do que eu imaginava"). BUDGET = ele não tem dinheiro disponível agora, independente de achar o preço justo (caixa apertado, sem fluxo de caixa, limite do cartão, não consegue pagar a entrada, gasto inesperado). VALUE = duvida se vale a pena/se compensa/se entrega mais do que ele já tem.
+- TIMING = o momento é ruim, quer esperar algo acontecer ou uma data ("depois do trimestre", "esperar sair o resultado"). PRIORITY = existem outras demandas mais importantes na frente.
+- ADOPTION = medo de as PESSOAS não usarem (equipe resistente, não vão abrir a ferramenta). IMPLEMENTATION = dificuldade operacional de começar/implantar (logística, estoque, espaço físico, burocracia de habilitação, migração, integração).
+- AUTHORITY = precisa da aprovação de uma pessoa (sócio, diretor, conselho, família). PROCUREMENT = processo formal de compras (cadastro de fornecedor, cotações, licitação interna). LEGAL = contrato, cláusula, multa, jurídico, enquadramento contábil/fiscal do contrato.
+- TRUST = desconfiança da empresa/produto (medo de golpe, nunca ouviu falar, quer visita/garantia antes). SECURITY = proteção de dados, LGPD, criptografia, exigências de segurança da informação.
+- COMPETITOR = está comparando ou preferindo outra empresa/solução concorrente.
+- Se aparecerem dois motivos, escolha o que o cliente apresenta como o que trava a decisão.
+
 REGRAS:
 - Responda só com a categoria que melhor descreve a objeção, nunca invente uma categoria fora da lista acima.
 - Se a objeção não se encaixar claramente em nenhuma categoria, responda null — nunca force a categoria mais parecida.

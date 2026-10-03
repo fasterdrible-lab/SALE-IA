@@ -52,11 +52,13 @@ RECOMMENDATION_EFFECTIVENESS_NAO_DISPONIVEL = {
     "disponivel": False,
     "motivo": (
         "agent/recommendation_effectiveness_rules.py (Fase 10.3) calcula "
-        "a métrica corretamente, mas exige RecommendationEvent "
-        "classificado (state via detectar_uso_recomendacao, Fase 10.2, "
-        "mais stage_advanced/opportunity_result) — nenhuma dessas "
-        "classificações roda automaticamente em produção hoje. Rodar "
-        "aqui geraria um número sem nenhum dado real por trás."
+        "a métrica corretamente, mas exige o estado de uso de cada "
+        "RecommendationEvent (detectar_uso_recomendacao, Fase 10.2), que "
+        "não é persistido — só é calculado em lote, via embeddings "
+        "locais, por scripts/recommendation_quality_run.py. "
+        "stage_advanced/opportunity_result já são capturados desde a "
+        "Tarefa B2 (agent/recommendation_outcome_rules.py); rode o script "
+        "para o número real."
     ),
 }
 

@@ -53,6 +53,7 @@ def adicionar_insight(
     evidence: Optional[str] = None,
     confidence: float = 1.0,
     timestamp: Optional[datetime] = None,
+    status: Optional[str] = None,
 ) -> tuple[list, Optional[dict]]:
     """Retorna (nova_lista, contradicao_ou_None) — nunca muta
     `insights_existentes` in-place nem remove/edita entradas antigas.
@@ -60,6 +61,11 @@ def adicionar_insight(
     `contradicao_ou_None` é a entrada anterior com o mesmo `campo` mas
     `valor` diferente, quando existir (para o chamador logar/alertar);
     de qualquer forma, ambas as entradas permanecem na lista retornada.
+
+    `status` (opcional, Tarefa A6): status de qualificação do fato de
+    origem (ex.: MEDDPICC `PARTIAL`/`CONFIRMED`, gravado pela A3 a
+    partir da A5). Só entra na entrada quando informado — insights sem
+    status continuam exatamente como antes.
     """
     if not meeting_id:
         raise ValueError("meeting_id é obrigatório para registrar um insight")
@@ -90,6 +96,8 @@ def adicionar_insight(
         "timestamp": (timestamp or datetime.now()).isoformat(),
         "contradiz": contradicao["id"] if contradicao else None,
     }
+    if status:
+        nova_entrada["status"] = status
 
     nova_lista = [*insights_existentes, nova_entrada]
     return nova_lista, contradicao

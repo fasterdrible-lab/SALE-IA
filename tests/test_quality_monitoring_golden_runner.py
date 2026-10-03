@@ -131,8 +131,9 @@ def _cenario_objecao(id_, input_, evidence_quote, valor_categoria):
 
 
 class ExecutarGoldenDatasetAsyncTest(unittest.TestCase):
-    def _run(self, cenarios, raciocinar_mock, classificar_mock=None, spin_mock=None, behavioral_mock=None, motivation_mock=None):
-        with patch("agent.sales_reasoning_engine.raciocinar_async", new=raciocinar_mock), \
+    def _run(self, cenarios, raciocinar_mock, classificar_mock=None, spin_mock=None, behavioral_mock=None, motivation_mock=None, eventos_mock=None):
+        with patch("agent.sales_event_extractor.extrair_sales_events_async", new=eventos_mock or AsyncMock(return_value=[])), \
+             patch("agent.sales_reasoning_engine.raciocinar_async", new=raciocinar_mock), \
              patch("agent.objection_category_classifier.classificar_categoria_objecao_async", new=classificar_mock or AsyncMock(return_value=None)), \
              patch("agent.spin_extractor.extrair_spin_state_async", new=spin_mock or AsyncMock(return_value=None)), \
              patch("agent.behavioral_signal_extractor.extrair_sinais_comportamentais_async", new=behavioral_mock or AsyncMock(return_value=[])), \
@@ -270,6 +271,34 @@ class ExecutarGoldenDatasetAsyncTest(unittest.TestCase):
         resultado = self._run(cenarios, raciocinar_mock, spin_mock=spin_mock)
         raciocinar_mock.assert_awaited_once()
         self.assertEqual(resultado["framework_corretos"], 1)
+
+    def test_event_precision_real_a_partir_do_extrator(self):
+        """Tarefa A7: event_precision deixa de ser gap — previsto fora do
+        gabarito conta como falso positivo, inclusive em cenário que
+        espera nenhum evento."""
+        cenarios = [
+            {"id": "e-1", "input": "x", "expected_framework": None, "expected_events": ["PRICE_DISCUSSION", "OBJECTION_RAISED"], "_arquivo": "pricing.yaml"},
+            {"id": "e-2", "input": "y", "expected_framework": None, "expected_events": [], "_arquivo": "discovery.yaml"},
+        ]
+        previstos = iter([
+            [{"event_type": "PRICE_DISCUSSION", "confidence": 0.9, "evidence_quote": "x"},
+             {"event_type": "BUYING_SIGNAL", "confidence": 0.9, "evidence_quote": "x"}],
+            [{"event_type": "PAIN_DETECTED", "confidence": 0.9, "evidence_quote": "y"}],
+        ])
+        eventos_mock = AsyncMock(side_effect=lambda *a, **k: next(previstos))
+        raciocinar_mock = AsyncMock(return_value={"recommended_framework": "SPIN_PROBLEM", "evidence": []})
+        contagens = self._run(cenarios, raciocinar_mock, eventos_mock=eventos_mock)
+        self.assertEqual((contagens["evento_vp"], contagens["evento_fp"], contagens["evento_fn"]), (1, 2, 1))
+        relatorio = montar_relatorio_metricas(contagens)
+        self.assertAlmostEqual(relatorio["event_precision"], 1 / 3, places=3)
+        self.assertEqual(relatorio["event_recall"], 0.5)
+
+    def test_falha_do_extrator_de_eventos_vira_erro_e_nao_derruba(self):
+        cenarios = [{"id": "e-1", "input": "x", "expected_framework": "SPIN_PROBLEM", "expected_events": [], "_arquivo": "d.yaml"}]
+        raciocinar_mock = AsyncMock(return_value={"recommended_framework": "SPIN_PROBLEM", "evidence": []})
+        contagens = self._run(cenarios, raciocinar_mock, eventos_mock=AsyncMock(side_effect=RuntimeError("503")))
+        self.assertEqual(contagens["framework_corretos"], 1)
+        self.assertTrue(any("SalesEvent" in e for e in contagens["erros"]))
 
 
 class MontarRelatorioMetricasTest(unittest.TestCase):

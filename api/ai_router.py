@@ -131,7 +131,22 @@ def _extract_json(text: str) -> dict:
         payload = payload.strip("`").strip()
         if payload.lower().startswith("json"):
             payload = payload[4:].strip()
-    return json.loads(payload)
+    try:
+        return json.loads(payload)
+    except ValueError as erro_original:
+        # Tarefa D5 (seção 29): rejeitar → reparar → registrar. Só reparo
+        # sintático conservador (texto em volta, cerca de código no meio,
+        # vírgula sobrando); sem reparo seguro, o erro original propaga e
+        # o provedor conta como falha (próximo provedor/fallback, como antes).
+        from agent.contract_repair_rules import reparar_json
+        reparado, reparos = reparar_json(text)
+        if reparado is None:
+            raise erro_original
+        with _counters_lock:
+            _counters["json_reparado"] += 1
+        logger.warning("[ContractRepair] JSON de IA reparado (%s)", ", ".join(reparos))
+        reparado["_json_reparado_ia"] = reparos
+        return reparado
 
 
 def _clean_forbidden_trigger_phrases(text: str) -> str:
@@ -383,6 +398,7 @@ _counters: dict = {
     "chamadas_falha": 0,
     "fallbacks": 0,
     "circuit_breaker_aberturas": 0,
+    "json_reparado": 0,  # Tarefa D5: respostas de IA salvas por reparo sintático
     "custo_total_usd": 0.0,
     "por_provedor": {
         name: {"sucesso": 0, "falha": 0, "total_ms": 0, "custo_usd": 0.0}
@@ -469,6 +485,7 @@ def snapshot_metricas() -> dict:
             "chamadas_falha": _counters["chamadas_falha"],
             "fallbacks": _counters["fallbacks"],
             "circuit_breaker_aberturas": _counters["circuit_breaker_aberturas"],
+            "json_reparado": _counters["json_reparado"],
             "custo_total_usd": round(_counters["custo_total_usd"], 6),
             "uptime_segundos": int(time.time() - _counters["inicio"]),
             "por_provedor": {

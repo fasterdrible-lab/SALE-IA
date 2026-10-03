@@ -16,6 +16,8 @@ conversa pelo próprio extrator):
 - `objections` (Blocos 1.2 + 4.4) → `OBJECTION:<category>` (o que foi dito)
   e `ROOT_CAUSE:<hypothesis>` (causa raiz, quando houver) — sempre 2
   evidências separadas, nunca fundidas (mesma regra de objection_rules.py).
+- `meddpicc_fatos` (A5, `agent/meddpicc_extractor.py`) → `MEDDPICC:<item>`,
+  com a confidence do extrator.
 
 **Deduplicação entre ciclos** (a mesma fala reaparece a cada 60s, porque
 os extratores recebem a transcrição acumulada): chave `(type, citação
@@ -88,6 +90,7 @@ def coletar_evidencias(
     behavioral_signals: Optional[list] = None,
     buyer_motivation: Optional[dict] = None,
     objections: Optional[list] = None,
+    meddpicc_fatos: Optional[list] = None,
 ) -> list:
     """Função pura: converte a saída dos extratores do ciclo em
     `[{"type", "quote", "confidence"?}]`, já deduplicada dentro do
@@ -127,6 +130,13 @@ def coletar_evidencias(
                 _tipo("ROOT_CAUSE", root.get("hypothesis")), root.get("evidence_quote"), root.get("confidence"),
             ))
 
+    # A5: fatos do extrator de MEDDPICC (`agent/meddpicc_extractor.py`).
+    for fato in meddpicc_fatos or []:
+        if isinstance(fato, dict):
+            candidatos.append(_item(
+                _tipo("MEDDPICC", fato.get("item")), fato.get("evidence_quote"), fato.get("confidence"),
+            ))
+
     evidencias = []
     vistas = set()
     for item in candidatos:
@@ -146,6 +156,7 @@ def persistir_evidencias_do_ciclo(
     behavioral_signals: Optional[list] = None,
     buyer_motivation: Optional[dict] = None,
     objections: Optional[list] = None,
+    meddpicc_fatos: Optional[list] = None,
 ) -> int:
     """Grava as evidências novas do ciclo (as já gravadas para a reunião
     são puladas) e retorna quantas foram criadas. Reunião anônima
@@ -159,7 +170,7 @@ def persistir_evidencias_do_ciclo(
     if not meeting_id or meeting_id == "default" or not sales_evidence_persist_ativo():
         return 0
 
-    evidencias = coletar_evidencias(spin_state, behavioral_signals, buyer_motivation, objections)
+    evidencias = coletar_evidencias(spin_state, behavioral_signals, buyer_motivation, objections, meddpicc_fatos)
     if not evidencias:
         return 0
 

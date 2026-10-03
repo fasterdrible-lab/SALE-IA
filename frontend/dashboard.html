@@ -4520,10 +4520,49 @@
     </div>`;
     html += `<div class="grid-2">
       ${oppInsightsCard('⚠️ Risks (relatados)', d.risks_relatados)}
-      ${oppGapCard('🧮 Risks (calculados)', d.risks_calculados)}
+      ${oppRiscosCalculadosCard(d.risks_calculados)}
     </div>`;
 
     return html;
+  }
+
+  /* Tarefa A6: riscos do Deal Risk Engine calculados com sinais reais.
+     Sem dado (payload antigo/gap) cai no oppGapCard de sempre. O que não
+     pôde ser avaliado aparece como tal — nunca como "sem risco". */
+  const OPP_RISCO_LABEL = {
+    NO_ECONOMIC_BUYER: 'Decisor econômico não confirmado',
+    NO_CHAMPION: 'Champion não confirmado',
+    NO_NEXT_STEP: 'Sem próximo passo registrado na última reunião',
+    NO_METRICS: 'Métricas de sucesso não confirmadas',
+    HIGH_PRICE_RESISTANCE: 'Resistência alta a preço',
+    COMPETITOR_ADVANTAGE: 'Concorrente em vantagem',
+    STALE_OPPORTUNITY: 'Oportunidade parada',
+  };
+
+  function oppRiscosCalculadosCard(r) {
+    const titulo = '🧮 Risks (calculados)';
+    if (!r || !r.disponivel) return oppGapCard(titulo, r);
+    const s = r.sinais || {};
+    let corpo;
+    if (r.encerrada) {
+      corpo = '<div style="color:var(--muted);font-size:.85rem">Oportunidade encerrada — sem risco de deal em aberto.</div>';
+    } else if (!(r.riscos || []).length) {
+      corpo = '<div style="color:#34d399;font-size:.85rem">Nenhum risco detectado nos sinais avaliados.</div>';
+    } else {
+      corpo = '<div style="display:flex;flex-direction:column;gap:6px">' + r.riscos.map(function (cod) {
+        return `<div style="padding:6px 10px;background:var(--surface);border:1px solid #f59e0b55;border-radius:8px;font-size:.85rem;color:var(--text)">⚠ ${escHtml(OPP_RISCO_LABEL[cod] || cod)}</div>`;
+      }).join('') + '</div>';
+    }
+    const sinais = [];
+    if (s.total_objecoes_preco != null) sinais.push(`${s.total_objecoes_preco} objeção(ões) de preço`);
+    if (s.dias_desde_ultima_atividade != null) sinais.push(`${s.dias_desde_ultima_atividade} dia(s) desde a última atividade`);
+    const naoAvaliados = (r.nao_avaliados || []).map(function (n) {
+      return `<div style="font-size:.75rem;color:var(--muted);margin-top:4px">⏳ ${escHtml(OPP_RISCO_LABEL[n.risco] || n.risco)} — não avaliado: ${escHtml(n.motivo || '')}</div>`;
+    }).join('');
+    return `<div class="info-card"><h3>${titulo}</h3>${corpo}
+      ${sinais.length ? `<div style="font-size:.75rem;color:var(--muted);margin-top:10px">Sinais: ${escHtml(sinais.join(' · '))}</div>` : ''}
+      ${naoAvaliados}
+    </div>`;
   }
 
   /* ─── Sales Science (Fase 22 / bloco 3) ──────────────

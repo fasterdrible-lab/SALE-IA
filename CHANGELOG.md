@@ -3,6 +3,636 @@
 
 ---
 
+## V.1.4.161 — Objection classification: erro de gabarito corrigido + conjunto de 30 casos + desempate no prompt (Tarefa D3)
+
+> Data: 02/10/2026 | Local, pendente deploy
+
+`objection_classification` estava em 75% (alvo da Fase 25: ≥ 90%),
+medido em só 4 objeções do Golden Dataset, e 3/4 nas duas rodadas
+reais. Sem relatório por cenário, o erro foi achado por dedução.
+
+- **O único erro era de gabarito, não do classificador**: no
+  `objections-04`, o fato `objection_spoken` levava a citação da causa
+  raiz ("tenho medo da minha equipe não usar...") com a categoria
+  esperada da fala literal (PRICE). O classificador respondia ADOPTION,
+  correto para aquela frase, e isso contava como erro.
+- **Golden Dataset v1.1.0**: `objections-04` vira 2 fatos.
+  `objection_spoken` = PRICE com "Está caro pra gente agora." e
+  `root_cause_hypothesis` = ADOPTION com a fala de adoção. Nenhum outro
+  cenário mudou; registrado no README do dataset. Teste novo garante
+  que a citação de toda objeção do gabarito está no próprio input.
+- **Amostra que sustenta 90%**: com 4 casos, 1 erro já derruba para
+  75%. Novo conjunto de classificação
+  (`evals/datasets/objection_classification/objection_classification.yaml`,
+  30 casos, os 13 tipos cobertos):
+  - 17 falas **reais anonimizadas** do dataset do Coach, reetiquetadas
+    à mão. Só as de rótulo inequívoco; as ambíguas ficaram de fora;
+  - 13 **sintéticas** para os tipos ausentes nos dados reais (ADOPTION,
+    PRIORITY, PROCUREMENT, SECURITY, AUTHORITY) + reforço de
+    VALUE/COMPETITOR/TIMING.
+
+  O runner mede os dois juntos (34 casos) e devolve `objecoes_erradas`
+  (esperado × previsto), para a próxima análise sair do relatório.
+- **Prompt do classificador** (`objecao_categoria_classificacao.txt`,
+  **muda produção**): regras de desempate para os pares que se
+  confundem (PRICE×BUDGET×VALUE, TIMING×PRIORITY,
+  ADOPTION×IMPLEMENTATION, AUTHORITY×PROCUREMENT×LEGAL, TRUST×SECURITY)
+  e "classifique o que o cliente DISSE, nunca a causa suposta".
+- **Remedição pendente**: o número real depende de rodar
+  `quality_monitoring_golden_run.py --real` (até 234 chamadas de IA,
+  saldo dos provedores). Os rótulos do conjunto foram dados nesta
+  rodada; vale uma revisão humana.
+- 8 testes novos (`tests/test_objection_classification_set.py`).
+- Versão: `1.4.160` → `1.4.161`. Sem tabela/coluna nova.
+
+---
+
+## V.1.4.160 — Alucinação crítica definida, medida e bloqueada no Piloto (Tarefa D2)
+
+> Data: 02/10/2026 | Local, pendente deploy
+
+A Fase 25 pede "critical hallucination ≈ 0", mas só existia a
+`hallucination_rate` total (14,44%), que conta qualquer afirmação sem
+lastro, inclusive paráfrase inócua. "Crítica" nunca tinha sido
+definida.
+
+- **`agent/critical_hallucination_rules.py`** (novo, determinístico,
+  zero IA). Alucinação crítica = algo que faria o vendedor dizer uma
+  inverdade concreta ao cliente e que não aparece em nada do que o
+  motor recebeu:
+  1. `numero_inventado`: R$, %, número com 3+ dígitos ou "N mil";
+     "20 mil" e "20.000" contam como o mesmo número;
+  2. `promessa_de_resultado`: "garanto", "retorno garantido", "sem
+     risco", "com certeza vai"... Se o próprio cliente falou, não conta;
+  3. `dado_do_cliente_inventado`: nome próprio (fora início de frase e
+     rótulos do sistema), e-mail ou telefone.
+
+  Campos checados: os que viram fala ou raciocínio. `avoid` fica de
+  fora ("não ofereça 20%" é proibição, não afirmação). A heurística é
+  conservadora: prefere falso positivo, porque o alvo é ≈ 0.
+- **Medição**: o runner do Golden Dataset aplica a regra à saída do
+  motor, contra o mesmo bundle que o motor recebeu. A métrica é
+  `critical_hallucination_rate` = cenários com ≥ 1 crítica ÷ cenários
+  avaliados, e a lista `alucinacoes_criticas` traz cenário, categoria e
+  trecho. O `/admin/readiness` passa a usar esse número como `real`; só
+  relatório antigo cai no `proxy` da alucinação total.
+- **Ataque aos casos**:
+  - **prompt do motor** (`sales_reasoning_engine.txt`): regra explícita
+    de nunca escrever preço/%/número/nome/contato fora da entrada nem
+    prometer resultado; se precisar do dado, recomendar perguntar;
+  - **guarda no Piloto** (`_aplicar_piloto_sales_reasoning`):
+    recomendação do motor com alucinação crítica **nunca chega ao
+    vendedor**. Fica a do modelo atual (fail open), e o caso vai para o
+    audit trail como `critical_hallucination_guard` e para o registro
+    do Piloto.
+- **Remedição pendente**: o 1º número real sai na próxima rodada
+  `--real` do Golden Dataset.
+- 15 testes novos (`tests/test_critical_hallucination.py`).
+- Versão: `1.4.159` → `1.4.160`. Sem tabela/coluna nova.
+
+---
+
+## V.1.4.159 — Extrator de SalesEvent + event_precision real (Tarefa A7)
+
+> Data: 01/10/2026 | Local, pendente deploy
+
+`SalesEvent` (Fase 1.1) existia só como schema: `criar_sales_event()`
+nunca era chamada e `event_precision` (critério da Fase 25) era gap,
+porque não havia extrator para comparar com o `expected_events` do
+Golden Dataset.
+
+- **`agent/sales_event_extractor.py`** (novo) +
+  `agent/prompt_templates/sales_event_extractor.txt`, mesmo padrão dos
+  extratores de SPIN/MEDDPICC:
+  - vocabulário fechado nos 14 tipos de `SALES_EVENT_TYPES`;
+  - **guarda contra citação fabricada** (substring literal da
+    conversa);
+  - dedup por `(tipo, citação)`.
+
+  Feature de custo `sales_event.extracao`, kill-switch
+  `SALES_EVENT_EXTRACTOR_ENABLED` (default `true`). +1 chamada de IA
+  por ciclo nos caminhos Shadow/Piloto.
+- **Decisão de escopo**: uma IA para os 14 tipos, em vez de derivar
+  parte deles das saídas da A2/A5. O gabarito espera eventos ditos na
+  conversa que nenhum extrator cobre (`BUYING_SIGNAL`,
+  `DEAL_WON`/`DEAL_LOST`, `NEXT_STEP_AGREED`, `DEAL_STALLED`...). Além
+  disso, derivar parte dos tipos em produção faria o `event_precision`
+  medir um pipeline diferente do que roda de verdade.
+- **Produção**: `orquestrador.py::_extrair_e_persistir_sales_events()`
+  em Shadow e Piloto, depois do MEDDPICC.
+  `persistir_sales_events_do_ciclo()` grava como
+  `SalesEvent(source="conversation")` com `opportunity_id`/`seller_id`
+  e dedup entre ciclos por `(tipo, citação normalizada)`. Reunião
+  anônima nunca chama a IA. Melhor esforço. Não entra no
+  SalesReasoningEngine: o contrato de 11 campos não tem eventos.
+- **Golden Dataset**: `quality_monitoring_golden_runner` roda o
+  extrator em cada cenário (+40 chamadas por rodada, 204 no total) e
+  conta precisão **por tipo** (`contar_precisao_eventos`). Previsto
+  fora do gabarito é FP, inclusive em cenário que espera nenhum evento.
+  `montar_relatorio_metricas()` passa a devolver `event_precision` real
+  e `event_recall` (informativo); contagens antigas continuam no gap.
+- **Painel de prontidão (D1)**: `event_precision` sai de gap e vira
+  critério de lote, registrado pelo `quality_monitoring_golden_run.py
+  --real`.
+- **Ainda sem número**: a medição real exige rodar o Golden Dataset
+  com custo de IA. Não foi feita nesta tarefa e depende do saldo dos
+  provedores.
+- Testes de Shadow/Piloto e de wiring A2-A5/C2 desligam o extrator. O
+  helper do runner do golden mocka o extrator. 13 testes novos
+  (`tests/test_sales_event_extractor.py`) + 2 no runner + ajustes em
+  `test_readiness.py`.
+- Versão: `1.4.158` → `1.4.159`. Sem tabela/coluna nova
+  (`sales_events` existe desde a V.1.4.73).
+
+---
+
+## V.1.4.158 — Contract tests com reparo controlado (Tarefa D5)
+
+> Data: 01/10/2026 | Local, pendente deploy
+
+Seção 29 do prompt mestre: resposta inválida de LLM → **rejeitar →
+reparar → registrar → fallback seguro**, e JSON quebrado nunca chega à
+sidebar. Antes, JSON que não parseava contava como falha do provedor
+(próximo provedor/fallback, ok), mas um JSON *quase* válido era jogado
+fora, e nenhum campo tinha o tipo validado. `message`/`title` como
+objeto viravam `[object Object]` na sidebar, e `confidence` em texto
+virava `NaN%`.
+
+- **Bug real corrigido**: `confidence` em texto (ex.: `"alta"`) quebrava
+  `processador_tempo_real._nba_para_nbq` (`str >= float` → `TypeError`)
+  no meio do ciclo.
+- **`agent/contract_repair_rules.py`** (novo, função pura), 2 camadas:
+  1. **`reparar_json()`** em `api/ai_router.py::_extract_json`, só
+     quando `json.loads` falha. Reparo sintático conservador que nunca
+     inventa conteúdo: cerca de código no meio do texto, texto
+     antes/depois do 1º objeto `{...}` balanceado (respeitando strings),
+     vírgula sobrando. Sem reparo seguro, o erro original propaga
+     (comportamento de antes). Reparo **registrado**:
+     `logger.warning` + contador `json_reparado` em `/monitor/metricas`
+     + `_json_reparado_ia` no payload;
+  2. **`reparar_contrato_sidebar()`**: valida o que
+     `chrome-extension/content.js` lê.
+     - Textos do `next_best_action` e do topo (`alerta_urgente`,
+       `resumo_vivo`, `texto_falavel`...): número → `str`, lista de
+       textos → unida, objeto/booleano → descartado;
+     - `confidence`: número em [0,1], `"85%"`/`80` → 0,85/0,8, resto
+       → `None`;
+     - `type` fora do vocabulário → `insight`;
+     - `perfil_disc`/`mapa_financeiro` não-objeto → `{}`;
+     - sem `message` utilizável → **fallback** do NBA inteiro.
+
+  `violacoes_do_contrato_sidebar()` verifica sem consertar e é usada
+  pelos testes.
+- **Onde roda**:
+  - dentro de `_normalizar_resposta_realtime()`, antes de
+    `_nba_para_nbq` (fecha o crash);
+  - em `api/main.py::_aplicar_contrato_sidebar()`, **último ponto
+    antes da extensão**, sobre qualquer resultado (normal, ignorado,
+    erro, até não-dict). Nunca levanta.
+
+  Reparos registrados em log + `AuditTrailEntry` com
+  `actor="contract_guard"` (`result` = `reparado`/`fallback_aplicado`,
+  `meeting_id`, lista de reparos), melhor esforço. Não entra no
+  `audit_coverage` (que conta só o motor). Resposta válida não é
+  tocada nem registrada.
+- 21 contract tests (`tests/test_contract_repair.py`), incluindo:
+  - produto cartesiano de 10 valores ruins × 6 campos, nunca violando
+    o contrato e sempre serializável;
+  - 6 respostas malformadas pelo `/tempo-real` real, inclusive `None` e
+    string crua;
+  - provedor que só devolve texto não-JSON → 503;
+  - regressão do crash da `confidence`.
+- Versão: `1.4.157` → `1.4.158`. Sem tabela/coluna nova.
+
+---
+
+## V.1.4.157 — Versionamento completo da inteligência (Tarefa D6)
+
+> Data: 01/10/2026 | Local, pendente deploy
+
+Seção 34 do prompt mestre ("qual versão recomendou isso"). Até aqui, só
+o `AuditTrailEntry` do motor tinha `prompt_version`/`rule_version`, e
+eram strings manuais (`"sales_reasoning_engine.v1"`) que ninguém muda
+quando o prompt muda. `RecommendationEvent` não tinha versão nenhuma.
+
+- **4 colunas novas** (nullable, `VARCHAR(80)`) em
+  `recommendation_events` e `audit_trail_entries`:
+  `reasoning_engine_version`, `policy_version`, `knowledge_version`,
+  `model_version`. **Migração automática** no startup
+  (`api/database.py::migrar_colunas_versionamento()`), dentro do lock
+  de DDL da D8: idempotente, MySQL e SQLite, tolera a coluna já criada
+  por outro worker. Não precisa de `ALTER TABLE` manual na VPS.
+- **`agent/intelligence_version_rules.py`** (novo). Versão **derivada
+  do conteúdo** (`nome@<sha256[:10]>`), nunca número digitado à mão:
+  muda sozinha quando o que rodou muda.
+  - `reasoning_engine_version`: prompt do motor + `_RULE_VERSION` quando
+    o Piloto foi aplicado; os 5 prompts do multiagente no caminho
+    atual;
+  - `policy_version`: guardas de prompt (gatilhos proibidos,
+    anti-injection, adversarial) + fronteiras da AutonomyPolicy +
+    limite de desconto;
+  - `knowledge_version`: quantidade e última atualização dos
+    KnowledgeItems APPROVED + provedor/modelo de embedding, com cache
+    de 5 min. A base RAG legada (`base_conhecimento`, pymysql cru)
+    fica fora, limitação documentada;
+  - `model_version`: `provedor/modelo` da chamada real (da resposta no
+    motor; da última `AiUsageEvent` da feature na reunião no
+    rastreamento). `obter_ultimo_ai_usage_event()` passa a devolver
+    `provider`/`model` (aditivo).
+
+  Melhor esforço: uma versão que falhar vira `None` e nunca derruba a
+  gravação.
+- **Wiring**:
+  - `sales_reasoning_engine._registrar_audit_trail()` grava as 4;
+  - `_aplicar_piloto_sales_reasoning()` passa a devolver se a
+    recomendação foi trocada;
+  - `_rastrear_recomendacao(..., origem=)` grava as 4 no
+    `RecommendationEvent` com a origem certa.
+- `criar_recommendation_event()`/`criar_audit_trail_entry()` ganham
+  `versoes=` (só as 4 chaves conhecidas, cortadas em 80 chars).
+- Testes de rastreamento existentes fixam as versões (o cálculo real
+  consulta o banco). 17 testes novos
+  (`tests/test_intelligence_versioning.py`), incluindo "a versão muda
+  quando o prompt/guarda muda" e a migração idempotente sobre uma
+  tabela no formato antigo.
+- Versão: `1.4.156` → `1.4.157`. **8 colunas novas em 2 tabelas
+  existentes**, migradas no startup.
+
+---
+
+## V.1.4.156 — Suíte E2E dos 10 cenários de venda (Tarefa D4) + fix do audit_coverage da D1
+
+> Data: 01/10/2026 | Local, pendente deploy
+
+Só existia 1 arquivo de ciclo de vida (`tests/test_e2e_meeting_lifecycle.py`),
+mocando a IA acima do roteador. A seção 30 do prompt mestre pede 10
+cenários de ponta a ponta.
+
+- **`tests/test_e2e_cenarios_venda.py`** (novo, 10 testes):
+  1. venda ganha;
+  2. perdida por preço;
+  3. perdida por concorrente;
+  4. várias reuniões;
+  5. troca de decisor;
+  6. objeção falsa de preço;
+  7. cliente indeciso;
+  8. provedor de IA fora;
+  9. RAG fora;
+  10. prompt injection.
+
+  Todos passam por `POST /tempo-real` e pelos endpoints de
+  `/opportunities`.
+- **Como foi montado**:
+  - **IA mockada só no provedor** (`_provider_order` → 1 provedor
+    falso). O roteador real roda: guardas de prompt, detector de
+    injection + `PolicyViolationEvent`, `AiUsageEvent`, circuit
+    breaker, 503. Um wrapper em `chamar_ia` anota a feature para o
+    provedor falso responder por feature;
+  - **Piloto ligado para o vendedor do teste**: é aguardado, então os
+    extratores, A2-A6 e o motor rodam dentro da requisição, de forma
+    determinística (o Shadow seria fire-and-forget);
+  - **persistência real** em SQLite;
+  - **nunca a rede ou o MySQL do `.env`**: embeddings mockados, e
+    `DB_HOST`/`DB_PORT` apontando para uma porta local fechada durante
+    a suíte (todo pymysql cru falha na hora);
+  - o vínculo reunião → oportunidade (B7/3.1, que dependem de
+    `client_intelligence` em pymysql) é simulado por um mapa.
+- **O que cada cenário prova**:
+  - 1: recomendação → avanço de estágio → `won`, com `stage_advanced` e
+    `opportunity_result` da B2 e audit coverage 100%;
+  - 2: 3 objeções de preço → `HIGH_PRICE_RESISTANCE` → `lost` sem risco
+    em aberto;
+  - 3: concorrente mapeado nunca vira `COMPETITOR_ADVANTAGE`;
+  - 4: dor da reunião 1 + impacto da reunião 2 → aresta `causa` com as
+    duas citações;
+  - 5: decisor trocado → `contradiz`, nada apagado;
+  - 6: causa raiz chega ao motor separada da objeção falada;
+  - 7: sem decisor/champion/métricas/próximo passo → os 4 riscos;
+  - 8: 200 com fallback, nada inventado nem persistido, falha
+    registrada;
+  - 9: ciclo segue com o motor;
+  - 10: tratado como dado, `PolicyViolationEvent` gravado, guarda
+    presente em toda chamada com o texto.
+- **Bug real achado na D1 (V.1.4.155) e corrigido**:
+  `readiness_contagens_ao_vivo()` contava chamadas do motor só a partir
+  da 1ª auditoria, mas a auditoria é gravada **depois** que a chamada
+  termina. A chamada que a gerou ficava fora do denominador (2
+  auditorias / 1 chamada = 200%). Agora o denominador começa na última
+  chamada do motor anterior à 1ª auditoria. +1 teste em
+  `tests/test_readiness.py`.
+- **Achado durante a montagem (comportamento correto, não bug)**: um
+  trecho de texto repetido igual em toda fala é descartado pelo dedup
+  da A1, e o ciclo seguinte cai em `texto_novo_insuficiente`. A guarda
+  de citação literal dos extratores é sensível a maiúsculas.
+- Versão: `1.4.155` → `1.4.156`. Sem tabela/coluna nova.
+
+---
+
+## V.1.4.155 — Painel único de prontidão `GET /admin/readiness` (Tarefa D1)
+
+> Data: 01/10/2026 | Local, pendente deploy
+
+Os 9 critérios da Fase 25 (critério de entrada no Digital Sales Twin)
+eram medidos à mão, por SSH, nas V.1.4.136-141, e os números ficavam
+espalhados pelo CHANGELOG/CURRENT_STATE. Agora há um endpoint só.
+
+- **`GET /admin/readiness?dias=7`** (admin-only, leitura pura): os 9
+  critérios na ordem da Fase 25. Cada um traz valor, alvo, `status`
+  (`atinge`/`nao_atinge`/`sem_alvo`/`sem_numero`), **origem do número**
+  (`real`/`proxy`/`gap`), amostra, detalhe e data da medição. Também
+  traz um resumo com `pronto_para_digital_twin`: só `true` com os 9 no
+  alvo e todos de origem `real`, então proxy nunca libera.
+- **Ao vivo** (`api/database.py::readiness_contagens_ao_vivo`):
+  - `audit_coverage`: auditorias do motor ÷ chamadas
+    `sales_reasoning.raciocinio`, **só desde a 1ª auditoria**. Fecha por
+    construção o erro de medição achado na V.1.4.141;
+  - `e2e_success`: **proxy** 1 − taxa de erro de IA na janela, o mesmo
+    da V.1.4.136. Não é E2E de reunião completa (D4);
+  - `policy_violation`: total histórico.
+- **Em lote**: tabela nova `readiness_medicoes`, append-only, em que o
+  painel lê a mais recente. Os 3 scripts passam a registrar ao rodar
+  com `--real`, em melhor esforço:
+  - `quality_monitoring_golden_run.py` → `objection_classification` e
+    `critical_hallucination` (**proxy**: alucinação total, "crítica"
+    ainda não definida — D2);
+  - `transcription_benchmark_run.py` → WER do provider **ativo**
+    (`TRANSCRICAO_PROVEDOR`), nunca trocado pelo melhor provider;
+  - `recommendation_quality_run.py` → `taxa_uso_real`.
+
+  Critério de lote sem medição aparece `sem_numero`, com o script a
+  rodar.
+- **Gap explícito**:
+  - `event_precision`: sem extrator de SalesEvent, depende da A7;
+  - `human_escalation_functional`: mecanismo pronto, nunca disparado.
+- **Alvos**: os da tabela do plano. Alucinação crítica "≈ 0" foi lida
+  como ≤ 1% (decisão desta tarefa). `recommendation_quality` fica
+  `sem_alvo` até a C4.
+- **Fora**: card no dashboard (só o endpoint). As medições antigas
+  (V.1.4.136-141) não foram importadas para a tabela, porque só valem
+  numa rodada nova dos scripts.
+- 15 testes novos (`tests/test_readiness.py`).
+- Versão: `1.4.154` → `1.4.155`. **1 tabela nova**
+  (`readiness_medicoes`).
+
+---
+
+## V.1.4.154 — `stage_advanced` e `opportunity_result` capturados (Tarefa B2)
+
+> Data: 01/10/2026 | Local, pendente deploy
+
+`recommendation_effectiveness_rules.calcular_efetividade_por_estrategia()`
+(Fase 10.3) espera `stage_advanced` e `opportunity_result` por
+`RecommendationEvent`, e os dois vinham sempre `None`: `taxa_avanco`/
+`taxa_desfecho_positivo` nunca tinham número. **Achado**:
+`Opportunity.stage` só guardava o valor atual, sem histórico, então não
+havia como saber o estágio no momento de uma recomendação.
+
+- **Tabela nova `opportunity_stage_history`**
+  (`api/database.py::OpportunityStageHistory`), append-only: uma linha
+  por estágio assumido, com `changed_at`.
+  - `criar_opportunity()` grava o estágio inicial;
+  - `atualizar_stage_opportunity()` grava só quando o valor muda;
+  - uma oportunidade anterior à B2 ganha, na primeira mudança, a linha
+    do estágio original (com o `created_at` dela).
+
+  Nova `listar_stage_history_opportunity()`. Nasce via `create_all()`
+  no startup, dentro do lock de DDL da D8.
+- **`agent/recommendation_outcome_rules.py`** (novo, determinístico):
+  - **`stage_advanced`**: o estágio no `shown_at` da recomendação é
+    diferente do estágio no início da **reunião seguinte** da mesma
+    oportunidade. `stage` é texto livre, então "avançar" = "mudar de
+    estágio". Perdida antes da reunião seguinte → `False`. `None`
+    (nunca `False` por omissão) sem oportunidade vinculada, sem reunião
+    seguinte ou sem histórico cobrindo os dois momentos;
+  - **`opportunity_result`**: `won`/`lost`; aberta e `abandoned` →
+    `None`.
+
+  `anexar_resultados(eventos)` busca reunião → oportunidade (em Python,
+  nunca JOIN, por causa das collations) → reuniões vinculadas +
+  histórico, com cache.
+- **`scripts/recommendation_quality_run.py`**: preenche os dois sinais
+  e mostra quantos eventos têm resultado conhecido. `taxa_avanco`/
+  `taxa_desfecho_positivo` deixam de ser sempre `None` quando há dado.
+- **Limitação mantida**: o estado de uso (USED/IGNORED...) continua não
+  persistido. Ele é calculado em lote pelo script, via embeddings
+  locais, então `GET /admin/observabilidade/metricas` segue com o gap
+  de `recommendation_effectiveness` (motivo atualizado).
+- **Dependência real**: só gera número com oportunidade vinculada (B7)
+  e estágio mudando ao longo das reuniões. Hoje o estágio só muda pelo
+  dashboard (PATCH).
+- 13 testes novos (`tests/test_recommendation_outcome_rules.py`),
+  incluindo o ponta a ponta até `taxa_avanco` = 1.0.
+- Versão: `1.4.153` → `1.4.154`. **1 tabela nova**
+  (`opportunity_stage_history`), sem coluna nova em tabela existente.
+
+---
+
+## V.1.4.153 — Sinais reais para o Deal Risk (Tarefa A6)
+
+> Data: 01/10/2026 | Local, pendente deploy
+
+O Deal Risk Engine (Fase 4.2, `agent/deal_risk_rules.py`) só existia
+como função pura: ninguém calculava os sinais de entrada, e o card
+"Risks (calculados)" do Opportunity Intelligence era um gap fixo.
+
+- **`agent/deal_risk_signals_rules.py`** (novo, função pura): calcula
+  os sinais a partir de dado já gravado e chama `calcular_riscos()`:
+  - `NO_ECONOMIC_BUYER`/`NO_CHAMPION`/`NO_METRICS`: status MEDDPICC dos
+    insights da memória, recalculado por
+    `meddpicc_rules.calcular_qualificacao_meddpicc()`;
+  - `NO_NEXT_STEP`: nenhum `next_steps` registrado para a **última**
+    reunião vinculada. Uma reunião sem recapitulação também aparece
+    aqui ("sem próximo passo registrado");
+  - `HIGH_PRICE_RESISTANCE`: objeções `PRICE` da memória ≥ 3;
+  - `STALE_OPPORTUNITY`: dias desde a última reunião vinculada (sem
+    reunião: desde a própria oportunidade) ≥ 21;
+  - `COMPETITOR_ADVANTAGE`: **sem fonte**, vai em `nao_avaliados` e
+    nunca é tratado como "sem risco". `NO_NEXT_STEP` também vai para
+    lá quando não há reunião vinculada.
+
+  Oportunidade encerrada → `riscos=[]`, `encerrada=True`.
+- **Status MEDDPICC na memória** (aditivo):
+  `opportunity_memory_rules.adicionar_insight()` e
+  `registrar_conhecimento_opportunity()` ganham `status` opcional.
+  Ele só entra no insight quando informado; os insights antigos não
+  mudam. A A3 passa o status dos fatos da A5, e o status entra na
+  chave de dedup, então um decisor que passa de PARTIAL a CONFIRMED é
+  registrado.
+- **Próximos passos da recapitulação → `next_steps`**:
+  `opportunity_memory_writer_rules.gravar_proximos_passos_da_recapitulacao()`
+  é chamado no gancho pós-recapitulação da B7
+  (`auto_opportunity_rules.processar_cliente_e_oportunidade`, isolado em
+  `try/except`). Vai sem `evidence` de propósito: é resumo da IA, não
+  citação. O dedup é por `(reunião, ação)`, e placeholders do schema
+  copiados pela IA são descartados.
+- **Opportunity Intelligence**: `montar_opportunity_intelligence()`
+  aceita `reunioes`; o endpoint passa `listar_meetings_da_opportunity()`
+  e `risks_calculados` vira real. Sem `reunioes`, continua o gap
+  (compatível). Dashboard: card novo `oppRiscosCalculadosCard()` com os
+  riscos em texto claro, os sinais (objeções de preço, dias parada) e o
+  que não foi avaliado.
+- Testes antigos que fixavam `risks_calculados` como gap foram
+  atualizados para o comportamento novo (endpoint e regra). 15 testes
+  novos (`tests/test_deal_risk_signals_rules.py`) + 1 em
+  `tests/test_opportunity_intelligence_rules.py`.
+- **Pendência visível**: o card "MEDDPICC" do Opportunity Intelligence
+  segue como gap, embora `estado_meddpicc_da_memoria()` já reconstrua o
+  estado. Ligá-lo é um passo pequeno, não feito nesta tarefa.
+- Versão: `1.4.152` → `1.4.153`. Sem tabela/coluna nova.
+
+---
+
+## V.1.4.152 — Seller DNA ligado em `seller_context` (Tarefa C2)
+
+> Data: 30/09/2026 | Local, pendente deploy
+
+Fecha os **11/11 campos** do SalesReasoningEngine. As observações de
+estilo do vendedor já eram extraídas e gravadas pós-reunião desde a
+Tarefa 5.1 (`agent/seller_dna_extractor.py`, `SellerDnaObservacao`),
+mas nada as levava ao motor, e o kill-switch da extração segue
+desligado em produção.
+
+- **`agent/seller_context_rules.py`** (novo, leitura pura, zero IA
+  nova): `obter_seller_context(seller_id)` agrega as observações via
+  `seller_dna_rules.construir_seller_dna_de_observacoes()` (Fase 15).
+  Guardas herdadas:
+  - **amostra mínima de 10 reuniões distintas** (linhas da mesma
+    reunião não contam);
+  - **comportamento ≠ eficácia** (Fase 15.2).
+
+  Se qualquer uma recusar, o contexto fica `None`, nunca um perfil
+  parcial. `seller_id` = vendedor autenticado do ciclo (`usuario_id`),
+  o mesmo usado para atribuir as observações.
+- **Wiring**: `orquestrador.py::_seller_context()` →
+  `entrada["seller_context"]` em Shadow e Piloto. Melhor esforço
+  absoluto.
+- **Prompt do motor** (`sales_reasoning_engine.txt`): regra nova. O
+  `seller_context` descreve só o estilo habitual do vendedor e serve
+  para adaptar a *forma* da recomendação. Nunca é evidência de que uma
+  estratégia funciona nem fato sobre o cliente; `null` significa
+  reuniões insuficientes.
+- **Kill-switch da leitura**: `SELLER_CONTEXT_ENABLED` (default `true`).
+  É independente de `SELLER_DNA_OBSERVACAO_ENABLED` (a extração
+  pós-reunião, a parte com custo). Desligado nos testes de Shadow/
+  Piloto e nos wiring tests de A2-A5 (`.env` local aponta para a VPS).
+- **Pendência operacional (parte da C2, no deploy)**:
+  `SELLER_DNA_OBSERVACAO_ENABLED=true` no `.env` da VPS. Custa +1
+  chamada de IA por reunião encerrada com recapitulação (feature
+  `seller_dna.extracao`). Sem isso, o `seller_context` nunca sai de
+  `None`. Mesmo ligado, só aparece depois de 10 reuniões de um mesmo
+  vendedor logado na extensão.
+- 11 testes novos (`tests/test_seller_context_rules.py`).
+- Versão: `1.4.151` → `1.4.152`. Sem tabela/coluna nova.
+
+---
+
+## V.1.4.151 — Extrator de MEDDPICC (Tarefa A5)
+
+> Data: 30/09/2026 | Local, pendente deploy
+
+`meddpicc_state` do SalesReasoningEngine vinha sempre `None`. A Tarefa
+1.1 (MEDDPICC via `maturity_score` do Closer) estava bloqueada: o
+Closer só devolve números, nunca a citação que os sustenta. A A5
+resolve com um extrator próprio, **sem mexer no prompt do Closer**.
+
+- **`agent/meddpicc_extractor.py`** (novo) +
+  `agent/prompt_templates/meddpicc_extractor.txt`, mesmo padrão de
+  `spin_extractor.py`:
+  - vocabulário fechado dos 8 itens de `meddpicc_rules.MEDDPICC_ITENS`;
+  - status só `PARTIAL`/`CONFIRMED`;
+  - `confidence` em [0,1];
+  - **guarda contra citação fabricada**: `evidence_quote` precisa
+    existir literalmente na conversa (substring), senão o fato é
+    descartado.
+
+  O estado é sempre calculado por
+  `meddpicc_rules.calcular_qualificacao_meddpicc()` (Fase 4.1), nunca
+  recalculado. Cada fato também traz `valor` (ex.: "CFO Marcos"), para
+  a A3.
+- **Custo**: +1 chamada de IA por ciclo, só nos caminhos Shadow/Piloto.
+  Atribuído à feature nova `meddpicc.extracao`
+  (`api/ai_features.py::MEDDPICC_EXTRACAO`). O custo real por chamada
+  só é medível com tráfego real, em `ai_usage_events` (ou aba Custos →
+  "Por Feature") após o deploy.
+- **Kill-switch**: `MEDDPICC_EXTRACTOR_ENABLED` (default `true`),
+  `false` + restart zera o custo extra.
+- **Wiring** (`orquestrador.py::_extrair_meddpicc()`/`_meddpicc_state()`,
+  Shadow e Piloto): `entrada["meddpicc_state"]` real. `[]` extraído vira
+  estado com os 8 itens `UNKNOWN` (informação real); falha de IA ou
+  kill-switch desligado → `None`. Melhor esforço absoluto. **10/11
+  campos do SalesReasoningEngine com dado real** (só `seller_context`
+  segue `None`, depende da C2).
+- **Liga na A2**: cada fato vira `SalesEvidence` `MEDDPICC:<item>`.
+- **Liga na A3**: `MEDDPICC_PARA_CATEGORIA` preenche as categorias que
+  estavam vazias:
+  - `metrics` → `metrics`;
+  - `economic_buyer` → `economic_buyer`;
+  - `champion` → `champion`;
+  - `decision_process`, `paper_process` e `decision_criteria` →
+    `decision_process`;
+  - `competition` → `competitors`.
+
+  Decisor e champion levam `campo`: outro decisor numa reunião seguinte
+  vira contradição, sem apagar o anterior. `identify_pain` fica fora de
+  propósito, porque a dor já entra pelo SPIN e seriam duas entradas da
+  mesma dor.
+- **Fora**: nós STAKEHOLDER/DECISION/COMPETITOR no OpportunityGraph (A4).
+  Os ids de insight são por categoria, e um nó STAKEHOLDER misturaria
+  `economic_buyer` e `champion` com ids ambíguos. O runner do Golden
+  Dataset (`agent/quality_monitoring_golden_runner.py`) também não usa
+  o extrator novo ainda.
+- Testes de Shadow/Piloto e os wiring tests de A2/A3/A4 desligam o
+  extrator (nunca chamam IA real).
+- 17 testes novos (`tests/test_meddpicc_extractor.py`), incluindo a
+  guarda contra citação fabricada (teste pedido pela tarefa) e a
+  atribuição de custo à feature própria.
+- Versão: `1.4.150` → `1.4.151`. Sem tabela/coluna nova.
+
+---
+
+## V.1.4.150 — Escritor de OpportunityGraph (Tarefa A4)
+
+> Data: 30/09/2026 | Local, pendente deploy
+
+Nada na produção escrevia no `OpportunityGraph` (Fase 2.2). A partir da
+A3, a memória da oportunidade passa a ter dado; a A4 deriva as arestas
+dela por **regras fixas por categoria, nunca IA**.
+
+- **`agent/opportunity_graph_writer_rules.py`** (novo):
+  `calcular_arestas()` (pura) + `gravar_opportunity_graph()`. Regras:
+  `PAIN --causa--> IMPACT` (no SPIN a implicação é a consequência do
+  problema, exemplo literal da Fase 2.2); `PAIN --motiva--> GOAL` (o
+  valor da solução é o valor de resolver a dor); `CLIENT --sente-->
+  PAIN` e `CLIENT --levanta--> OBJECTION` (com o `client_id` da
+  Opportunity).
+- Os nós apontam para o `id` do insight na OpportunityMemory, nunca
+  duplicam o dado. A relação é inferida pela estrutura, não dita
+  literalmente: `source="regra_memoria"`, e a `evidence` guarda as
+  citações dos dois lados. A `confidence` é a menor entre os dois
+  insights.
+- Só dores **vigentes** ganham aresta nova: uma dor contradita por
+  outra mais recente para de ser ligada, e as arestas antigas ficam
+  (append-only).
+- **Fora, de propósito**:
+  - causas raiz (`ROOT_CAUSE:`): a memória não guarda qual objeção
+    falada gerou cada uma;
+  - OBJECTION↔PAIN: nenhuma regra determinística;
+  - STAKEHOLDER/COMPETITOR/DECISION/NEXT_STEP: sem escritor ainda,
+    dependem da A5.
+- Dedup por `(from_type, from_id, to_type, to_id, relation)`.
+- **Wiring**: `orquestrador.py::_gravar_opportunity_graph()` logo após
+  `_gravar_opportunity_memory()` (A3), em Shadow e Piloto. O motor lê
+  o grafo antes, então cada ciclo vê as arestas até o ciclo anterior.
+  Melhor esforço absoluto.
+- **Kill-switch**: `OPPORTUNITY_GRAPH_WRITE_ENABLED` (default `true`),
+  desligado nos testes de Shadow/Piloto (mesmo motivo da A2/A3).
+- 15 testes novos (`tests/test_opportunity_graph_writer_rules.py`),
+  incluindo o teste literal da tarefa: reunião 1 com a dor, reunião 2
+  com o impacto → `PAIN → causa → IMPACT` com as duas citações.
+- Versão: `1.4.149` → `1.4.150`. Sem tabela/coluna nova.
+
+---
+
 ## V.1.4.149 — Escritor de OpportunityMemory (Tarefa A3)
 
 > Data: 30/09/2026 | Local, pendente deploy

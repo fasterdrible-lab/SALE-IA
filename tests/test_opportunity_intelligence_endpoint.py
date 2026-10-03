@@ -115,7 +115,14 @@ class OpportunityIntelligenceEndpointTest(unittest.TestCase):
 
         self.assertFalse(body["spin_coverage"]["disponivel"])
         self.assertFalse(body["meddpicc"]["disponivel"])
-        self.assertFalse(body["risks_calculados"]["disponivel"])
+        # Tarefa A6: riscos calculados passam a ser reais (champion sem
+        # status MEDDPICC → não confirmado; sem reunião vinculada →
+        # NO_NEXT_STEP não avaliado, nunca inventado).
+        riscos = body["risks_calculados"]
+        self.assertTrue(riscos["disponivel"])
+        self.assertIn("NO_CHAMPION", riscos["riscos"])
+        self.assertNotIn("NO_NEXT_STEP", riscos["riscos"])
+        self.assertEqual({n["risco"] for n in riscos["nao_avaliados"]}, {"COMPETITOR_ADVANTAGE", "NO_NEXT_STEP"})
 
     def test_opportunity_sem_memoria_nenhuma_ainda_retorna_200_com_listas_vazias(self):
         opp2 = self._database.criar_opportunity(client_id="client-2", seller_id="seller-dono")

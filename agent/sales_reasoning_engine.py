@@ -222,6 +222,7 @@ def _registrar_audit_trail(
     *,
     resultado,
     model: Optional[str] = None,
+    provider: Optional[str] = None,
     reason: Optional[str] = None,
 ) -> None:
     """Grava 1 `AuditTrailEntry` por chamada real de `raciocinar_async()`
@@ -234,8 +235,11 @@ def _registrar_audit_trail(
     persistida em `MeetingMemory`/`OpportunityMemory` dentro de uma
     tabela de auditoria."""
     try:
+        from agent.intelligence_version_rules import ORIGEM_MOTOR, versoes_da_inteligencia
         from api.database import criar_audit_trail_entry
 
+        # Tarefa D6: versões do motor/política/conhecimento/modelo.
+        versoes = versoes_da_inteligencia(ORIGEM_MOTOR, provider=provider, model=model)
         campos_preenchidos = sorted(k for k, v in bundle.items() if v is not None)
         if isinstance(resultado, dict):
             result_texto = f"{resultado.get('recommended_framework')}: {resultado.get('next_best_action')}"
@@ -251,6 +255,7 @@ def _registrar_audit_trail(
             model=model,
             prompt_version=_PROMPT_VERSION,
             rule_version=_RULE_VERSION,
+            versoes=versoes,
         )
     except Exception as _e:
         logger.debug("[SalesReasoningEngine] Falha ao gravar audit trail (melhor esforço): %s", _e)
@@ -315,6 +320,7 @@ async def raciocinar_async(
         bundle,
         meeting_id,
         model=resposta.get("_modelo_ia"),
+        provider=resposta.get("_provedor_ia"),
         reason=saida["reason"],
         resultado=saida,
     )

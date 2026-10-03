@@ -64,9 +64,15 @@ class KillSwitchTest(unittest.TestCase):
             self.assertTrue(recommendation_tracking_ativo())
 
 
+_VERSOES = {"reasoning_engine_version": "multiagente@abc", "policy_version": "policy@def",
+            "knowledge_version": "knowledge@123", "model_version": "deepseek/deepseek-chat"}
+
+
 class RastrearRecomendacaoTest(unittest.TestCase):
     def _run(self, resultado, transcricao_parcial="", meeting_id="m1"):
-        return asyncio.run(_rastrear_recomendacao(resultado, transcricao_parcial, meeting_id))
+        # Tarefa D6: versões fixas — o cálculo real consulta o banco.
+        with patch("agent.intelligence_version_rules.versoes_da_inteligencia", return_value=dict(_VERSOES)):
+            return asyncio.run(_rastrear_recomendacao(resultado, transcricao_parcial, meeting_id))
 
     def test_meeting_id_default_nunca_grava_nada(self):
         with patch("api.database.listar_recommendation_events") as mock_listar, \
@@ -101,6 +107,7 @@ class RastrearRecomendacaoTest(unittest.TestCase):
             strategy="descoberta_dor",
             recommendation="Pergunte sobre o impacto financeiro.",
             reason="implicacao ainda nao mapeada",
+            versoes=_VERSOES,
         )
 
     def test_nao_duplica_evento_quando_recomendacao_nao_mudou(self):
@@ -132,6 +139,7 @@ class RastrearRecomendacaoTest(unittest.TestCase):
             strategy="qualificacao",
             recommendation="Investigue quem é o decisor.",
             reason="sem decisor mapeado",
+            versoes=_VERSOES,
         )
 
     def test_classifica_uso_da_pendente_com_fala_nova(self):
@@ -195,6 +203,12 @@ class IntegracaoComOCicloRealTest(unittest.TestCase):
     """Confirma que analisar_fragmento_multi() de fato chama
     _rastrear_recomendacao() no ciclo real, sem quebrar o resultado
     retornado ao vendedor mesmo se o tracking falhar."""
+
+    def setUp(self):
+        # Tarefa D6: versões fixas — o cálculo real consulta o banco.
+        p = patch("agent.intelligence_version_rules.versoes_da_inteligencia", return_value=dict(_VERSOES))
+        p.start()
+        self.addCleanup(p.stop)
 
     def test_wired_no_ciclo_e_nao_quebra_resultado_em_falha(self):
         rag_patches = _mock_rag()

@@ -206,6 +206,16 @@ def processar_cliente_e_oportunidade(
         resumo["opportunity_id"] = opportunity_id
         if memoria and not memoria.get("opportunity_id"):
             vincular_meeting_opportunity(meeting_id, opportunity_id)
+        # Tarefa A6: próximos passos da recapitulação → next_steps da
+        # OpportunityMemory (fonte do risco NO_NEXT_STEP). Isolado: uma
+        # falha aqui nunca desfaz o cliente/oportunidade já resolvidos.
+        try:
+            from agent.opportunity_memory_writer_rules import gravar_proximos_passos_da_recapitulacao
+            resumo["proximos_passos_gravados"] = gravar_proximos_passos_da_recapitulacao(
+                opportunity_id, meeting_id, (resultado or {}).get("recapitulacao"),
+            )
+        except Exception as e:
+            logger.warning("[A6] Falha ao gravar próximos passos (melhor esforço): %s", e)
         resumo["status"] = "ok"
         logger.info("[B7] meeting=%s cliente=%s (novo=%s) opportunity=%s (nova=%s)",
                     meeting_id, client_id, resumo["cliente_criado"], opportunity_id, resumo["opportunity_criada"])

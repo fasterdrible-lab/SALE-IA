@@ -82,19 +82,19 @@ nova), depois extratores novos.
 - **Teste**: 2 reuniões na mesma oportunidade → memória acumulada;
   valor divergente → `contradiz` preenchido, nada apagado.
 
-### A4 — Escritor de OpportunityGraph [determinístico, depende de A3]
+### A4 — Escritor de OpportunityGraph [CONCLUÍDA — 30/09/2026, V.1.4.150]
 - Arestas `PAIN → causa → IMPACT` etc. derivadas dos insights gravados
   em A3 (regras fixas por categoria, nunca IA).
 - **Teste**: exemplo literal da Fase 2.2 reproduzido com dado do ciclo.
 
-### A5 — Extrator de MEDDPICC [IA nova, desbloqueia a Tarefa 1.1]
+### A5 — Extrator de MEDDPICC [CONCLUÍDA — 30/09/2026, V.1.4.151]
 - Mesmo padrão de `spin_extractor.py`: vocabulário fechado dos 8 itens,
   `evidence_quote` obrigatória e checada por substring. **Não mexe no
   prompt do Closer** (a razão do bloqueio original).
 - **Efeito**: `meddpicc_state` real → **10/11 campos**.
 - **Teste**: guarda contra citação fabricada; custo por chamada medido.
 
-### A6 — Sinais reais para Deal Risk [determinístico, depende de A3/A5]
+### A6 — Sinais reais para Deal Risk [CONCLUÍDA — 01/10/2026, V.1.4.153]
 - `NO_NEXT_STEP` (próximo passo registrado na recapitulação),
   `HIGH_PRICE_RESISTANCE` (contagem de objeções PRICE já classificadas),
   `STALE_OPPORTUNITY` (dias desde a última reunião vinculada). Só
@@ -102,7 +102,7 @@ nova), depois extratores novos.
 - **Efeito**: `risks_calculados` do Opportunity Intelligence deixa de
   ser gap.
 
-### A7 — Extrator de SalesEvent [IA nova, desbloqueia event_precision]
+### A7 — Extrator de SalesEvent [CONCLUÍDA no código — 01/10/2026, V.1.4.159; medição real pendente]
 - Classifica trechos nas 14 categorias de `SALES_EVENT_TYPES`, com
   evidência. Pode reaproveitar saídas de A2/A5 para parte dos tipos.
 - **Teste**: rodar contra `expected_events` do Golden Dataset (Fase 20)
@@ -129,7 +129,7 @@ nova), depois extratores novos.
 - **Por quê cedo**: "sem dados confiáveis não existe Sales Science
   confiável".
 
-### B2 — Capturar `stage_advanced` e `opportunity_result` [determinístico, depende de P3]
+### B2 — Capturar `stage_advanced` e `opportunity_result` [CONCLUÍDA — 01/10/2026, V.1.4.154]
 - `stage_advanced`: mudança de `Opportunity.stage` entre a reunião da
   recomendação e a seguinte. `opportunity_result`: status final
   won/lost da oportunidade vinculada.
@@ -169,7 +169,7 @@ nova), depois extratores novos.
   ignorado e ajustar os limiares (hoje 0,55/0,35, nunca calibrados) —
   e avaliar comparar só com falas do vendedor. Sem isso,
   `recommendation_quality` não serve como critério da Fase 25.
-### C2 — Ligar Seller DNA [flag + wiring, Tarefa 5.1 → 6.1]
+### C2 — Ligar Seller DNA [CONCLUÍDA no código — 30/09/2026, V.1.4.152; flag em produção pendente do deploy]
 - `SELLER_DNA_OBSERVACAO_ENABLED=true` em produção + agregação ligada
   em `seller_context` → **11/11 campos** (junto com A5).
 ### C3 — Avaliar o Shadow Mode (Tarefa 6.2) [leitura, depende de P2]
@@ -188,23 +188,23 @@ nova), depois extratores novos.
 
 ## Bloco D — Prontidão para o Digital Sales Twin (Fase 25 + seções 26-36)
 
-### D1 — Painel único de prontidão [determinístico]
+### D1 — Painel único de prontidão [CONCLUÍDA — 01/10/2026, V.1.4.155]
 - `GET /admin/readiness` com os 9 critérios, o valor atual, o alvo e a
   origem do número (real, proxy ou gap). Substitui medições manuais.
-### D2 — Definir "hallucination crítica" e atacar os casos
+### D2 — Definir "hallucination crítica" e atacar os casos [CONCLUÍDA no código — 02/10/2026, V.1.4.160; medição real pendente]
 - Separar as críticas (inventar preço, promessa ou dado do cliente) das
   demais; medir as críticas isoladamente contra ≈ 0.
-### D3 — Objection classification 75% → 90%
+### D3 — Objection classification 75% → 90% [CONCLUÍDA no código — 02/10/2026, V.1.4.161; remedição pendente]
 - Analisar os erros no Golden Dataset e ajustar o prompt/regra; remedir.
-### D4 — Suíte E2E dos 10 cenários (seção 30)
+### D4 — Suíte E2E dos 10 cenários (seção 30) [CONCLUÍDA — 01/10/2026, V.1.4.156]
 - Hoje existe 1 arquivo de ciclo de vida. Cobrir: ganha, perdida por
   preço, perdida por concorrente, várias reuniões, troca de decisor,
   objeção falsa de preço, indeciso, provider fora, RAG fora, prompt
   injection. Mock de IA, persistência real.
-### D5 — Contract tests com reparo controlado (seção 29)
+### D5 — Contract tests com reparo controlado (seção 29) [CONCLUÍDA — 01/10/2026, V.1.4.158]
 - Resposta inválida de LLM: rejeitar → reparar → registrar → fallback
   seguro. Garantir que JSON quebrado nunca chegue à sidebar.
-### D6 — Versionamento completo da inteligência (seção 34)
+### D6 — Versionamento completo da inteligência (seção 34) [CONCLUÍDA — 01/10/2026, V.1.4.157]
 - Hoje só `prompt_version`/`rule_version`. Adicionar
   `reasoning_engine_version`, `policy_version`, `knowledge_version`,
   `model_version` em RecommendationEvent + AuditTrailEntry.
@@ -299,3 +299,86 @@ explícita, uma de cada vez — mesma disciplina de todo o roadmap.
   decision_process/metrics). Para a A4: arestas só podem sair dessas 4
   categorias hoje (ex.: `PAIN → causa → IMPACT` entre `pain_points` e
   `business_impact`).
+- **A4 — CONCLUÍDA (30/09/2026)**, V.1.4.150:
+  `agent/opportunity_graph_writer_rules.py` + wiring após a A3. Regras:
+  PAIN→causa→IMPACT, PAIN→motiva→GOAL, CLIENT→sente→PAIN,
+  CLIENT→levanta→OBJECTION; `source="regra_memoria"`. Causa raiz e
+  OBJECTION↔PAIN ficaram fora (sem vínculo na memória / sem regra
+  determinística). Passo 2 da ordem recomendada fechado; a A5 destrava
+  STAKEHOLDER/DECISION.
+- **A5 — CONCLUÍDA (30/09/2026)**, V.1.4.151: `agent/meddpicc_extractor.py`
+  (IA, feature `meddpicc.extracao`, kill-switch
+  `MEDDPICC_EXTRACTOR_ENABLED`) → `meddpicc_state` real (10/11 campos).
+  Liga na A2 (`MEDDPICC:<item>`) e na A3 (metrics/economic_buyer/
+  champion/decision_process/competitors). **Pendentes que surgiram**:
+  medir o custo real por chamada após o deploy; nós STAKEHOLDER/
+  DECISION/COMPETITOR no grafo (A4) ainda não criados (ids por
+  categoria ficariam ambíguos num nó STAKEHOLDER). Próximo do passo 3:
+  **C2** (Seller DNA → `seller_context`, 11/11).
+- **C2 — CONCLUÍDA no código (30/09/2026)**, V.1.4.152:
+  `agent/seller_context_rules.py` + wiring em Shadow/Piloto + regra no
+  prompt do motor (estilo, nunca eficácia). **11/11 campos ligados.**
+  Falta a parte operacional: `SELLER_DNA_OBSERVACAO_ENABLED=true` no
+  `.env` da VPS (no deploy). Dado real só depois de 10 reuniões do
+  mesmo vendedor logado. Passo 3 fechado; próximo: passo 4 (**A6**,
+  **B2**).
+- **A6 — CONCLUÍDA (01/10/2026)**, V.1.4.153:
+  `agent/deal_risk_signals_rules.py` + `status` MEDDPICC nos insights
+  da memória + próximos passos da recapitulação em `next_steps` +
+  `risks_calculados` real no Opportunity Intelligence (endpoint e
+  dashboard). `COMPETITOR_ADVANTAGE` segue sem fonte (`nao_avaliados`).
+  Achado: o card MEDDPICC do Opportunity Intelligence já poderia sair
+  do gap (`estado_meddpicc_da_memoria()`), passo pequeno não feito.
+  Próximo: **B2**.
+- **B2 — CONCLUÍDA (01/10/2026)**, V.1.4.154: tabela
+  `opportunity_stage_history` (o estágio não tinha histórico) +
+  `agent/recommendation_outcome_rules.py` + script de qualidade de
+  recomendação preenchendo os 2 sinais. Estado de uso continua não
+  persistido (só em lote pelo script), então o gap de
+  `recommendation_effectiveness` no endpoint de observabilidade segue.
+  Passo 4 fechado; próximo: passo 5 (**D1**, D4/D5, D6).
+- **D1 — CONCLUÍDA (01/10/2026)**, V.1.4.155: `GET /admin/readiness` +
+  `agent/readiness_rules.py` + tabela `readiness_medicoes` + os 3
+  scripts de lote registrando no `--real`. `pronto_para_digital_twin`
+  exige os 9 no alvo com origem `real`. Pendente operacional: rodar os
+  3 scripts após o deploy (o painel nasce com os critérios de lote
+  `sem_numero`). Sem card no dashboard ainda.
+- **D4 — CONCLUÍDA (01/10/2026)**, V.1.4.156:
+  `tests/test_e2e_cenarios_venda.py`, com os 10 cenários. Achou um bug
+  da D1 (audit coverage > 100%), já corrigido. Fica pendente para o
+  critério E2E success: os testes provam o fluxo, mas o número da Fase
+  25 continua o proxy de produção (1 − taxa de erro de IA). Um E2E real
+  em produção exigiria monitorar reuniões completas. Próximo: **D5**,
+  **D6**.
+- **D6 — CONCLUÍDA (01/10/2026)**, V.1.4.157:
+  `agent/intelligence_version_rules.py` + 4 colunas em
+  `recommendation_events`/`audit_trail_entries` (migração automática no
+  startup). Versões derivadas do conteúdo. Fora:
+  `base_conhecimento` (RAG legado) não entra na `knowledge_version`.
+  Passo 5 resta só a **D5**.
+- **D5 — CONCLUÍDA (01/10/2026)**, V.1.4.158:
+  `agent/contract_repair_rules.py`. Reparo sintático em
+  `ai_router._extract_json` e contrato da sidebar no fim do
+  `/tempo-real` + dentro da normalização. Registro em log, contador
+  `json_reparado` e `AuditTrailEntry` `contract_guard`. Bug corrigido:
+  `confidence` em texto derrubava `_nba_para_nbq`. **Passo 5 fechado.**
+  Próximo: passo 6 (**A7**, **D2**, **D3**).
+- **A7 — CONCLUÍDA no código (01/10/2026)**, V.1.4.159:
+  `agent/sales_event_extractor.py` (14 tipos, citação literal), gravação
+  em Shadow/Piloto e `event_precision` real no runner do Golden Dataset
+  e no `/admin/readiness`. Decisão: uma IA para os 14 tipos, sem
+  derivar das saídas A2/A5 (ver CHANGELOG). **Pendente**: rodar o Golden
+  Dataset com `--real` para o 1º número (custo de IA). Próximo:
+  **D2**, **D3**.
+- **D2 — CONCLUÍDA no código (02/10/2026)**, V.1.4.160:
+  `agent/critical_hallucination_rules.py` (número/preço, promessa, dado
+  do cliente fora da entrada). Medida por cenário no Golden Dataset e
+  no readiness como `real`. Atacada no prompt do motor e por guarda no
+  Piloto, que bloqueia e mantém o modelo atual.
+- **D3 — CONCLUÍDA no código (02/10/2026)**, V.1.4.161: o erro dos 75%
+  era de gabarito (`objections-04`), corrigido no Golden Dataset
+  v1.1.0. Conjunto de 30 casos (13 tipos), `objecoes_erradas` no
+  relatório e desempate no prompt do classificador. **Passo 6 fechado
+  no código**; pendente rodar o Golden Dataset `--real` (até 234
+  chamadas) para remedir A7/D2/D3. Próximo na ordem: passo 7 (com
+  volume real: C1, C3, B4, B5, C5 → C6).

@@ -50,11 +50,25 @@ RISCOS_CALCULADOS_NAO_DISPONIVEL = {
 }
 
 
-def montar_opportunity_intelligence(opportunity: dict, opportunity_memory: dict) -> dict:
+def montar_opportunity_intelligence(
+    opportunity: dict,
+    opportunity_memory: dict,
+    reunioes: list | None = None,
+) -> dict:
     """Monta o payload de Opportunity Intelligence a partir de uma
     `Opportunity` e sua `OpportunityMemory` já buscadas no banco (ambas no
     formato de dict retornado por `api/database.py`). Nunca acessa banco ou
-    chama IA — puramente transformação de dado já existente."""
+    chama IA — puramente transformação de dado já existente.
+
+    Tarefa A6: com `reunioes` (as reuniões vinculadas, formato de
+    `listar_meetings_da_opportunity()`), `risks_calculados` passa a ser
+    real (`agent/deal_risk_signals_rules.py`); sem elas, continua o gap
+    explícito de antes."""
+    if reunioes is not None:
+        from agent.deal_risk_signals_rules import montar_riscos_calculados
+        riscos_calculados = montar_riscos_calculados(opportunity, opportunity_memory, reunioes)
+    else:
+        riscos_calculados = dict(RISCOS_CALCULADOS_NAO_DISPONIVEL)
     return {
         "opportunity_health": {
             "stage": opportunity.get("stage") or None,
@@ -73,6 +87,6 @@ def montar_opportunity_intelligence(opportunity: dict, opportunity_memory: dict)
         "objections": opportunity_memory.get("objections", []),
         "competitors": opportunity_memory.get("competitors", []),
         "risks_relatados": opportunity_memory.get("risks", []),
-        "risks_calculados": dict(RISCOS_CALCULADOS_NAO_DISPONIVEL),
+        "risks_calculados": riscos_calculados,
         "next_steps": opportunity_memory.get("next_steps", []),
     }

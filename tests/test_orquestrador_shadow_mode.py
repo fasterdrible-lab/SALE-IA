@@ -102,10 +102,10 @@ class ShadowModeLigadoTest(unittest.TestCase):
     def _rodar(self, raciocinar_mock, criar_comparison_mock, nba_atual, finance_result=None, spin_mock=None, behavioral_mock=None, motivation_mock=None):
         rag_patches = _mock_rag()
         agente_patches = _mock_agentes(nba_atual, finance_result=finance_result)
-        # SALES_EVIDENCE_PERSIST_ENABLED/OPPORTUNITY_MEMORY_WRITE_ENABLED=false: A2/A3 gravam no banco
+        # SALES_EVIDENCE_PERSIST/OPPORTUNITY_MEMORY_WRITE/OPPORTUNITY_GRAPH_WRITE=false: A2/A3/A4 gravam no banco
         # real (o .env local aponta DB_HOST pra VPS) — coberta à parte em
         # tests/test_sales_evidence_persist_rules.py e test_opportunity_memory_writer_rules.py.
-        with patch.dict(os.environ, {"SHADOW_MODE_ENABLED": "true", "SALES_EVIDENCE_PERSIST_ENABLED": "false", "OPPORTUNITY_MEMORY_WRITE_ENABLED": "false"}):
+        with patch.dict(os.environ, {"SHADOW_MODE_ENABLED": "true", "SALES_EVIDENCE_PERSIST_ENABLED": "false", "OPPORTUNITY_MEMORY_WRITE_ENABLED": "false", "OPPORTUNITY_GRAPH_WRITE_ENABLED": "false", "MEDDPICC_EXTRACTOR_ENABLED": "false", "SALES_EVENT_EXTRACTOR_ENABLED": "false", "SELLER_CONTEXT_ENABLED": "false"}):
             with patch("agent.sales_reasoning_engine.raciocinar_async", new=raciocinar_mock), \
                  patch("api.database.criar_shadow_mode_comparison", new=criar_comparison_mock), \
                  patch("api.database.obter_ultimo_ai_usage_event", return_value=None), \

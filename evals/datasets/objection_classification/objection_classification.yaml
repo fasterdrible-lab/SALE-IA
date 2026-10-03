@@ -1,0 +1,144 @@
+# Conjunto de classificação de objeções — Tarefa D3 de
+# docs/tasks-prompt-mestre-v2-restante.md (objection classification
+# 75% → 90%). Versão v1.0.0 (02/10/2026).
+#
+# Por que existe: o Golden Sales Dataset tem só 4 objeções
+# (objections.yaml) — 1 erro já vira 75%, amostra pequena demais para um
+# critério de ≥ 90%. Aqui cada caso é só (fala da objeção → categoria
+# esperada), nos 13 tipos de agent/objection_rules.py::OBJECTION_TIPOS,
+# a mesma tarefa do classificador em produção
+# (agent/objection_category_classifier.py).
+#
+# Rótulos dados À MÃO nesta rodada (revisáveis). Regra do rótulo: a
+# categoria do que o cliente DISSE, nunca a causa raiz suposta.
+#
+# Fontes:
+# - `real_anonimizado`: 17 falas de evals/datasets/coach/objections_real.yaml
+#   (objeções reais de produção, já anonimizadas), reetiquetadas nos 13
+#   tipos. Só entraram as de rótulo inequívoco — as ambíguas (ex.: "levar
+#   pro conselho e passar pelo jurídico" = AUTHORITY ou LEGAL; "risco de
+#   ROI") ficaram de fora em vez de forçar um rótulo.
+# - `sintetico`: 13 falas escritas para cobrir os tipos que não aparecem
+#   nos dados reais (ADOPTION, PRIORITY, PROCUREMENT, SECURITY, AUTHORITY)
+#   e reforçar VALUE/COMPETITOR/TIMING.
+
+- id: "oc-01"
+  fonte: real_anonimizado
+  texto: "Gostei bastante do projeto, mas o valor do plano principal ta acima do que eu tinha em mente, eu imaginava algo entre 1000 e 1500 por mes."
+  categoria: PRICE
+- id: "oc-02"
+  fonte: real_anonimizado
+  texto: "O projeto completo ficou caro demais pra gente, precisava ser um valor bem menor pra fazer sentido no nosso orcamento agora."
+  categoria: PRICE
+- id: "oc-03"
+  fonte: real_anonimizado
+  texto: "Nosso caixa ta bem restrito agora, as vendas cairam esses ultimos meses e nao sobra muito pra investir nisso agora."
+  categoria: BUDGET
+- id: "oc-04"
+  fonte: real_anonimizado
+  texto: "Eu topo o valor do projeto, mas agora nao tenho fluxo de caixa pra pagar a entrada inteira de uma vez."
+  categoria: BUDGET
+- id: "oc-05"
+  fonte: real_anonimizado
+  texto: "Meu caixa ta comprometido agora porque investi pesado em estoque pra data comemorativa, precisava adiar um pouco o investimento nisso."
+  categoria: BUDGET
+- id: "oc-06"
+  fonte: real_anonimizado
+  texto: "Quero muito fechar, mas meu limite no cartao nao cobre o valor da entrada de uma vez so."
+  categoria: BUDGET
+- id: "oc-07"
+  fonte: real_anonimizado
+  texto: "Gostei muito da metodologia, mas agora eu tive um gasto grande com mudanca de espaco e o orcamento ta apertado esse mes."
+  categoria: BUDGET
+- id: "oc-08"
+  fonte: real_anonimizado
+  texto: "Minha maior duvida e como eu vou lidar com estoque e armazenagem disso, nunca mexi com produto fisico."
+  categoria: IMPLEMENTATION
+- id: "oc-09"
+  fonte: real_anonimizado
+  texto: "Fico preocupado com toda a burocracia de habilitacao na Receita Federal antes de comecar a operar com importacao."
+  categoria: IMPLEMENTATION
+- id: "oc-10"
+  fonte: real_anonimizado
+  texto: "Nao tenho espaco fisico nenhum pra guardar estoque, isso me trava de comecar a vender online."
+  categoria: IMPLEMENTATION
+- id: "oc-11"
+  fonte: real_anonimizado
+  texto: "Sinceramente eu tenho bastante receio de cair em golpe, ja ouvi muita historia ruim de gente que caiu em fraude nesse mercado digital."
+  categoria: TRUST
+- id: "oc-12"
+  fonte: real_anonimizado
+  texto: "Eu so fecho depois de uma visita presencial, ja tive experiencia ruim antes e prefiro nao correr esse risco de novo."
+  categoria: TRUST
+- id: "oc-13"
+  fonte: real_anonimizado
+  texto: "Antes de decidir eu vou olhar propostas de outros concorrentes de voces tambem, quero comparar direitinho."
+  categoria: COMPETITOR
+- id: "oc-14"
+  fonte: real_anonimizado
+  texto: "Prefiro esperar sair o resultado de uma coisa que ta acontecendo aqui antes de decidir qualquer investimento novo."
+  categoria: TIMING
+- id: "oc-15"
+  fonte: real_anonimizado
+  texto: "O nosso contabil nao consegue registrar isso como 'entrada' do jeito que ta no contrato, isso ta travando a aprovacao aqui internamente."
+  categoria: LEGAL
+- id: "oc-16"
+  fonte: real_anonimizado
+  texto: "Ja levei multa de contrato de longo prazo antes numa experiencia ruim, fico com pe atras com esse tipo de compromisso agora."
+  categoria: LEGAL
+- id: "oc-17"
+  fonte: real_anonimizado
+  texto: "Ja ouvi falar que a margem nesse tipo de operacao e bem apertada e precisa de muita gente especializada, fico em duvida se compensa."
+  categoria: VALUE
+- id: "oc-18"
+  fonte: sintetico
+  texto: "Meu medo é o pessoal do comercial não abrir a ferramenta, eles já largaram o último sistema que a gente comprou."
+  categoria: ADOPTION
+- id: "oc-19"
+  fonte: sintetico
+  texto: "Minha equipe é bem resistente a mudança, não sei se vão usar isso no dia a dia."
+  categoria: ADOPTION
+- id: "oc-20"
+  fonte: sintetico
+  texto: "Isso é interessante, mas tem outras três frentes na empresa que estão na frente disso na fila agora."
+  categoria: PRIORITY
+- id: "oc-21"
+  fonte: sintetico
+  texto: "Hoje o foco da diretoria é outro projeto, esse assunto não está entre as prioridades deste ano."
+  categoria: PRIORITY
+- id: "oc-22"
+  fonte: sintetico
+  texto: "Pra contratar vocês precisa passar pelo cadastro de fornecedor e três cotações no setor de compras, leva uns dois meses."
+  categoria: PROCUREMENT
+- id: "oc-23"
+  fonte: sintetico
+  texto: "Aqui toda compra acima de um valor vai pra licitação interna, não dá pra fechar direto com o vendedor."
+  categoria: PROCUREMENT
+- id: "oc-24"
+  fonte: sintetico
+  texto: "Onde ficam armazenados os dados dos nossos clientes? Sem estar adequado à LGPD a gente não consegue seguir."
+  categoria: SECURITY
+- id: "oc-25"
+  fonte: sintetico
+  texto: "Nosso time de TI exige criptografia e certificação de segurança antes de liberar qualquer ferramenta nova."
+  categoria: SECURITY
+- id: "oc-26"
+  fonte: sintetico
+  texto: "Eu gostei, mas quem decide isso é o meu sócio, preciso apresentar pra ele antes."
+  categoria: AUTHORITY
+- id: "oc-27"
+  fonte: sintetico
+  texto: "Não tenho alçada pra aprovar esse valor, isso precisa do ok do diretor financeiro."
+  categoria: AUTHORITY
+- id: "oc-28"
+  fonte: sintetico
+  texto: "Não sei se isso entrega tanta coisa assim a mais do que a planilha que a gente já usa."
+  categoria: VALUE
+- id: "oc-29"
+  fonte: sintetico
+  texto: "A outra empresa que conversamos oferece praticamente a mesma coisa e já integra com o nosso ERP."
+  categoria: COMPETITOR
+- id: "oc-30"
+  fonte: sintetico
+  texto: "Agora no fim do trimestre não dá, me procura de novo depois do dia 15 do mês que vem."
+  categoria: TIMING

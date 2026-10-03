@@ -83,10 +83,15 @@ class GapsExplicitosTest(unittest.TestCase):
         self.assertEqual(resultado["meddpicc"], MEDDPICC_NAO_DISPONIVEL)
         self.assertFalse(resultado["meddpicc"]["disponivel"])
 
-    def test_riscos_calculados_e_sempre_gap(self):
+    def test_riscos_calculados_sem_reunioes_continua_gap(self):
         resultado = montar_opportunity_intelligence(_opportunity(), {})
         self.assertEqual(resultado["risks_calculados"], RISCOS_CALCULADOS_NAO_DISPONIVEL)
         self.assertFalse(resultado["risks_calculados"]["disponivel"])
+
+    def test_riscos_calculados_com_reunioes_sao_reais(self):
+        """Tarefa A6: com as reuniões vinculadas, o Deal Risk roda."""
+        resultado = montar_opportunity_intelligence(_opportunity(), {}, reunioes=[])
+        self.assertTrue(resultado["risks_calculados"]["disponivel"])
 
     def test_gaps_sao_copias_nunca_a_mesma_referencia_mutavel(self):
         r1 = montar_opportunity_intelligence(_opportunity(), {})

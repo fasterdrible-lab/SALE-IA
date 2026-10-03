@@ -10,12 +10,11 @@ real: `framework_accuracy`, `objection_precision`, `hallucination_rate`,
 
 Escopo confirmado com o usuário (pergunta direta antes de codar, mesma
 disciplina de toda fase do roadmap):
-- **`event_precision` continua gap explícito** — nenhum extrator de
-  `SalesEvent` a partir de texto livre foi construído em nenhuma fase
-  (`SalesEvent`, Fase 1, `criar_sales_event()` tem zero chamada em
-  produção hoje — confirmado por grep antes de decidir isso). Medir
-  isso exigiria construir um extrator novo do zero pra uma estrutura
-  que não alimenta nada real no sistema — fora do escopo desta rodada.
+- **`event_precision`**: era gap até a Tarefa A7 (não existia extrator
+  de `SalesEvent`). Agora `agent/sales_event_extractor.py` roda em cada
+  cenário (+1 chamada de IA por cenário) e a precisão é contada por
+  tipo contra `expected_events` (`contar_precisao_eventos`); o recall
+  vai junto, informativo.
 - **`recommendation_relevance` também não é calculada aqui** — exigiria
   um LLM-judge (chamada de IA extra por cenário) comparando a saída
   contra `acceptable_actions`/`forbidden_actions`; decisão de custo
@@ -131,6 +130,19 @@ def carregar_cenarios_golden_dataset(dataset_dir: Path = DATASET_DIR) -> list[di
             item["_arquivo"] = arquivo.name
             cenarios.append(item)
     return cenarios
+
+
+CONJUNTO_OBJECOES_PATH = (
+    Path(__file__).parent.parent / "evals" / "datasets" / "objection_classification" / "objection_classification.yaml"
+)
+
+
+def carregar_conjunto_classificacao_objecoes(caminho: Path = CONJUNTO_OBJECOES_PATH) -> list[dict]:
+    """Tarefa D3: conjunto à parte (fala → categoria) para medir
+    `objection_classification` com amostra que sustente o alvo de 90% —
+    o Golden Dataset só tem 4 objeções. Leitura pura de disco."""
+    with open(caminho, encoding="utf-8") as f:
+        return [dict(item) for item in (yaml.safe_load(f) or [])]
 
 
 def extrair_categoria_esperada(valor: Optional[str]) -> Optional[str]:
@@ -261,7 +273,10 @@ async def _rodar_classificador_objecao(cenario: dict) -> Optional[str]:
     return await classificar_categoria_objecao_async(texto)
 
 
-async def executar_golden_dataset_async(cenarios: Optional[list[dict]] = None) -> dict:
+async def executar_golden_dataset_async(
+    cenarios: Optional[list[dict]] = None,
+    conjunto_objecoes: Optional[list[dict]] = None,
+) -> dict:
     """Motor real — chama IA de verdade (custo real, ver docstring do
     módulo). `cenarios=None` carrega os 40 reais do disco; testes
     passam uma lista sintética pequena. Uma falha num cenário isolado
@@ -269,15 +284,35 @@ async def executar_golden_dataset_async(cenarios: Optional[list[dict]] = None) -
     fica registrada em `erros`, mesma disciplina best-effort do resto
     do projeto, mas aqui é sobre um script de avaliação, não sobre o
     ciclo real de um vendedor."""
+    # Rodada real (cenarios=None) carrega também o conjunto de
+    # classificação de objeções (Tarefa D3); teste com lista própria só
+    # mede o conjunto se passar um.
+    if conjunto_objecoes is None:
+        conjunto_objecoes = carregar_conjunto_classificacao_objecoes() if cenarios is None else []
     cenarios = carregar_cenarios_golden_dataset() if cenarios is None else cenarios
 
     framework_corretos = framework_total = 0
     objecao_vp = objecao_fp = 0
+    objecoes_erradas: list[dict] = []
+    evento_vp = evento_fp = evento_fn = 0
     afirm_com_evidencia = afirm_sem_evidencia = 0
+    cenarios_avaliados = cenarios_com_critica = 0
+    alucinacoes_criticas: list[dict] = []
     erros: list[str] = []
 
     for cenario in cenarios:
         cid = cenario.get("id", "?")
+
+        # Tarefa A7: event_precision real — extrator de SalesEvent contra
+        # `expected_events` (por tipo). Cenário que espera nenhum evento
+        # também conta: qualquer evento previsto ali é falso positivo.
+        try:
+            from agent.sales_event_extractor import contar_precisao_eventos, extrair_sales_events_async
+            previstos = await extrair_sales_events_async(cenario["input"], HISTORICO_PADRAO)
+            vp, fp, fn = contar_precisao_eventos(previstos, cenario.get("expected_events") or [])
+            evento_vp, evento_fp, evento_fn = evento_vp + vp, evento_fp + fp, evento_fn + fn
+        except Exception as e:
+            erros.append(f"{cid}: extrator de SalesEvent falhou: {type(e).__name__}: {e}")
 
         objections = None
         if cenario.get("_arquivo") == ARQUIVO_OBJECOES:
@@ -293,6 +328,7 @@ async def executar_golden_dataset_async(cenarios: Optional[list[dict]] = None) -
                 objecao_vp += 1
             else:
                 objecao_fp += 1
+                objecoes_erradas.append({"caso": cid, "texto": evidence_quote, "esperado": esperado_cat, "previsto": predita})
             if predita is not None:
                 from agent.objection_rules import OBJECTION_TIPOS, registrar_objecao
                 if predita in OBJECTION_TIPOS:
@@ -324,13 +360,45 @@ async def executar_golden_dataset_async(cenarios: Optional[list[dict]] = None) -
                 else:
                     afirm_sem_evidencia += 1
 
+            # Tarefa D2: alucinação crítica (preço/número, promessa ou dado
+            # do cliente inventado) contra tudo que o motor recebeu.
+            from agent.critical_hallucination_rules import detectar_alucinacoes_criticas
+            cenarios_avaliados += 1
+            achados = detectar_alucinacoes_criticas(saida, texto_fundamentacao)
+            if achados:
+                cenarios_com_critica += 1
+                alucinacoes_criticas.append({"cenario": cid, "achados": achados})
+
+    # Tarefa D3: conjunto à parte de classificação de objeções (fala →
+    # categoria), mesmo classificador de produção, 1 chamada por caso.
+    from agent.objection_category_classifier import classificar_categoria_objecao_async
+    for caso in conjunto_objecoes:
+        try:
+            predita = await classificar_categoria_objecao_async(caso.get("texto") or "")
+        except Exception as e:
+            erros.append(f"{caso.get('id', '?')}: classificador de objeção falhou: {type(e).__name__}: {e}")
+            predita = None
+        if predita is not None and predita == caso.get("categoria"):
+            objecao_vp += 1
+        else:
+            objecao_fp += 1
+            objecoes_erradas.append({"caso": caso.get("id"), "texto": caso.get("texto"),
+                                     "esperado": caso.get("categoria"), "previsto": predita})
+
     return {
+        "objecoes_erradas": objecoes_erradas,
         "framework_corretos": framework_corretos,
         "framework_total": framework_total,
         "objecao_vp": objecao_vp,
         "objecao_fp": objecao_fp,
+        "evento_vp": evento_vp,
+        "evento_fp": evento_fp,
+        "evento_fn": evento_fn,
         "afirmacoes_com_evidencia": afirm_com_evidencia,
         "afirmacoes_sem_evidencia": afirm_sem_evidencia,
+        "cenarios_avaliados": cenarios_avaliados,
+        "cenarios_com_alucinacao_critica": cenarios_com_critica,
+        "alucinacoes_criticas": alucinacoes_criticas,
         "erros": erros,
         "total_cenarios": len(cenarios),
     }
@@ -338,19 +406,28 @@ async def executar_golden_dataset_async(cenarios: Optional[list[dict]] = None) -
 
 def montar_relatorio_metricas(contagens: dict) -> dict:
     """Reshape das contagens brutas de `executar_golden_dataset_async()`
-    pros 4 números reais via `agent/quality_monitoring_rules.py` — nunca
-    recalcula a fórmula aqui, só monta o dict final + os 2 gaps
-    explícitos (`event_precision`/`recommendation_relevance`)."""
+    pros números reais via `agent/quality_monitoring_rules.py` — nunca
+    recalcula a fórmula aqui, só monta o dict final + o gap explícito
+    `recommendation_relevance`. `event_precision` é real desde a Tarefa
+    A7 (`event_recall` vai junto, informativo); contagens antigas sem
+    `evento_*` continuam caindo no gap."""
     from agent.quality_monitoring_rules import (
         QUALITY_METRIC_SEM_GABARITO,
+        calcular_event_precision,
         calcular_evidence_coverage,
         calcular_framework_accuracy,
         calcular_hallucination_rate,
         calcular_objection_precision,
     )
 
+    from agent.critical_hallucination_rules import taxa_alucinacao_critica
+
+    tem_eventos = "evento_vp" in contagens
+    tem_criticas = "cenarios_avaliados" in contagens
+    evento_vp, evento_fp, evento_fn = (contagens.get(k, 0) for k in ("evento_vp", "evento_fp", "evento_fn"))
     return {
-        "event_precision": QUALITY_METRIC_SEM_GABARITO,
+        "event_precision": calcular_event_precision(evento_vp, evento_fp) if tem_eventos else QUALITY_METRIC_SEM_GABARITO,
+        "event_recall": (round(evento_vp / (evento_vp + evento_fn), 4) if (evento_vp + evento_fn) else None) if tem_eventos else None,
         "objection_precision": calcular_objection_precision(contagens["objecao_vp"], contagens["objecao_fp"]),
         "framework_accuracy": calcular_framework_accuracy(contagens["framework_corretos"], contagens["framework_total"]),
         "recommendation_relevance": {
@@ -365,10 +442,21 @@ def montar_relatorio_metricas(contagens: dict) -> dict:
             contagens["afirmacoes_com_evidencia"],
             contagens["afirmacoes_com_evidencia"] + contagens["afirmacoes_sem_evidencia"],
         ),
+        # Tarefa D2: só as críticas, por cenário (ver critical_hallucination_rules).
+        "critical_hallucination_rate": (
+            taxa_alucinacao_critica(contagens["cenarios_com_alucinacao_critica"], contagens["cenarios_avaliados"])
+            if tem_criticas else None
+        ),
+        "alucinacoes_criticas": contagens.get("alucinacoes_criticas", []) if tem_criticas else [],
+        # Tarefa D3: cada erro de classificação (esperado × previsto), para
+        # a próxima análise sair do relatório e não de dedução.
+        "objecoes_erradas": contagens.get("objecoes_erradas", []),
         "amostra": {
             "total_cenarios": contagens["total_cenarios"],
             "framework_total": contagens["framework_total"],
             "objecao_total": contagens["objecao_vp"] + contagens["objecao_fp"],
+            "eventos_previstos": evento_vp + evento_fp,
+            "cenarios_avaliados_criticas": contagens.get("cenarios_avaliados"),
             "afirmacoes_total": contagens["afirmacoes_com_evidencia"] + contagens["afirmacoes_sem_evidencia"],
             "erros": contagens["erros"],
         },

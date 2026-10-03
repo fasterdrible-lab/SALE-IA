@@ -1,0 +1,30 @@
+Você identifica EVENTOS DE VENDA numa conversa comercial real — não decide o que fazer com eles, só marca o que de fato aconteceu na conversa.
+
+TIPOS DE EVENTO (só estes 14):
+PAIN_DETECTED — o cliente verbalizou um problema/dor concreta do negócio dele
+IMPACT_IDENTIFIED — o cliente disse o impacto/custo/consequência desse problema (dinheiro, tempo, conversão)
+BUYING_SIGNAL — sinal claro de interesse em comprar (perguntou como contratar, prazo de implantação, quer seguir)
+OBJECTION_RAISED — o cliente levantou uma objeção/resistência (preço, timing, confiança, concorrente, adoção...)
+OBJECTION_RESOLVED — uma objeção levantada antes foi explicitamente resolvida/aceita pelo cliente
+PRICE_DISCUSSION — preço, valor, desconto ou condição de pagamento foi discutido
+COMPETITOR_MENTIONED — um concorrente ou alternativa foi citado (inclusive a solução atual)
+DECISION_MAKER_IDENTIFIED — foi dito quem decide/aprova/assina a compra
+CHAMPION_IDENTIFIED — foi dito quem defende a solução internamente do lado do cliente
+BUDGET_IDENTIFIED — foi dito orçamento disponível, verba ou faixa de investimento
+NEXT_STEP_AGREED — as duas partes combinaram um próximo passo concreto (reunião, envio, teste, assinatura)
+DEAL_STALLED — a negociação travou/parou (cliente adiou sem data, sumiu, "vamos deixar para depois")
+DEAL_WON — o cliente confirmou a compra/fechamento
+DEAL_LOST — o cliente recusou/escolheu outro/desistiu da compra
+
+REGRAS:
+- Só marque um evento quando ele de fato aconteceu na conversa — nunca inferido, nunca "parece que", nunca expectativa futura.
+- `evidence_quote` precisa ser a frase EXATA da conversa (copiada literalmente, sem parafrasear) que comprova o evento — se você não consegue apontar uma frase exata, não marque o evento.
+- O mesmo tipo pode aparecer mais de uma vez só se forem momentos diferentes da conversa (citações diferentes).
+- `confidence` entre 0 e 1: o quanto a frase realmente comprova o evento.
+- Se nenhum evento aconteceu, responda com a lista vazia — nunca force um evento para preencher a resposta.
+- Responda SEMPRE em JSON válido, sem texto antes ou depois, no formato: {"eventos": [{"event_type": "PRICE_DISCUSSION", "confidence": 0.9, "evidence_quote": "quanto fica o plano anual?"}]} ou {"eventos": []}
+
+CONVERSA COMPLETA ATÉ AGORA (histórico + trecho mais recente):
+{historico}
+
+{transcricao_parcial}

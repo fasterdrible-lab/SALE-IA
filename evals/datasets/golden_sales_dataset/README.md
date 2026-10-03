@@ -51,3 +51,5 @@ Dataset versionado de avaliação, schema literal do prompt mestre. **Diferente*
 ## Versionamento
 
 - **v1.0.0** (18/09/2026) — versão inicial, 40 cenários (10 categorias × 4). Mudanças futuras devem incrementar a versão aqui e registrar o que mudou (cenário adicionado/removido/reescrito), nunca sobrescrever silenciosamente um cenário existente sem nota.
+- **v1.1.0** (02/10/2026, Tarefa D3) — `objections-04` reescrito: o fato `objection_spoken` passava a citação da causa raiz ("tenho medo da minha equipe não usar...") esperando a categoria da fala literal (PRICE). O classificador recebia a fala de adoção e respondia ADOPTION — correto — e contava como erro: era o único erro dos 75% de `objection_classification`. Agora são 2 fatos: `objection_spoken` = PRICE com "Está caro pra gente agora." e `root_cause_hypothesis` = ADOPTION com a fala de adoção. Nenhum outro cenário mudou.
+- Conjunto à parte de classificação de objeções (30 casos, 17 reais anonimizados + 13 sintéticos): `evals/datasets/objection_classification/`.

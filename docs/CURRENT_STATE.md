@@ -1,5 +1,115 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-10-02 — **V.1.4.160 + V.1.4.161 (local, pendente
+deploy junto com V.1.4.150-159): Tarefas D2 e D3.**
+- **D2**: alucinação crítica definida (número/preço, promessa ou dado
+  do cliente que não está na entrada), medida por cenário no Golden
+  Dataset e no `/admin/readiness` como `real`, e bloqueada no Piloto
+  (fica a recomendação do modelo atual).
+- **D3**: o único erro dos 75% era de gabarito (`objections-04`
+  mandava a frase da causa raiz esperando a categoria da fala).
+  Corrigido no Golden Dataset v1.1.0, com conjunto novo de 30 casos
+  (17 reais anonimizados) e regras de desempate no prompt do
+  classificador.
+
+**Passo 6 da ordem recomendada fechado no código.** Os números reais
+de `event_precision`, `critical_hallucination` e
+`objection_classification` saem de uma rodada `--real` do Golden
+Dataset (até 234 chamadas de IA).
+
+Atualizado em: 2026-10-01 — **V.1.4.159 (local, pendente deploy junto
+com V.1.4.150-158): Tarefa A7 — extrator de SalesEvent.** IA com os 14
+tipos e citação checada grava SalesEvent em produção (Shadow/Piloto,
+kill-switch `SALES_EVENT_EXTRACTOR_ENABLED`). O runner do Golden
+Dataset passa a calcular `event_precision` real, que também alimenta o
+painel `/admin/readiness`. Falta rodar o Golden Dataset de verdade
+(custo de IA, ~204 chamadas). Próximo do passo 6: **D2** (alucinação
+crítica) e **D3** (objection classification 75% → 90%).
+
+Atualizado em: 2026-10-01 — **V.1.4.158 (local, pendente deploy junto
+com V.1.4.150-157): Tarefa D5 — contract tests com reparo controlado.**
+JSON quase válido da IA é reparado no roteador (sem inventar conteúdo);
+o que a sidebar lê é validado e reparado no último ponto do
+`/tempo-real`, com fallback seguro e registro (`contract_guard` no
+audit trail). Corrigiu o crash de `confidence` em texto. Fecha o passo
+5 da ordem recomendada (D1, D4, D5, D6). Próximo: passo 6 — **A7**
+(extrator de SalesEvent → event_precision), **D2** (alucinação
+crítica), **D3** (objection classification).
+
+Atualizado em: 2026-10-01 — **V.1.4.157 (local, pendente deploy junto
+com V.1.4.150-156): Tarefa D6 — versionamento da inteligência.**
+`RecommendationEvent` e `AuditTrailEntry` ganham `reasoning_engine_/
+policy_/knowledge_/model_version`, derivadas do conteúdo (hash do prompt,
+das guardas, do conhecimento aprovado) e não digitadas à mão. As 8
+colunas são migradas sozinhas no startup. Próximo do passo 5: **D5**
+(contract tests com reparo controlado), único que falta.
+
+Atualizado em: 2026-10-01 — **V.1.4.156 (local, pendente deploy junto
+com V.1.4.150-155): Tarefa D4 — E2E dos 10 cenários de venda**
+(`tests/test_e2e_cenarios_venda.py`): IA mockada só no provedor
+(roteador real), Piloto aguardado, persistência real em SQLite, MySQL
+do `.env` bloqueado durante a suíte. Achou e corrigiu um bug da D1:
+`audit_coverage` deixava fora a chamada que gerou a 1ª auditoria
+(passava de 100%). Próximo do passo 5: **D5** (contract tests com
+reparo controlado) e **D6** (versionamento).
+
+Atualizado em: 2026-10-01 — **V.1.4.155 (local, pendente deploy junto
+com V.1.4.150-154): Tarefa D1 — `GET /admin/readiness`.** Os 9
+critérios da Fase 25 num endpoint só: audit coverage, E2E (proxy) e
+policy violation ao vivo; golden dataset, WER e recommendation quality
+via a última medição dos scripts `--real` (tabela nova
+`readiness_medicoes`); event precision e escalonamento humano como gap.
+Depois do deploy, rodar os 3 scripts para popular o painel. Próximo do
+passo 5: **D4** (E2E dos 10 cenários) / D5 / D6.
+
+Atualizado em: 2026-10-01 — **V.1.4.154 (local, pendente deploy junto
+com V.1.4.150-153): Tarefa B2 — `stage_advanced`/`opportunity_result`.**
+Tabela nova `opportunity_stage_history` (histórico de estágio,
+append-only) + `agent/recommendation_outcome_rules.py`. O script de
+qualidade de recomendação passa a calcular `taxa_avanco`/
+`taxa_desfecho_positivo` com dado real. Isso fecha o passo 4 da ordem
+recomendada (A6 + B2). Próximo: passo 5 — **D1** (painel de
+prontidão), D4/D5, D6.
+
+Atualizado em: 2026-10-01 — **V.1.4.153 (local, pendente deploy junto
+com V.1.4.150-152): Tarefa A6 — sinais reais de Deal Risk.** O card
+"Risks (calculados)" do Opportunity Intelligence deixa de ser gap:
+decisor/champion/métricas (status MEDDPICC da memória), próximo passo
+(recapitulação → `next_steps`), objeções de preço e dias parada.
+"Concorrente em vantagem" segue sem fonte e aparece como não avaliado.
+Próximo do passo 4: **B2** (capturar `stage_advanced`/
+`opportunity_result`).
+
+Atualizado em: 2026-09-30 — **V.1.4.152 (local, pendente deploy junto
+com V.1.4.150/151): Tarefa C2 — Seller DNA em `seller_context`.**
+**11/11 campos** do SalesReasoningEngine ligados. `seller_context` vem
+do SellerDNA agregado (mínimo 10 reuniões distintas, nunca eficácia) e
+fica `None` até haver amostra. Falta ligar
+`SELLER_DNA_OBSERVACAO_ENABLED=true` no `.env` da VPS no deploy (+1
+chamada de IA por reunião encerrada). Passo 3 da ordem recomendada
+fechado; próximo: passo 4 — **A6** (sinais reais de Deal Risk) e **B2**
+(capturar `stage_advanced`/`opportunity_result`).
+
+Atualizado em: 2026-09-30 — **V.1.4.151 (local, pendente deploy junto
+com a V.1.4.150): Tarefa A5 — extrator de MEDDPICC.** `meddpicc_state`
+real no SalesReasoningEngine (**10/11 campos**; falta só
+`seller_context`, C2), com citação checada literalmente contra a
+conversa e sem mexer no prompt do Closer. Também alimenta SalesEvidence
+(`MEDDPICC:<item>`) e as categorias `metrics`/`economic_buyer`/
+`champion`/`decision_process`/`competitors` da OpportunityMemory. +1
+chamada de IA por ciclo (Shadow/Piloto), feature `meddpicc.extracao`,
+kill-switch `MEDDPICC_EXTRACTOR_ENABLED`. Medir o custo real após o
+deploy.
+
+Atualizado em: 2026-09-30 — **V.1.4.150 (local, pendente deploy):
+Tarefa A4 — escritor de OpportunityGraph.** Arestas derivadas da
+memória da oportunidade por regras fixas (dor→causa→impacto,
+dor→motiva→objetivo, cliente→sente→dor, cliente→levanta→objeção), com
+as citações dos dois lados como evidência. Kill-switch
+`OPPORTUNITY_GRAPH_WRITE_ENABLED`. Fecha o passo 2 da ordem recomendada
+(A2 → A3 → A4). Próximo: passo 3 — **A5** (MEDDPICC, IA nova, decisão
+de custo) + **C2** (Seller DNA).
+
 Atualizado em: 2026-09-30 — **Produção em V.1.4.149** (commit
 `b6da605`, A2 + A3 juntas; deploy com `reunioes_ativas: 0`, serviço
 `active`, journal sem erros). A V.1.4.147 já estava em produção antes

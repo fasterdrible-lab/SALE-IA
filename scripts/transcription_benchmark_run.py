@@ -111,6 +111,22 @@ def _real_run(out_path: str | None) -> None:
             json.dump(relatorio, f, ensure_ascii=False, indent=2)
         print(f"\nRelatório salvo em {out_path}")
 
+    # Tarefa D1: registra o WER do provider ativo para GET /admin/readiness.
+    try:
+        import os
+
+        from agent.readiness_rules import medicao_da_transcricao
+        from api.database import registrar_readiness_medicao
+        provider_ativo = os.getenv("TRANSCRICAO_PROVEDOR", "whisper").strip().lower()
+        medicao = medicao_da_transcricao(resumo, provider_ativo)
+        if medicao:
+            registrar_readiness_medicao(fonte="scripts/transcription_benchmark_run.py", **medicao)
+            print(f"WER de {provider_ativo} registrado no painel de prontidão (/admin/readiness).")
+        else:
+            print(f"Sem WER para o provider ativo ({provider_ativo}) — nada registrado no painel de prontidão.")
+    except Exception as e:
+        print(f"Aviso: não foi possível registrar no painel de prontidão: {type(e).__name__}: {e}")
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)

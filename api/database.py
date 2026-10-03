@@ -416,6 +416,27 @@ class Opportunity(SQLModel, table=True):
     competitor: Optional[str] = Field(default=None, sa_column=Column(String(200)))
 
 
+class OpportunityStageHistory(SQLModel, table=True):
+    """Histórico de estágio de uma Opportunity (Tarefa B2 de
+    docs/tasks-prompt-mestre-v2-restante.md). `Opportunity.stage` só
+    guarda o valor atual; sem o histórico não dá para saber se a venda
+    avançou entre a reunião de uma recomendação e a seguinte
+    (`stage_advanced`, Fase 10.3). Uma linha por estágio assumido, com o
+    momento em que passou a valer — append-only, nunca editada.
+
+    Gravado por `criar_opportunity()` (estágio inicial) e
+    `atualizar_stage_opportunity()` (só quando o valor muda). Oportunidade
+    anterior à B2 ganha a linha do estágio original (com `created_at` da
+    oportunidade) na primeira mudança."""
+
+    __tablename__ = "opportunity_stage_history"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    opportunity_id: int = Field(sa_column=Column(Integer, index=True, nullable=False))
+    stage: str = Field(default="", sa_column=Column(String(60), nullable=False))
+    changed_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+
+
 class OpportunityMemory(SQLModel, table=True):
     """Conhecimento agregado de uma Opportunity ao longo de várias
     reuniões ("PROMPT MESTRE — SALE-IA V2", Fase 2 / Tarefa 2.1) — 1
@@ -559,6 +580,12 @@ class RecommendationEvent(SQLModel, table=True):
     seller_action: Optional[str] = Field(default=None, sa_column=Column(Text))
     outcome_window: Optional[str] = Field(default=None, sa_column=Column(String(60)))
     created_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+    # Tarefa D6 (seção 34, "qual versão recomendou isso"): nullable,
+    # migradas no startup por `migrar_colunas_versionamento()`.
+    reasoning_engine_version: Optional[str] = Field(default=None, sa_column=Column(String(80)))
+    policy_version: Optional[str] = Field(default=None, sa_column=Column(String(80)))
+    knowledge_version: Optional[str] = Field(default=None, sa_column=Column(String(80)))
+    model_version: Optional[str] = Field(default=None, sa_column=Column(String(80)))
 
 
 # ─────────────────────────────────────────────
@@ -2857,6 +2884,9 @@ def criar_opportunity(
         session.add(row)
         session.commit()
         session.refresh(row)
+        # Tarefa B2: estágio inicial entra no histórico.
+        session.add(OpportunityStageHistory(opportunity_id=row.id, stage=stage, changed_at=row.created_at))
+        session.commit()
         return _opportunity_to_dict(row)
 
 
@@ -2893,12 +2923,40 @@ def atualizar_stage_opportunity(opportunity_id: int, stage: str) -> Optional[dic
         row = session.get(Opportunity, opportunity_id)
         if not row:
             return None
+        agora = datetime.now()
+        if (row.stage or "") != (stage or ""):
+            # Tarefa B2: histórico de estágio. Oportunidade anterior à B2
+            # (sem histórico) ganha antes a linha do estágio original.
+            tem_historico = session.exec(
+                select(OpportunityStageHistory.id).where(OpportunityStageHistory.opportunity_id == opportunity_id)
+            ).first()
+            if tem_historico is None:
+                session.add(OpportunityStageHistory(
+                    opportunity_id=opportunity_id, stage=row.stage or "", changed_at=row.created_at or agora,
+                ))
+            session.add(OpportunityStageHistory(opportunity_id=opportunity_id, stage=stage, changed_at=agora))
         row.stage = stage
-        row.updated_at = datetime.now()
+        row.updated_at = agora
         session.add(row)
         session.commit()
         session.refresh(row)
         return _opportunity_to_dict(row)
+
+
+def listar_stage_history_opportunity(opportunity_id: int) -> List[dict]:
+    """Histórico de estágio da oportunidade (Tarefa B2), do mais antigo ao
+    mais recente. Vazio para oportunidade anterior à B2 que nunca mudou
+    de estágio — o chamador trata como "estágio desconhecido no tempo"."""
+    with Session(engine) as session:
+        rows = session.exec(
+            select(OpportunityStageHistory)
+            .where(OpportunityStageHistory.opportunity_id == opportunity_id)
+            .order_by(OpportunityStageHistory.changed_at.asc(), OpportunityStageHistory.id.asc())
+        ).all()
+        return [
+            {"stage": r.stage, "changed_at": r.changed_at.isoformat() if r.changed_at else None}
+            for r in rows
+        ]
 
 
 def atualizar_status_opportunity(
@@ -3047,6 +3105,7 @@ def registrar_conhecimento_opportunity(
     campo: Optional[str] = None,
     evidence: Optional[str] = None,
     confidence: float = 1.0,
+    status: Optional[str] = None,
 ) -> dict:
     """Adiciona um insight a uma categoria da OpportunityMemory (Fase 2 /
     Tarefa 2.1). Dado de domínio — ValueError propaga em categoria
@@ -3083,6 +3142,7 @@ def registrar_conhecimento_opportunity(
             campo=campo,
             evidence=evidence,
             confidence=confidence,
+            status=status,
         )
 
         setattr(row, coluna, json.dumps(nova_lista, ensure_ascii=False))
@@ -3258,6 +3318,7 @@ def _recommendation_event_to_dict(row: "RecommendationEvent") -> dict:
         "seller_action": row.seller_action,
         "outcome_window": row.outcome_window,
         "created_at": row.created_at.isoformat() if row.created_at else None,
+        **{k: getattr(row, k) for k in VERSOES_INTELIGENCIA},
     }
 
 
@@ -3270,6 +3331,7 @@ def criar_recommendation_event(
     opportunity_id: Optional[int] = None,
     outcome_window: Optional[str] = None,
     shown_at: Optional[datetime] = None,
+    versoes: Optional[dict] = None,
 ) -> dict:
     """Cria e persiste um RecommendationEvent (Fase 10 / Tarefa 10.1 do
     "PROMPT MESTRE — SALE-IA V2"). Valida via
@@ -3295,6 +3357,7 @@ def criar_recommendation_event(
             reason=reason,
             outcome_window=outcome_window,
             shown_at=shown_at or datetime.now(),
+            **_versoes_validas(versoes),
         )
         session.add(row)
         session.commit()
@@ -3407,6 +3470,56 @@ class AuditTrailEntry(SQLModel, table=True):
     rule_version: Optional[str] = Field(default=None, sa_column=Column(String(40)))
     result: str = Field(sa_column=Column(Text, nullable=False))
     created_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+    # Tarefa D6 (seção 34): mesmas 4 colunas de RecommendationEvent.
+    reasoning_engine_version: Optional[str] = Field(default=None, sa_column=Column(String(80)))
+    policy_version: Optional[str] = Field(default=None, sa_column=Column(String(80)))
+    knowledge_version: Optional[str] = Field(default=None, sa_column=Column(String(80)))
+    model_version: Optional[str] = Field(default=None, sa_column=Column(String(80)))
+
+
+# Tarefa D6: as 4 versões da inteligência (seção 34 do prompt mestre),
+# gravadas em RecommendationEvent e AuditTrailEntry.
+VERSOES_INTELIGENCIA = ("reasoning_engine_version", "policy_version", "knowledge_version", "model_version")
+
+
+def _versoes_validas(versoes: Optional[dict]) -> dict:
+    """Só as 4 chaves conhecidas, cortadas no tamanho da coluna."""
+    return {
+        k: (str(versoes[k])[:80] if versoes.get(k) is not None else None)
+        for k in VERSOES_INTELIGENCIA if versoes and k in versoes
+    }
+
+
+def migrar_colunas_versionamento() -> list:
+    """Tarefa D6: adiciona as 4 colunas de versão em
+    `recommendation_events`/`audit_trail_entries` quando faltarem —
+    `create_all()` não migra coluna em tabela já existente (mesmo
+    problema das V.1.4.54/1.4.100). Idempotente, roda no startup dentro
+    do lock de DDL da D8. Funciona em MySQL e SQLite. Retorna o que
+    adicionou."""
+    from sqlalchemy import inspect
+
+    adicionadas = []
+    inspetor = inspect(engine)
+    tabelas = set(inspetor.get_table_names())
+    with engine.begin() as conn:
+        for tabela in ("recommendation_events", "audit_trail_entries"):
+            if tabela not in tabelas:
+                continue
+            existentes = {c["name"] for c in inspetor.get_columns(tabela)}
+            for coluna in VERSOES_INTELIGENCIA:
+                if coluna in existentes:
+                    continue
+                try:
+                    conn.execute(text(f"ALTER TABLE {tabela} ADD COLUMN {coluna} VARCHAR(80) NULL"))
+                    adicionadas.append(f"{tabela}.{coluna}")
+                except Exception as exc:
+                    if "1060" in str(exc) or "duplicate column" in str(exc).lower():
+                        continue  # outro worker já adicionou
+                    raise
+    if adicionadas:
+        logger.info("Colunas de versionamento adicionadas: %s", ", ".join(adicionadas))
+    return adicionadas
 
 
 def _audit_trail_entry_to_dict(row: "AuditTrailEntry") -> dict:
@@ -3424,6 +3537,7 @@ def _audit_trail_entry_to_dict(row: "AuditTrailEntry") -> dict:
         "rule_version": row.rule_version,
         "result": row.result,
         "created_at": row.created_at.isoformat() if row.created_at else None,
+        **{k: getattr(row, k) for k in VERSOES_INTELIGENCIA},
     }
 
 
@@ -3440,11 +3554,13 @@ def criar_audit_trail_entry(
     prompt_version: Optional[str] = None,
     rule_version: Optional[str] = None,
     timestamp: Optional[datetime] = None,
+    versoes: Optional[dict] = None,
 ) -> dict:
     """Cria e persiste um AuditTrailEntry (Fase 18 / Tarefa 18.4). Valida
     via agent/audit_trail_rules antes de tocar no banco — ValueError
     propaga para o chamador (dado de domínio, nunca falha silenciosa
-    como AiUsageEvent/KnowledgeItem)."""
+    como AiUsageEvent/KnowledgeItem). `versoes` (Tarefa D6): as 4
+    versões da inteligência, ver `VERSOES_INTELIGENCIA`."""
     from agent.audit_trail_rules import validar_audit_trail_entry
 
     dados = {"actor": actor, "action": action, "reason": reason, "result": result}
@@ -3463,6 +3579,7 @@ def criar_audit_trail_entry(
             prompt_version=prompt_version,
             rule_version=rule_version,
             result=result,
+            **_versoes_validas(versoes),
         )
         session.add(row)
         session.commit()
@@ -3597,6 +3714,145 @@ def contar_policy_violations(
         return session.exec(stmt).one()
 
 
+class ReadinessMedicao(SQLModel, table=True):
+    """Último resultado de cada medição em lote de um critério da Fase 25
+    (Tarefa D1 de docs/tasks-prompt-mestre-v2-restante.md). Golden
+    Dataset, benchmark de transcrição e qualidade de recomendação só
+    rodam por script (custo/tempo) e antes só deixavam um JSON opcional —
+    agora cada `--real` registra aqui, e `GET /admin/readiness` mostra o
+    último valor com a data (fica visível quando a medição envelheceu).
+    Append-only: cada rodada é uma linha; o painel lê a mais recente."""
+
+    __tablename__ = "readiness_medicoes"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    criterio: str = Field(sa_column=Column(String(60), index=True, nullable=False))
+    valor: Optional[float] = Field(default=None, sa_column=Column(Float))
+    origem: str = Field(default="real", sa_column=Column(String(10), nullable=False))
+    amostra: Optional[int] = Field(default=None, sa_column=Column(Integer))
+    fonte: str = Field(default="", sa_column=Column(String(120), nullable=False))
+    detalhe_json: Optional[str] = Field(default=None, sa_column=Column(Text))
+    medido_em: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False, index=True))
+
+
+def registrar_readiness_medicao(
+    criterio: str,
+    valor: Optional[float],
+    *,
+    origem: str = "real",
+    fonte: str = "",
+    amostra: Optional[int] = None,
+    detalhe: Optional[dict] = None,
+) -> dict:
+    """Registra uma medição em lote (Tarefa D1). `ValueError` em critério
+    fora dos 9 da Fase 25 ou origem fora de real/proxy — dado de domínio,
+    mesma convenção de `criar_sales_evidence()`."""
+    from agent.readiness_rules import CRITERIOS_POR_NOME, ORIGENS_MEDICAO
+
+    if criterio not in CRITERIOS_POR_NOME:
+        raise ValueError(f"critério desconhecido: {criterio!r} (esperado um de {sorted(CRITERIOS_POR_NOME)})")
+    if origem not in ORIGENS_MEDICAO:
+        raise ValueError(f"origem inválida: {origem!r} (esperado um de {sorted(ORIGENS_MEDICAO)})")
+    with Session(engine) as session:
+        row = ReadinessMedicao(
+            criterio=criterio,
+            valor=None if valor is None else float(valor),
+            origem=origem,
+            amostra=amostra,
+            fonte=fonte,
+            detalhe_json=json.dumps(detalhe, ensure_ascii=False, default=str) if detalhe is not None else None,
+        )
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _readiness_medicao_to_dict(row)
+
+
+def _readiness_medicao_to_dict(row: "ReadinessMedicao") -> dict:
+    return {
+        "criterio": row.criterio,
+        "valor": row.valor,
+        "origem": row.origem,
+        "amostra": row.amostra,
+        "fonte": row.fonte,
+        "detalhe": json.loads(row.detalhe_json) if row.detalhe_json else None,
+        "medido_em": row.medido_em.isoformat() if row.medido_em else None,
+    }
+
+
+def ultimas_readiness_medicoes() -> dict:
+    """`{criterio: medição mais recente}` (Tarefa D1)."""
+    with Session(engine) as session:
+        rows = session.exec(
+            select(ReadinessMedicao).order_by(ReadinessMedicao.medido_em.asc(), ReadinessMedicao.id.asc())
+        ).all()
+        ultimas = {}
+        for row in rows:
+            ultimas[row.criterio] = _readiness_medicao_to_dict(row)
+        return ultimas
+
+
+def readiness_contagens_ao_vivo(dias: int = 7, agora: Optional[datetime] = None) -> dict:
+    """Contagens que alimentam os critérios calculados ao vivo da Tarefa
+    D1 — leitura pura:
+    - `audit_coverage`: chamadas `sales_reasoning.raciocinio` × entradas
+      de AuditTrail do motor, desde a 1ª auditoria (o audit trail só
+      existe desde a V.1.4.130; contar chamadas anteriores foi o erro de
+      medição achado na V.1.4.141), limitado à janela de `dias`;
+    - `e2e`: chamadas de IA com e sem sucesso na janela (proxy
+      1 − error_rate, mesmo da medição da V.1.4.136);
+    - `policy_violations`: total histórico (alvo da Fase 25 é 0)."""
+    from api import ai_features
+
+    agora = agora or datetime.now()
+    inicio_janela = agora - timedelta(days=dias)
+    with Session(engine) as session:
+        primeira_auditoria = session.exec(
+            select(func.min(AuditTrailEntry.created_at)).where(AuditTrailEntry.actor == "sales_reasoning_engine")
+        ).one()
+        chamadas_motor = audits_motor = 0
+        if primeira_auditoria:
+            inicio_audit = max(primeira_auditoria, inicio_janela)
+            # A auditoria é gravada DEPOIS que a chamada de IA termina:
+            # contar chamadas só a partir da 1ª auditoria deixaria de fora
+            # justamente a chamada que a gerou (achado da D4 — cobertura
+            # aparecia > 100%). O denominador começa na última chamada do
+            # motor anterior a esse ponto.
+            chamada_ancora = session.exec(
+                select(func.max(AiUsageEvent.criado_em)).where(
+                    AiUsageEvent.feature == ai_features.SALES_REASONING_RACIOCINIO,
+                    AiUsageEvent.criado_em <= inicio_audit,
+                    AiUsageEvent.criado_em >= inicio_janela,
+                )
+            ).one()
+            chamadas_motor = session.exec(
+                select(func.count(AiUsageEvent.id)).where(
+                    AiUsageEvent.feature == ai_features.SALES_REASONING_RACIOCINIO,
+                    AiUsageEvent.criado_em >= (chamada_ancora or inicio_audit),
+                )
+            ).one()
+            audits_motor = session.exec(
+                select(func.count(AuditTrailEntry.id)).where(
+                    AuditTrailEntry.actor == "sales_reasoning_engine",
+                    AuditTrailEntry.created_at >= inicio_audit,
+                )
+            ).one()
+        total_ia = session.exec(
+            select(func.count(AiUsageEvent.id)).where(AiUsageEvent.criado_em >= inicio_janela)
+        ).one()
+        sucesso_ia = session.exec(
+            select(func.count(AiUsageEvent.id)).where(
+                AiUsageEvent.criado_em >= inicio_janela, AiUsageEvent.success.is_(True),
+            )
+        ).one()
+    return {
+        "janela_dias": dias,
+        "audit": {"chamadas": chamadas_motor, "auditadas": audits_motor},
+        "e2e": {"total": total_ia, "sucesso": sucesso_ia},
+        "policy_violations": contar_policy_violations(),
+    }
+
+
 class ShadowModeComparison(SQLModel, table=True):
     """Fase 23 do "PROMPT MESTRE — SALE-IA V2" — Teste em Shadow Mode.
     Um registro por ciclo de `/tempo-real` em que o
@@ -3729,7 +3985,8 @@ def obter_ultimo_ai_usage_event(feature: str, meeting_id: Optional[str]) -> Opti
         row = session.exec(stmt).first()
         if not row:
             return None
-        return {"cost_usd": row.cost_usd, "latency_ms": row.latency_ms, "success": row.success}
+        return {"cost_usd": row.cost_usd, "latency_ms": row.latency_ms, "success": row.success,
+                "provider": row.provider, "model": row.model}
 
 
 def coletar_dados_qualidade() -> dict:
