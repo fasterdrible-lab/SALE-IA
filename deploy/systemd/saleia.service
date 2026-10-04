@@ -1,0 +1,25 @@
+# /etc/systemd/system/saleia.service — versão em produção (VPS 37.27.214.33).
+# Instalar com deploy/systemd/instalar.sh (não editar só na VPS).
+#
+# D12 (V.1.4.163): o reinício diário saiu do RuntimeMaxSec=86400, cujo
+# horário andava a cada deploy manual (caiu às 19:00 UTC de 28/09, em
+# horário de reunião), e foi para saleia-restart-diario.timer (03:00 BRT,
+# só com reunioes_ativas = 0). O RuntimeMaxSec de 48h fica como rede de
+# segurança caso o timer falhe 2 dias seguidos.
+[Unit]
+Description=SALEIA Backend
+After=network.target mysql.service
+
+[Service]
+User=root
+WorkingDirectory=/opt/saleia
+# --timeout-graceful-shutdown: espera as requisições em curso (ciclo de
+# /tempo-real com IA) por até 25s, antes do SIGKILL do TimeoutStopSec=30.
+ExecStart=/opt/saleia/venv/bin/uvicorn api.main:app --host 127.0.0.1 --port 8000 --workers 2 --timeout-graceful-shutdown 25
+Restart=always
+RestartSec=5
+RuntimeMaxSec=172800
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,10 @@
+# /etc/systemd/system/saleia-restart-diario.service — D12 (V.1.4.163).
+[Unit]
+Description=SALEIA - reinicio diario seguro (so sem reuniao ativa)
+After=saleia.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/saleia/deploy/systemd/saleia-restart-diario.sh
+# até 3h esperando reunião acabar + folga
+TimeoutStartSec=4h

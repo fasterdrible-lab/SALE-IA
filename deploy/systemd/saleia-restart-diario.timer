@@ -1,0 +1,11 @@
+# /etc/systemd/system/saleia-restart-diario.timer — D12 (V.1.4.163).
+# 06:00 UTC = 03:00 em Brasília, fora do horário de reunião.
+[Unit]
+Description=SALEIA - agenda o reinicio diario seguro
+
+[Timer]
+OnCalendar=*-*-* 06:00:00 UTC
+Persistent=false
+
+[Install]
+WantedBy=timers.target

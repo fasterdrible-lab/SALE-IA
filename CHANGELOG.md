@@ -3,6 +3,43 @@
 
 ---
 
+## V.1.4.163 — Reinício diário em horário fixo e só sem reunião ativa (Tarefa D12)
+
+> Data: 04/10/2026 | Infra (systemd), sem mudança de código da aplicação
+
+Achado ao investigar o "`Failed with result 'timeout'`" do restart
+diário (journal de 21 dias na VPS):
+
+- **O "timeout" é cosmético.** É o resultado que o systemd grava
+  sempre que um serviço bate o `RuntimeMaxSec`. As paradas levaram de
+  0 a 8s, nunca os 30s do `TimeoutStopSec`, e não houve SIGKILL.
+- **O risco real era o horário andar.** O `RuntimeMaxSec=86400` conta
+  24h desde o último start, e cada deploy manual empurrava o horário:
+  19:00, 20:29, 06:11 UTC... Em 28/09 caiu às 19:00 UTC (16:00 BRT), em
+  horário de reunião, e esperou 8s por requisições em curso.
+
+Mudança (arquivos novos em `deploy/systemd/`, agora versionados; antes
+a unit só existia na VPS):
+
+- **`saleia-restart-diario.timer`** às 06:00 UTC (03:00 BRT) +
+  **`saleia-restart-diario.sh`**: só reinicia com `reunioes_ativas = 0`
+  (mesmo sinal do deploy). Com reunião ativa ou `/health` fora, tenta
+  de novo a cada 5 min por até 3h. Pula o dia se o serviço subiu há
+  menos de 12h (ex.: deploy recente).
+- **`saleia.service`**: `RuntimeMaxSec` 24h → 48h (rede de segurança se
+  o timer falhar 2 dias) e `--timeout-graceful-shutdown 25` no uvicorn
+  (espera o ciclo em curso, sempre antes do SIGKILL dos 30s).
+- **`instalar.sh`**: backup da unit atual, `systemd-analyze verify`,
+  `daemon-reload` e ativa o timer. **Não reinicia o saleia**: a unit
+  nova vale no próximo reinício, que o próprio timer faz de madrugada.
+  `/health` mostrando `1.4.163` depois das 03:00 BRT confirma que o
+  timer funcionou.
+- `deploy/setup_vps.sh` segue desatualizado (domínio/usuário antigos);
+  não é usado nesta VPS.
+- Versão: `1.4.162` → `1.4.163`.
+
+---
+
 ## V.1.4.162 — Alucinação crítica: falsos positivos de fase/estágio em português (fix da D2)
 
 > Data: 03/10/2026
