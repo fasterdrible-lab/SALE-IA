@@ -391,3 +391,6 @@ explícita, uma de cada vez — mesma disciplina de todo o roadmap.
   alvo), critical_hallucination 2,5% (1 falso positivo, real 0%),
   event_precision 48,9% / recall 74,2% (A7 abaixo do alvo de 90%).
   Nova candidata: **A7b — precisão do extrator de SalesEvent**.
+- **04/10/2026**: extrator de SalesEvent desligado em produção
+  (`SALES_EVENT_EXTRACTOR_ENABLED=false`) até a A7b. Religar faz parte
+  da A7b.

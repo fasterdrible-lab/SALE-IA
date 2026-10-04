@@ -1,5 +1,14 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-10-04 — **Extrator de SalesEvent desligado em
+produção** (`SALES_EVENT_EXTRACTOR_ENABLED=false` no `.env` da VPS,
+backup em `.env.bak_pre_sales_event_off`; restart com
+`reunioes_ativas: 0`, journal limpo). Motivo: `event_precision` 48,9%,
+o dado não é usado pelo vendedor e custava +1 chamada de IA por ciclo.
+O runner do Golden Dataset não depende do flag (só o orquestrador
+checa), então a A7b continua mensurável. Religar só depois da A7b
+passar no alvo.
+
 Atualizado em: 2026-10-03 — **Produção em V.1.4.162** (commit
 `5d17efe`, fix dos falsos positivos de alucinação crítica; deploy com
 `reunioes_ativas: 0`, `NRestarts=0`, journal limpo). **Golden Dataset
