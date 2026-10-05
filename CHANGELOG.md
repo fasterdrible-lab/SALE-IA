@@ -3,6 +3,33 @@
 
 ---
 
+## Docs (sem bump) — 6 documentos obrigatórios da seção 35 (Tarefa D9)
+
+> Data: 05/10/2026 | Só documentação, sem mudança de código nem deploy
+
+Criados em `docs/`, descrevendo o código em V.1.4.164 (com caminhos de
+arquivo e as lacunas conhecidas, sem nada aspiracional):
+
+- `SALES_BRAIN_ARCHITECTURE.md`: ciclo de `/tempo-real`, os 11 campos
+  do SalesReasoningEngine e suas fontes, escritores, guardas, choke-point
+  de IA, memória e tabela de kill-switches com o valor em produção.
+- `SALES_SCIENCE.md`: associação nunca causa, amostra mínima 30, Wilson,
+  IQR, Simpson; módulos por fase; estado dos dados.
+- `AUTONOMY_POLICY.md`: 6 níveis, 5 fronteiras, portão único fail-closed,
+  escalonamento humano; nada autônomo roda hoje.
+- `TEST_STRATEGY.md`: camadas (unitário → E2E → evals → Golden Dataset),
+  armadilhas (`.env` local aponta para o MySQL de produção,
+  `logging.disable` global), DoD.
+- `SECURITY_MODEL.md`: JWT/sessão deslizante, bloqueio de login, rate
+  limit por IP, isolamento por dono, redação de segredos, prompt
+  injection, classificação de dados, CORS, lacunas operacionais.
+- `DATA_DICTIONARY.md`: todas as tabelas (SQLModel e SQL direto), com
+  conteúdo e classificação.
+
+`ARCHITECTURE.md` passa a apontar para os 6.
+
+---
+
 ## V.1.4.164 — Alertas do Telegram: IPv4, sem bloquear a reunião e sem flood (Tarefa D13)
 
 > Data: 05/10/2026

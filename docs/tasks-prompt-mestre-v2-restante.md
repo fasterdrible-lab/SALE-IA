@@ -268,7 +268,15 @@ Achado original:
   escritas no README e revisão humana das mudanças + regras no prompt
   para os 5 erros reais + nova rodada do diagnóstico.
 
-### D9 — 6 documentos obrigatórios (seção 35)
+### D9 — 6 documentos obrigatórios (seção 35) [CONCLUÍDA — 05/10/2026]
+- Criados em `docs/`: SALES_BRAIN_ARCHITECTURE, SALES_SCIENCE,
+  AUTONOMY_POLICY, TEST_STRATEGY, SECURITY_MODEL, DATA_DICTIONARY.
+  Descrevem o código em V.1.4.164, com as lacunas conhecidas (retenção
+  de dados sem job, reuniões anônimas sem dono, `/tempo-real` sem rate
+  limit por IP, acesso à VPS por senha). ARCHITECTURE.md aponta para
+  eles.
+
+Pedido original:
 - `SALES_BRAIN_ARCHITECTURE`, `SALES_SCIENCE`, `AUTONOMY_POLICY`,
   `TEST_STRATEGY`, `SECURITY_MODEL`, `DATA_DICTIONARY`. Nenhum existe.
 ### D10 — Camada `domain/`/`application/` (seção 4) [decisão]

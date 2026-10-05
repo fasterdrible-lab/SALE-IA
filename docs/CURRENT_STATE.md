@@ -1,5 +1,14 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-10-05 — **D9 concluída** (só documentação, sem
+deploy): 6 documentos da seção 35 em `docs/` —
+[SALES_BRAIN_ARCHITECTURE](SALES_BRAIN_ARCHITECTURE.md),
+[SALES_SCIENCE](SALES_SCIENCE.md), [AUTONOMY_POLICY](AUTONOMY_POLICY.md),
+[TEST_STRATEGY](TEST_STRATEGY.md), [SECURITY_MODEL](SECURITY_MODEL.md),
+[DATA_DICTIONARY](DATA_DICTIONARY.md). A **A7b** está pausada com
+diagnóstico pronto (ver fila). Próximas candidatas: A7b (retomar o
+plano), C8, C3/passo 7 quando houver volume.
+
 Atualizado em: 2026-10-05 — **Produção em V.1.4.164 (D13)**, commit
 `a23aae0`, deploy com `reunioes_ativas: 0`, `NRestarts=0`, journal
 limpo. **D12 confirmada**: o timer reiniciou sozinho de madrugada

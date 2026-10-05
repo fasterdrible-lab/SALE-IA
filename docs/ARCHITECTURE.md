@@ -1,5 +1,17 @@
 # SALEIA - Arquitetura
 
+> Documentos detalhados (seção 35 do Prompt Mestre V2, desde 05/10/2026):
+> [SALES_BRAIN_ARCHITECTURE.md](SALES_BRAIN_ARCHITECTURE.md) (motor de
+> raciocínio, extratores, memória, kill-switches) ·
+> [SALES_SCIENCE.md](SALES_SCIENCE.md) ·
+> [AUTONOMY_POLICY.md](AUTONOMY_POLICY.md) ·
+> [TEST_STRATEGY.md](TEST_STRATEGY.md) ·
+> [SECURITY_MODEL.md](SECURITY_MODEL.md) ·
+> [DATA_DICTIONARY.md](DATA_DICTIONARY.md). Este arquivo é a visão geral;
+> partes abaixo (domínio `api.saleia.com.br`, "stub" de recuperação de
+> senha) são históricas — o domínio atual é `api.saleia.app.br` e a
+> recuperação por e-mail existe desde a V.1.4.2.
+
 ## Visao Geral
 
 O SALEIA monitora reunioes de vendas, captura transcricoes, orienta o vendedor em tempo real e gera relatorios de diagnostico e recapitulação. A arquitetura mantém a logica de negocio e as chaves de IA no backend; o frontend apenas envia dados e exibe respostas.
