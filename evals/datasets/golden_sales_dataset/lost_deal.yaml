@@ -15,6 +15,7 @@
       evidence_quote: "Vamos seguir com o outro fornecedor"
   expected_events:
     - "DEAL_LOST"
+    - "COMPETITOR_MENTIONED"
   expected_framework: null
   acceptable_actions:
     - "Agradecer a transparência, registrar o motivo real (gap de funcionalidade) e perguntar se pode manter contato para o futuro"
@@ -50,6 +51,7 @@
       evidence_quote: "não temos verba esse ano"
   expected_events:
     - "DEAL_LOST"
+    - "BUDGET_IDENTIFIED"
   expected_framework: null
   acceptable_actions:
     - "Perguntar se faz sentido reabrir a conversa no próximo ciclo orçamentário e registrar isso como follow-up futuro"
@@ -67,6 +69,7 @@
       evidence_quote: "decidimos não mudar nada por enquanto, vamos continuar como está"
   expected_events:
     - "DEAL_LOST"
+    - "COMPETITOR_MENTIONED"
   expected_framework: null
   acceptable_actions:
     - "Registrar o motivo real (status quo) — distinto de perder para concorrente, informação útil para análise futura de win/loss"

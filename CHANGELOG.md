@@ -3,6 +3,80 @@
 
 ---
 
+## V.1.4.165 — event_precision 47% → 100%: gabarito exaustivo + definições no prompt do extrator de SalesEvent (Tarefa A7b)
+
+> Data: 05/10/2026 | Local, pendente deploy (e religar `SALES_EVENT_EXTRACTOR_ENABLED`)
+
+`event_precision` estava em 46,9% (alvo da Fase 25: ≥ 90%) e o
+extrator foi desligado em produção em 04/10. Diagnóstico cenário a
+cenário (`scripts/sales_event_diagnostico.py`, 40 chamadas por rodada):
+
+- **A maior parte do erro era o gabarito.** `expected_events` listava
+  só o evento "principal", mas a métrica o trata como lista completa.
+  Dos 26 falsos positivos, ~20 eram eventos reais com frase certa.
+- **Golden Dataset v1.2.0**: regras de rotulagem escritas no README
+  *antes* de mudar os rótulos (por tipo: o que conta e o que não conta,
+  a partir das definições do prompt) e aplicadas aos 40 cenários. 22
+  mudaram. Nem todas a favor da IA: entram eventos que ela não marcava
+  (`objections-02` OBJECTION_RAISED, `qualification-04`
+  DECISION_MAKER_IDENTIFIED, `negotiation-03` três tipos) e sai um que
+  ela marcava (`good-seller-04` NEXT_STEP_AGREED).
+  As 22 mudanças (+ entra, − sai):
+
+  | Cenário | Mudança |
+  |---|---|
+  | bad-seller-01 | + PRICE_DISCUSSION |
+  | bad-seller-03 | + COMPETITOR_MENTIONED |
+  | closing-01 | + BUYING_SIGNAL, + DECISION_MAKER_IDENTIFIED, − NEXT_STEP_AGREED |
+  | closing-02 | + BUYING_SIGNAL |
+  | closing-03 | + BUYING_SIGNAL |
+  | discovery-02 | + IMPACT_IDENTIFIED, + COMPETITOR_MENTIONED |
+  | discovery-04 | + IMPACT_IDENTIFIED, − BUYING_SIGNAL |
+  | good-seller-04 | + BUYING_SIGNAL, + PRICE_DISCUSSION, − NEXT_STEP_AGREED |
+  | lost-deal-01 | + COMPETITOR_MENTIONED |
+  | lost-deal-03 | + BUDGET_IDENTIFIED |
+  | lost-deal-04 | + COMPETITOR_MENTIONED |
+  | negotiation-01 | + BUYING_SIGNAL |
+  | negotiation-02 | + PRICE_DISCUSSION, + OBJECTION_RAISED |
+  | negotiation-03 | + PRICE_DISCUSSION, + OBJECTION_RAISED, + COMPETITOR_MENTIONED |
+  | negotiation-04 | + BUYING_SIGNAL, + PRICE_DISCUSSION |
+  | objections-02 | + OBJECTION_RAISED |
+  | objections-04 | − OBJECTION_RESOLVED |
+  | pricing-03 | + PRICE_DISCUSSION |
+  | pricing-04 | + OBJECTION_RAISED, − OBJECTION_RESOLVED |
+  | qualification-04 | + DECISION_MAKER_IDENTIFIED |
+  | won-deal-01 | + PRICE_DISCUSSION |
+  | won-deal-04 | − BUYING_SIGNAL |
+- **Mesmas respostas da IA, gabarito novo**: 46,9% → 81,6%. Os 9 FP
+  restantes eram erros reais (DEAL_STALLED para hesitação, NEXT_STEP sem
+  aceite, CHAMPION para indicação de terceiro, PAIN sem o problema dito,
+  OBJECTION no motivo de uma recusa definitiva).
+- **Prompt** (`sales_event_extractor.txt`, **muda produção**): cada tipo
+  ganha "conta / não conta" com as mesmas definições do README, regra de
+  "uma frase pode comprovar mais de um tipo" e "compra fechada é DEAL_WON,
+  não BUYING_SIGNAL". Exemplos do prompt são frases novas, nunca do
+  gabarito (um rascunho copiava frases dos cenários e foi refeito).
+- **`CONFIANCA_MINIMA = 0.5`** no extrator: evento que a própria IA marca
+  com confiança baixa é descartado (ex.: CHAMPION 0,3).
+
+| Rodada (40 cenários, IA real) | Precisão | Recall |
+|---|---|---|
+| Prompt antigo × gabarito v1.1.0 | 46,9% | 74,2% |
+| Prompt antigo × gabarito v1.2.0 (recalculado, sem IA) | 81,6% | 76,9% |
+| Prompt novo (1ª versão) | 89,6% | 82,7% |
+| Prompt novo + DEAL_WON corrigido | 97,9% | 88,5% |
+| **Código final (prompt + limite de confiança)** | **100%** | **88,5%** |
+
+- **Limitação**: o ajuste e a medição usaram o mesmo conjunto de 40
+  cenários (não há conjunto separado rotulado com eventos). A proteção
+  é o teste novo que impede o prompt de conter qualquer sequência de 5
+  palavras de um cenário. Vale medir de novo com reuniões reais.
+- 2 testes novos (`tests/test_sales_event_extractor.py`), incluindo a
+  guarda contra vazamento do gabarito no prompt.
+- Versão: `1.4.164` → `1.4.165`. Sem tabela/coluna nova.
+
+---
+
 ## Docs (sem bump) — 6 documentos obrigatórios da seção 35 (Tarefa D9)
 
 > Data: 05/10/2026 | Só documentação, sem mudança de código nem deploy

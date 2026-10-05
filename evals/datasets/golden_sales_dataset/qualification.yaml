@@ -70,7 +70,8 @@
     - campo: "decision_process"
       valor: "desconhecido pelo próprio interlocutor, possivelmente envolve jurídico"
       evidence_quote: "acho que passa por jurídico também, mas nunca acompanhei esse fluxo de perto"
-  expected_events: []
+  expected_events:
+    - "DECISION_MAKER_IDENTIFIED"
   expected_framework: "MEDDPICC_QUALIFICATION"
   acceptable_actions:
     - "Sugerir buscar, junto com o champion, quem no jurídico/financeiro poderia confirmar o processo real de aprovação"

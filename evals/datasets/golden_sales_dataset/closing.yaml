@@ -11,7 +11,8 @@
       valor: "economic buyer confirmado, aprovação já obtida"
       evidence_quote: "Já validei com meu sócio, ele topou. Podemos seguir com o contrato"
   expected_events:
-    - "NEXT_STEP_AGREED"
+    - "BUYING_SIGNAL"
+    - "DECISION_MAKER_IDENTIFIED"
   expected_framework: "CLOSING"
   acceptable_actions:
     - "Propor o próximo passo concreto e objetivo (envio do contrato, data de assinatura)"
@@ -28,6 +29,7 @@
       valor: "risco de adoção pela equipe ainda não endereçado"
       evidence_quote: "ainda tô meio inseguro se minha equipe vai aderir"
   expected_events:
+    - "BUYING_SIGNAL"
     - "OBJECTION_RAISED"
   expected_framework: "OBJECTION_INVESTIGATION"
   acceptable_actions:
@@ -46,6 +48,7 @@
       valor: "envio de contrato combinado, sem data de retorno definida ainda"
       evidence_quote: "Vou te mandar o contrato"
   expected_events:
+    - "BUYING_SIGNAL"
     - "NEXT_STEP_AGREED"
   expected_framework: "CLOSING"
   acceptable_actions:

@@ -47,6 +47,7 @@
       valor: "preço percebido como alto, sem detalhamento do motivo ainda"
       evidence_quote: "Está caro"
   expected_events:
+    - "PRICE_DISCUSSION"
     - "OBJECTION_RAISED"
   expected_framework: "OBJECTION_INVESTIGATION"
   acceptable_actions:
@@ -65,7 +66,7 @@
       valor: "risco de adoção pela equipe, não o valor do investimento"
       evidence_quote: "não é o valor em si, é que a gente não tem certeza se a equipe vai realmente usar isso no dia a dia"
   expected_events:
-    - "OBJECTION_RESOLVED"
+    - "OBJECTION_RAISED"
   expected_framework: "RISK_MITIGATION"
   acceptable_actions:
     - "Propor mitigar o risco de adoção (ex.: onboarding assistido, período de teste) em vez de mexer só no preço"

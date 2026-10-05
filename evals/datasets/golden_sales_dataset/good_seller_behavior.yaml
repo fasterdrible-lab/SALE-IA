@@ -63,7 +63,8 @@
       valor: "resume e confirma o acordo antes de avançar, evitando mal-entendido"
       evidence_quote: "Só pra confirmar antes de seguir: ficamos no plano completo, R$ 4.500/mês, com onboarding assistido nas primeiras 4 semanas"
   expected_events:
-    - "NEXT_STEP_AGREED"
+    - "BUYING_SIGNAL"
+    - "PRICE_DISCUSSION"
   expected_framework: "CLOSING"
   acceptable_actions:
     - "Reconhecer o resumo como boa prática antes do fechamento formal"

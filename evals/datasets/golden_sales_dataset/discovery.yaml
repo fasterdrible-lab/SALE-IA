@@ -36,6 +36,8 @@
       evidence_quote: "um vendedor esqueceu de retornar um cliente grande e a gente só ficou sabendo quando o cliente já tinha fechado com concorrente"
   expected_events:
     - "PAIN_DETECTED"
+    - "IMPACT_IDENTIFIED"
+    - "COMPETITOR_MENTIONED"
   expected_framework: "SPIN_PROBLEM"
   acceptable_actions:
     - "Aprofundar o problema: perguntar com que frequência isso acontece, não só o caso único"
@@ -74,7 +76,7 @@
       valor: "crescer vendas sem aumentar quadro de vendedores"
       evidence_quote: "a gente ia conseguir vender muito mais sem precisar contratar mais gente"
   expected_events:
-    - "BUYING_SIGNAL"
+    - "IMPACT_IDENTIFIED"
   expected_framework: "SPIN_NEED_PAYOFF"
   acceptable_actions:
     - "Deixar o próprio cliente articular o valor da solução, sem o vendedor entregar pronto"

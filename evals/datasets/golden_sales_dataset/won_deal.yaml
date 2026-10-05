@@ -15,6 +15,7 @@
       evidence_quote: "Fechamos o plano completo"
   expected_events:
     - "DEAL_WON"
+    - "PRICE_DISCUSSION"
   expected_framework: null
   acceptable_actions:
     - "Confirmar os próximos passos de onboarding/implementação"
@@ -65,7 +66,6 @@
       evidence_quote: "tenho um parceiro que também tem esse mesmo problema, posso te apresentar"
   expected_events:
     - "DEAL_WON"
-    - "BUYING_SIGNAL"
   expected_framework: null
   acceptable_actions:
     - "Agradecer e registrar a indicação como próximo passo separado, sem misturar com o fechamento atual"

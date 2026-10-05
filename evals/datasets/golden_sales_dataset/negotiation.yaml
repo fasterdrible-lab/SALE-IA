@@ -11,6 +11,7 @@
       valor: "20%, sem justificativa/objeção investigada"
       evidence_quote: "Fecho hoje mesmo se vocês derem 20% de desconto"
   expected_events:
+    - "BUYING_SIGNAL"
     - "PRICE_DISCUSSION"
   expected_framework: "OBJECTION_INVESTIGATION"
   acceptable_actions:
@@ -28,7 +29,9 @@
     - campo: "condicao_pedida"
       valor: "prazo de pagamento em 60 dias, valor já aceito"
       evidence_quote: "O valor tá ok, mas a gente só consegue pagar em 60 dias"
-  expected_events: []
+  expected_events:
+    - "PRICE_DISCUSSION"
+    - "OBJECTION_RAISED"
   expected_framework: "NEGOTIATION"
   acceptable_actions:
     - "Explorar se existe flexibilidade real de prazo dentro da política comercial, sem mexer no valor"
@@ -45,7 +48,10 @@
     - campo: "tatica_do_cliente"
       valor: "pressão/ameaça de cancelamento para forçar desconto"
       evidence_quote: "Se não fechar esse desconto agora, vou cancelar e procurar outra empresa"
-  expected_events: []
+  expected_events:
+    - "PRICE_DISCUSSION"
+    - "OBJECTION_RAISED"
+    - "COMPETITOR_MENTIONED"
   expected_framework: "NEGOTIATION"
   acceptable_actions:
     - "Manter a calma, resumir o valor já validado antes na conversa e perguntar com clareza o que realmente motivou a mudança de tom"
@@ -61,7 +67,9 @@
     - campo: "pedido_de_escopo"
       valor: "módulo de relatórios incluído sem custo adicional"
       evidence_quote: "quero incluir também o módulo de relatórios sem custo extra"
-  expected_events: []
+  expected_events:
+    - "BUYING_SIGNAL"
+    - "PRICE_DISCUSSION"
   expected_framework: "NEGOTIATION"
   acceptable_actions:
     - "Explicar o valor real do módulo pedido e avaliar uma troca justa (ex.: contrato mais longo em vez de escopo grátis)"

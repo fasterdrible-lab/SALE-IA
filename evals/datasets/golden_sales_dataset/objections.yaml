@@ -30,6 +30,7 @@
       evidence_quote: "já está conversando com outro fornecedor também, então vamos comparar"
   expected_events:
     - "COMPETITOR_MENTIONED"
+    - "OBJECTION_RAISED"
   expected_framework: "OBJECTION_INVESTIGATION"
   acceptable_actions:
     - "Perguntar o que é mais importante para o cliente na comparação, sem atacar diretamente o concorrente"
@@ -74,7 +75,6 @@
       evidence_quote: "tenho medo da minha equipe não usar isso no dia a dia"
   expected_events:
     - "OBJECTION_RAISED"
-    - "OBJECTION_RESOLVED"
   expected_framework: "RISK_MITIGATION"
   acceptable_actions:
     - "Tratar a causa raiz real (adoção) com plano de onboarding/acompanhamento, não descontar o preço"

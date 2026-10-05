@@ -41,6 +41,11 @@ _SYSTEM_PROMPT = (
 )
 
 
+# Tarefa A7b: evento que a própria IA marca com confiança baixa é a frase
+# mal comprovando o tipo (ex.: CHAMPION 0,3 para indicação de terceiro).
+CONFIANCA_MINIMA = 0.5
+
+
 def sales_event_extractor_ativo() -> bool:
     return os.getenv("SALES_EVENT_EXTRACTOR_ENABLED", "true").strip().lower() != "false"
 
@@ -56,7 +61,7 @@ def _evento_valido(evento, texto_completo: str) -> bool:
         confidence = float(evento.get("confidence"))
     except (TypeError, ValueError):
         return False
-    if not 0.0 <= confidence <= 1.0:
+    if not CONFIANCA_MINIMA <= confidence <= 1.0:
         return False
     citacao = evento.get("evidence_quote")
     if not isinstance(citacao, str) or not citacao.strip():

@@ -21,6 +21,7 @@ logging.disable(logging.CRITICAL)
 
 import agent.multiagente.orquestrador as orquestrador
 from agent.sales_event_extractor import (
+    CONFIANCA_MINIMA,
     contar_precisao_eventos,
     extrair_sales_events_async,
     persistir_sales_events_do_ciclo,
@@ -66,6 +67,14 @@ class ExtrairTest(unittest.TestCase):
         ]})
         self.assertEqual([e["event_type"] for e in eventos], ["OBJECTION_RAISED"])
 
+    def test_confianca_abaixo_do_minimo_e_descartada(self):
+        # A7b: a própria IA marcando com confiança baixa = frase mal comprova o tipo.
+        eventos, _ = _extrair({"eventos": [
+            _ev("CHAMPION_IDENTIFIED", "achei caro pra gente agora", 0.3),
+            _ev("PRICE_DISCUSSION", "quanto fica o plano anual?", CONFIANCA_MINIMA),
+        ]})
+        self.assertEqual([e["event_type"] for e in eventos], ["PRICE_DISCUSSION"])
+
     def test_mesmo_evento_com_a_mesma_fala_nao_duplica(self):
         eventos, _ = _extrair({"eventos": [
             _ev("PRICE_DISCUSSION", "quanto fica o plano anual?"),
@@ -83,6 +92,29 @@ class ExtrairTest(unittest.TestCase):
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("SALES_EVENT_EXTRACTOR_ENABLED", None)
             self.assertTrue(sales_event_extractor_ativo())
+
+
+class PromptSemVazamentoDoGabaritoTest(unittest.TestCase):
+    """A7b: exemplos do prompt nunca podem ser frases do Golden Dataset —
+    senão o `event_precision` mede a IA nos exemplos que ela acabou de ver."""
+
+    def test_prompt_nao_contem_5_palavras_seguidas_de_nenhum_cenario(self):
+        import re
+        from pathlib import Path
+
+        from agent.quality_monitoring_golden_runner import carregar_cenarios_golden_dataset
+
+        def palavras(texto):
+            return re.findall(r"\w+", texto.lower())
+
+        prompt = " ".join(palavras(
+            (Path(__file__).parent.parent / "agent" / "prompt_templates" / "sales_event_extractor.txt").read_text(encoding="utf-8")
+        ))
+        for cenario in carregar_cenarios_golden_dataset():
+            p = palavras(cenario["input"])
+            for i in range(len(p) - 4):
+                trecho = " ".join(p[i:i + 5])
+                self.assertNotIn(trecho, prompt, f"{cenario['id']}: '{trecho}'")
 
 
 class PrecisaoTest(unittest.TestCase):
