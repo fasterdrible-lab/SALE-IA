@@ -247,6 +247,26 @@ Achado original:
   (`sales_event_extractor.txt`) com os erros por cenário e remedir.
   Religar `SALES_EVENT_EXTRACTOR_ENABLED` na VPS (desligado em 04/10) só
   quando passar no alvo.
+- **Diagnóstico feito (05/10/2026), tarefa PAUSADA aguardando decisão**:
+  `scripts/sales_event_diagnostico.py --real` (40 chamadas, só o
+  extrator) reproduziu 46,9% / 74,2% (23 VP, 26 FP, 8 FN). Dos 26 FP:
+  - ~19-21 são **gabarito incompleto**: `expected_events` lista só o
+    evento principal, mas a métrica o trata como exaustivo (ex.:
+    PRICE_DISCUSSION em won-deal-01 "R$ 4.500/mês" e negotiation-02
+    "pagar em 60 dias"; COMPETITOR_MENTIONED em lost-deal-01; BUYING_SIGNAL
+    em negotiation-04 "topo fechar");
+  - 2 são **gabarito errado**: objections-04 e pricing-04 esperam
+    OBJECTION_RESOLVED, mas a conversa só revela a causa real;
+  - ~5-7 são **erro real da IA**: DEAL_STALLED para hesitação
+    (closing-04, good-seller-03), NEXT_STEP_AGREED só com proposta do
+    vendedor (good-seller-03), CHAMPION para indicação de terceiro
+    (won-deal-04), DEAL_LOST não marcado em "não temos verba esse ano"
+    (lost-deal-03), PRICE_DISCUSSION citando "não é o preço"
+    (bad-seller-04).
+  Com gabarito completo a precisão atual seria ~85-88%. **Plano proposto**
+  (não executado): gabarito v1.2.0 exaustivo nos 40 cenários com regras
+  escritas no README e revisão humana das mudanças + regras no prompt
+  para os 5 erros reais + nova rodada do diagnóstico.
 
 ### D9 — 6 documentos obrigatórios (seção 35)
 - `SALES_BRAIN_ARCHITECTURE`, `SALES_SCIENCE`, `AUTONOMY_POLICY`,
