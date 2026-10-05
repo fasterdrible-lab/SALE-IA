@@ -8,6 +8,7 @@ Variáveis necessárias no .env:
 """
 import logging
 import os
+import threading
 import time
 
 logger = logging.getLogger("saleia.alertas")
@@ -20,25 +21,58 @@ _last_alerta: dict[str, float] = {}
 _COOLDOWN_S = 3600
 
 
+def _enviar_telegram(token: str, chat_id: str, texto: str) -> bool:
+    """Envio real (bloqueante). D13 (V.1.4.164):
+
+    - **IPv4 forçado** (`local_address="0.0.0.0"`): da VPS, o IPv6 até
+      api.telegram.org trava às vezes (1 em 5 tentativas sem conectar em
+      20s, medido em 05/10), e o httpx prefere IPv6 — origem de ~3.400
+      "read operation timed out" em 14 dias. IPv4: 0 falhas, ~0,1s.
+    - **Resposta conferida**: antes, HTTP 400/401 do Telegram passava como
+      sucesso. Agora vira warning com a `description` (nunca o token).
+    - **Markdown inválido** (ex.: `_` solto em nome de feature) faz o
+      Telegram recusar com 400 "can't parse entities": reenvia sem
+      `parse_mode` em vez de perder o alerta.
+    """
+    import httpx
+
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    try:
+        with httpx.Client(
+            transport=httpx.HTTPTransport(local_address="0.0.0.0", retries=1),
+            timeout=10,
+        ) as client:
+            r = client.post(url, json={"chat_id": chat_id, "text": texto, "parse_mode": "Markdown"})
+            if r.status_code == 400 and "parse" in r.text.lower():
+                r = client.post(url, json={"chat_id": chat_id, "text": texto})
+            if r.status_code != 200:
+                try:
+                    descricao = r.json().get("description")
+                except ValueError:
+                    descricao = r.text[:200]
+                logger.warning("Telegram recusou o alerta: HTTP %s %s", r.status_code, descricao)
+                return False
+            return True
+    except Exception as exc:
+        logger.warning("Falha ao enviar alerta Telegram: %s", exc)
+        return False
+
+
 def alertar(mensagem: str, nivel: str = "⚠️") -> None:
-    """Envia alerta Telegram de forma síncrona e silenciosa em caso de falha."""
+    """Envia alerta Telegram em segundo plano — nunca bloqueia quem chama
+    (D13: o circuit breaker chamava isto de dentro do caminho de IA de uma
+    reunião ao vivo, travando a requisição até o timeout). Silencioso em
+    caso de falha (só loga)."""
     token   = os.getenv("TELEGRAM_TOKEN", "")
     chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
     if not token or not chat_id:
         return
-    try:
-        import httpx
-        httpx.post(
-            f"https://api.telegram.org/bot{token}/sendMessage",
-            json={
-                "chat_id": chat_id,
-                "text": f"{nivel} *SALEIA*\n{mensagem}",
-                "parse_mode": "Markdown",
-            },
-            timeout=5,
-        )
-    except Exception as exc:
-        logger.warning("Falha ao enviar alerta Telegram: %s", exc)
+    threading.Thread(
+        target=_enviar_telegram,
+        args=(token, chat_id, f"{nivel} *SALEIA*\n{mensagem}"),
+        name="saleia-alerta-telegram",
+        daemon=True,
+    ).start()
 
 
 def _pode_alertar(chave: str) -> bool:

@@ -6,8 +6,12 @@ Run:
     python -m unittest tests.test_alertas -v
 """
 
+import logging
+import os
+import threading
+import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from agent import alertas
 
@@ -124,6 +128,99 @@ class EscalarParaHumanoTest(unittest.TestCase):
             alertas.escalar_para_humano(escalonamento)
             alertas.escalar_para_humano(escalonamento)
         self.assertEqual(m.call_count, 3)
+
+
+class _RespostaFalsa:
+    def __init__(self, status_code, corpo):
+        self.status_code = status_code
+        self._corpo = corpo
+        self.text = str(corpo)
+
+    def json(self):
+        return self._corpo
+
+
+class EnvioTelegramTest(unittest.TestCase):
+    """D13 (V.1.4.164): IPv4 forçado, resposta conferida, fallback sem
+    Markdown e envio sem bloquear quem chama."""
+
+    def setUp(self):
+        # Outros arquivos de teste chamam logging.disable(CRITICAL) no import;
+        # na suíte completa isso esconderia os warnings que assertLogs espera.
+        self._disable_anterior = logging.root.manager.disable
+        logging.disable(logging.NOTSET)
+
+    def tearDown(self):
+        logging.disable(self._disable_anterior)
+
+    def _client_falso(self, respostas):
+        client = MagicMock()
+        client.__enter__.return_value = client
+        client.post.side_effect = respostas
+        return client
+
+    def test_forca_ipv4_e_envia(self):
+        client = self._client_falso([_RespostaFalsa(200, {"ok": True})])
+        with patch("httpx.HTTPTransport") as transporte, patch("httpx.Client", return_value=client):
+            self.assertTrue(alertas._enviar_telegram("tok", "123", "oi"))
+        self.assertEqual(transporte.call_args.kwargs.get("local_address"), "0.0.0.0")
+        self.assertEqual(client.post.call_args.kwargs["json"]["parse_mode"], "Markdown")
+
+    def test_recusa_do_telegram_vira_warning_sem_vazar_token(self):
+        client = self._client_falso([_RespostaFalsa(401, {"ok": False, "description": "Unauthorized"})])
+        with patch("httpx.Client", return_value=client), \
+                self.assertLogs("saleia.alertas", level="WARNING") as logs:
+            self.assertFalse(alertas._enviar_telegram("tok-secreto", "123", "oi"))
+        self.assertIn("Unauthorized", logs.output[0])
+        self.assertNotIn("tok-secreto", logs.output[0])
+
+    def test_markdown_invalido_reenvia_sem_parse_mode(self):
+        client = self._client_falso([
+            _RespostaFalsa(400, {"ok": False, "description": "Bad Request: can't parse entities"}),
+            _RespostaFalsa(200, {"ok": True}),
+        ])
+        with patch("httpx.Client", return_value=client):
+            self.assertTrue(alertas._enviar_telegram("tok", "123", "sales_event.extracao"))
+        self.assertEqual(client.post.call_count, 2)
+        self.assertNotIn("parse_mode", client.post.call_args.kwargs["json"])
+
+    def test_timeout_vira_warning(self):
+        client = self._client_falso(TimeoutError("The read operation timed out"))
+        with patch("httpx.Client", return_value=client), \
+                self.assertLogs("saleia.alertas", level="WARNING"):
+            self.assertFalse(alertas._enviar_telegram("tok", "123", "oi"))
+
+    def test_alertar_nao_bloqueia_quem_chama(self):
+        liberar = threading.Event()
+        with patch.dict(os.environ, {"TELEGRAM_TOKEN": "tok", "TELEGRAM_CHAT_ID": "123"}), \
+                patch.object(alertas, "_enviar_telegram", side_effect=lambda *a: liberar.wait(5)) as envio:
+            inicio = time.monotonic()
+            alertas.alertar("teste")
+            self.assertLess(time.monotonic() - inicio, 1.0)
+            liberar.set()
+        self.assertEqual(envio.call_args.args[2], "⚠️ *SALEIA*\nteste")
+
+    def test_sem_credenciais_nao_envia(self):
+        with patch.dict(os.environ, {"TELEGRAM_TOKEN": "", "TELEGRAM_CHAT_ID": ""}), \
+                patch.object(alertas, "_enviar_telegram") as envio:
+            alertas.alertar("teste")
+        envio.assert_not_called()
+
+
+class CircuitBreakerAlertaTest(unittest.TestCase):
+    def setUp(self):
+        alertas._last_alerta.clear()
+
+    def test_um_alerta_por_provedor_por_hora(self):
+        from api.ai_router import FAILURES_TO_OPEN, CircuitBreaker
+
+        deepseek, openai = CircuitBreaker("deepseek"), CircuitBreaker("openai")
+        with patch.object(alertas, "alertar") as m:
+            for _ in range(FAILURES_TO_OPEN + 20):
+                deepseek.register_failure()
+            for _ in range(FAILURES_TO_OPEN + 5):
+                openai.register_failure()
+        self.assertEqual(m.call_count, 2)
 
 
 if __name__ == "__main__":

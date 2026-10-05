@@ -3,6 +3,45 @@
 
 ---
 
+## V.1.4.164 — Alertas do Telegram: IPv4, sem bloquear a reunião e sem flood (Tarefa D13)
+
+> Data: 05/10/2026
+
+O journal da VPS tinha **~3.400 "Falha ao enviar alerta Telegram: The
+read operation timed out" em 14 dias** (até 791/dia). Diagnóstico na VPS:
+
+- Token, bot (`Saleia_bot`) e grupo estão válidos (`getMe`/`getChat` = 200).
+- **IPv6 intermitente até api.telegram.org**: 1 em 5 conexões IPv6
+  travou 20s sem conectar; IPv4 5/5 em ~0,1s. O httpx prefere IPv6.
+- **Flood do circuit breaker**: o alerta de breaker aberto não tinha
+  cooldown e disparava a cada falha depois de aberto (até 4.311/dia nos
+  dias de saldo zerado), acima do limite do Telegram (~20 msg/min por
+  grupo).
+- **Bloqueio da reunião**: esse alerta era síncrono, chamado de dentro
+  do caminho de IA (`CircuitBreaker.register_failure`). Cada envio
+  travava a requisição de `/tempo-real` por até 5s. O journal mostra
+  rajadas de até 10 timeouts com o mesmo `cid` (mesma requisição: até
+  ~50s parada).
+- Achado lateral: a resposta do Telegram nunca era conferida. HTTP
+  400/401 (ex.: Markdown inválido com `_` em nome de feature) passava
+  como sucesso e o alerta se perdia em silêncio.
+
+Correção (`agent/alertas.py`, `api/ai_router.py`):
+
+- `_enviar_telegram()`: **IPv4 forçado** (`local_address="0.0.0.0"`),
+  1 retry de conexão, timeout 10s, **resposta conferida** (warning com a
+  `description`, nunca o token) e **reenvio sem Markdown** quando o
+  Telegram recusa a formatação.
+- `alertar()` agora **envia em thread de fundo**: quem chama nunca
+  espera o Telegram. Assinatura igual; o escalonamento humano (Fase 25)
+  continua sem cooldown.
+- Circuit breaker: **1 alerta por provedor por hora**
+  (`_pode_alertar("circuit_breaker_<provedor>")`).
+- 7 testes novos (`tests/test_alertas.py`).
+- Versão: `1.4.163` → `1.4.164`. Sem tabela/coluna nova, sem `.env`.
+
+---
+
 ## V.1.4.163 — Reinício diário em horário fixo e só sem reunião ativa (Tarefa D12)
 
 > Data: 04/10/2026 | Infra (systemd), sem mudança de código da aplicação

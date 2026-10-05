@@ -115,12 +115,16 @@ class CircuitBreaker:
             except Exception:
                 pass
             try:
-                from agent.alertas import alertar
-                alertar(
-                    f"🤖 Circuit breaker aberto: *{self.name}*\n"
-                    f"Cooldown: {COOLDOWN_SECONDS}s — fallback para próximo provedor.",
-                    nivel="🟠",
-                )
+                from agent.alertas import _pode_alertar, alertar
+                # D13 (V.1.4.164): 1 alerta por provedor por hora. Sem isso,
+                # cada falha após o breaker abrir disparava um alerta (até
+                # 4.311/dia), acima do limite do Telegram (~20 msg/min por grupo).
+                if _pode_alertar(f"circuit_breaker_{self.name}"):
+                    alertar(
+                        f"🤖 Circuit breaker aberto: *{self.name}*\n"
+                        f"Cooldown: {COOLDOWN_SECONDS}s — fallback para próximo provedor.",
+                        nivel="🟠",
+                    )
             except Exception:
                 pass
 
