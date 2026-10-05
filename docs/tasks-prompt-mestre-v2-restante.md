@@ -227,7 +227,13 @@ nova), depois extratores novos.
   reunião, mesmo sinal de `reunioes_ativas`), aumentar o timeout de
   parada, ou graceful shutdown que espere o ciclo em curso.
 
-### D13 — Alertas do Telegram não chegam [infra, achado 04/10/2026]
+### D13 — Alertas do Telegram não chegam [CONCLUÍDA — 05/10/2026, V.1.4.164; teste real 5/5 entregues]
+- Causa: IPv6 intermitente VPS → Telegram + alerta de circuit breaker
+  síncrono sem cooldown (travava `/tempo-real`). Fix: IPv4, thread de
+  fundo, resposta conferida, 1 alerta de breaker/provedor/hora. Detalhe
+  no CHANGELOG.
+
+Achado original:
 - O journal da VPS mostra `Falha ao enviar alerta Telegram: The read
   operation timed out` várias vezes por hora (ex.: 02/10 23:46-00:05
   UTC). Nenhum alerta de produção chega, inclusive o escalonamento

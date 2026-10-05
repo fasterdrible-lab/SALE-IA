@@ -1,5 +1,21 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-10-05 — **Produção em V.1.4.164 (D13)**, commit
+`a23aae0`, deploy com `reunioes_ativas: 0`, `NRestarts=0`, journal
+limpo. **D12 confirmada**: o timer reiniciou sozinho de madrugada
+(`/health` estava em 1.4.163 às ~09h BRT de 05/10).
+- **D13 — alertas do Telegram**: causa = IPv6 intermitente da VPS até
+  api.telegram.org + alerta de circuit breaker síncrono e sem cooldown
+  (até 4.311/dia, travando `/tempo-real` por até 5s por envio). Fix:
+  IPv4 forçado, envio em thread de fundo, resposta conferida, reenvio
+  sem Markdown, 1 alerta de breaker por provedor/hora. **Teste real na
+  VPS: 5/5 mensagens entregues ao grupo do `Saleia_bot` em ~0,25s.**
+- Conferir nos próximos dias: `journalctl -u saleia | grep -c 'Falha ao
+  enviar alerta Telegram'` deve ficar perto de 0; "Telegram recusou o
+  alerta" (novo) indicaria token/chat/formatação.
+- Próximas candidatas: **A7b** (precisão de SalesEvent), C8, D9, passo
+  7 com volume real.
+
 ## Resumo de 03-04/10/2026 (leia primeiro)
 
 - **Produção**: código V.1.4.162 rodando; V.1.4.163 (D12, só infra)
