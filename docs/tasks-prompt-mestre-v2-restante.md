@@ -214,7 +214,12 @@ nova), depois extratores novos.
   erro 1684 + 2ª tentativa do `create_all`. Validado no MySQL real.
 - Serializar `create_all()` antes do fork (achado de V.1.4.108/119).
   Pré-requisito de confiabilidade para E2E ≥ 99%.
-### D12 — Restart diário terminando em timeout [infra, achado 28/09/2026]
+### D12 — Restart diário terminando em timeout [CONCLUÍDA — 04/10/2026, V.1.4.163; 1º disparo do timer em 05/10 06:00 UTC]
+- Resultado: o "timeout" era cosmético (resultado padrão do
+  `RuntimeMaxSec`, paradas de 0-8s). O risco real era o horário andar a
+  cada deploy. Timer às 03:00 BRT só sem reunião ativa, `RuntimeMaxSec`
+  48h como rede de segurança e `--timeout-graceful-shutdown 25`.
+  Detalhe no CHANGELOG.
 - O reinício automático (`RuntimeMaxSec=86400`) das 19:00 UTC de
   28/09 terminou em `Failed with result 'timeout'` (`TimeoutStopSec=30`)
   com chamadas de IA em andamento — pode cortar requisições de reunião

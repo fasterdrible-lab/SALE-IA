@@ -1,5 +1,17 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-10-04 — **V.1.4.163 (D12) instalada na VPS** (commit
+`30bd50a`). Units do systemd agora versionadas em `deploy/systemd/`;
+`instalar.sh` rodado (backup da unit antiga em
+`/etc/systemd/system/saleia.service.bak_*`). Timer
+`saleia-restart-diario` ativo, 1º disparo **05/10 06:00 UTC (03:00
+BRT)**, só reinicia com `reunioes_ativas = 0`. `RuntimeMaxSec` já vale
+48h no serviço em execução, então o reinício antigo de 24h (que cairia
+às 12:36 UTC de 05/10) não acontece mais. O processo atual segue em
+1.4.162 até esse reinício. **Conferir em 05/10**: `/health` com
+`versao 1.4.163` = timer funcionou (`journalctl -u
+saleia-restart-diario`).
+
 Atualizado em: 2026-10-04 — **Extrator de SalesEvent desligado em
 produção** (`SALES_EVENT_EXTRACTOR_ENABLED=false` no `.env` da VPS,
 backup em `.env.bak_pre_sales_event_off`; restart com
