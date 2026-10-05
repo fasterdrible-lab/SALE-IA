@@ -1,5 +1,27 @@
 # SALEIA - Estado Atual
 
+## Resumo de 03-04/10/2026 (leia primeiro)
+
+- **Produção**: código V.1.4.162 rodando; V.1.4.163 (D12, só infra)
+  instalada e ativa no 1º reinício do timer (05/10 06:00 UTC).
+- **Feito nestes 2 dias**: deploy do bundle V.1.4.150-161 (A4, A5, C2,
+  A6, B2, D1, D4, D6, D5, A7, D2, D3); Golden Dataset `--real` 2x;
+  V.1.4.162 (fix de falsos positivos da alucinação crítica); extrator de
+  SalesEvent desligado; V.1.4.163 (D12, reinício diário seguro).
+- **Fase 25, números reais**: objection_classification 100% ✅,
+  critical_hallucination 2,5% (1 falso positivo, real 0%) ✅,
+  event_precision 48,9% ❌.
+- **Próximas candidatas**: **A7b** (precisão de SalesEvent), **D13**
+  (alertas do Telegram não chegam), passo 7 da ordem quando houver
+  volume real (C3, B4, B5, C5 → C6), C8, D9.
+- **Pendências do usuário**:
+  1. PAT novo do GitHub no remote de `/opt/saleia` (`git pull` quebrado;
+     deploy via `git bundle` até lá);
+  2. revogar o PAT antigo (`ghp_3CzF…`), exposto num log de erro;
+  3. trocar a senha root da VPS (passou pelo chat) e, de preferência,
+     consertar a chave SSH `saleia_vps`;
+  4. reinstalar a extensão V.1.4.18 nos vendedores (seguem na V.1.4.15).
+
 Atualizado em: 2026-10-04 — **V.1.4.163 (D12) instalada na VPS** (commit
 `30bd50a`). Units do systemd agora versionadas em `deploy/systemd/`;
 `instalar.sh` rodado (backup da unit antiga em

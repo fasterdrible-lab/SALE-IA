@@ -227,6 +227,21 @@ nova), depois extratores novos.
   reunião, mesmo sinal de `reunioes_ativas`), aumentar o timeout de
   parada, ou graceful shutdown que espere o ciclo em curso.
 
+### D13 — Alertas do Telegram não chegam [infra, achado 04/10/2026]
+- O journal da VPS mostra `Falha ao enviar alerta Telegram: The read
+  operation timed out` várias vezes por hora (ex.: 02/10 23:46-00:05
+  UTC). Nenhum alerta de produção chega, inclusive o escalonamento
+  humano da Fase 25 (`escalar_para_humano()`, sem cooldown). Investigar
+  conectividade VPS → `api.telegram.org`, token/chat do bot e o timeout
+  do cliente em `agent/alertas.py`.
+
+### A7b — Precisão do extrator de SalesEvent [novo, 03/10/2026]
+- `event_precision` 48,9% / recall 74,2% no Golden Dataset real (alvo
+  ≥ 90%): o extrator aponta eventos demais. Ajustar o prompt
+  (`sales_event_extractor.txt`) com os erros por cenário e remedir.
+  Religar `SALES_EVENT_EXTRACTOR_ENABLED` na VPS (desligado em 04/10) só
+  quando passar no alvo.
+
 ### D9 — 6 documentos obrigatórios (seção 35)
 - `SALES_BRAIN_ARCHITECTURE`, `SALES_SCIENCE`, `AUTONOMY_POLICY`,
   `TEST_STRATEGY`, `SECURITY_MODEL`, `DATA_DICTIONARY`. Nenhum existe.

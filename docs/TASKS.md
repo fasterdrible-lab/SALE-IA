@@ -1,5 +1,12 @@
 # SALEIA - Tarefas
 
+> **DESATUALIZADO (aviso de 04/10/2026).** Este arquivo parou em meados
+> de 2026 — as seções "Proxima Tarefa" abaixo (T02, T12...) já foram
+> concluídas. A fila real é
+> [tasks-prompt-mestre-v2-restante.md](tasks-prompt-mestre-v2-restante.md)
+> (ordem recomendada + registro de progresso), e o estado atual está em
+> [CURRENT_STATE.md](CURRENT_STATE.md). Mantido só como histórico.
+
 Use este arquivo como fila operacional. Execute apenas a primeira tarefa pendente.
 
 ## Concluido

@@ -4,6 +4,9 @@
 
 1. **[CHANGELOG.md](CHANGELOG.md)** — Registro completo de tudo implementado
 2. **[docs/CURRENT_STATE.md](docs/CURRENT_STATE.md)** — Estado atual, infraestrutura, pendências
+3. **[docs/tasks-prompt-mestre-v2-restante.md](docs/tasks-prompt-mestre-v2-restante.md)** — **fila real de tarefas** (ordem recomendada + registro de progresso). `docs/TASKS.md` está desatualizado desde meados de 2026; não usar como fonte da próxima tarefa.
+
+Nenhuma tarefa nova começa sem confirmação explícita do usuário, uma de cada vez.
 
 ## Contexto do projeto
 
@@ -14,7 +17,7 @@
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.126** (backend, local + GitHub + produção confirmada) · extensão Chrome **V.1.4.16** (`chrome-extension/manifest.json`, versionada separadamente)
+- Versão atual: **V.1.4.163** (backend; código 1.4.162 em execução até o 1º reinício do timer da D12, 05/10/2026) · extensão Chrome **V.1.4.18** no repo (`chrome-extension/manifest.json`, versionada separadamente; vendedores ainda na V.1.4.15)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
@@ -24,6 +27,42 @@ cd /opt/saleia && git pull origin main && systemctl restart saleia
 ```
 
 Não sobrescrever em deploy: `.env`, `venv/`, `data/`, `logs/`
+
+Regras de deploy (atualizado 04/10/2026):
+
+- **Cada push+deploy precisa de "sim" explícito do usuário**, por
+  commit. Retentar a mesma ação já aprovada (bloqueada por reunião
+  ativa) não exige nova pergunta.
+- **Nunca reiniciar com `reunioes_ativas > 0`** (`GET /health`, público;
+  mandar `User-Agent`, senão o Cloudflare devolve 403). Reuniões reais
+  duram horas: retentar a cada ~3 min.
+- **Acesso SSH**: a chave `saleia_vps` é recusada; acesso por senha
+  root via Python + `paramiko` (senha só em variável de ambiente, nunca
+  em argv/arquivo). Rodar com `PYTHONIOENCODING=utf-8`.
+- **`git pull origin main` na VPS está quebrado** (PAT do remote de
+  `/opt/saleia` recusado). Até trocar o PAT, usar bundle:
+  `git bundle create x.bundle <HEAD da VPS>..main` → SFTP para `/tmp` →
+  `git pull --ff-only /tmp/x.bundle main`. Gerar o bundle a partir do
+  HEAD **real** da VPS (`git log -1` lá), não do último deploy lembrado.
+- `requirements.txt` mudou → `./venv/bin/pip install -r requirements.txt`
+  + `pip check` antes do restart.
+- Scripts Python na VPS: sempre `./venv/bin/python3` (o `python3` do
+  sistema não tem as dependências).
+- Validar depois do restart: `systemctl is-active`, `NRestarts=0`,
+  journal sem `error|traceback|1684`, `/health` com a versão nova,
+  `/dashboard` = 200.
+
+Systemd (D12, V.1.4.163): as units ficam versionadas em
+[deploy/systemd/](deploy/systemd/) — editar no repo e instalar com
+`bash deploy/systemd/instalar.sh` na VPS (faz backup, valida, ativa o
+timer, **não reinicia**). O reinício diário é o timer
+`saleia-restart-diario` às 06:00 UTC (03:00 BRT), só com
+`reunioes_ativas = 0`; `RuntimeMaxSec=48h` é só rede de segurança.
+`deploy/setup_vps.sh` está desatualizado e não reflete esta VPS.
+
+Golden Dataset real (custo de IA, pedir OK antes): rodar na VPS,
+`./venv/bin/python3 -m scripts.quality_monitoring_golden_run --real --out /tmp/x.json`
+(~15 min, até 234 chamadas; grava no `/admin/readiness`).
 
 ## Regras importantes
 
