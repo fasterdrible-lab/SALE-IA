@@ -1,5 +1,24 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-10-05 — **Produção em V.1.4.165 (A7b)**, commit
+`73059fa`, deploy às ~17:20 BRT depois de reunião ativa (loop de
+retentativa), `NRestarts=0`, journal limpo.
+**`SALES_EVENT_EXTRACTOR_ENABLED=true` religado** (backup
+`.env.bak_pre165`). Golden Dataset completo `--real` logo depois (40
+cenários, 0 erros de IA, já no `/admin/readiness`):
+
+| Critério Fase 25 | Valor | Alvo |
+|---|---|---|
+| `event_precision` | **100%** (recall 84,6%) | ≥ 90% ✅ |
+| `critical_hallucination_rate` | **0%** | ≈ 0 ✅ |
+| `objection_classification` | **100%** (34/34) | ≥ 90% ✅ |
+| `hallucination_rate` total | 9,5% | — |
+| `framework_accuracy` | 37,0% | — |
+
+Ressalva: o ajuste do extrator e a medição usaram os mesmos 40
+cenários (sem conjunto separado). Conferir com reuniões reais (eventos
+gravados em `sales_events`).
+
 Atualizado em: 2026-10-05 — **D9 concluída** (só documentação, sem
 deploy): 6 documentos da seção 35 em `docs/` —
 [SALES_BRAIN_ARCHITECTURE](SALES_BRAIN_ARCHITECTURE.md),

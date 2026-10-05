@@ -37,7 +37,7 @@
 
 | Tabela | Conteúdo | Observação |
 |---|---|---|
-| `sales_events` | `event_type` (14 tipos), `evidence_quote`, `confidence`, `source`, `speaker`, `meeting_id`, `opportunity_id`, `seller_id` | escritor desligado em produção desde 04/10/2026 (A7b) |
+| `sales_events` | `event_type` (14 tipos), `evidence_quote`, `confidence`, `source`, `speaker`, `meeting_id`, `opportunity_id`, `seller_id` | escritor ligado; desligado de 04 a 05/10/2026 durante a A7b |
 | `sales_evidences` | `type` (ex.: `SPIN_PROBLEM:main_pain`, `OBJECTION:`, `MEDDPICC:<item>`), `quote`, `confidence` | dedup por tipo + citação normalizada |
 
 ## 4. Recomendação, aprendizado e vendedor

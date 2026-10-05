@@ -75,8 +75,8 @@ No mesmo ciclo, os **escritores** gravam o que foi extraído:
   contradição registrada, nunca sobrescrita);
 - `opportunity_graph_writer_rules` → arestas PAIN→IMPACT, PAIN→GOAL,
   CLIENT→PAIN, CLIENT→OBJECTION;
-- `sales_event_extractor` → `SalesEvent` (**desligado em produção desde
-  04/10/2026**, precisão 47%; ver Tarefa A7b).
+- `sales_event_extractor` → `SalesEvent` (14 tipos, descarta confiança
+  < 0,5; precisão 100% no Golden Dataset v1.2.0 desde a V.1.4.165).
 
 Saída do motor: `current_state`, `recommended_framework` (1 de 9),
 `next_best_action`, `next_best_question`, `reason`, `confidence`,
@@ -128,7 +128,7 @@ Oportunidade e cliente nascem automaticamente da recapitulação
 |---|---|---|
 | `SHADOW_MODE_ENABLED` | false | **true** |
 | `PILOT_MODE` (`off`/`pilot_user`/`5pct`…`100pct`) | off | **off** |
-| `SALES_EVENT_EXTRACTOR_ENABLED` | true | **false** |
+| `SALES_EVENT_EXTRACTOR_ENABLED` | true | true (religado em 05/10/2026) |
 | `SELLER_DNA_OBSERVACAO_ENABLED` | false | **true** |
 | `MEDDPICC_EXTRACTOR_ENABLED`, `SALES_EVIDENCE_PERSIST_ENABLED`, `OPPORTUNITY_MEMORY_WRITE_ENABLED`, `OPPORTUNITY_GRAPH_WRITE_ENABLED`, `SELLER_CONTEXT_ENABLED`, `AUTO_OPPORTUNITY_ENABLED`, `RECOMMENDATION_TRACKING_ENABLED`, `BIGFIVE_AGENT_ENABLED`, `SALES_BRAIN_AUTOPILOT_ENABLED` | true | padrão |
 | `KNOWLEDGE_COMPILER_ENABLED` | false | não verificado |

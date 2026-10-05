@@ -58,13 +58,17 @@ Métricas (`agent/quality_monitoring_rules.py`): `event_precision`,
 `critical_hallucination_rate`, `evidence_coverage`. A rodada `--real`
 grava o resultado em `readiness_medicoes` (painel `/admin/readiness`).
 
-Última rodada real (03/10/2026, V.1.4.162):
+Última rodada real (05/10/2026, V.1.4.165, gabarito v1.2.0):
 
 | Métrica | Valor | Alvo Fase 25 |
 |---|---|---|
 | objection_classification | 100% | ≥ 90% |
-| critical_hallucination_rate | 2,5% (1 falso positivo) | ≈ 0 |
-| event_precision | 48,9% | ≥ 90% |
+| critical_hallucination_rate | 0% | ≈ 0 |
+| event_precision | 100% (recall 84,6%) | ≥ 90% |
+
+O ajuste do extrator usou os mesmos 40 cenários da medição; o teste
+`PromptSemVazamentoDoGabaritoTest` impede o prompt de copiar frases do
+gabarito.
 
 **Lição registrada duas vezes (D3 e A7b):** antes de mexer no prompt,
 olhar o erro cenário a cenário. Parte dos erros era gabarito incompleto

@@ -241,7 +241,13 @@ Achado original:
   conectividade VPS → `api.telegram.org`, token/chat do bot e o timeout
   do cliente em `agent/alertas.py`.
 
-### A7b — Precisão do extrator de SalesEvent [novo, 03/10/2026]
+### A7b — Precisão do extrator de SalesEvent [CONCLUÍDA — 05/10/2026, V.1.4.165; extrator religado em produção]
+- Golden Dataset v1.2.0 (gabarito exaustivo, regras no README) + prompt
+  com "conta / não conta" por tipo + limite de confiança 0,5. Golden
+  completo em produção: event_precision **100%**, recall 84,6%. Detalhe
+  no CHANGELOG.
+
+Histórico da tarefa:
 - `event_precision` 48,9% / recall 74,2% no Golden Dataset real (alvo
   ≥ 90%): o extrator aponta eventos demais. Ajustar o prompt
   (`sales_event_extractor.txt`) com os erros por cenário e remedir.

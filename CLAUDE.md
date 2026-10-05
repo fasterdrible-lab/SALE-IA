@@ -17,7 +17,7 @@ Nenhuma tarefa nova começa sem confirmação explícita do usuário, uma de cad
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.164** (backend, produção confirmada 05/10/2026) · extensão Chrome **V.1.4.18** no repo (`chrome-extension/manifest.json`, versionada separadamente; vendedores ainda na V.1.4.15)
+- Versão atual: **V.1.4.165** (backend, produção confirmada 05/10/2026) · extensão Chrome **V.1.4.18** no repo (`chrome-extension/manifest.json`, versionada separadamente; vendedores ainda na V.1.4.15)
 - Usuário admin: `phpos35@gmail.com`
 
 ## Deploy
