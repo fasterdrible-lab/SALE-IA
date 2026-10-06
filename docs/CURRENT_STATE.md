@@ -1,7 +1,9 @@
 # SALEIA - Estado Atual
 
 Atualizado em: 2026-10-06 — **Investigação "assistente atrasa ou
-alucina"** (relato do vendedor) + **V.1.4.166 local, pendente deploy**.
+alucina"** (relato do vendedor) + **V.1.4.166 em produção** (commit
+`dd014aa`, deploy 06/10 com `reunioes_ativas: 0`, `NRestarts=0`,
+journal limpo).
 Detalhe e números no CHANGELOG. Resumo:
 - **Falante perdido**: 86-100% das linhas das reuniões de 05/10 vêm como
   "João" (vendedor e cliente). Correção na extensão aguarda amostra do
