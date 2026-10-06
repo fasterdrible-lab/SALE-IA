@@ -1,5 +1,21 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-10-06 — **Investigação "assistente atrasa ou
+alucina"** (relato do vendedor) + **V.1.4.166 local, pendente deploy**.
+Detalhe e números no CHANGELOG. Resumo:
+- **Falante perdido**: 86-100% das linhas das reuniões de 05/10 vêm como
+  "João" (vendedor e cliente). Correção na extensão aguarda amostra do
+  HTML atual da legenda do Meet (pedida ao usuário).
+- **Texto sujo para a IA** (legenda parcial repetida, CSS, avisos do
+  Meet): corrigido na V.1.4.166 (`compactar_transcricao`, aplicada também
+  ao texto que vai para a IA, que antes não era limpo).
+- **Atraso** ~35-40s em média (ciclo de 60s + 3,5s de legenda + ~6s de
+  IA). Reduzir o ciclo é decisão de custo pendente.
+- **C8**: 0/49 recomendações usadas na rotulagem humana; o
+  `recommendation_quality` de 45,6% por embeddings não é confiável.
+- Extensão V.1.4.18 instalada pelo usuário em 06/10 (antes: todas as
+  requisições de 05/10 vinham da V.1.4.15, sem login).
+
 Atualizado em: 2026-10-05 — **Produção em V.1.4.165 (A7b)**, commit
 `73059fa`, deploy às ~17:20 BRT depois de reunião ativa (loop de
 retentativa), `NRestarts=0`, journal limpo.

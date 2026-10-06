@@ -75,6 +75,69 @@ def eh_duplicata(
     return False
 
 
+# ── Compactação (06/10/2026) ──────────────────────────────────────────
+# Achado nas reuniões reais de 05/10: a legenda do Meet é capturada várias
+# vezes enquanto a pessoa ainda fala ("Cara a minha esposa." → "Cara. A
+# minha esposa ela é fis." → "Cara A minha esposa ela é fisioterapeuta…"),
+# e CSS do Meet vazava como fala. As versões parciais passam pela regra de
+# similaridade acima (tamanhos muito diferentes) e chegavam à IA, que só
+# recebe 6.000 caracteres por ciclo.
+
+JANELA_PARCIAL_PADRAO = 6
+
+# Case-sensitive de propósito: propriedade CSS é minúscula; "Paulo: tá;" não casa.
+_CSS_RE = re.compile(r"^\s*([a-z][a-z-]*\s*:\s*[^;{}]+;|[{}]|[.#]?[a-z][\w.#:-]*\s*\{)\s*$")
+_TEM_LETRA_RE = re.compile(r"[^\W\d_]", re.UNICODE)
+
+
+def _rotulo(linha: str) -> str:
+    m = _ROTULO_RE.match(linha)
+    return m.group(1).strip().lower() if m else ""
+
+
+def eh_ruido_de_tela(linha: str) -> bool:
+    """CSS vazado do Meet (`position: absolute;`, `}`) ou linha sem letra."""
+    linha = (linha or "").strip()
+    return bool(_CSS_RE.match(linha)) or not _TEM_LETRA_RE.search(linha)
+
+
+def compactar_transcricao(texto: str, janela: int = JANELA_PARCIAL_PADRAO) -> str:
+    """Remove de `texto` (linhas "Falante: fala"):
+
+    - ruído de tela (CSS, linha sem letra);
+    - versão parcial de uma legenda: a linha cujo corpo é o começo do corpo
+      de uma das `janela` linhas seguintes do mesmo falante — fica só a
+      versão completa, então nenhum conteúdo se perde;
+    - repetição exata (mesmo falante e corpo, ≥ 20 caracteres) de uma das
+      linhas recentes.
+
+    Mantém a ordem e o texto original das linhas que ficam. Função pura."""
+    linhas = [l for l in _linhas(texto) if not eh_ruido_de_tela(l)]
+    corpos = [corpo_normalizado(l) for l in linhas]
+    rotulos = [_rotulo(l) for l in linhas]
+    mantidas = []
+    vistos_recentes: list = []
+    for i, linha in enumerate(linhas):
+        corpo = corpos[i]
+        if not corpo:
+            continue
+        eh_parcial = any(
+            rotulos[j] == rotulos[i] and len(corpos[j]) > len(corpo) and corpos[j].startswith(corpo)
+            for j in range(i + 1, min(len(linhas), i + 1 + janela))
+        )
+        if eh_parcial:
+            continue
+        chave = (rotulos[i], corpo)
+        # fala curta repetida ("Sim.", "Perfeito.") é legítima numa conversa
+        if len(corpo) >= MIN_CHARS_CORPO_PADRAO and chave in vistos_recentes:
+            continue
+        mantidas.append(linha)
+        vistos_recentes.append(chave)
+        if len(vistos_recentes) > JANELA_SIMILAR_PADRAO:
+            vistos_recentes.pop(0)
+    return "\n".join(mantidas)
+
+
 def deduplicar_fragmento(
     base: str,
     fragmento: str,

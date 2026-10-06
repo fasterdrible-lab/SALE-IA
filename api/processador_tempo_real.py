@@ -28,16 +28,28 @@ _MEET_NOISE_PREFIX_RE = re.compile(
 )
 
 
+# Avisos de sistema do Meet que a legenda captura com rótulo de falante
+# ("João: Sua apresentação foi adicionada à tela principal." — 05/10/2026).
+_MEET_AVISO_RE = re.compile(
+    r'Sua apresentação (foi adicionada à|está na) tela principal|^(\S[^:]{0,60}:\s*)?Você está apresentando\.?$',
+    re.IGNORECASE
+)
+
+
 def _limpar_transcricao(texto: str) -> str:
-    """Remove ruído de UI do Google Meet da transcrição."""
+    """Remove ruído de UI do Google Meet da transcrição e compacta as
+    versões parciais da legenda (`compactar_transcricao`)."""
     if not texto:
         return texto
+    from agent.transcript_dedup_rules import compactar_transcricao
+
     linhas = [
         l for l in texto.splitlines()
         if not _MEET_NOISE_RE.match(l.strip())
         and not _MEET_NOISE_PREFIX_RE.match(l.strip())
+        and not _MEET_AVISO_RE.search(l.strip())
     ]
-    return '\n'.join(linhas)
+    return compactar_transcricao('\n'.join(linhas))
 
 # Configuração de logging
 logger = logging.getLogger(__name__)
@@ -168,7 +180,10 @@ def _textos_minimos_suficientes(fragmento: str) -> bool:
 
 
 def _limitar_contexto_ia(texto: str) -> str:
-    texto = (texto or "").strip()
+    # 06/10/2026: o texto que vai para a IA vem direto da extensão e não
+    # passava por limpeza nenhuma (só o salvo no banco passava). Limpa e
+    # compacta antes do corte de 6.000 chars, para sobrar mais conversa real.
+    texto = _limpar_transcricao((texto or "").strip()) or ""
     if len(texto) <= _MAX_CONTEXT_CHARS:
         return texto
     return texto[-_MAX_CONTEXT_CHARS:]

@@ -3,6 +3,84 @@
 
 ---
 
+## V.1.4.166 — Texto que vai para a IA passa a ser limpo e compactado (investigação "atraso/alucinação")
+
+> Data: 06/10/2026 | Local, pendente deploy
+
+O vendedor relatou que a assistente **atrasa ou alucina**. A rotulagem
+humana da C8 já tinha mostrado 0/49 recomendações usadas. Investigação
+do fluxo inteiro nas 3 reuniões reais de 05/10 (leitura pura):
+
+| Reunião | Linhas | Rotuladas "João" | Duplicadas exatas | Ciclo de IA p50 / máx | Intervalo |
+|---|---|---|---|---|---|
+| aep-pmof-zrx | 402 | 402 (100%) | 3% | 6,1s / 8,1s | 60s |
+| ibc-kngz-dyz | 734 | 681 (93%) + CSS | 7% | 5,6s / 7,7s | 60s |
+| sck-fizq-xjv | 1.130 | 971 (86%) + CSS | 21% | 6,7s / 9,3s | 60s |
+
+Achados:
+
+1. **Falante perdido (principal causa provável da "alucinação")**: toda
+   fala chega com o mesmo rótulo ("João"), do vendedor e do cliente. A IA
+   não sabe quem disse o quê. Causa provável na extensão: o nome do
+   falante é lido por classes CSS do Meet (`zs7s8d`, `NWpY1`, `a4cQT`);
+   quando não acha, `rotuloParticipante()` usa o 1º cliente salvo no
+   `chrome.storage` ("João", presente até em reuniões de junho). **Não
+   corrigido nesta versão**: precisa de uma amostra do HTML atual da
+   legenda do Meet.
+2. **Legenda capturada várias vezes enquanto a pessoa fala** ("Cara a
+   minha esposa." → "…ela é fis." → "…fisioterapeuta…") e **CSS/avisos do
+   Meet como fala**. Pior: o texto enviado à IA a cada ciclo
+   (`transcricao_parcial`/`historico`) vem direto da extensão e **não
+   passava por limpeza nenhuma**; só o salvo no banco passava.
+3. **Atraso**: a extensão só envia a cada 60s; a legenda espera 3,5s de
+   silêncio; a IA responde em ~6-7s. Uma fala chega à sidebar ~35-40s
+   depois em média, até ~70s. Ciclos fora do intervalo devolvem a
+   sugestão anterior (`analysis_status=skipped`).
+4. **IA não é o gargalo**: 0% de falha, 100% DeepSeek, Coach p50 ~6s.
+5. **Extensão antiga**: 4.481 requisições de 05/10, todas da V.1.4.15
+   (sem os filtros da A1 e sem login da B8; nenhuma reunião com dono). O
+   usuário instalou a V.1.4.18 em 06/10.
+
+Correção desta versão (item 2):
+
+- `agent/transcript_dedup_rules.py::compactar_transcricao()` (nova,
+  pura): remove CSS e linhas sem letra; remove a versão parcial de uma
+  legenda quando uma das 6 linhas seguintes do mesmo falante começa com
+  ela (nenhum conteúdo se perde); remove repetição exata de fala com 20+
+  caracteres (fala curta repetida, como "Perfeito.", fica).
+- `api/processador_tempo_real.py`: `_limpar_transcricao()` passa a
+  compactar e a remover avisos de apresentação do Meet;
+  `_limitar_contexto_ia()` limpa **antes** do corte de 6.000 caracteres,
+  então o texto que vai para a IA (parcial, histórico, delta) também é
+  limpo.
+- Medido nos 430 trechos reais da C8 + amostras de 05/10: −10,7% das
+  linhas, −3,5% dos caracteres, sem perda de conteúdo nos exemplos
+  conferidos.
+- 8 testes novos (`tests/test_transcript_dedup_rules.py`).
+- Versão: `1.4.165` → `1.4.166`. Sem tabela/coluna nova.
+
+Pendentes (decisão/insumo do usuário): corrigir o falante na extensão
+(amostra do HTML da legenda), reduzir o ciclo de 60s (custo de IA ×2-3).
+
+---
+
+## C8 (sem bump) — rotulagem humana de uso de recomendação
+
+> Data: 05/10/2026
+
+50 pares (recomendação × fala seguinte) sorteados em 10 faixas de
+similaridade, rotulados às cegas pelo usuário: **0 de 49 usados** (1 "não
+dá pra saber"); IC 95% de Wilson 0%–7,3%. O classificador por embeddings
+marcou 16 desses 49 como USED/PARTIALLY_USED (todos errados): ele mede
+proximidade de **assunto**, não uso. O `recommendation_quality` de 45,6%
+do painel **não é confiável**. Calibrar limiares é impossível sem
+exemplos positivos. A causa raiz provável do uso zero é a investigada na
+V.1.4.166 (falante perdido, texto sujo, atraso). Proposta ainda não
+executada: marcar a métrica por embeddings como proxy não calibrado no
+`/admin/readiness`.
+
+---
+
 ## V.1.4.165 — event_precision 47% → 100%: gabarito exaustivo + definições no prompt do extrator de SalesEvent (Tarefa A7b)
 
 > Data: 05/10/2026 | Local, pendente deploy (e religar `SALES_EVENT_EXTRACTOR_ENABLED`)

@@ -164,7 +164,19 @@ nova), depois extratores novos.
   confirmado estruturalmente, hipótese de subestimação refutada.
   Detalhe no CHANGELOG.
 
-### C8 — Calibrar recommendation_quality com rótulos humanos [novo, 29/09/2026]
+### C8 — Calibrar recommendation_quality com rótulos humanos [FEITA a rotulagem — 05/10/2026; calibração impossível]
+- 0/49 usados na rotulagem humana; embeddings erram 16/49. Métrica atual
+  não confiável. Ver CHANGELOG (C8) e a investigação da V.1.4.166.
+
+### A10 — Falante correto na transcrição [novo, 06/10/2026, aguarda amostra do HTML da legenda]
+- 86-100% das linhas vêm com o mesmo rótulo ("João"). Corrigir a leitura
+  do nome na legenda do Meet atual e nunca rotular fala desconhecida com
+  o nome de um cliente salvo. Maior impacto esperado na "alucinação".
+
+### A11 — Reduzir o atraso da sugestão [novo, 06/10/2026, decisão de custo]
+- Ciclo de 60s → ~20s com fala nova (custo de IA em tempo real ×2-3).
+
+Pedido original da C8:
 - Rotular ~50 pares (recomendação, fala nova) como usado/parcial/
   ignorado e ajustar os limiares (hoje 0,55/0,35, nunca calibrados) —
   e avaliar comparar só com falas do vendedor. Sem isso,
