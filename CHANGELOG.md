@@ -3,6 +3,38 @@
 
 ---
 
+## V.1.4.167 + extensão V.1.4.19 — Sugestão chega ~2x mais rápido (Tarefa A11)
+
+> Data: 06/10/2026 | Local, pendente deploy + reinstalação da extensão
+
+A sugestão chegava ~35-40s depois da fala (até ~70s): a extensão só
+enviava a cada 60s, a legenda espera 3,5s de silêncio e o Coach leva
+~6-7s. Decisão do usuário: reduzir o atraso, aceitando mais custo.
+
+- **Extensão V.1.4.19**: envia a cada **20s** (era 60s) quando há fala
+  nova, e passa a obedecer `intervalo_analise_s` devolvido pelo
+  `/tempo-real` (10-120s). Daqui para frente o ritmo muda **sem
+  reinstalar** a extensão.
+- **Backend**: `intervalo_analise_s` na resposta do `/tempo-real`
+  (`SALEIA_REALTIME_INTERVALO_S`, padrão 20); trava mínima entre análises
+  35s → **15s** (`SALEIA_REALTIME_MIN_INTERVAL_SECONDS`).
+- **Shadow Mode limitado a 1 execução por reunião por minuto**
+  (`SHADOW_MODE_MIN_INTERVAL_S`, padrão 60): são ~8 chamadas de IA de
+  observação que não chegam ao vendedor; sem o limite, triplicariam
+  junto. Controle por processo (2 workers: no pior caso 2/min).
+- **Efeito esperado**: sugestão ~15-20s depois da fala (antes ~35-40s).
+- **Custo** (medido em 05/10): tempo real ~US$ 0,24/h → ~US$ 0,72/h;
+  Shadow fica ~US$ 0,13/h. Total por hora de reunião: ~US$ 0,37 →
+  ~US$ 0,85.
+- Quem continuar na V.1.4.18 envia a cada 60s, mas cada bloco do
+  Whisper (15s) já passa pela trava de 15s.
+- 6 testes novos (`tests/test_orquestrador_shadow_mode.py`); testes do
+  Shadow zeram o controle por reunião entre um teste e outro.
+- Versão: `1.4.166` → `1.4.167`; extensão `1.4.18` → `1.4.19`
+  (`chrome-extension.zip` regerado).
+
+---
+
 ## V.1.4.166 — Texto que vai para a IA passa a ser limpo e compactado (investigação "atraso/alucinação")
 
 > Data: 06/10/2026 | Local, pendente deploy

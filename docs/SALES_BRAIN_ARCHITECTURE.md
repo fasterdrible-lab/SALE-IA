@@ -23,7 +23,16 @@
    tem kill-switch no `.env`.
 6. **Associação, nunca causa** (ver [SALES_SCIENCE.md](SALES_SCIENCE.md)).
 
-## 2. Ciclo de tempo real (`POST /tempo-real`, a cada ~60s)
+## 2. Ciclo de tempo real (`POST /tempo-real`, a cada ~20s)
+
+Ritmo (V.1.4.167): a extensão ≥ V.1.4.19 envia a cada
+`intervalo_analise_s` devolvido pelo `/tempo-real`
+(`SALEIA_REALTIME_INTERVALO_S`, padrão 20); o backend só roda a IA com
+≥ 120 caracteres novos e ≥ 15s desde a última análise
+(`SALEIA_REALTIME_MIN_INTERVAL_SECONDS`), senão devolve a última
+sugestão (`analysis_status=skipped`). O Shadow Mode roda no máximo 1 vez
+por reunião por minuto (`SHADOW_MODE_MIN_INTERVAL_S`). O texto que vai
+para a IA passa por `compactar_transcricao` (V.1.4.166).
 
 ```
 extensão Chrome ──► api/main.py /tempo-real

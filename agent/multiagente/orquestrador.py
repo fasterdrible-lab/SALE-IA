@@ -568,6 +568,33 @@ async def _aplicar_piloto_sales_reasoning(
 _SHADOW_MODE_TASKS: set = set()
 
 
+# A11 (06/10/2026): com o ciclo de tempo real a cada ~20s, o Shadow Mode
+# (~8 chamadas de IA de observação) triplicaria de custo sem nada chegar
+# ao vendedor. Fica limitado a 1 execução por reunião a cada
+# SHADOW_MODE_MIN_INTERVAL_S (padrão 60s) — o mesmo ritmo de antes. Por
+# processo: com 2 workers, no pior caso 2 por intervalo.
+_SHADOW_ULTIMA_EXECUCAO: dict[str, float] = {}
+
+
+def _shadow_liberado_para(meeting_id: str | None) -> bool:
+    import time as _time
+
+    try:
+        minimo = float(os.getenv("SHADOW_MODE_MIN_INTERVAL_S", "60"))
+    except ValueError:
+        minimo = 60.0
+    chave = meeting_id or "default"
+    agora = _time.monotonic()
+    ultima = _SHADOW_ULTIMA_EXECUCAO.get(chave)
+    if ultima is not None and agora - ultima < minimo:
+        return False
+    _SHADOW_ULTIMA_EXECUCAO[chave] = agora
+    if len(_SHADOW_ULTIMA_EXECUCAO) > 500:  # reuniões antigas não acumulam
+        for k, _ in sorted(_SHADOW_ULTIMA_EXECUCAO.items(), key=lambda kv: kv[1])[:250]:
+            _SHADOW_ULTIMA_EXECUCAO.pop(k, None)
+    return True
+
+
 def _agendar_shadow_mode(
     resultado: dict,
     transcricao_parcial: str,
@@ -587,6 +614,8 @@ def _agendar_shadow_mode(
     ao chamador; só a recomendação atual (`next_best_action`) é lida
     daqui, nunca mutada."""
     if not shadow_mode_ativo():
+        return
+    if not _shadow_liberado_para(meeting_id):
         return
     task = asyncio.create_task(_rodar_shadow_mode(
         recomendacao_atual=resultado.get("next_best_action") or {},

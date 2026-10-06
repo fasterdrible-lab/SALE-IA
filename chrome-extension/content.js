@@ -40,7 +40,8 @@
 
   const CONFIG = {
     backendUrl: 'https://api.saleia.app.br',
-    intervaloAnalise: 60,
+    // A11 (V.1.4.19): 60s → 20s; o backend pode ajustar via intervalo_analise_s.
+    intervaloAnalise: 20,
     maxTranscricaoRecente: 2 * 60,
     maxHistorico: 5 * 60,
   };
@@ -1016,13 +1017,26 @@
     if (el) el.textContent = 'Próxima análise em: ' + estado.contador + 's';
   }
 
-  function iniciarEnvioPeriodico() {
-    function checarEEnviar() {
-      if (!estado.ativo) return;
-      // Só analisa se houver entradas novas desde o último envio — evita análise de silêncio
-      if (estado.transcricao.length <= estado.ultimoIndexEnviado) return;
-      enviarParaBackend();
+  function checarEEnviar() {
+    if (!estado.ativo) return;
+    // Só analisa se houver entradas novas desde o último envio — evita análise de silêncio
+    if (estado.transcricao.length <= estado.ultimoIndexEnviado) return;
+    enviarParaBackend();
+  }
+
+  // A11: o backend devolve intervalo_analise_s em /tempo-real — o ritmo
+  // muda sem reinstalar a extensão. Fora de 10-120s é ignorado.
+  function aplicarIntervaloDoServidor(segundos) {
+    var s = parseInt(segundos, 10);
+    if (!s || s < 10 || s > 120 || s === CONFIG.intervaloAnalise) return;
+    CONFIG.intervaloAnalise = s;
+    if (estado.timerEnvio) {
+      clearInterval(estado.timerEnvio);
+      estado.timerEnvio = setInterval(checarEEnviar, s * 1000);
     }
+  }
+
+  function iniciarEnvioPeriodico() {
     // Primeira checagem em PRIMEIRA_ANALISE_SEGUNDOS (não CONFIG.intervaloAnalise) —
     // setTimeout dispara uma vez, depois o setInterval assume o ritmo normal.
     setTimeout(function () {
@@ -1283,6 +1297,7 @@
           atualizarSidebarComResposta(dados);
           tratarSessaoDaResposta(dados);
           if (dados.perfil_disc && dados.perfil_disc.tipo) estado.perfilDiscAtual = dados.perfil_disc.tipo;
+          aplicarIntervaloDoServidor(dados.intervalo_analise_s);
           estado.contador = CONFIG.intervaloAnalise;
           // Avança índice para não reenviar as mesmas entradas ao DB
           estado.ultimoIndexEnviado = indexSnapshot;

@@ -173,8 +173,11 @@ nova), depois extratores novos.
   do nome na legenda do Meet atual e nunca rotular fala desconhecida com
   o nome de um cliente salvo. Maior impacto esperado na "alucinação".
 
-### A11 — Reduzir o atraso da sugestão [novo, 06/10/2026, decisão de custo]
-- Ciclo de 60s → ~20s com fala nova (custo de IA em tempo real ×2-3).
+### A11 — Reduzir o atraso da sugestão [FEITA no código — 06/10/2026, V.1.4.167 + extensão V.1.4.19]
+- Ciclo 60s → 20s (intervalo agora vem do servidor), trava 35s → 15s,
+  Shadow limitado a 1/min. Esperado: ~35-40s → ~15-20s. Custo ~US$ 0,37
+  → ~0,85 por hora de reunião. Medir o atraso real depois da
+  reinstalação.
 
 Pedido original da C8:
 - Rotular ~50 pares (recomendação, fala nova) como usado/parcial/

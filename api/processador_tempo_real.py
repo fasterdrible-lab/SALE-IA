@@ -113,7 +113,20 @@ def _nba_para_nbq(nba: dict) -> dict:
 
 
 _MIN_NEW_WORDS = int(os.getenv("SALEIA_REALTIME_MIN_NEW_WORDS", "18"))
-_MIN_INTERVAL_SECONDS = int(os.getenv("SALEIA_REALTIME_MIN_INTERVAL_SECONDS", "35"))
+# A11 (06/10/2026): 35s → 15s. A sugestão chegava ~35-40s depois da fala
+# (envio a cada 60s + legenda + IA); agora a extensão envia a cada ~20s.
+_MIN_INTERVAL_SECONDS = int(os.getenv("SALEIA_REALTIME_MIN_INTERVAL_SECONDS", "15"))
+
+
+def intervalo_analise_extensao() -> int:
+    """Intervalo (s) entre envios que a extensão ≥ V.1.4.19 deve usar —
+    devolvido em `/tempo-real` para ajustar sem reinstalar a extensão.
+    `SALEIA_REALTIME_INTERVALO_S` (padrão 20), sempre entre 10 e 120."""
+    try:
+        valor = int(os.getenv("SALEIA_REALTIME_INTERVALO_S", "20"))
+    except ValueError:
+        valor = 20
+    return max(10, min(120, valor))
 _MAX_CONTEXT_CHARS = int(os.getenv("SALEIA_REALTIME_MAX_CONTEXT_CHARS", "6000"))
 
 # Armazenamento em memória das transcrições parciais por reunião

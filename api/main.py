@@ -805,7 +805,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.166",
+        "versao":              "1.4.167",
         "timestamp":           datetime.now().isoformat(),
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
@@ -843,7 +843,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.166",
+        "versao":          "1.4.167",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -962,6 +962,9 @@ async def analisar_tempo_real(req: TempoRealRequest, authorization: str | None =
 
     resultado = _aplicar_contrato_sidebar(resultado, req.meeting_id or "default")
     resultado["auth_status"] = sessao["auth_status"]
+    # A11: a extensão ≥ V.1.4.19 ajusta o ritmo de envio por este campo.
+    from api.processador_tempo_real import intervalo_analise_extensao
+    resultado["intervalo_analise_s"] = intervalo_analise_extensao()
     if sessao["token_renovado"]:
         resultado["token_renovado"] = sessao["token_renovado"]
     return resultado

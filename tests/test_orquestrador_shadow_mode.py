@@ -98,7 +98,60 @@ class ShadowModeDesligadoTest(unittest.TestCase):
         self.assertEqual(len(orquestrador._SHADOW_MODE_TASKS), 0)
 
 
+class LimiteShadowPorReuniaoTest(unittest.TestCase):
+    """A11 (06/10/2026): com o ciclo a cada ~20s, o Shadow Mode roda no
+    máximo 1 vez por reunião a cada SHADOW_MODE_MIN_INTERVAL_S."""
+
+    def setUp(self):
+        orquestrador._SHADOW_ULTIMA_EXECUCAO.clear()
+
+    def tearDown(self):
+        orquestrador._SHADOW_ULTIMA_EXECUCAO.clear()
+
+    def test_intervalo_da_extensao_vem_do_env_com_limites(self):
+        from api.processador_tempo_real import intervalo_analise_extensao
+
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("SALEIA_REALTIME_INTERVALO_S", None)
+            self.assertEqual(intervalo_analise_extensao(), 20)
+        for valor, esperado in (("30", 30), ("3", 10), ("999", 120), ("abc", 20)):
+            with patch.dict(os.environ, {"SALEIA_REALTIME_INTERVALO_S": valor}):
+                self.assertEqual(intervalo_analise_extensao(), esperado, valor)
+
+    def test_segunda_execucao_no_mesmo_minuto_e_pulada(self):
+        with patch.dict(os.environ, {"SHADOW_MODE_MIN_INTERVAL_S": "60"}):
+            self.assertTrue(orquestrador._shadow_liberado_para("reuniao-a"))
+            self.assertFalse(orquestrador._shadow_liberado_para("reuniao-a"))
+            self.assertTrue(orquestrador._shadow_liberado_para("reuniao-b"))
+
+    def test_intervalo_zero_libera_sempre(self):
+        with patch.dict(os.environ, {"SHADOW_MODE_MIN_INTERVAL_S": "0"}):
+            self.assertTrue(orquestrador._shadow_liberado_para("reuniao-a"))
+            self.assertTrue(orquestrador._shadow_liberado_para("reuniao-a"))
+
+    def test_libera_de_novo_depois_do_intervalo(self):
+        with patch.dict(os.environ, {"SHADOW_MODE_MIN_INTERVAL_S": "60"}):
+            self.assertTrue(orquestrador._shadow_liberado_para("reuniao-a"))
+            orquestrador._SHADOW_ULTIMA_EXECUCAO["reuniao-a"] -= 61
+            self.assertTrue(orquestrador._shadow_liberado_para("reuniao-a"))
+
+    def test_agendamento_pulado_nao_cria_tarefa(self):
+        orquestrador._SHADOW_ULTIMA_EXECUCAO["reuniao-a"] = __import__("time").monotonic()
+        with patch.dict(os.environ, {"SHADOW_MODE_ENABLED": "true", "SHADOW_MODE_MIN_INTERVAL_S": "60"}), \
+                patch.object(orquestrador.asyncio, "create_task") as criar:
+            orquestrador._agendar_shadow_mode({}, "", "", "", {}, {}, [], [], "", None, "reuniao-a")
+        criar.assert_not_called()
+
+
 class ShadowModeLigadoTest(unittest.TestCase):
+    def setUp(self):
+        # A11: Shadow Mode limitado a 1 execução por reunião/minuto — cada
+        # teste começa (e termina) sem execução anterior registrada.
+        orquestrador._SHADOW_ULTIMA_EXECUCAO.clear()
+
+    def tearDown(self):
+        orquestrador._SHADOW_ULTIMA_EXECUCAO.clear()
+
     def _rodar(self, raciocinar_mock, criar_comparison_mock, nba_atual, finance_result=None, spin_mock=None, behavioral_mock=None, motivation_mock=None):
         rag_patches = _mock_rag()
         agente_patches = _mock_agentes(nba_atual, finance_result=finance_result)
