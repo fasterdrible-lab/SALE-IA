@@ -1,8 +1,8 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-10-06 — **V.1.4.167 + extensão V.1.4.19 (A11,
-atraso) no GitHub, pendente deploy e reinstalação.** Produção segue em
-**V.1.4.166**.
+Atualizado em: 2026-10-07 — **V.1.4.167 (A11, atraso) em produção**
+(commit `1975e6b`, `reunioes_ativas: 0`, `NRestarts=0`, journal limpo).
+Extensão V.1.4.19 aguarda reinstalação pelo usuário.
 - Extensão envia a cada 20s (era 60s) e passa a obedecer
   `intervalo_analise_s` do `/tempo-real`: depois desta reinstalação, o
   ritmo muda só pelo `.env` (`SALEIA_REALTIME_INTERVALO_S`).
@@ -10,10 +10,9 @@ atraso) no GitHub, pendente deploy e reinstalação.** Produção segue em
   reunião por minuto.
 - Esperado: sugestão ~15-20s depois da fala (era ~35-40s). Custo ~US$
   0,37 → ~0,85 por hora de reunião.
-- **Pendências**: (1) deploy do backend (pedir "sim"); (2) usuário
-  reinstalar a extensão V.1.4.19 (`chrome-extension.zip`); (3) medir o
-  atraso real na próxima reunião; (4) A10 — falante perdido, aguarda o
-  HTML da legenda do Meet.
+- **Pendências**: (1) usuário reinstalar a extensão V.1.4.19
+  (`chrome-extension.zip`); (2) medir o atraso real na próxima reunião;
+  (3) A10 — falante perdido, aguarda o HTML da legenda do Meet.
 
 Atualizado em: 2026-10-06 — **Investigação "assistente atrasa ou
 alucina"** (relato do vendedor) + **V.1.4.166 em produção** (commit
