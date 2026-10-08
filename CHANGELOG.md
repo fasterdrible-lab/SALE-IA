@@ -3,6 +3,40 @@
 
 ---
 
+## V.1.4.168 — Alerta de "IA fora do ar" e /health honesto
+
+> Data: 08/10/2026 | Local, pendente deploy
+
+De 06/10 13:32 UTC a 08/10 os 4 provedores ficaram fora (DeepSeek `402`
+sem saldo, OpenAI `429 insufficient_quota`, Anthropic `400` crédito
+baixo, Gemini `400` chave inválida) e ninguém percebeu: 0 de 1.474
+chamadas com sucesso em 08/10, 3 reuniões sem sugestão. O `/health`
+seguia `online` porque contava `degradado_335_falhas` como disponível, e
+os alertas eram por provedor ("breaker aberto, fallback para o
+próximo"), sem dizer que tudo tinha caído nem por quê.
+
+- `agent/ia_indisponivel_rules.py` (novo, puro): `classificar_causa()`
+  (`sem_saldo`, `chave_invalida`, `limite_de_uso`, `sem_chave`, `outra`;
+  `429` com `insufficient_quota` conta como saldo), `resumir_estado()`
+  (IA disponível se algum provedor configurado está abaixo do limite de
+  falhas do breaker) e as mensagens de alerta com o que fazer por causa.
+- `api/ai_router.py`: o breaker guarda o último erro (já sanitizado);
+  quando todos os provedores falham e nenhum tem tentativas sobrando,
+  alerta no Telegram **"🚨 IA FORA DO AR"** com a causa de cada provedor
+  (repete 1x/h enquanto durar); na 1ª chamada que volta a dar certo,
+  alerta **"✅ IA voltou via X depois de N min"** e rearma o alerta de
+  queda. Melhor esforço: nunca muda o `503`. Estado por processo (2
+  workers: no pior caso o alerta chega 2x). `estado_geral_ia()` novo.
+- `/health`: `status` vira `degradado` sem IA disponível (antes
+  `online`); campos novos `ia_disponivel`, `ia_fora_desde`, `ia_causas`.
+  É o último estado conhecido: depois de recarregar saldo, só volta a
+  `online` na 1ª chamada real (ou no reinício).
+- 16 testes novos (`tests/test_ia_indisponivel.py`, com as mensagens de
+  erro reais de outubro).
+- Versão: `1.4.167` → `1.4.168`.
+
+---
+
 ## Extensão V.1.4.20 — Falante certo na transcrição (Tarefa A10)
 
 > Data: 08/10/2026 | Local, pendente commit + reinstalação da extensão
@@ -64,6 +98,31 @@ Correção:
   aceita conexão de fora da VPS).
 - 15 testes novos em `tests/test_shadow_mode_rules.py` (67/67 nas 4
   suítes de Shadow).
+
+**Resultado real (rodado na VPS em 08/10, só leitura, sem deploy; HEAD
+`1975e6b`)** — 4.598 comparações, 50 reuniões, 21/09 a 08/10:
+
+| Métrica | Valor |
+|---|---|
+| error_rate | **61,4%** (2.821, todas `503`: os 4 provedores em cooldown) |
+| agreement (pergunta sim/não) | 95,6% de 1.777 comparáveis — sem valor: os 2 modelos quase sempre sugerem pergunta (1.684 de 1.777) |
+| latência do motor | p50 13 ms (falha imediata), p95 sem erro 5,5 s |
+| custo do caminho Shadow | US$ 14,02 em 22.820 chamadas = **59% do custo do tempo real** (US$ 23,60); o motor é só 30% disso, o resto são os 7 extratores |
+| `recommended_framework` | vocabulário não é fechado na prática: "SPIN", "SPIN Selling", "spin", "SPIN_SITUATION", frase inteira... |
+| Piloto (C6) | **não**: erro 61% e `quality` sem medição |
+
+- Os dias com saldo têm erro baixo (23/09 0%, 03/10 6%, 05/10 0%): os
+  erros são de **billing, não de código**.
+- **Achado grave**: desde 06/10 13:32 UTC nenhum provedor responde —
+  DeepSeek `402` (saldo), OpenAI `429 insufficient_quota`, Anthropic
+  `400` (crédito baixo), Gemini `400 API key not valid`, e a conta
+  Claude de fallback bateu o limite. 08/10: 0 de 1.474 chamadas de IA
+  com sucesso em 3 reuniões; o vendedor ficou sem sugestão nenhuma. O
+  `/health` diz `online`, com os 4 provedores `degradado_2xx-335_falhas`.
+- Os vendedores seguem na **extensão 1.4.15** (requisições de 06-08/10).
+- Os extratores do Shadow continuam rodando quando o motor vai falhar,
+  então gastam IA sem gerar comparação (decisão futura: pular o Shadow
+  quando os provedores estão em cooldown).
 
 ---
 

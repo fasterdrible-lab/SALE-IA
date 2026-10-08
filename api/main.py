@@ -37,7 +37,7 @@ from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from agent.data_classification_rules import redigir_segredos
-from api.ai_router import chamar_ia, chamar_ia_async, definir_provedor_preferido, rotacionar_provedor_preferido, snapshot_provedores, snapshot_metricas, status_provedores
+from api.ai_router import chamar_ia, chamar_ia_async, definir_provedor_preferido, estado_geral_ia, rotacionar_provedor_preferido, snapshot_provedores, snapshot_metricas, status_provedores
 from api import ai_features
 from api.database import (
     criar_tabelas,
@@ -797,16 +797,18 @@ def health_check():
     snapshot  = snapshot_provedores()
     provedores = snapshot["ia"]
     banco     = db_health()
-    ia_ok = any(
-        p.get("status") == "ok" or p.get("status", "").startswith("degradado")
-        for p in provedores.values()
-    )
-    status = "online" if ia_ok and banco.get("erro") is None else "degradado"
+    # 08/10/2026: antes "degradado_335_falhas" contava como IA disponível e
+    # o /health ficou "online" com os 4 provedores sem saldo por 2 dias.
+    ia = estado_geral_ia()
+    status = "online" if ia["ia_disponivel"] and banco.get("erro") is None else "degradado"
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.167",
+        "versao":              "1.4.168",
         "timestamp":           datetime.now().isoformat(),
+        "ia_disponivel":       ia["ia_disponivel"],
+        "ia_fora_desde":       ia["ia_fora_desde"],
+        "ia_causas":           ia["causas"],
         "ia":                  provedores,
         "ordem_ia":            snapshot["ordem_ia"],
         "provedor_preferido":  snapshot["provedor_preferido"],
@@ -843,7 +845,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.167",
+        "versao":          "1.4.168",
         "timestamp":       datetime.now().isoformat(),
     }
 

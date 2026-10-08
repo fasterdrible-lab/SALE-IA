@@ -19,6 +19,7 @@ import re
 import threading
 import time
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Callable
 
@@ -87,6 +88,7 @@ class CircuitBreaker:
     name: str
     failures: int = 0
     opened_at: float = 0.0
+    last_error: str = ""  # já sanitizado (_safe_error); só para o alerta de IA fora do ar
 
     @property
     def available(self) -> bool:
@@ -99,6 +101,7 @@ class CircuitBreaker:
     def register_success(self) -> None:
         self.failures = 0
         self.opened_at = 0.0
+        self.last_error = ""
 
     def register_failure(self) -> None:
         self.failures += 1
@@ -679,6 +682,7 @@ def chamar_ia(
             custo = calcular_custo(provider.name, model, provider_usage, usage_source)
 
             breaker.register_success()
+            _avisar_ia_voltou(provider.name)
             attempts.append({
                 "provider": provider.name,
                 "model": model,
@@ -771,6 +775,7 @@ def chamar_ia(
             elapsed_ms = int((time.perf_counter() - started_at) * 1000)
             breaker.register_failure()
             safe_error = _safe_error(error)
+            breaker.last_error = safe_error
             attempts.append({
                 "provider": provider.name,
                 "model": model,
@@ -785,6 +790,7 @@ def chamar_ia(
     logger.error("All AI providers failed or were unavailable: %s", attempts)
     with _counters_lock:
         _counters["chamadas_falha"] += 1
+    _avisar_ia_fora()
 
     _registrar_evento_uso_ia_melhor_esforco(
         feature=feature,
@@ -884,6 +890,70 @@ async def chamar_ia_async(
     )
 
 
+# ── IA fora do ar (08/10/2026) ───────────────────────────────────
+# Estado por processo (2 workers: cada um avisa por conta própria; no pior
+# caso o alerta chega 2x). O de "fora" se repete 1x/h enquanto durar.
+_ia_fora_desde: float | None = None
+_ia_fora_lock = threading.Lock()
+
+
+def estado_geral_ia() -> dict:
+    """Último estado conhecido: a IA está disponível? Se não, a causa
+    provável de cada provedor (sem_saldo, chave_invalida...), nunca o erro
+    cru. Usado pelo /health e pelo alerta."""
+    from agent.ia_indisponivel_rules import resumir_estado
+    estado = resumir_estado(
+        {
+            provider.name: {
+                "configurado": bool(_api_key(provider)),
+                "falhas": _breakers[provider.name].failures,
+                "ultimo_erro": _breakers[provider.name].last_error,
+            }
+            for provider in _provider_order()
+        },
+        FAILURES_TO_OPEN,
+    )
+    estado["ia_fora_desde"] = (
+        datetime.fromtimestamp(_ia_fora_desde).isoformat(timespec="seconds") if _ia_fora_desde else None
+    )
+    return estado
+
+
+def _avisar_ia_fora() -> None:
+    """Chamado quando todos os provedores falharam numa chamada. Melhor
+    esforço: nunca pode mudar o 503 que segue para quem chamou."""
+    global _ia_fora_desde
+    try:
+        with _ia_fora_lock:
+            if _ia_fora_desde is None:
+                _ia_fora_desde = time.time()
+            desde = _ia_fora_desde
+        estado = estado_geral_ia()
+        if estado["ia_disponivel"]:
+            return  # algum provedor ainda tem tentativas; só esta chamada caiu
+        from agent.alertas import _pode_alertar, alertar
+        from agent.ia_indisponivel_rules import montar_alerta_ia_fora
+        if _pode_alertar("ia_fora_do_ar"):
+            alertar(montar_alerta_ia_fora(estado["causas"], int((time.time() - desde) // 60)), nivel="🔴")
+    except Exception as exc:
+        logger.debug("Falha ao avisar IA fora do ar (ignorado): %s", exc)
+
+
+def _avisar_ia_voltou(provedor: str) -> None:
+    global _ia_fora_desde
+    with _ia_fora_lock:
+        desde, _ia_fora_desde = _ia_fora_desde, None
+    if desde is None:
+        return
+    try:
+        from agent.alertas import _last_alerta, alertar
+        from agent.ia_indisponivel_rules import montar_alerta_ia_voltou
+        _last_alerta.pop("ia_fora_do_ar", None)  # a próxima queda avisa na hora
+        alertar(montar_alerta_ia_voltou(provedor, int((time.time() - desde) // 60)), nivel="🟢")
+    except Exception as exc:
+        logger.debug("Falha ao avisar IA de volta (ignorado): %s", exc)
+
+
 def status_provedores() -> dict:
     """Returns the operational state of each configured provider without secrets."""
     return {
@@ -906,8 +976,10 @@ def resetar_estado_ia_para_testes() -> None:
     V.1.4.61) — sem isso, testes que reusam os mesmos system_prompt/
     user_content ou rodam em menos de 5min entre si (comum neste arquivo)
     vazam estado cacheado de um teste pro outro."""
+    global _ia_fora_desde
     for breaker in _breakers.values():
         breaker.register_success()
+    _ia_fora_desde = None
     try:
         from api.otimizacao import _cache_respostas, _custo_reuniao_cache
         _cache_respostas.clear()

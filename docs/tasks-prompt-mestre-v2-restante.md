@@ -191,7 +191,7 @@ Pedido original da C8:
 ### C2 — Ligar Seller DNA [CONCLUÍDA no código — 30/09/2026, V.1.4.152; flag em produção pendente do deploy]
 - `SELLER_DNA_OBSERVACAO_ENABLED=true` em produção + agregação ligada
   em `seller_context` → **11/11 campos** (junto com A5).
-### C3 — Avaliar o Shadow Mode (Tarefa 6.2) [código pronto — 08/10/2026; falta rodar `scripts/shadow_mode_avaliacao.py` na VPS]
+### C3 — Avaliar o Shadow Mode (Tarefa 6.2) [RODADA — 08/10/2026: Piloto NÃO pode começar; erro 61% (billing), quality sem medição; remedir com saldo + extensão 1.4.20]
 - Relatório agreement/latency/errors/cost por origem, com o contexto
   completo. Define se o Piloto pode começar.
 ### C4 — Definir o alvo de recommendation quality e a métrica de qualidade

@@ -1,5 +1,22 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-10-08 (noite) — **DeepSeek recarregado** (US$ 4,99,
+testado da VPS: `200 ok`); dá ~5-6h de reunião. **V.1.4.168 local,
+pendente deploy**: alerta Telegram "IA FORA DO AR" com a causa por
+provedor + "IA voltou"; `/health` passa a `degradado` sem IA, com
+`ia_disponivel`/`ia_fora_desde`/`ia_causas`. OpenAI, Anthropic e Gemini
+seguem fora (sem crédito / chave inválida).
+
+Atualizado em: 2026-10-08 (tarde) — **IA fora do ar em produção desde
+06/10 13:32 UTC**: DeepSeek sem saldo (`402`), OpenAI sem créditos
+(`429`), Anthropic com crédito baixo (`400`), chave do Gemini inválida,
+conta Claude de fallback no limite. Em 08/10, 0 de 1.474 chamadas de IA
+deram certo (3 reuniões sem nenhuma sugestão). Correção é de billing/
+chaves, não de código. **C3 rodada na VPS** (só leitura): erro 61%
+(billing), agreement estrutural sem valor, Shadow custa 59% do tempo
+real; Piloto não pode começar. Detalhe no CHANGELOG (C3). Vendedores
+ainda na extensão 1.4.15.
+
 Atualizado em: 2026-10-08 — **Extensão V.1.4.20 (A10, falante certo)
 local, pendente commit + reinstalação** (substitui a V.1.4.19, nunca
 instalada). Produção segue em V.1.4.167.
