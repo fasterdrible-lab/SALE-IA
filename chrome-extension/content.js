@@ -86,11 +86,17 @@
     chrome.storage.local.get(['saleiaParticipantes'], function (dadosParticipantes) {
       if (dadosParticipantes.saleiaParticipantes) {
         var saved = dadosParticipantes.saleiaParticipantes;
+        // O vendedor é sempre o dono da extensão; vale entre reuniões.
         estado.participantes.vendedor = saved.vendedor || 'Vendedor';
-        if (Array.isArray(saved.clientes) && saved.clientes.length) {
-          estado.participantes.clientes = saved.clientes;
-        } else if (saved.cliente) {
-          estado.participantes.clientes = [saved.cliente];
+        // A10 (V.1.4.20): clientes valem só na reunião em que foram
+        // cadastrados. Antes, um "João" salvo em junho rotulava falas de
+        // todas as reuniões seguintes.
+        if (saved.meetingId === MEETING_ID) {
+          if (Array.isArray(saved.clientes) && saved.clientes.length) {
+            estado.participantes.clientes = saved.clientes;
+          } else if (saved.cliente) {
+            estado.participantes.clientes = [saved.cliente];
+          }
         }
       }
       iniciar();
@@ -578,6 +584,10 @@
     };
   }
 
+  // A10 (V.1.4.20): fala cujo falante a legenda não revelou. Nunca vira o
+  // nome de um cliente — a IA tratava fala do vendedor como do cliente.
+  var ROTULO_NAO_IDENTIFICADO = 'Não identificado';
+
   function rotuloParticipante(speaker) {
     var nome = String(speaker || '').trim();
     var normalizado = normalizarNomeParticipante(nome);
@@ -585,8 +595,12 @@
     var clientes = estado.participantes.clientes || ['Cliente'];
     var primeiroCliente = clientes[0] || 'Cliente';
 
-    if (!normalizado || normalizado === 'participante' || normalizado === 'cliente') return primeiroCliente;
-    if (normalizado === 'voce' || normalizado === 'vendedor' || normalizado === normalizarNomeParticipante(vendedor)) return vendedor;
+    if (!normalizado || normalizado === 'participante' || normalizado === normalizarNomeParticipante(ROTULO_NAO_IDENTIFICADO)) {
+      return ROTULO_NAO_IDENTIFICADO;
+    }
+    // "Cliente" só vem do áudio da aba (Whisper), que é sempre o outro lado.
+    if (normalizado === 'cliente') return primeiroCliente;
+    if (normalizado === 'voce' || normalizado === 'you' || normalizado === 'vendedor' || normalizado === normalizarNomeParticipante(vendedor)) return vendedor;
     for (var i = 0; i < clientes.length; i++) {
       if (clientes[i] && normalizado === normalizarNomeParticipante(clientes[i])) return clientes[i];
     }
@@ -625,7 +639,13 @@
       vendedor: document.getElementById('saleia-input-vendedor').value.trim() || 'Vendedor',
       clientes: clientes,
     };
-    chrome.storage.local.set({ saleiaParticipantes: estado.participantes });
+    chrome.storage.local.set({
+      saleiaParticipantes: {
+        meetingId: MEETING_ID,
+        vendedor: estado.participantes.vendedor,
+        clientes: estado.participantes.clientes,
+      },
+    });
     atualizarResumoParticipantes();
     fecharModalParticipantes();
   }
@@ -887,6 +907,80 @@
     return false;
   }
 
+  // ── A10 (V.1.4.20): falante pela estrutura da legenda ──────────────
+  // O Meet troca as classes ofuscadas (zs7s8d, NWpY1...) sem aviso, e
+  // aí todo falante virava "Participante". A estrutura é estável: cada
+  // bloco de legenda tem a foto (avatar) do falante, o nome curto e, depois,
+  // o texto. Sobe do texto até o menor bloco com foto e pega o 1º texto
+  // com cara de nome.
+  var PARTICULAS_NOME = { da: 1, de: 1, di: 1, do: 1, das: 1, dos: 1, e: 1 };
+
+  function pareceNomeDeFalante(texto) {
+    var t = String(texto || '').trim();
+    if (t.length < 2 || t.length > 40) return false;
+    if (/[.,!?;:…"“”_@#()\d]/.test(t)) return false;
+    var palavras = t.split(/\s+/);
+    if (palavras.length > 4) return false;
+    if (normalizarNomeParticipante(t) === 'voce' || normalizarNomeParticipante(t) === 'you') return true;
+    // Nome: toda palavra começa com maiúscula, exceto partículas (da, de, dos...).
+    // Fala ("Tudo bem com você") quase nunca passa nisso.
+    return palavras.every(function (p, i) {
+      if (i > 0 && PARTICULAS_NOME[p]) return true;
+      return /^[A-ZÁÉÍÓÚÂÊÔÃÕÀÇ]/.test(p);
+    });
+  }
+
+  function folhasDeTexto(raiz) {
+    var folhas = [];
+    raiz.querySelectorAll('*').forEach(function (n) {
+      if (n.children.length === 0 && n.textContent.trim() && !n.closest('style,script,noscript,template')) folhas.push(n);
+    });
+    if (!folhas.length && raiz.textContent.trim()) folhas.push(raiz);
+    return folhas;
+  }
+
+  function blocoDoFalante(el) {
+    var atual = el;
+    for (var i = 0; i < 6 && atual && atual !== document.body; i++) {
+      var fotos = atual.querySelectorAll ? atual.querySelectorAll('img, [role="img"]').length : 0;
+      // Mais de uma foto = já subiu até a área com vários falantes; o
+      // nome achado ali seria de outra pessoa.
+      if (fotos > 1) return null;
+      if (fotos === 1 && folhasDeTexto(atual).length >= 2) return atual;
+      atual = atual.parentElement;
+    }
+    return null;
+  }
+
+  // { nome, eONome }: eONome = el é o próprio elemento do nome (ignorar).
+  function detectarFalantePorEstrutura(el) {
+    var bloco = blocoDoFalante(el);
+    if (!bloco) return { nome: null, eONome: false };
+    var folhas = folhasDeTexto(bloco);
+    var nomeEl = null;
+    for (var i = 0; i < folhas.length - 1; i++) {  // nome nunca é o último (depois dele vem a fala)
+      if (pareceNomeDeFalante(folhas[i].textContent)) { nomeEl = folhas[i]; break; }
+    }
+    if (!nomeEl) return { nome: null, eONome: false };
+    if (nomeEl === el) return { nome: null, eONome: true };
+    // O nome tem de vir antes da fala (ou estar dentro do elemento recebido).
+    var antes = el.contains(nomeEl) || (nomeEl.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
+    return { nome: antes ? nomeEl.textContent.trim() : null, eONome: false };
+  }
+
+  // Sem o nome, deixa no console o HTML ao redor da legenda (1x/min) para
+  // ajustar a detecção: F12 → Console → filtrar "SALEIA-FALANTE".
+  var _ultimoAvisoFalante = 0;
+  function avisarFalanteNaoIdentificado(el, texto) {
+    var agora = Date.now();
+    if (agora - _ultimoAvisoFalante < 60000) return;
+    _ultimoAvisoFalante = agora;
+    var raiz = el;
+    for (var i = 0; i < 4 && raiz.parentElement && raiz.parentElement !== document.body; i++) raiz = raiz.parentElement;
+    console.warn('[SALEIA-FALANTE] falante não identificado para "' + texto.substring(0, 60) + '". HTML ao redor:\n' +
+      (raiz.outerHTML || '').substring(0, 3000));
+  }
+
   function processarElementoLegenda(el) {
     if (!el || !el.textContent) return;
     if (el.closest && el.closest('#saleia-sidebar')) return;
@@ -913,6 +1007,13 @@
                    speakerEl.querySelector('strong') ||
                    speakerEl.querySelector('b');
       if (nomeEl && nomeEl.textContent.trim()) speaker = nomeEl.textContent.trim();
+    }
+    if (speaker === 'Participante') {
+      // A10: as classes acima mudaram no Meet; tenta pela estrutura.
+      var falante = detectarFalantePorEstrutura(el);
+      if (falante.eONome) return;  // o próprio nome do falante, não é fala
+      if (falante.nome) speaker = falante.nome;
+      else avisarFalanteNaoIdentificado(el, texto);
     }
 
     // Remove o nome do speaker do início do texto se estiver concatenado (ex: "VocêQue nos ajudou")

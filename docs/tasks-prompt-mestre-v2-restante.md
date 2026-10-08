@@ -168,10 +168,14 @@ nova), depois extratores novos.
 - 0/49 usados na rotulagem humana; embeddings erram 16/49. Métrica atual
   não confiável. Ver CHANGELOG (C8) e a investigação da V.1.4.166.
 
-### A10 — Falante correto na transcrição [novo, 06/10/2026, aguarda amostra do HTML da legenda]
+### A10 — Falante correto na transcrição [FEITA no código — 08/10/2026, extensão V.1.4.20; validar no Meet real]
 - 86-100% das linhas vêm com o mesmo rótulo ("João"). Corrigir a leitura
   do nome na legenda do Meet atual e nunca rotular fala desconhecida com
   o nome de um cliente salvo. Maior impacto esperado na "alucinação".
+- Feito: "Não identificado" no lugar do cliente salvo; nome pela
+  estrutura da legenda (bloco com 1 foto); clientes só valem na reunião
+  em que foram cadastrados; `[SALEIA-FALANTE]` no console quando não
+  achar. Testado em DOM simulado; falta a 1ª reunião real.
 
 ### A11 — Reduzir o atraso da sugestão [EM PRODUÇÃO — 07/10/2026, V.1.4.167; extensão V.1.4.19 aguarda reinstalação]
 - Ciclo 60s → 20s (intervalo agora vem do servidor), trava 35s → 15s,
@@ -187,7 +191,7 @@ Pedido original da C8:
 ### C2 — Ligar Seller DNA [CONCLUÍDA no código — 30/09/2026, V.1.4.152; flag em produção pendente do deploy]
 - `SELLER_DNA_OBSERVACAO_ENABLED=true` em produção + agregação ligada
   em `seller_context` → **11/11 campos** (junto com A5).
-### C3 — Avaliar o Shadow Mode (Tarefa 6.2) [leitura, depende de P2]
+### C3 — Avaliar o Shadow Mode (Tarefa 6.2) [código pronto — 08/10/2026; falta rodar `scripts/shadow_mode_avaliacao.py` na VPS]
 - Relatório agreement/latency/errors/cost por origem, com o contexto
   completo. Define se o Piloto pode começar.
 ### C4 — Definir o alvo de recommendation quality e a métrica de qualidade

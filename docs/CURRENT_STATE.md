@@ -1,5 +1,21 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-10-08 — **Extensão V.1.4.20 (A10, falante certo)
+local, pendente commit + reinstalação** (substitui a V.1.4.19, nunca
+instalada). Produção segue em V.1.4.167.
+- A10: fala sem falante identificado vira "Não identificado" (antes: 1º
+  cliente salvo, "João" desde junho); nome lido pela estrutura da
+  legenda; clientes cadastrados valem só na reunião deles. Testado em
+  DOM simulado, **falta validar no Meet real** (procurar
+  `[SALEIA-FALANTE]` no console F12).
+- C3 (avaliação do Shadow Mode): código e testes prontos
+  (`scripts/shadow_mode_avaliacao.py`, só leitura); falta rodar na VPS,
+  onde o MySQL está acessível.
+- **Pendências**: (1) reinstalar a extensão V.1.4.20
+  (`chrome-extension.zip`) — traz junto a A11 da V.1.4.19; (2) na 1ª
+  reunião, conferir os nomes na transcrição e o atraso da sugestão;
+  (3) rodar a C3 na VPS (precisa de acesso SSH).
+
 Atualizado em: 2026-10-07 — **V.1.4.167 (A11, atraso) em produção**
 (commit `1975e6b`, `reunioes_ativas: 0`, `NRestarts=0`, journal limpo).
 Extensão V.1.4.19 aguarda reinstalação pelo usuário.

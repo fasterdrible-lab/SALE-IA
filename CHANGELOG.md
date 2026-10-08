@@ -3,6 +3,70 @@
 
 ---
 
+## Extensão V.1.4.20 — Falante certo na transcrição (Tarefa A10)
+
+> Data: 08/10/2026 | Local, pendente commit + reinstalação da extensão
+> (substitui a V.1.4.19, que ainda não tinha sido instalada)
+
+86-100% das falas das reuniões de 05/10 chegavam como "João", do
+vendedor e do cliente. Duas causas na extensão (`content.js`):
+
+1. O nome do falante era lido por classes ofuscadas do Meet (`zs7s8d`,
+   `NWpY1`, `a4cQT`) que mudaram. Sem achar, o falante virava
+   "Participante".
+2. `rotuloParticipante()` trocava "Participante" pelo 1º cliente salvo no
+   `chrome.storage`, que nunca era limpo ("João", salvo em junho, rotulava
+   todas as reuniões seguintes).
+
+Correção:
+
+- **Fala sem falante identificado vira "Não identificado"**, nunca o nome
+  de um cliente. "Cliente" (áudio da aba via Whisper, que é sempre o outro
+  lado) continua mapeando para o 1º cliente cadastrado.
+- **Falante pela estrutura da legenda** (`detectarFalantePorEstrutura`),
+  quando as classes antigas não acham: sobe do texto até o menor bloco
+  com exatamente 1 foto (avatar) e pega o 1º texto com cara de nome
+  (até 4 palavras, iniciais maiúsculas exceto partículas, sem
+  pontuação). Bloco com mais de 1 foto = área de vários falantes, desiste
+  (pegaria o nome de outra pessoa; bug achado no teste). O elemento do
+  nome deixa de ser capturado como fala. "Você" → vendedor (já existia).
+- **Clientes cadastrados valem só na reunião em que foram cadastrados**
+  (`saleiaParticipantes.meetingId`); o nome do vendedor continua valendo
+  entre reuniões.
+- **Diagnóstico**: sem nome, o console mostra 1x/min
+  `[SALEIA-FALANTE]` com o HTML ao redor da legenda, para ajustar a
+  detecção se o Meet usar outra estrutura.
+- Testado num DOM simulado (jsdom, 15 casos: vendedor "Você", cliente
+  pelo nome, elemento do nome ignorado, bloco sem foto, fala curta que
+  não é nome, rótulos). **Não validado no Meet real**: conferir na 1ª
+  reunião (falas com nomes reais e nenhum `[SALEIA-FALANTE]`, ou mandar
+  o HTML que aparecer).
+- Backend sem mudança (não depende do texto do rótulo). Extensão
+  `1.4.19` → `1.4.20`, `chrome-extension.zip` regerado.
+
+---
+
+## C3 (código, sem bump) — Avaliação do Shadow Mode
+
+> Data: 08/10/2026 | Local, aguarda rodar na VPS (só leitura)
+
+- `agent/shadow_mode_rules.py::avaliar_shadow_mode()` (pura): por origem
+  (shadow × piloto nunca misturados) — agreement total e sem os ciclos em
+  que o modelo atual caiu no `_FALLBACK_NBA`, matriz pergunta × pergunta,
+  latência p50/p95, erros por tipo, `recommended_framework`, recortes por
+  reunião e por dia, até 10 amostras de concordância/discordância; custo
+  real do caminho Shadow somando as 8 features dele em `ai_usage_events`
+  (o `cost_usd` da comparação só tinha a chamada do motor); checagens de
+  prontidão do Piloto (proposta: ≥ 100 comparáveis, ≥ 5 reuniões, erro ≤
+  5%, p95 ≤ 20s, e `quality` sempre bloqueia até a C4).
+- `scripts/shadow_mode_avaliacao.py`: só leitura, custo de IA zero;
+  recusa rodar se o engine caiu no SQLite (o MySQL de produção não
+  aceita conexão de fora da VPS).
+- 15 testes novos em `tests/test_shadow_mode_rules.py` (67/67 nas 4
+  suítes de Shadow).
+
+---
+
 ## V.1.4.167 + extensão V.1.4.19 — Sugestão chega ~2x mais rápido (Tarefa A11)
 
 > Data: 06/10/2026 | Local, pendente deploy + reinstalação da extensão
