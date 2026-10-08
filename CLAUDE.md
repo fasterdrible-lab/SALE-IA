@@ -17,7 +17,7 @@ Nenhuma tarefa nova começa sem confirmação explícita do usuário, uma de cad
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.168** local (alerta "IA fora do ar"; produção em V.1.4.167) · extensão Chrome **V.1.4.20** no repo (`chrome-extension/manifest.json`, versionada separadamente; vendedores ainda na 1.4.15 em 08/10, falta reinstalar a V.1.4.20)
+- Versão atual: **V.1.4.168** (alerta "IA fora do ar", produção confirmada 08/10/2026) · extensão Chrome **V.1.4.20** no repo (`chrome-extension/manifest.json`, versionada separadamente; vendedores ainda na 1.4.15 em 08/10, falta reinstalar a V.1.4.20)
 - Ritmo do tempo real (desde V.1.4.167 / ext V.1.4.19): intervalo de envio vem do servidor (`SALEIA_REALTIME_INTERVALO_S`, padrão 20s) — mudar ritmo não exige reinstalar a extensão.
 - Usuário admin: `phpos35@gmail.com`
 

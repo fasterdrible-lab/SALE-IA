@@ -5,7 +5,8 @@
 
 ## V.1.4.168 — Alerta de "IA fora do ar" e /health honesto
 
-> Data: 08/10/2026 | Local, pendente deploy
+> Data: 08/10/2026 | **Em produção** (commit `72679a5`, deploy 08/10 com
+> `reunioes_ativas: 0`, `NRestarts=0`, journal limpo)
 
 De 06/10 13:32 UTC a 08/10 os 4 provedores ficaram fora (DeepSeek `402`
 sem saldo, OpenAI `429 insufficient_quota`, Anthropic `400` crédito

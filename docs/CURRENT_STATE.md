@@ -1,8 +1,10 @@
 # SALEIA - Estado Atual
 
 Atualizado em: 2026-10-08 (noite) — **DeepSeek recarregado** (US$ 4,99,
-testado da VPS: `200 ok`); dá ~5-6h de reunião. **V.1.4.168 local,
-pendente deploy**: alerta Telegram "IA FORA DO AR" com a causa por
+testado da VPS: `200 ok`); dá ~5-6h de reunião. **V.1.4.168 em
+produção** (commit `72679a5`, deploy por bundle com `reunioes_ativas: 0`,
+`NRestarts=0`, journal limpo, `/health` = `online`, `ia_disponivel:
+true`): alerta Telegram "IA FORA DO AR" com a causa por
 provedor + "IA voltou"; `/health` passa a `degradado` sem IA, com
 `ia_disponivel`/`ia_fora_desde`/`ia_causas`. OpenAI, Anthropic e Gemini
 seguem fora (sem crédito / chave inválida).
