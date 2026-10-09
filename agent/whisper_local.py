@@ -58,7 +58,7 @@ def _get_model(refresh: bool = False):
         return _model
 
 
-def transcrever(caminho_arquivo: str, idioma: str = "pt") -> str:
+def transcrever(caminho_arquivo: str, idioma: str = "pt", prompt: str | None = None) -> str:
     """Transcreve um arquivo de audio local com o modelo Whisper carregado
     no proprio processo. Nunca envia o arquivo pra nenhuma API externa.
 
@@ -68,7 +68,8 @@ def transcrever(caminho_arquivo: str, idioma: str = "pt") -> str:
     provedor pago (TAREFA 3.11 do PROMPT MESTRE).
     """
     modelo = _get_model()
-    segments, _info = modelo.transcribe(caminho_arquivo, language=idioma, vad_filter=True)
+    extra = {"initial_prompt": prompt} if prompt else {}  # A12: vocabulário
+    segments, _info = modelo.transcribe(caminho_arquivo, language=idioma, vad_filter=True, **extra)
     return " ".join(segment.text.strip() for segment in segments).strip()
 
 

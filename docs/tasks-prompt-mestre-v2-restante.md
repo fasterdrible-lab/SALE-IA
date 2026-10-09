@@ -177,6 +177,15 @@ nova), depois extratores novos.
   em que foram cadastrados; `[SALEIA-FALANTE]` no console quando não
   achar. Testado em DOM simulado; falta a 1ª reunião real.
 
+### A12 — Precisão da transcrição [passo 2 feito no código — 09/10/2026, V.1.4.169 + ext. V.1.4.21]
+- Passo 1 (usuário): extensão nova em todos + legenda do Meet em Português.
+- Passo 2 (feito): filtro de texto de tela no backend (22,6% das linhas
+  eram tela), vocabulário no Whisper com descarte de alucinação, extensão
+  só na área de legendas, áudio da aba em arquivos completos.
+- Passo 3 (pendente): 10 min de reunião real corrigidos à mão → WER e
+  acerto de falante da legenda × Whisper; decidir a fonte principal (o
+  áudio separa vendedor/cliente por canal, sem depender do DOM do Meet).
+
 ### A11 — Reduzir o atraso da sugestão [EM PRODUÇÃO — 07/10/2026, V.1.4.167; extensão V.1.4.19 aguarda reinstalação]
 - Ciclo 60s → 20s (intervalo agora vem do servidor), trava 35s → 15s,
   Shadow limitado a 1/min. Esperado: ~35-40s → ~15-20s. Custo ~US$ 0,37

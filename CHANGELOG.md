@@ -3,6 +3,62 @@
 
 ---
 
+## V.1.4.169 + extensão V.1.4.21 — Transcrição mais limpa e precisa (Tarefa A12)
+
+> Data: 09/10/2026 | Local, pendente deploy + reinstalação da extensão
+
+Medição nas 50 reuniões desde 20/09 (leitura na VPS): **22,6% das linhas
+da transcrição eram texto de tela** que se repete em 5+ reuniões —
+avisos do Meet e do Gemini ("O Gemini está fazendo anotações", "Você
+saiu da reunião", "60 segundos restantes"), botões, nomes de dispositivo
+("AirPods (Bluetooth)", "BlackHole 2ch (Virtual)"), nomes de
+participantes, CSS do editor de anotações, painel do Tactiq. Causa: a
+extensão observa a página inteira e filtra por lista de exclusão, que
+nunca acompanhou o Meet. Os vendedores ainda usam a extensão 1.4.15.
+
+Backend (vale para todas as versões da extensão):
+
+- `agent/ruido_interface_rules.py` (novo): frases e padrões de interface
+  tirados dos dados reais (frases exatas, prefixos de aviso, contagem
+  regressiva, "Fixar X na tela principal", "Fulano (chat)", dispositivos,
+  linha que é só um nome próprio, CSS). Ligado em
+  `compactar_transcricao` → limpa o texto que vai para a IA e o que é
+  gravado na MeetingMemory. **Validado nas 39.754 linhas reais: remove
+  26,8%**; as removidas que não se repetem entre reuniões também são
+  tela; fala curta repetida ("Com certeza", "Entendi, entendi") fica.
+- **Vocabulário no Whisper** (`agent/transcricao_vocabulario_rules.py`,
+  novo): até aqui só ia `language="pt"`. Agora vai um `prompt` com os
+  termos do negócio (`TRANSCRICAO_GLOSSARIO`, padrão "SALEIA, Programa de
+  Aceleração, Performance"), os nomes que já falaram na reunião e o fim
+  da conversa (continuidade entre trechos de 15s). Vale para Groq,
+  OpenAI e Whisper local (`initial_prompt`). Descarta alucinação típica
+  de silêncio ("Legendas pela comunidade Amara.org", "Obrigado por
+  assistir") e eco do próprio prompt (4+ palavras contidas nele).
+- `api/database.py::obter_trecho_final_transcricao()` (novo, lê só a
+  coluna `transcript_full`).
+
+Extensão V.1.4.21:
+
+- **Só a área de legendas**: quando existe `role="region"` com rótulo
+  "Legendas"/"Captions", só o texto de dentro dela é aceito; sem ela,
+  volta à página inteira. O console mostra `[SALEIA-LEGENDA] modo de
+  captura: so-area-de-legendas` (ou `pagina-inteira`).
+- **Áudio da aba**: `MediaRecorder.start(15000)` gerava pedaços sem
+  cabeçalho WebM depois do 1º (o Whisper local recusou alguns com
+  "Invalid data found"). Agora cada ciclo de 15s é uma gravação própria,
+  igual ao microfone.
+- Testes fora do navegador (jsdom + gravador falso): área de legendas
+  (PT/EN, sem área), ciclo de áudio (1 arquivo por ciclo, parar envia o
+  último sem reiniciar). **Falta validar no Meet real.**
+
+- Testes novos: `tests/test_ruido_interface_rules.py`,
+  `tests/test_transcricao_vocabulario.py` (+1 em `test_whisper_local.py`).
+- Versão: `1.4.168` → `1.4.169`; extensão `1.4.20` → `1.4.21`.
+- Histórico: 08-18/09 a coluna `transcript_full` estourava (3.378 erros
+  "Data too long"); já é MEDIUMTEXT e não há erro desde 18/09.
+
+---
+
 ## V.1.4.168 — Alerta de "IA fora do ar" e /health honesto
 
 > Data: 08/10/2026 | **Em produção** (commit `72679a5`, deploy 08/10 com

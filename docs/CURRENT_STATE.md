@@ -1,5 +1,15 @@
 # SALEIA - Estado Atual
 
+Atualizado em: 2026-10-09 — **A12 (transcrição) local, pendente deploy +
+reinstalação**: V.1.4.169 + extensão V.1.4.21. 22,6% das linhas das
+transcrições eram texto de tela do Meet/Gemini/Tactiq; filtro no backend
+(remove 26,8% nas 39.754 linhas reais, vale até para a extensão 1.4.15),
+vocabulário no Whisper (termos + nomes + fim da conversa) com descarte de
+alucinação, extensão aceitando só a área de legendas e áudio da aba em
+arquivos completos. Próximo passo da A12: medir de verdade (10 min de
+reunião real corrigidos à mão → erro de palavra e de falante, legenda ×
+Whisper).
+
 Atualizado em: 2026-10-08 (noite) — **DeepSeek recarregado** (US$ 4,99,
 testado da VPS: `200 ok`); dá ~5-6h de reunião. **V.1.4.168 em
 produção** (commit `72679a5`, deploy por bundle com `reunioes_ativas: 0`,

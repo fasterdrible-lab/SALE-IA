@@ -22,6 +22,8 @@
 let mediaRecorder = null;
 let audioContext = null;
 let tabStream = null;
+let gravandoAba = false;
+let cicloAbaTimer = null;
 
 chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
 
@@ -78,30 +80,51 @@ async function iniciarGravacaoAba(tabStreamId) {
     ? 'audio/webm;codecs=opus'
     : 'audio/webm';
 
-  mediaRecorder = new MediaRecorder(tabStream, { mimeType: mimeType });
-
-  mediaRecorder.ondataavailable = function (e) {
-    if (!e.data || e.data.size < 1024) return; // ignora chunks muito pequenos (<1KB)
-    const reader = new FileReader();
-    reader.onloadend = function () {
-      chrome.runtime.sendMessage({
-        tipo: 'audioChunk',
-        base64: reader.result,   // formato: "data:audio/webm;base64,XXXX"
-        mimeType: mimeType,
-        fonte: 'aba',
-      });
-    };
-    reader.readAsDataURL(e.data);
-  };
-
-  // Chunk a cada 15 segundos — bom equilíbrio para Whisper (mín ~5s, máx ~120s)
-  mediaRecorder.start(15000);
+  gravandoAba = true;
+  iniciarCicloAba(mimeType);
   console.log('[SALEIA-OFFSCREEN] Gravação do áudio da aba iniciada.');
 }
 
+// A12 (V.1.4.21): com start(15000) só o 1º pedaço trazia o cabeçalho do
+// WebM; os seguintes não eram arquivos válidos sozinhos (o Whisper local
+// recusava com "Invalid data found"). Agora cada ciclo de 15s é uma
+// gravação própria (para e recomeça), igual ao microfone em content.js.
+function iniciarCicloAba(mimeType) {
+  if (!gravandoAba || !tabStream) return;
+  const partes = [];
+  const recorder = new MediaRecorder(tabStream, { mimeType: mimeType });
+  mediaRecorder = recorder;
+  recorder.ondataavailable = function (e) {
+    if (e.data && e.data.size) partes.push(e.data);
+  };
+  recorder.onstop = function () {
+    const blob = new Blob(partes, { type: mimeType });
+    if (blob.size >= 1024) { // ignora pedaços muito pequenos (<1KB)
+      const reader = new FileReader();
+      reader.onloadend = function () {
+        chrome.runtime.sendMessage({
+          tipo: 'audioChunk',
+          base64: reader.result,   // formato: "data:audio/webm;base64,XXXX"
+          mimeType: mimeType,
+          fonte: 'aba',
+        });
+      };
+      reader.readAsDataURL(blob);
+    }
+    iniciarCicloAba(mimeType);  // próximo ciclo (para sozinho se gravandoAba=false)
+  };
+  recorder.start();
+  // 15s — bom equilíbrio para Whisper (mín ~5s, máx ~120s)
+  cicloAbaTimer = setTimeout(function () {
+    if (recorder.state !== 'inactive') recorder.stop();
+  }, 15000);
+}
+
 function pararGravacaoAba() {
+  gravandoAba = false;
+  if (cicloAbaTimer) { clearTimeout(cicloAbaTimer); cicloAbaTimer = null; }
   if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-    mediaRecorder.stop();
+    mediaRecorder.stop();  // envia o último pedaço; o onstop não reinicia
   }
   mediaRecorder = null;
 

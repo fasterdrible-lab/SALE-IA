@@ -751,6 +751,19 @@ def obter_meeting_memory(meeting_id: str) -> Optional[dict]:
     return None
 
 
+def obter_trecho_final_transcricao(meeting_id: str, max_chars: int = 3000) -> str:
+    """Só o fim de `transcript_full` (A12: vocabulário do Whisper). Lê só
+    essa coluna, sem o resto da MeetingMemory; o corte é em Python porque
+    `SUBSTR(x, -n)` do MySQL devolve '' quando o texto é menor que n."""
+    if not meeting_id or meeting_id == "default":
+        return ""
+    with Session(engine) as session:
+        texto = session.exec(
+            select(MeetingMemory.transcript_full).where(MeetingMemory.meeting_id == meeting_id)
+        ).first()
+    return (texto or "")[-max_chars:]
+
+
 def salvar_meeting_memory(meeting_id: str, **campos) -> dict:
     """Cria ou atualiza a memoria persistente da reuniao."""
     if not meeting_id:

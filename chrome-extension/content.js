@@ -981,9 +981,39 @@
       (raiz.outerHTML || '').substring(0, 3000));
   }
 
+  // ── A12 (V.1.4.21): só a área de legendas ──────────────────────────
+  // O observador vê a página inteira; a lista de exclusão (eRuidoUI) nunca
+  // acompanhou o Meet: 22,6% das linhas de 50 reuniões eram texto de tela
+  // (avisos do Gemini, botões, nomes de dispositivo, painel do Tactiq).
+  // Quando a área de legendas existe, só o texto de dentro dela vale. Sem
+  // ela (Meet mudou o rótulo), volta ao comportamento antigo.
+  var REGIAO_LEGENDAS_SEL = '[role="region"][aria-label*="egenda" i], [role="region"][aria-label*="aption" i]';
+  var _regiaoLegendas = null;
+  var _regiaoLegendasEm = 0;
+  var _modoLegendaLogado = '';
+
+  function regiaoLegendas() {
+    var agora = Date.now();
+    if (agora - _regiaoLegendasEm > 3000 || (_regiaoLegendas && !_regiaoLegendas.isConnected)) {
+      _regiaoLegendas = null;
+      document.querySelectorAll(REGIAO_LEGENDAS_SEL).forEach(function (r) {
+        if (!_regiaoLegendas && !r.closest('#saleia-sidebar')) _regiaoLegendas = r;
+      });
+      _regiaoLegendasEm = agora;
+      var modo = _regiaoLegendas ? 'so-area-de-legendas' : 'pagina-inteira';
+      if (modo !== _modoLegendaLogado) {
+        _modoLegendaLogado = modo;
+        console.log('[SALEIA-LEGENDA] modo de captura: ' + modo);
+      }
+    }
+    return _regiaoLegendas;
+  }
+
   function processarElementoLegenda(el) {
     if (!el || !el.textContent) return;
     if (el.closest && el.closest('#saleia-sidebar')) return;
+    var regiao = regiaoLegendas();
+    if (regiao && !regiao.contains(el)) return;
     // Tarefa A1: <style>/<script> são "folhas" de texto para o observer e
     // vazavam CSS ("height: 100%;") como se fosse fala.
     if (el.closest && el.closest('style,script,noscript,template')) return;

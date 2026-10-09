@@ -96,9 +96,16 @@ def _rotulo(linha: str) -> str:
 
 
 def eh_ruido_de_tela(linha: str) -> bool:
-    """CSS vazado do Meet (`position: absolute;`, `}`) ou linha sem letra."""
+    """CSS vazado do Meet (`position: absolute;`, `}`), linha sem letra ou
+    texto de interface do Meet/Gemini/Tactiq com rótulo de falante (A12,
+    `agent/ruido_interface_rules.py`)."""
+    from agent.ruido_interface_rules import eh_texto_de_interface
+
     linha = (linha or "").strip()
-    return bool(_CSS_RE.match(linha)) or not _TEM_LETRA_RE.search(linha)
+    if _CSS_RE.match(linha) or not _TEM_LETRA_RE.search(linha):
+        return True
+    m = _ROTULO_RE.match(linha)
+    return eh_texto_de_interface(m.group(2) if m else linha)
 
 
 def compactar_transcricao(texto: str, janela: int = JANELA_PARCIAL_PADRAO) -> str:

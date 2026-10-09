@@ -804,7 +804,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.168",
+        "versao":              "1.4.169",
         "timestamp":           datetime.now().isoformat(),
         "ia_disponivel":       ia["ia_disponivel"],
         "ia_fora_desde":       ia["ia_fora_desde"],
@@ -845,7 +845,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.168",
+        "versao":          "1.4.169",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -3089,26 +3089,29 @@ async def cenario_conducao(meeting_id: str, req: ConducaoRequest, authorization:
 # ─────────────────────────────────────────────
 # WHISPER — transcrição de áudio em tempo real
 # ─────────────────────────────────────────────
-def _transcrever_via_openai(tmp_path: str) -> tuple[str, str]:
+def _transcrever_via_openai(tmp_path: str, prompt: str | None = None) -> tuple[str, str]:
     from openai import OpenAI
     openai_key = os.getenv("OPENAI_API_KEY", "")
     if not openai_key:
         raise HTTPException(status_code=500, detail="OPENAI_API_KEY não configurada. Configure em Configurações > APIs.")
+    extra = {"prompt": prompt} if prompt else {}
     with OpenAI(api_key=openai_key) as openai_client, open(tmp_path, 'rb') as f:
         transcript = openai_client.audio.transcriptions.create(
             model="whisper-1",
             file=f,
             language="pt",
+            **extra,
         )
     return (transcript.text.strip() if transcript.text else ""), "[Whisper]"
 
 
-def _transcrever_via_groq(tmp_path: str) -> tuple[str, str]:
+def _transcrever_via_groq(tmp_path: str, prompt: str | None = None) -> tuple[str, str]:
     groq_key = os.getenv("GROQ_API_KEY", "")
     if not groq_key:
         raise HTTPException(status_code=500, detail="GROQ_API_KEY não configurada. Configure em Configurações > Transcrição de Áudio.")
     from groq import Groq as GroqClient
     groq_client = GroqClient(api_key=groq_key)
+    extra = {"prompt": prompt} if prompt else {}
     with open(tmp_path, 'rb') as f:
         transcript = groq_client.audio.transcriptions.create(
             file=(tmp_path, f.read()),
@@ -3116,15 +3119,35 @@ def _transcrever_via_groq(tmp_path: str) -> tuple[str, str]:
             language="pt",
             temperature=0,
             response_format="verbose_json",
+            **extra,
         )
     return (transcript.text.strip() if transcript.text else ""), "[Groq]"
 
 
-def _transcrever_via_whisper_local(tmp_path: str) -> tuple[str, str]:
+def _transcrever_via_whisper_local(tmp_path: str, prompt: str | None = None) -> tuple[str, str]:
     # Fase 3 do PROMPT MESTRE ("Meetily") — roda no proprio servidor,
     # sem enviar audio a nenhuma API externa. Ver agent/whisper_local.py.
     from agent.whisper_local import transcrever as _transcrever_local
-    return _transcrever_local(tmp_path, idioma="pt"), "[Whisper Local]"
+    return _transcrever_local(tmp_path, idioma="pt", prompt=prompt), "[Whisper Local]"
+
+
+def _prompt_whisper_da_reuniao(meeting_id: str | None) -> str:
+    """A12: termos do negócio + nomes que já falaram + fim da conversa.
+    Melhor esforço: sem banco, vai só o glossário."""
+    from agent.transcricao_vocabulario_rules import (
+        contexto_final, glossario_do_ambiente, montar_prompt_whisper, nomes_dos_falantes,
+    )
+    trecho = ""
+    try:
+        from api.database import obter_trecho_final_transcricao
+        trecho = obter_trecho_final_transcricao(meeting_id or "")
+    except Exception as e:
+        logger.debug("[Transcricao] sem trecho para o vocabulário: %s", e)
+    return montar_prompt_whisper(
+        glossario_do_ambiente(os.getenv("TRANSCRICAO_GLOSSARIO")),
+        nomes_dos_falantes(trecho),
+        contexto_final(trecho),
+    )
 
 
 # Dispatch por provedor — TRANSCRICAO_PROVEDOR seleciona qual funcao
@@ -3177,7 +3200,13 @@ async def audio_transcricao(req: AudioTranscricaoRequest, request: Request):
             tmp.write(audio_bytes)
             tmp_path = tmp.name
 
-        texto, label = funcao_transcricao(tmp_path)
+        prompt_whisper = _prompt_whisper_da_reuniao(req.meeting_id)
+        texto, label = funcao_transcricao(tmp_path, prompt=prompt_whisper)
+
+        from agent.transcricao_vocabulario_rules import eh_alucinacao
+        if texto and eh_alucinacao(texto, prompt_whisper):
+            logger.info("[Transcricao/%s] descartado (alucinação/eco do prompt): %.80s", provedor_transcricao, texto)
+            return {"texto": "", "ok": True, "provedor": provedor_transcricao, "motivo": "descartado"}
 
         if texto and req.meeting_id and req.meeting_id != "default":
             try:

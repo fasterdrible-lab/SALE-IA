@@ -90,6 +90,16 @@ class WhisperLocalTranscreverTest(unittest.TestCase):
         self.assertEqual(kwargs.get("language"), "pt")
         self.assertTrue(kwargs.get("vad_filter"))
 
+    def test_transcrever_passa_vocabulario_como_initial_prompt(self):
+        instancia = MagicMock()
+        instancia.transcribe.return_value = ([], MagicMock())
+        fake_mod = _fake_faster_whisper_module(MagicMock(return_value=instancia))
+
+        with patch.dict(sys.modules, {"faster_whisper": fake_mod}):
+            whisper_local.transcrever("/tmp/fake.webm", prompt="Termos: SALEIA.")
+
+        self.assertEqual(instancia.transcribe.call_args.kwargs.get("initial_prompt"), "Termos: SALEIA.")
+
     def test_transcrever_empty_segments_returns_empty_string(self):
         instancia = MagicMock()
         instancia.transcribe.return_value = ([], MagicMock())
