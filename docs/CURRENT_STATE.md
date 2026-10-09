@@ -1,5 +1,37 @@
 # SALEIA - Estado Atual
 
+## Resumo de 08-09/10/2026 (leia primeiro)
+
+- **Produção**: V.1.4.169 (commit `8c6b1d1`, docs `a7ff635`), `/health`
+  online com `ia_disponivel: true`. Extensão no repo: **V.1.4.21**
+  (`chrome-extension.zip`); vendedores ainda na 1.4.15.
+- **Feito nestes 2 dias** (detalhe no CHANGELOG):
+  - **A10** (ext 1.4.20): falante desconhecido vira "Não identificado"
+    (antes: "João" salvo em junho em 86-100% das falas); nome lido pela
+    estrutura da legenda; clientes salvos por reunião.
+  - **C3**: avaliação do Shadow Mode rodada na VPS — erro 61% (billing),
+    agreement estrutural sem valor, Shadow = 59% do custo do tempo real.
+    **Piloto (C6) não pode começar.**
+  - **IA fora do ar 06/10 13:32 → 08/10**: os 4 provedores sem saldo/chave;
+    DeepSeek recarregado (US$ 4,99) em 08/10. **V.1.4.168**: Telegram
+    "IA FORA DO AR" com a causa + "IA voltou"; `/health` degradado sem IA.
+  - **A12** (V.1.4.169 + ext 1.4.21): 22,6% das linhas eram texto de tela;
+    filtro no backend (−26,8% nas linhas reais), vocabulário no Whisper,
+    extensão só na área de legendas, áudio da aba em arquivos completos.
+- **Pendências do usuário**: (1) reinstalar a extensão 1.4.21 em todos;
+  (2) legenda do Meet em Português; (3) termos do negócio para
+  `TRANSCRICAO_GLOSSARIO`; (4) saldo em OpenAI/Anthropic e chave nova do
+  Gemini (DeepSeek dá ~5-6h de reunião); (5) trocar a senha root da VPS
+  (passou pelo chat); (6) 10 min de reunião real corrigidos à mão (A12
+  passo 3).
+- **Na 1ª reunião com a extensão nova**: console (F12) deve mostrar
+  `[SALEIA-LEGENDA] modo de captura: so-area-de-legendas` e nenhum
+  `[SALEIA-FALANTE]`; depois, remedir a C3
+  (`scripts/shadow_mode_avaliacao.py` na VPS, só leitura).
+- **Fora do git de propósito**: `deploy/systemd/*.sh` aparecem modificados
+  só por perder o bit de execução no Windows (não commitar); PDFs/DOCX de
+  clientes e `data/` são locais.
+
 Atualizado em: 2026-10-09 — **A12 (transcrição): V.1.4.169 em produção**
 (commit `8c6b1d1`, `/health` = 1.4.169, `ia_disponivel: true`);
 extensão V.1.4.21 aguarda reinstalação. 22,6% das linhas das
