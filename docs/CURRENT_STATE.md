@@ -1,7 +1,8 @@
 # SALEIA - Estado Atual
 
-Atualizado em: 2026-10-09 — **A12 (transcrição) local, pendente deploy +
-reinstalação**: V.1.4.169 + extensão V.1.4.21. 22,6% das linhas das
+Atualizado em: 2026-10-09 — **A12 (transcrição): V.1.4.169 em produção**
+(commit `8c6b1d1`, `/health` = 1.4.169, `ia_disponivel: true`);
+extensão V.1.4.21 aguarda reinstalação. 22,6% das linhas das
 transcrições eram texto de tela do Meet/Gemini/Tactiq; filtro no backend
 (remove 26,8% nas 39.754 linhas reais, vale até para a extensão 1.4.15),
 vocabulário no Whisper (termos + nomes + fim da conversa) com descarte de

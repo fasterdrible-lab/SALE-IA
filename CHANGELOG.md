@@ -5,7 +5,9 @@
 
 ## V.1.4.169 + extensão V.1.4.21 — Transcrição mais limpa e precisa (Tarefa A12)
 
-> Data: 09/10/2026 | Local, pendente deploy + reinstalação da extensão
+> Data: 09/10/2026 | **Backend em produção** (commit `8c6b1d1`, deploy
+> 09/10 ~11:54 depois de reunião ativa, `NRestarts=0`, journal limpo);
+> extensão aguarda reinstalação
 
 Medição nas 50 reuniões desde 20/09 (leitura na VPS): **22,6% das linhas
 da transcrição eram texto de tela** que se repete em 5+ reuniões —
