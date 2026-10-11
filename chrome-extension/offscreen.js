@@ -24,6 +24,10 @@ let audioContext = null;
 let tabStream = null;
 let gravandoAba = false;
 let cicloAbaTimer = null;
+// Reunião e aba de origem vão em cada pedaço (auditoria T01, P20/P21): o
+// service worker pode ter sido reciclado e esquecido os dois.
+let meetingIdAba = 'default';
+let tabIdAba = null;
 
 chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
 
@@ -37,6 +41,8 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
       sendResponse({ ok: false, error: 'sem tabStreamId — tabCapture indisponível' });
       return true;
     }
+    meetingIdAba = msg.meeting_id || 'default';
+    tabIdAba = msg.tabId || null;
 
     iniciarGravacaoAba(msg.tabStreamId)
       .then(function () { sendResponse({ ok: true }); })
@@ -107,6 +113,8 @@ function iniciarCicloAba(mimeType) {
           base64: reader.result,   // formato: "data:audio/webm;base64,XXXX"
           mimeType: mimeType,
           fonte: 'aba',
+          meeting_id: meetingIdAba,
+          tabId: tabIdAba,
         });
       };
       reader.readAsDataURL(blob);

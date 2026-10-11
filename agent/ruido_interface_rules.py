@@ -215,6 +215,8 @@ _PADROES = [re.compile(p) for p in (
     r"^permitir \d+ convidados?$",
     r"^ver tudo \(\d+\)$",
     r"^fixar .+ na tela principal$",
+    # "Desativar som do microfone de liz ramos" (auditoria T01, P15)
+    r"^(desativar|ativar) (o )?(som|audio) do microfone de .+$",
     r"^a apresentacao de .+ (foi adicionada|foi removida|esta) ",
     # "Fulano (Você, apresentando)", "Fulano (chat)", "Fulano (Apresentando)"
     r"^[^()]{2,80} \((voce|apresentando|chat|sua apresentacao)[^)]*\)$",

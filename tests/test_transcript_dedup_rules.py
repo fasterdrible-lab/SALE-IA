@@ -41,9 +41,21 @@ class EhDuplicataTest(unittest.TestCase):
         recentes = [LEGENDA] + [f"Cliente: fala intermediária número {i} bem diferente" for i in range(20)]
         self.assertFalse(eh_duplicata(WHISPER, recentes))
 
-    def test_identica_na_janela_longa_descartada(self):
+    def test_identica_longe_e_repeticao_real_e_fica(self):
+        # Auditoria T01 (P7): antes, cópia exata em 80 linhas era descartada
+        # — e o cliente insistindo numa objeção sumia. Só a colada (≤6) sai.
         recentes = [LEGENDA] + [f"Cliente: fala intermediária número {i} bem diferente" for i in range(40)]
+        self.assertFalse(eh_duplicata(LEGENDA, recentes))
+
+    def test_identica_colada_e_artefato(self):
+        recentes = [LEGENDA, "Cliente: fala intermediária bem diferente aqui"]
         self.assertTrue(eh_duplicata(LEGENDA, recentes))
+
+    def test_com_corpos_de_audio_so_junta_a_versao_do_audio(self):
+        # P8: duas pessoas dizendo quase a mesma coisa ficam.
+        outra_pessoa = "Bruno: Caraca vocês estão botando um bichinho para trabalhar então hein"
+        self.assertFalse(eh_duplicata(outra_pessoa, [LEGENDA], corpos_audio=set()))
+        self.assertTrue(eh_duplicata(WHISPER, [LEGENDA], corpos_audio={corpo_normalizado(WHISPER)}))
 
 
 class DeduplicarFragmentoTest(unittest.TestCase):
@@ -100,6 +112,9 @@ class RegistrarTranscricaoIdempotenteTest(unittest.TestCase):
         self.assertEqual(r["transcript_full"].count("três pessoas"), 1)
 
     def test_segunda_fonte_descartada_e_nova_fala_mantida(self):
+        # Fluxo real: /audio-transcricao registra o texto do áudio antes de
+        # ele voltar pela extensão com rótulo de falante (P8).
+        self._database.registrar_transcricao_audio("abc-defg-hij", WHISPER.split(": ", 1)[1])
         self._database.registrar_transcricao_meeting("abc-defg-hij", LEGENDA)
         r = self._database.registrar_transcricao_meeting(
             "abc-defg-hij", f"{WHISPER}\nCliente: Nosso maior problema é o follow-up que se perde."

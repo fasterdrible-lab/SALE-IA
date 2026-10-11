@@ -126,6 +126,20 @@ class MeetingMemory(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
 
 
+class TranscricaoAudioRecente(SQLModel, table=True):
+    """Texto que o servidor transcreveu do áudio de uma reunião (auditoria
+    T01, P8). A mesma fala volta pela extensão no /tempo-real com rótulo de
+    falante; só contra estes corpos a deduplicação por similaridade vale —
+    duas pessoas dizendo quase a mesma coisa nunca são juntadas."""
+
+    __tablename__ = "transcricoes_audio_recentes"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    meeting_id: str = Field(sa_column=Column(String(200), index=True, nullable=False))
+    corpo: str = Field(sa_column=Column(Text, nullable=False))  # corpo_normalizado
+    criado_em: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, index=True, nullable=False))
+
+
 class AiUsageEvent(SQLModel, table=True):
     """Evento de uso de IA — um registro por chamada a chamar_ia()/fallback
     Claude Account (Cost Intelligence Fase 1).
@@ -754,14 +768,77 @@ def obter_meeting_memory(meeting_id: str) -> Optional[dict]:
 def obter_trecho_final_transcricao(meeting_id: str, max_chars: int = 3000) -> str:
     """Só o fim de `transcript_full` (A12: vocabulário do Whisper). Lê só
     essa coluna, sem o resto da MeetingMemory; o corte é em Python porque
-    `SUBSTR(x, -n)` do MySQL devolve '' quando o texto é menor que n."""
+    `SUBSTR(x, -n)` do MySQL devolve '' quando o texto é menor que n.
+    Memória parada há mais de `INATIVIDADE_NOVA_REUNIAO` é de outra
+    reunião da mesma sala (P5) — não entra."""
     if not meeting_id or meeting_id == "default":
         return ""
     with Session(engine) as session:
-        texto = session.exec(
-            select(MeetingMemory.transcript_full).where(MeetingMemory.meeting_id == meeting_id)
+        linha = session.exec(
+            select(MeetingMemory.transcript_full, MeetingMemory.updated_at)
+            .where(MeetingMemory.meeting_id == meeting_id)
         ).first()
+    if not linha:
+        return ""
+    texto, atualizado = linha
+    if atualizado and datetime.now() - atualizado > INATIVIDADE_NOVA_REUNIAO:
+        return ""
     return (texto or "")[-max_chars:]
+
+
+# Auditoria T01 (P5): sala fixa do Meet tem o mesmo código todo dia
+# (`mnk-kvoo-pyj` em 36 dias) e virava uma MeetingMemory só, misturando
+# reuniões no contexto da IA, na deduplicação e no prompt do Whisper.
+# Parada há mais que isto, a próxima gravação abre uma memória nova e a
+# antiga fica arquivada com o código + data de início.
+INATIVIDADE_NOVA_REUNIAO = timedelta(hours=6)
+_TENTATIVAS_GRAVACAO = 5
+
+
+def _arquivar_se_outra_reuniao(session: Session, row: Optional[MeetingMemory]) -> Optional[MeetingMemory]:
+    if not row or not row.updated_at or datetime.now() - row.updated_at <= INATIVIDADE_NOVA_REUNIAO:
+        return row
+    original = row.meeting_id
+    inicio = row.created_at or row.updated_at
+    row.meeting_id = f"{original}#{inicio:%Y%m%d%H%M}-{row.id}"[:200]
+    session.add(row)
+    session.commit()
+    logger.info("[MeetingMemory] %s parada desde %s — arquivada como %s", original, row.updated_at, row.meeting_id)
+    return None
+
+
+def registrar_transcricao_audio(meeting_id: str, texto: str) -> None:
+    """Guarda o corpo de um texto transcrito do áudio (P8). Melhor esforço."""
+    if not meeting_id or meeting_id == "default" or not (texto or "").strip():
+        return
+    from agent.transcript_dedup_rules import corpo_normalizado
+
+    agora = datetime.now()
+    with Session(engine) as session:
+        session.add(TranscricaoAudioRecente(meeting_id=meeting_id, corpo=corpo_normalizado(texto), criado_em=agora))
+        session.execute(
+            TranscricaoAudioRecente.__table__.delete().where(
+                TranscricaoAudioRecente.criado_em < agora - timedelta(days=1)
+            )
+        )
+        session.commit()
+
+
+def corpos_de_audio_recentes(meeting_id: str, minutos: int = 15) -> set:
+    """Corpos transcritos do áudio desta reunião nos últimos `minutos`.
+    Falha de leitura vira conjunto vazio (só desliga a regra de similaridade)."""
+    try:
+        limite = datetime.now() - timedelta(minutes=minutos)
+        with Session(engine) as session:
+            return set(session.exec(
+                select(TranscricaoAudioRecente.corpo).where(
+                    TranscricaoAudioRecente.meeting_id == meeting_id,
+                    TranscricaoAudioRecente.criado_em >= limite,
+                )
+            ).all())
+    except Exception as e:
+        logger.warning("[MeetingMemory] sem corpos de áudio para %s: %s", meeting_id, e)
+        return set()
 
 
 def salvar_meeting_memory(meeting_id: str, **campos) -> dict:
@@ -814,41 +891,76 @@ def registrar_transcricao_meeting(
     `usuario_id` (Fase 18 / Tarefa 18.1): carimba o dono da reunião na
     criação da linha, ou faz backfill se a linha já existe mas ainda
     não tem dono (ex.: reunião começou anônima e o vendedor logou no
-    meio) — nunca sobrescreve um dono já registrado."""
+    meio) — nunca sobrescreve um dono já registrado.
+
+    Auditoria T01 (P6): com 2 workers, ler-deduplicar-gravar sem trava
+    perdia o fragmento de quem gravasse primeiro. A gravação agora só vale
+    se o tamanho de `transcript_full` ainda for o lido (compare-and-swap);
+    senão relê e refaz, até `_TENTATIVAS_GRAVACAO` vezes."""
     if not meeting_id:
         raise ValueError("meeting_id e obrigatorio")
 
+    from sqlalchemy import update
+    from sqlalchemy.exc import IntegrityError
+    from agent.transcript_dedup_rules import deduplicar_fragmento
+
     fragmento = (fragmento or "").strip()
-    with Session(engine) as session:
-        stmt = select(MeetingMemory).where(MeetingMemory.meeting_id == meeting_id)
-        row = session.exec(stmt).first()
+    tamanho_sql = func.coalesce(func.length(MeetingMemory.transcript_full), 0)
+    for _ in range(_TENTATIVAS_GRAVACAO):
+        with Session(engine) as session:
+            achado = session.exec(
+                select(MeetingMemory, tamanho_sql).where(MeetingMemory.meeting_id == meeting_id)
+            ).first()
+            row, tamanho = achado if achado else (None, 0)
+            row = _arquivar_se_outra_reuniao(session, row)
+            base = "" if (substituir or not row) else row.transcript_full
 
-        if not row:
-            row = MeetingMemory(meeting_id=meeting_id, usuario_id=usuario_id)
-        elif usuario_id and not row.usuario_id:
-            row.usuario_id = usuario_id
+            if substituir:
+                aceito = fragmento
+            else:
+                # Tarefa A1 + T01: reenvio do delta, artefato colado e a
+                # mesma fala vinda do áudio (só contra o que o servidor
+                # transcreveu — P8).
+                aceito, descartadas = deduplicar_fragmento(
+                    base, fragmento, corpos_audio=corpos_de_audio_recentes(meeting_id)
+                )
+                if descartadas:
+                    logger.info("[MeetingMemory] %s linha(s) duplicada(s) descartada(s) meeting=%s", descartadas, meeting_id)
+            novo_full = aceito if substituir else _append_transcript(base, aceito)
+            novo_buffer = _merge_transcript_buffer("" if (substituir or not row) else row.transcript_buffer, aceito)
+            agora = datetime.now()
 
-        if substituir:
-            row.transcript_full = fragmento
-            row.transcript_buffer = _merge_transcript_buffer("", fragmento)
-        else:
-            # Tarefa A1: append idempotente — descarta reenvio do mesmo
-            # delta e a mesma fala vinda de 2 fontes (legenda + Whisper).
-            from agent.transcript_dedup_rules import deduplicar_fragmento
+            if not row:
+                row = MeetingMemory(meeting_id=meeting_id, usuario_id=usuario_id,
+                                    transcript_full=novo_full, transcript_buffer=novo_buffer,
+                                    created_at=agora, updated_at=agora)
+                session.add(row)
+                try:
+                    session.commit()
+                except IntegrityError:  # outro worker criou a linha agora
+                    session.rollback()
+                    continue
+            else:
+                valores = {"transcript_full": novo_full, "transcript_buffer": novo_buffer, "updated_at": agora}
+                if usuario_id and not row.usuario_id:
+                    valores["usuario_id"] = usuario_id
+                gravou = session.execute(
+                    update(MeetingMemory)
+                    .where(MeetingMemory.id == row.id, tamanho_sql == tamanho)
+                    .values(**valores)
+                    .execution_options(synchronize_session=False)
+                ).rowcount
+                if not gravou:  # outro worker gravou entre a leitura e aqui
+                    session.rollback()
+                    continue
+                session.commit()
 
-            fragmento, descartadas = deduplicar_fragmento(row.transcript_full, fragmento)
-            if descartadas:
-                logger.info("[MeetingMemory] %s linha(s) duplicada(s) descartada(s) meeting=%s", descartadas, meeting_id)
-            row.transcript_full = _append_transcript(row.transcript_full, fragmento)
-            row.transcript_buffer = _merge_transcript_buffer(row.transcript_buffer, fragmento)
-
-        row.updated_at = datetime.now()
-        session.add(row)
-        session.commit()
-        session.refresh(row)
-        resultado = _meeting_memory_to_dict(row)
-        resultado["fragmento_aceito"] = fragmento
-        return resultado
+            session.expire_all()  # o UPDATE acima não passa pelo objeto carregado
+            row = session.exec(select(MeetingMemory).where(MeetingMemory.meeting_id == meeting_id)).first()
+            resultado = _meeting_memory_to_dict(row)
+            resultado["fragmento_aceito"] = aceito
+            return resultado
+    raise RuntimeError(f"MeetingMemory {meeting_id}: gravação em conflito {_TENTATIVAS_GRAVACAO} vezes seguidas")
 
 
 def _normalizar_estruturado_item(

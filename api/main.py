@@ -804,7 +804,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.170",
+        "versao":              "1.4.171",
         "timestamp":           datetime.now().isoformat(),
         "ia_disponivel":       ia["ia_disponivel"],
         "ia_fora_desde":       ia["ia_fora_desde"],
@@ -845,7 +845,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.170",
+        "versao":          "1.4.171",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -3200,21 +3200,28 @@ async def audio_transcricao(req: AudioTranscricaoRequest, request: Request):
             tmp.write(audio_bytes)
             tmp_path = tmp.name
 
-        prompt_whisper = _prompt_whisper_da_reuniao(req.meeting_id)
-        texto, label = funcao_transcricao(tmp_path, prompt=prompt_whisper)
+        from starlette.concurrency import run_in_threadpool
+
+        # Auditoria T01 (P17): faster-whisper em CPU leva segundos por
+        # trecho; chamado direto aqui travava o event loop do worker e
+        # todas as requisições dele (inclusive /tempo-real de outras reuniões).
+        prompt_whisper = await run_in_threadpool(_prompt_whisper_da_reuniao, req.meeting_id)
+        texto, label = await run_in_threadpool(funcao_transcricao, tmp_path, prompt=prompt_whisper)
 
         from agent.transcricao_vocabulario_rules import eh_alucinacao
         if texto and eh_alucinacao(texto, prompt_whisper):
             logger.info("[Transcricao/%s] descartado (alucinação/eco do prompt): %.80s", provedor_transcricao, texto)
             return {"texto": "", "ok": True, "provedor": provedor_transcricao, "motivo": "descartado"}
 
+        # P3: o texto volta pela extensão no /tempo-real (com o falante) e é
+        # gravado lá; gravar aqui também deixava a fala 2x em `sessoes`. Aqui
+        # só fica registrado que veio do áudio, para a deduplicação (P8).
         if texto and req.meeting_id and req.meeting_id != "default":
             try:
-                from agent.sessao_manager import registrar_sessao, salvar_transcricao_bruta
-                registrar_sessao(req.meeting_id)
-                salvar_transcricao_bruta(req.meeting_id, f"{label} {texto}")
+                from api.database import registrar_transcricao_audio
+                await run_in_threadpool(registrar_transcricao_audio, req.meeting_id, texto)
             except Exception as _e:
-                logger.warning("[Transcricao] Não foi possível salvar: %s", _e)
+                logger.warning("[Transcricao] Não foi possível registrar o texto do áudio: %s", _e)
 
         return {"texto": texto, "ok": True, "provedor": provedor_transcricao}
 

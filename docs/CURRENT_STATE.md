@@ -1,5 +1,27 @@
 # SALEIA - Estado Atual
 
+## 11/10/2026 (leia primeiro)
+
+- **Produção**: V.1.4.170 (`55473ba`). API ficou ~13h fora (vazamento
+  de conexão SQLite, corrigido). Todas as sessões e dados derivados
+  apagados a pedido do usuário (backup
+  `/root/backups/saleia_pre_reset_20261011_130630.sql.gz`; cópia para
+  análise no banco `saleia_analise` da VPS — apagar ao fim da
+  investigação).
+- **Novo roteiro**: `docs/PROMPT_MESTRE_AUDIO_FIRST.md` (12 tarefas).
+  **T01 feita**: `docs/AUDITORIA_TRANSCRICAO_T01.md` — 24 problemas,
+  16 reproduzidos em `tests/test_auditoria_transcricao_t01.py`. Os mais
+  graves: `sessoes` com 83% de linhas repetidas (P1), sala recorrente do
+  Meet = uma MeetingMemory para sempre (P5), perda de fragmento com 2
+  workers (P6), objeção repetida descartada (P7). Extensão em uso segue a
+  1.4.15 (logs `ext_ver`): A10/A12 nunca rodaram em reunião real.
+- **Correções da T01 (V.1.4.171 + ext 1.4.22, local)**: 20 dos 24
+  problemas corrigidos com teste (status por item na seção 3.1 da
+  auditoria). Ficam para o roteiro: P16/P18 (T02/T04), P23 (T06), P24
+  (T11); P13 depende de instalar a extensão.
+- **Próximo**: deploy da V.1.4.171 (com "sim") + instalar a extensão
+  1.4.22 em todos; depois T02.
+
 ## Resumo de 08-09/10/2026 (leia primeiro)
 
 - **Produção**: V.1.4.169 (commit `8c6b1d1`, docs `a7ff635`), `/health`

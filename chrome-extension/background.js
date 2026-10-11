@@ -21,9 +21,12 @@ let estadoExtensao = {
   usuario: null,
 };
 
-// Estado da captura de áudio (Whisper)
+// Estado da captura de áudio (Whisper). Só reserva: o MV3 recicla o
+// service worker e estas variáveis voltam ao padrão — por isso o
+// offscreen manda meeting_id e tabId em cada pedaço (auditoria T01, P20).
 let capturaAtiva = false;
 let captaMeetingId = 'default';
+let captaTabId = null;
 
 // URL canônica do backend — sempre usar esta
 const BACKEND_URL_CANONICAL = 'https://api.saleia.app.br';
@@ -180,12 +183,17 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
       options.body = JSON.stringify(msg.payload || {});
     }
 
+    // Auditoria T01 (P22): erro HTTP (500/502/503) voltava como ok:true e o
+    // content.js avançava o índice do que já foi enviado — fala perdida se o
+    // servidor não gravou. Agora ok = status 2xx; o reenvio é seguro porque
+    // o backend descarta o trecho repetido.
     fetch(msg.url, options)
       .then(function (res) {
         if (!res.ok) console.warn('[SALEIA] fetchBackend HTTP ' + res.status + ' em ' + msg.url);
-        return res.json();
+        return res.json().catch(function () { return null; }).then(function (data) {
+          sendResponse({ ok: res.ok, status: res.status, data: data, error: res.ok ? undefined : 'HTTP ' + res.status });
+        });
       })
-      .then(function (data) { sendResponse({ ok: true, data: data }); })
       .catch(function (err) {
         console.error('[SALEIA] fetchBackend erro de rede em ' + msg.url + ':', err.message);
         sendResponse({ ok: false, error: err.message });
@@ -206,7 +214,8 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     const tabId = (sender.tab && sender.tab.id) || msg.tabId || null;
     if (!tabId) { sendResponse({ ok: false, error: 'sem tabId' }); return true; }
     captaMeetingId = msg.meeting_id || 'default';
-    handleIniciarCaptura(tabId).then(sendResponse).catch(function (e) {
+    captaTabId = tabId;
+    handleIniciarCaptura(tabId, captaMeetingId).then(sendResponse).catch(function (e) {
       sendResponse({ ok: false, error: e.message });
     });
     return true;
@@ -253,28 +262,29 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   // Offscreen → chunk de áudio pronto para enviar ao Whisper
   if (msg.tipo === 'audioChunk') {
     const url = estadoExtensao.backendUrl + '/audio-transcricao';
+    const meetingDoPedaco = msg.meeting_id || captaMeetingId;
+    const abaDoPedaco = msg.tabId || captaTabId;
     fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Extensao-Versao': chrome.runtime.getManifest().version },
       body: JSON.stringify({
         audio_base64: msg.base64,
         mime_type: msg.mimeType,
-        meeting_id: captaMeetingId,
+        meeting_id: meetingDoPedaco,
       }),
     })
       .then(function (res) { return res.json(); })
       .then(function (data) {
         if (data.texto && data.texto.trim()) {
-          // Envia texto transcrito para o content.js da aba do Meet.
+          // Envia texto transcrito para o content.js da aba CAPTURADA.
           // fonte:'aba' identifica que veio do tabCapture (participantes),
           // não do microfone do vendedor — content.js usa isso pra rotular
-          // o speaker corretamente (Fase 3 do PROMPT MESTRE).
-          chrome.tabs.query({ url: 'https://meet.google.com/*' }, function (tabs) {
-            tabs.forEach(function (tab) {
-              chrome.tabs.sendMessage(tab.id, { tipo: 'transcricaoAudio', texto: data.texto.trim(), fonte: msg.fonte || 'aba' }, function () {
-                if (chrome.runtime.lastError) { /* ignora — aba pode não ter content.js */ }
-              });
-            });
+          // o speaker corretamente (Fase 3 do PROMPT MESTRE). Antes ia
+          // para todas as abas do Meet: 2 reuniões abertas misturavam
+          // texto (auditoria T01, P21).
+          if (!abaDoPedaco) return;
+          chrome.tabs.sendMessage(abaDoPedaco, { tipo: 'transcricaoAudio', texto: data.texto.trim(), fonte: msg.fonte || 'aba' }, function () {
+            if (chrome.runtime.lastError) { /* aba fechada ou sem content.js — ignora */ }
           });
         }
       })
@@ -363,7 +373,7 @@ setInterval(verificarHeartbeat, 15000);
 // ─────────────────────────────────────────────
 // CAPTURA DE ÁUDIO — helper async
 // ─────────────────────────────────────────────
-async function handleIniciarCaptura(tabId) {
+async function handleIniciarCaptura(tabId, meetingId) {
   // Fase 3 do PROMPT MESTRE ("Meetily") — captura o áudio da ABA (voz dos
   // participantes), complementando o microfone do vendedor que já é
   // capturado direto em content.js (getUserMedia na própria página do
@@ -392,7 +402,7 @@ async function handleIniciarCaptura(tabId) {
       }, 6000);
 
       chrome.runtime.sendMessage(
-        { tipo: 'iniciarGravacaoOffscreen', tabStreamId: tabStreamId },
+        { tipo: 'iniciarGravacaoOffscreen', tabStreamId: tabStreamId, meeting_id: meetingId, tabId: tabId },
         function (resp) {
           clearTimeout(timer);
           if (chrome.runtime.lastError) {

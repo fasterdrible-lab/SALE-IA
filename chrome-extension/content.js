@@ -141,8 +141,10 @@
       if (!capturaAudioAtiva || !whisperStream || !whisperStream.active) return;
       whisperRecorder = new MediaRecorder(whisperStream, { mimeType: whisperMimeType });
       whisperRecorder.ondataavailable = function (e) {
-        // Áudio silencioso em WebM/opus gera ~2-4KB; exigir >10KB garante fala real
-        if (e.data && e.data.size > 10240) enviarChunkWhisper(e.data);
+        // Áudio silencioso em WebM/opus gera ~2-4KB. O corte em 10KB jogava
+        // fora fala curta (auditoria T01, P19); o servidor já descarta
+        // silêncio (VAD do faster-whisper) e alucinação de silêncio.
+        if (e.data && e.data.size > 4096) enviarChunkWhisper(e.data);
       };
       whisperRecorder.onerror = function (e) {
         console.error('[SALEIA] MediaRecorder erro:', e);
@@ -194,7 +196,7 @@
               console.log('[SALEIA] chunk descartado (ruído/repetição):', texto);
               return;
             }
-            commitarFrase('Vendedor', texto);
+            commitarFrase('Vendedor', texto, 'audio');
             setAudioStatus('🎤 ' + texto.slice(0, 50) + '…', '#00d4aa');
             enviarParaBackend();
           } else if (data && (data.ok === false || data.error)) {
@@ -269,7 +271,7 @@
       if (msg.tipo === 'transcricaoAudio') {
         var textoAba = (msg.texto || '').trim();
         if (textoAba && passaFiltroRuidoAudio(textoAba)) {
-          commitarFrase(msg.fonte === 'aba' ? 'Cliente' : 'Vendedor', textoAba);
+          commitarFrase(msg.fonte === 'aba' ? 'Cliente' : 'Vendedor', textoAba, 'audio');
           enviarParaBackend();
         }
       }
@@ -683,60 +685,28 @@
   // Só commita ao array de transcrição quando o speaker para (2.5s sem atualização).
   // Isso evita acumular fragmentos parciais ("Você", "de multi", "de multiplicar...").
   const captionBuffer = {};
-  // Rastreia prefixos de frases já commitadas para evitar re-commit pelo scan periódico
-  const jaCommitado = new Set();
-  setInterval(function() { jaCommitado.clear(); }, 60000);
   let legendasDetectadas = false;
   let verificacaoLegendaTimer = null;
 
-  // Tarefa A1 (24/09/2026): a mesma fala chega por 2 fontes — legenda do
-  // Meet (rótulo real do falante, sem pontuação) e Whisper do microfone
-  // (rótulo do vendedor, pontuado, ~15s depois). Comparação exata não
-  // pega isso; Dice sobre palavras normalizadas pega (par real medido:
-  // 0.80). Fica sempre a primeira que chegou — em geral a legenda, que
-  // traz o falante certo. Espelha agent/transcript_dedup_rules.py.
-  var DEDUP_JANELA = 15;
-  var DEDUP_LIMIAR = 0.75;
-  var DEDUP_MIN_CHARS = 20;
-
-  function palavrasNormalizadas(texto) {
-    return String(texto || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
-      .replace(/[^\w\s]/g, ' ').split(/\s+/).filter(Boolean);
-  }
-
-  function similaridadeDice(a, b) {
-    if (!a.length || !b.length) return 0;
-    var contagem = {};
-    a.forEach(function (w) { contagem[w] = (contagem[w] || 0) + 1; });
-    var comuns = 0;
-    b.forEach(function (w) { if (contagem[w] > 0) { contagem[w]--; comuns++; } });
-    return (2 * comuns) / (a.length + b.length);
-  }
-
-  function ehFalaDuplicada(t, ultimas) {
-    var p = palavrasNormalizadas(t);
-    if (p.join(' ').length < DEDUP_MIN_CHARS) return false;
-    return ultimas.some(function (e) {
-      var q = palavrasNormalizadas(e.text);
-      return q.join(' ').length >= DEDUP_MIN_CHARS && similaridadeDice(p, q) >= DEDUP_LIMIAR;
-    });
-  }
-
-  function commitarFrase(speaker, texto) {
+  // Quando uma fala entra (igual, pedaço, versão mais completa, mesma fala
+  // por legenda e áudio): chrome-extension/transcricao_rules.js (auditoria
+  // T01 — P8, P11, P12). Antes, um conjunto com os 50 primeiros caracteres
+  // (limpo a cada 60s) descartava a versão completa de uma frase longa e
+  // deixava a varredura regravar legendas antigas.
+  // fonte: 'audio' quando o texto veio do Whisper (microfone ou aba).
+  function commitarFrase(speaker, texto, fonte) {
     if (!texto || texto.trim().length < 10) return;
     if (eRuidoUI(texto.trim())) return;
     speaker = rotuloParticipante(speaker);
     var t = texto.trim();
-    var chave = t.substring(0, 50).toLowerCase();
-    // Evita duplicata: texto igual ou já commitado recentemente
-    if (jaCommitado.has(chave)) return;
-    var ultimas = estado.transcricao.slice(-10);
-    if (ultimas.some(function(e) {
-      return e.text === t || e.text.startsWith(t) || t.startsWith(e.text);
-    })) return;
-    if (ehFalaDuplicada(t, estado.transcricao.slice(-DEDUP_JANELA))) return;
-    jaCommitado.add(chave);
-    estado.transcricao.push({ speaker: speaker, text: t, timestamp: new Date().toISOString() });
+    var nova = { speaker: speaker, text: t, timestamp: new Date().toISOString(), fonte: fonte || 'legenda' };
+    var decisao = SaleiaTranscricao.decidirCommit(estado.transcricao, nova, estado.ultimoIndexEnviado);
+    if (decisao.acao === 'ignorar') return;
+    if (decisao.acao === 'substituir') {
+      estado.transcricao[decisao.indice].text = t;
+      return;
+    }
+    estado.transcricao.push(nova);
     legendasDetectadas = true;
     ocultarAvisoLegenda();
     // Debug: mostra contagem de frases capturadas na sidebar
@@ -1052,10 +1022,9 @@
       if (!texto || texto.length < 15 || texto.split(/\s+/).length < 3) return;
     }
 
-    // Ignora se já foi commitado recentemente (evita re-commit pelo scan periódico)
+    // Ignora a legenda ainda na tela que já foi gravada igual (varredura a cada 2s)
     speaker = rotuloParticipante(speaker);
-    var chaveTexto = texto.substring(0, 50).toLowerCase();
-    if (jaCommitado.has(chaveTexto)) return;
+    if (SaleiaTranscricao.jaGravada(estado.transcricao, speaker, texto)) return;
 
     var agora = Date.now();
     var buf = captionBuffer[speaker];

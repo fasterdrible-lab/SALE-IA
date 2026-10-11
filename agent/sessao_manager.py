@@ -66,49 +66,50 @@ def criar_tabela_sessoes():
         logger.error("[Sessões] Erro ao criar tabela: %s", e)
 
 
+# Sessão ativa = atualizada nas últimas 6h. Era "criada nas últimas 6h":
+# reunião mais longa que isso parava de gravar sem erro (auditoria T01, P4).
+_SQL_SESSAO_ATIVA = """SELECT id, transcricao_acumulada, num_analises FROM sessoes
+                       WHERE meeting_id = %s AND updated_at >= NOW() - INTERVAL 6 HOUR
+                       ORDER BY updated_at DESC LIMIT 1"""
+
+
 def salvar_analise(meeting_id: str, transcricao_parcial: str, analise: dict):
     """
-    Salva ou atualiza a sessão com a transcrição acumulada e última análise.
-    Se o meeting_id já existe e foi criado há menos de 6 horas, atualiza.
-    Caso contrário, cria nova sessão.
+    Salva a última análise da IA na sessão ativa (cria a sessão se não
+    houver). Não mexe na transcrição: antes anexava `transcricao_parcial`
+    — a janela das últimas 60 falas — a cada ciclo, 2x por ciclo, e 83%
+    das linhas de `sessoes` eram repetição (auditoria T01, P1). A
+    transcrição entra só por `salvar_transcricao_bruta`. O parâmetro fica
+    pela compatibilidade dos chamadores.
     """
     try:
         conn = _get_conn()
         with conn.cursor() as cur:
-            # Verificar se existe sessão ativa (criada nas últimas 6 horas)
-            cur.execute(
-                """SELECT id, transcricao_acumulada, num_analises
-                   FROM sessoes
-                   WHERE meeting_id = %s
-                   AND created_at >= NOW() - INTERVAL 6 HOUR
-                   ORDER BY created_at DESC LIMIT 1""",
-                (meeting_id,),
-            )
+            cur.execute(_SQL_SESSAO_ATIVA, (meeting_id,))
             row = cur.fetchone()
 
+            analise = analise or {}
             disc = (analise.get("perfil_disc") or {}).get("tipo", "") or ""
             analise_json = json.dumps(analise, ensure_ascii=False)
 
             if row:
-                sessao_id, transcricao_atual, num = row
-                nova_transcricao = acumular_transcricao(transcricao_atual, transcricao_parcial)
+                sessao_id, _transcricao, num = row
                 cur.execute(
                     """UPDATE sessoes
-                       SET transcricao_acumulada = %s,
-                           ultima_analise = %s,
+                       SET ultima_analise = %s,
                            disc_identificado = %s,
                            num_analises = %s,
                            updated_at = NOW()
                        WHERE id = %s""",
-                    (nova_transcricao, analise_json, disc, (num or 0) + 1, sessao_id),
+                    (analise_json, disc, (num or 0) + 1, sessao_id),
                 )
                 logger.info("[Sessões] Sessão %s atualizada (análise #%s).", sessao_id, (num or 0) + 1)
             else:
                 cur.execute(
                     """INSERT INTO sessoes
                        (meeting_id, transcricao_acumulada, ultima_analise, disc_identificado, num_analises)
-                       VALUES (%s, %s, %s, %s, 1)""",
-                    (meeting_id, transcricao_parcial, analise_json, disc),
+                       VALUES (%s, '', %s, %s, 1)""",
+                    (meeting_id, analise_json, disc),
                 )
                 logger.info("[Sessões] Nova sessão criada para meeting_id=%s.", meeting_id)
 
@@ -159,21 +160,38 @@ def listar_sessoes(limite: int = 200) -> list:
         return []
 
 
+def _limpar_e_deduplicar(meeting_id: str, atual: str, parcial: str) -> str:
+    """Mesmas regras da MeetingMemory (auditoria T01, P2): sem texto de
+    tela, sem legenda parcial, sem reenvio do mesmo delta e sem a segunda
+    cópia da fala que veio do áudio."""
+    from agent.transcript_dedup_rules import compactar_transcricao, deduplicar_fragmento
+
+    corpos_audio: set = set()
+    try:
+        from api.database import corpos_de_audio_recentes
+        corpos_audio = corpos_de_audio_recentes(meeting_id)
+    except Exception as e:
+        logger.debug("[Sessões] sem corpos de áudio: %s", e)
+    limpo = compactar_transcricao(parcial or "")
+    aceito, _ = deduplicar_fragmento(atual or "", limpo, corpos_audio=corpos_audio)
+    return aceito
+
+
 def salvar_transcricao_bruta(meeting_id: str, transcricao_parcial: str):
-    """Salva/atualiza transcrição bruta ANTES do GPT, para garantir persistência."""
+    """Salva/atualiza transcrição ANTES do GPT, para garantir persistência.
+    Só o que é fala nova entra (`_limpar_e_deduplicar`)."""
     try:
         conn = _get_conn()
         with conn.cursor() as cur:
-            cur.execute(
-                """SELECT id, transcricao_acumulada FROM sessoes
-                   WHERE meeting_id = %s AND created_at >= NOW() - INTERVAL 6 HOUR
-                   ORDER BY created_at DESC LIMIT 1""",
-                (meeting_id,),
-            )
+            cur.execute(_SQL_SESSAO_ATIVA, (meeting_id,))
             row = cur.fetchone()
             if row:
-                sessao_id, atual = row
-                nova = acumular_transcricao(atual, transcricao_parcial)
+                sessao_id, atual, _num = row
+                aceito = _limpar_e_deduplicar(meeting_id, atual, transcricao_parcial)
+                if not aceito:
+                    conn.close()
+                    return
+                nova = acumular_transcricao(atual, aceito)
                 cur.execute(
                     "UPDATE sessoes SET transcricao_acumulada = %s, updated_at = NOW() WHERE id = %s",
                     (nova, sessao_id),
@@ -211,8 +229,8 @@ def obter_ultima_analise(meeting_id: str) -> dict:
             cur.execute(
                 """SELECT ultima_analise, disc_identificado, num_analises, updated_at
                    FROM sessoes
-                   WHERE meeting_id = %s AND created_at >= NOW() - INTERVAL 6 HOUR
-                   ORDER BY created_at DESC LIMIT 1""",
+                   WHERE meeting_id = %s AND updated_at >= NOW() - INTERVAL 6 HOUR
+                   ORDER BY updated_at DESC LIMIT 1""",
                 (meeting_id,),
             )
             row = cur.fetchone()
@@ -244,12 +262,7 @@ def registrar_sessao(meeting_id: str) -> int:
     try:
         conn = _get_conn()
         with conn.cursor() as cur:
-            cur.execute(
-                """SELECT id FROM sessoes
-                   WHERE meeting_id = %s AND created_at >= NOW() - INTERVAL 6 HOUR
-                   LIMIT 1""",
-                (meeting_id,),
-            )
+            cur.execute(_SQL_SESSAO_ATIVA, (meeting_id,))
             row = cur.fetchone()
             if row:
                 conn.close()

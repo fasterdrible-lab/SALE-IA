@@ -3,6 +3,64 @@
 
 ---
 
+## V.1.4.171 + extensão V.1.4.22 — Correções da auditoria da transcrição (T01)
+
+> Data: 11/10/2026 | Local, aguardando deploy
+
+Corrige 20 dos 24 problemas de `docs/AUDITORIA_TRANSCRICAO_T01.md`
+(detalhe por item na seção 3.1 de lá). Os 4 restantes pertencem a tarefas
+do roteiro: P16/P18 (T02/T04), P23 (T06), P24 (T11); P13 (falante)
+depende de instalar a extensão e da T05.
+
+Backend:
+- `sessoes` deixa de reanexar a janela de 60 falas a cada ciclo (era 83%
+  de repetição) e passa a limpar e deduplicar o que grava; sessão ativa
+  por `updated_at` (reunião > 6h não para mais de gravar).
+- `/audio-transcricao` não grava mais em `sessoes` (a fala aparecia 2x);
+  registra o texto em `transcricoes_audio_recentes` (tabela nova,
+  criada no startup) e roda o Whisper fora do event loop.
+- MeetingMemory: sala recorrente do Meet ganha memória nova depois de 6h
+  parada (a antiga é arquivada); gravação à prova de 2 workers
+  (compare-and-swap + nova tentativa).
+- Deduplicação: reenvio detectado como bloco (inclusive fala curta);
+  cópia exata só se colada (objeção repetida fica); similaridade só
+  contra o texto vindo do áudio (pessoas diferentes ficam); legenda
+  reescrita pelo Meet vira uma fala; CSS com rótulo e "Desativar som do
+  microfone de X" filtrados.
+- Testes: `tests/test_auditoria_transcricao_t01.py` (só P16 segue
+  `expectedFailure`), `tests/test_transcript_dedup_rules.py` atualizado
+  (2 testes mudaram de propósito: cópia distante agora fica; similaridade
+  exige o registro do áudio).
+
+Extensão V.1.4.22:
+- `transcricao_rules.js` (novo, carregado antes do `content.js`): versão
+  completa de uma legenda substitui a parcial não enviada; comparação
+  sem pontuação; similaridade só entre legenda e áudio.
+- Áudio da aba: `meeting_id` e aba em cada pedaço (o service worker
+  reciclado mandava `default`); texto volta só para a aba capturada.
+- Erro HTTP do backend não conta mais como envio feito.
+- Pedaço de microfone a partir de 4 KB (era 10 KB).
+- Testes no Node: `node --test tests/js/test_extensao_transcricao.js`.
+
+- Versão: `1.4.170` → `1.4.171`; extensão `1.4.21` → `1.4.22`.
+
+---
+
+## Auditoria da transcrição — TAREFA 01 do Prompt Mestre Audio-First (sem versão nova)
+
+> Data: 11/10/2026 | Só documentação e testes; nenhum comportamento muda
+
+- `docs/AUDITORIA_TRANSCRICAO_T01.md`: fluxo atual de captura, envio,
+  armazenamento e análise + matriz de 24 problemas (arquivo, evidência,
+  impacto, correção recomendada).
+- `tests/test_auditoria_transcricao_t01.py`: 16 defeitos reproduzidos
+  (`expectedFailure` — quando um for corrigido, o teste acusa e a
+  marcação sai) e 4 controles. Suspeita refutada: legenda + Whisper da
+  mesma fala com números já é deduplicada.
+- `docs/PROMPT_MESTRE_AUDIO_FIRST.md`: o roteiro de 12 tarefas.
+
+---
+
 ## V.1.4.170 — API fora do ar por vazamento de conexão + sessões sem corte
 
 > Data: 11/10/2026

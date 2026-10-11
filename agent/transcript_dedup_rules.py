@@ -32,6 +32,13 @@ JANELA_EXATA_PADRAO = 80
 JANELA_SIMILAR_PADRAO = 15
 LIMIAR_SIMILARIDADE_PADRAO = 0.85
 MIN_CHARS_CORPO_PADRAO = 20
+# Auditoria T01 (11/10/2026): cópia exata só é artefato de captura quando
+# está colada (varredura da legenda); mais longe é o cliente repetindo uma
+# objeção (P7) e tem de ficar.
+JANELA_ARTEFATO_PADRAO = 6
+# Reenvio do delta (retry): o bloco reenviado aparece no fim da base, com
+# no máximo esta folga de linhas que chegaram depois (P9).
+FOLGA_REENVIO_PADRAO = 5
 
 _ROTULO_RE = re.compile(r"^([^:\n]{1,60}):\s*(.*)$")
 _NAO_PALAVRA_RE = re.compile(r"[^\w\s]", re.UNICODE)
@@ -58,21 +65,51 @@ def eh_duplicata(
     janela_similar: int = JANELA_SIMILAR_PADRAO,
     limiar: float = LIMIAR_SIMILARIDADE_PADRAO,
     min_chars: int = MIN_CHARS_CORPO_PADRAO,
+    janela_artefato: int = JANELA_ARTEFATO_PADRAO,
+    corpos_audio: set | None = None,
 ) -> bool:
-    """`recentes` em ordem cronológica (a mais nova por último)."""
+    """`recentes` em ordem cronológica (a mais nova por último).
+
+    `corpos_audio`: corpos (`corpo_normalizado`) que o servidor transcreveu
+    do áudio desta reunião. Com ele, a regra de similaridade só junta uma
+    fala com a sua versão do áudio — duas pessoas dizendo quase a mesma
+    coisa ficam (P8). `None` mantém a regra antiga (qualquer par)."""
     corpo = corpo_normalizado(linha)
     if len(corpo) < min_chars:
         return False
-    for anterior in recentes:
+    for anterior in recentes[-janela_artefato:]:
         if anterior.strip() == linha.strip():
             return True
     for anterior in recentes[-janela_similar:]:
         outro = corpo_normalizado(anterior)
         if len(outro) < min_chars:
             continue
+        if corpos_audio is not None and corpo not in corpos_audio and outro not in corpos_audio:
+            continue
         if difflib.SequenceMatcher(None, corpo, outro).ratio() >= limiar:
             return True
     return False
+
+
+def linhas_reenviadas(recentes: list, fragmento: list, folga: int = FOLGA_REENVIO_PADRAO) -> int:
+    """Quantas linhas do começo de `fragmento` são um reenvio: o maior `k`
+    tal que `fragmento[:k]` aparece, em sequência, nas últimas `k + folga`
+    linhas de `recentes`. Cobre o retry depois de timeout (mesmo delta) e
+    o delta que cresceu enquanto o anterior não foi confirmado. Vale para
+    fala curta também (P9). Uma linha sozinha só conta se for a última."""
+    rec = [l.strip() for l in recentes]
+    frag = [l.strip() for l in fragmento]
+    for k in range(len(frag), 0, -1):
+        alvo = frag[:k]
+        if k == 1:
+            if rec and rec[-1] == alvo[0]:
+                return 1
+            continue
+        cauda = rec[-(k + folga):]
+        for i in range(len(cauda) - k + 1):
+            if cauda[i:i + k] == alvo:
+                return k
+    return 0
 
 
 # ── Compactação (06/10/2026) ──────────────────────────────────────────
@@ -87,7 +124,19 @@ JANELA_PARCIAL_PADRAO = 6
 
 # Case-sensitive de propósito: propriedade CSS é minúscula; "Paulo: tá;" não casa.
 _CSS_RE = re.compile(r"^\s*([a-z][a-z-]*\s*:\s*[^;{}]+;|[{}]|[.#]?[a-z][\w.#:-]*\s*\{)\s*$")
+# Depois do rótulo ("João: position: absolute;") a regra acima pegaria fala
+# ("olha: isso é caro;"); aqui só propriedade CSS conhecida ou com hífen (P14).
+_CSS_CORPO_RE = re.compile(
+    r"^\s*(position|display|width|height|top|left|right|bottom|outline|overflow|opacity|"
+    r"visibility|transform|transition|animation|margin|padding|border|background|color|"
+    r"cursor|content|inset|flex|gap|z-index|[a-z]+(-[a-z]+)+)\s*:\s*[^;{}]+;\s*$"
+)
 _TEM_LETRA_RE = re.compile(r"[^\W\d_]", re.UNICODE)
+# P10: o Meet reescreve o começo da legenda ao reconhecer melhor ("pentear
+# o cliente B…" → "perfil do cliente B…"). Parecido assim com o começo da
+# versão seguinte do mesmo falante = versão antiga da mesma frase.
+LIMIAR_REVISAO_PADRAO = 0.8
+MIN_CHARS_REVISAO = 15
 
 
 def _rotulo(linha: str) -> str:
@@ -105,18 +154,40 @@ def eh_ruido_de_tela(linha: str) -> bool:
     if _CSS_RE.match(linha) or not _TEM_LETRA_RE.search(linha):
         return True
     m = _ROTULO_RE.match(linha)
-    return eh_texto_de_interface(m.group(2) if m else linha)
+    corpo = m.group(2) if m else linha
+    if _CSS_CORPO_RE.match(corpo):
+        return True
+    return eh_texto_de_interface(corpo)
+
+
+def _versao_antiga_da_mesma_frase(corpo: str, posterior: str) -> bool:
+    """`corpo` é começo de `posterior` (legenda crescendo) ou o começo de
+    `posterior` reescrito pelo Meet (P10)."""
+    if len(posterior) <= len(corpo):
+        return False
+    if posterior.startswith(corpo):
+        return True
+    if len(corpo) < MIN_CHARS_REVISAO:
+        return False
+    # O Meet reescreve o começo; o fim da versão antiga continua lá. Sem
+    # isto, "ver com o financeiro" sumiria diante de "ver com o jurídico…".
+    fim = " ".join(corpo.split()[-2:])
+    if fim not in posterior[: len(corpo) + 15]:
+        return False
+    inicio = posterior[: len(corpo)]
+    return difflib.SequenceMatcher(None, corpo, inicio).ratio() >= LIMIAR_REVISAO_PADRAO
 
 
 def compactar_transcricao(texto: str, janela: int = JANELA_PARCIAL_PADRAO) -> str:
     """Remove de `texto` (linhas "Falante: fala"):
 
     - ruído de tela (CSS, linha sem letra);
-    - versão parcial de uma legenda: a linha cujo corpo é o começo do corpo
-      de uma das `janela` linhas seguintes do mesmo falante — fica só a
-      versão completa, então nenhum conteúdo se perde;
-    - repetição exata (mesmo falante e corpo, ≥ 20 caracteres) de uma das
-      linhas recentes.
+    - versão parcial de uma legenda: a linha cujo corpo é o começo (ou o
+      começo reescrito pelo Meet) do corpo de uma das `janela` linhas
+      seguintes do mesmo falante — fica só a versão completa;
+    - repetição exata (mesmo falante e corpo, ≥ 20 caracteres) colada a
+      ela (até `JANELA_ARTEFATO_PADRAO` linhas) — artefato da captura; mais
+      longe é repetição real e fica (P7).
 
     Mantém a ordem e o texto original das linhas que ficam. Função pura."""
     linhas = [l for l in _linhas(texto) if not eh_ruido_de_tela(l)]
@@ -129,7 +200,7 @@ def compactar_transcricao(texto: str, janela: int = JANELA_PARCIAL_PADRAO) -> st
         if not corpo:
             continue
         eh_parcial = any(
-            rotulos[j] == rotulos[i] and len(corpos[j]) > len(corpo) and corpos[j].startswith(corpo)
+            rotulos[j] == rotulos[i] and _versao_antiga_da_mesma_frase(corpo, corpos[j])
             for j in range(i + 1, min(len(linhas), i + 1 + janela))
         )
         if eh_parcial:
@@ -140,7 +211,7 @@ def compactar_transcricao(texto: str, janela: int = JANELA_PARCIAL_PADRAO) -> st
             continue
         mantidas.append(linha)
         vistos_recentes.append(chave)
-        if len(vistos_recentes) > JANELA_SIMILAR_PADRAO:
+        if len(vistos_recentes) > JANELA_ARTEFATO_PADRAO:
             vistos_recentes.pop(0)
     return "\n".join(mantidas)
 
@@ -153,15 +224,19 @@ def deduplicar_fragmento(
     janela_similar: int = JANELA_SIMILAR_PADRAO,
     limiar: float = LIMIAR_SIMILARIDADE_PADRAO,
     min_chars: int = MIN_CHARS_CORPO_PADRAO,
+    corpos_audio: set | None = None,
 ) -> tuple:
-    """Retorna `(fragmento_filtrado, n_descartadas)`. Compara cada linha
-    do fragmento contra o final de `base` e contra as linhas já aceitas
-    do próprio fragmento. Nunca altera o texto de uma linha mantida."""
+    """Retorna `(fragmento_filtrado, n_descartadas)`. Primeiro tira o
+    trecho reenviado (`linhas_reenviadas`); depois compara cada linha
+    contra o final de `base` e contra as linhas já aceitas do próprio
+    fragmento. Nunca altera o texto de uma linha mantida."""
     recentes = _linhas(base)[-janela_exata:]
+    linhas = _linhas(fragmento)
+    descartadas = linhas_reenviadas(recentes, linhas)
     mantidas = []
-    descartadas = 0
-    for linha in _linhas(fragmento):
-        if eh_duplicata(linha, recentes, janela_similar=janela_similar, limiar=limiar, min_chars=min_chars):
+    for linha in linhas[descartadas:]:
+        if eh_duplicata(linha, recentes, janela_similar=janela_similar, limiar=limiar,
+                        min_chars=min_chars, corpos_audio=corpos_audio):
             descartadas += 1
             continue
         mantidas.append(linha)
