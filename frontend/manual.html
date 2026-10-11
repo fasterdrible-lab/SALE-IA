@@ -238,7 +238,7 @@
 <header>
   <div class="logo">SALE<span>IA</span></div>
   <p class="tagline">Assistente de Vendas com Inteligência Artificial — Manual do Usuário</p>
-  <div class="versao">Versão 1.4.100 · Setembro 2026</div>
+  <div class="versao">Versão 1.4.172 · Extensão 1.4.23 · Outubro 2026</div>
 </header>
 
 <nav class="indice">
@@ -248,6 +248,7 @@
     <a class="nav-link" href="#extensao">Extensão Chrome</a>
     <a class="nav-link" href="#reuniao">Na Reunião</a>
     <a class="nav-link" href="#transcricao">Transcrição</a>
+    <a class="nav-link" href="#gravacao">Gravação</a>
     <a class="nav-link" href="#sidebar">Painel Lateral</a>
     <a class="nav-link" href="#motor-nba">Motor de Ação</a>
     <a class="nav-link" href="#cenario-cliente">Cenário do Cliente</a>
@@ -278,7 +279,7 @@
       </div>
       <div class="feature">
         <div class="feature-icon">🎙️</div>
-        <div><h3>Transcrição de Áudio</h3><p>Captura o microfone em tempo real via Whisper ou Groq — sem depender das legendas do Meet</p></div>
+        <div><h3>Transcrição</h3><p>Lê as legendas do Meet e, opcionalmente, transcreve o áudio dos participantes e o seu microfone via Whisper/Groq</p></div>
       </div>
       <div class="feature">
         <div class="feature-icon">🧠</div>
@@ -343,6 +344,14 @@
       <div class="feature">
         <div class="feature-icon">🗂️</div>
         <div><h3>Biblioteca de Inteligência</h3><p>Envie livros, playbooks e manuais comerciais — a IA extrai frameworks, objeções e scripts reaproveitáveis em qualquer reunião</p></div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">⏺</div>
+        <div><h3>Gravação da Reunião</h3><p>Grava o áudio da reunião (participantes e seu microfone) com sua confirmação a cada reunião, indicador visível e retenção de 90 dias</p></div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">💼</div>
+        <div><h3>Oportunidades</h3><p>Cliente e oportunidade criados automaticamente a partir da recapitulação, com estágio e ficha de inteligência no Dashboard</p></div>
       </div>
     </div>
 
@@ -427,14 +436,14 @@
           <div class="step-num"></div>
           <div class="step-body">
             <h3>Carregar a extensão</h3>
-            <p>Clique em <strong>Carregar sem compactação</strong> e selecione a pasta <code>SALEIA/chrome-extension</code>.</p>
+            <p>Descompacte o arquivo <code>chrome-extension.zip</code> recebido do administrador, clique em <strong>Carregar sem compactação</strong> e selecione a pasta descompactada.</p>
           </div>
         </div>
         <div class="step">
           <div class="step-num"></div>
           <div class="step-body">
             <h3>Confirmar instalação</h3>
-            <p>O ícone SALEIA aparece na barra do Chrome. Clique nele para ver o status de conexão com o servidor.</p>
+            <p>O ícone SALEIA aparece na barra do Chrome. Clique nele para ver o status de conexão com o servidor. A versão aparece no rodapé do popup — a atual é a <strong>1.4.23</strong>.</p>
           </div>
         </div>
       </div>
@@ -444,7 +453,7 @@
       <div class="callout-icon">🔄</div>
       <div class="callout-body">
         <strong>Após qualquer atualização do sistema</strong>
-        Vá em <code>chrome://extensions</code> e clique no botão <strong>🔄 recarregar</strong> na extensão SALEIA. Isso aplica as novas versões sem precisar reinstalar.
+        Quando o administrador enviar uma extensão nova, remova a antiga em <code>chrome://extensions</code> e carregue a pasta nova (passos acima). Se você só atualizou os arquivos da mesma pasta, basta clicar em <strong>🔄 recarregar</strong> na extensão SALEIA e recarregar a aba do Meet (F5).
       </div>
     </div>
 
@@ -473,7 +482,8 @@
       <div class="card-title">🛡️ Permissões solicitadas</div>
       <table style="margin-top:8px">
         <tr><th>Permissão</th><th>Para que serve</th></tr>
-        <tr><td>Microfone</td><td>Capturar áudio da reunião para transcrição em tempo real</td></tr>
+        <tr><td>Microfone</td><td>Transcrever e (se você escolher) gravar a sua voz</td></tr>
+        <tr><td>Captura da aba</td><td>Transcrever e (se você escolher) gravar o áudio dos participantes. Só começa quando você clica no botão do popup</td></tr>
         <tr><td>Storage</td><td>Salvar configurações, participantes e token de login localmente</td></tr>
         <tr><td>meet.google.com</td><td>Injetar o painel lateral na página do Meet</td></tr>
         <tr><td>api.saleia.app.br</td><td>Enviar chunks de áudio e receber análises da IA</td></tr>
@@ -499,18 +509,20 @@
     </div>
 
     <div class="card">
-      <div class="card-title">👤 Login na extensão (opcional) <span class="badge badge-green">V.1.4.49</span></div>
+      <div class="card-title">👤 Login na extensão (recomendado) <span class="badge badge-green">V.1.4.146</span></div>
       <p style="color:var(--muted);font-size:.92rem;margin-bottom:12px">
-        O popup da extensão (clique no ícone SALEIA na barra do Chrome) tem um bloco <strong>Conta</strong>, logo abaixo do toggle da API. Fazer login é opcional — quem não loga continua 100% anônimo, exatamente como antes.
+        O popup da extensão (clique no ícone SALEIA na barra do Chrome) tem um bloco <strong>Conta</strong>, logo abaixo do toggle da API. Use o mesmo e-mail e senha do Dashboard.
       </p>
       <table>
-        <tr><th>Sem login</th><td>Extensão funciona normalmente com os 4 provedores centrais de IA (DeepSeek → OpenAI → Anthropic → Gemini)</td></tr>
-        <tr><td><strong>Com login</strong></td><td>Mesma experiência, mas se os 4 provedores centrais falharem ao mesmo tempo, o coach em tempo real tenta automaticamente sua <strong>Conta Claude (Piloto)</strong> antes de desistir — ver seção <a href="#conta-claude">Conta Claude</a></td></tr>
+        <tr><th>Sem login</th><td>As sugestões em tempo real funcionam, mas a reunião <strong>não fica no seu histórico</strong>: sem vendedor, sem cliente/oportunidade automáticos e sem gravação</td></tr>
+        <tr><td><strong>Com login</strong></td><td>A reunião fica no seu nome, você pode gravar e, se os 4 provedores centrais de IA falharem, o coach tenta sua <strong>Conta Claude (Piloto)</strong> — ver seção <a href="#conta-claude">Conta Claude</a></td></tr>
+        <tr><td>Renovação</td><td>O login dura 72h e é renovado sozinho enquanto você usa a extensão — quem usa ao menos a cada 3 dias não precisa entrar de novo</td></tr>
+        <tr><td>Aviso 🔒 na sidebar</td><td>"Sua sessão expirou" ou "Você não está conectado": clique no ícone SALEIA e entre de novo. A análise da reunião continua funcionando enquanto isso</td></tr>
       </table>
       <div class="callout callout-tip" style="margin-top:12px">
         <div class="callout-icon">💡</div>
         <div class="callout-body">
-          Use o mesmo e-mail/senha da sua conta SALEIA (o mesmo login do Dashboard). Para o fallback funcionar de verdade, além de logar na extensão você precisa conectar sua Conta Claude no Dashboard uma vez — os dois passos são independentes.
+          Para o reforço da Conta Claude funcionar, além de entrar na extensão você precisa conectar sua Conta Claude no Dashboard uma vez — os dois passos são independentes.
         </div>
       </div>
     </div>
@@ -536,30 +548,38 @@
       <div class="step">
         <div class="step-num"></div>
         <div class="step-body">
+          <h3>Ative as legendas do Meet</h3>
+          <p>Clique em <strong>CC (Ativar legendas)</strong> na barra do Meet, em português. A legenda é a principal fonte da transcrição — sem ela, a IA só recebe o que vier do áudio.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
           <h3>Configure os participantes</h3>
-          <p>Clique em <strong>Participantes</strong> na sidebar. Informe seu nome (vendedor) e o(s) nome(s) do(s) cliente(s). Se houver dois decisores, clique <strong>+ Adicionar</strong> e informe o segundo. Clique <strong>Salvar</strong>.</p>
+          <p>Clique em <strong>Participantes</strong> na sidebar. Informe seu nome (vendedor) e o(s) nome(s) do(s) cliente(s). Se houver dois decisores, clique <strong>+ Adicionar</strong> e informe o segundo. Clique <strong>Salvar</strong>. Os nomes ficam salvos para aquela sala do Meet.</p>
         </div>
       </div>
       <div class="step">
         <div class="step-num"></div>
         <div class="step-body">
-          <h3>Faça login na sidebar</h3>
-          <p>Se for a primeira vez (ou após 72h), o painel pede seu e-mail e senha SALEIA. O token fica salvo — na maioria das reuniões você já estará logado.</p>
+          <h3>Confira o login no popup</h3>
+          <p>Clique no ícone SALEIA na barra do Chrome: o bloco <strong>Conta</strong> deve mostrar seu e-mail. Se pedir e-mail e senha, entre — o login é renovado sozinho, então na maioria das reuniões você já estará conectado.</p>
         </div>
       </div>
       <div class="step">
         <div class="step-num"></div>
         <div class="step-body">
-          <h3>Inicie a captura de áudio</h3>
-          <p>Clique em <strong>Iniciar captura de áudio</strong> na sidebar. O Chrome pedirá permissão de microfone — clique em <strong>Permitir</strong>.</p>
-          <p style="margin-top:6px">O status muda para "gravando..." e chunks de ~15 segundos são enviados automaticamente para transcrição.</p>
+          <h3>Inicie a captura de áudio (opcional)</h3>
+          <p><strong>Áudio dos participantes:</strong> com a aba do Meet aberta, clique no ícone SALEIA → <strong>Iniciar captura de áudio</strong> (o Chrome só permite iniciar por ali).</p>
+          <p style="margin-top:6px"><strong>Seu microfone:</strong> na sidebar, clique em <strong>🎤 Capturar áudio (Whisper)</strong> e permita o microfone.</p>
+          <p style="margin-top:6px">Trechos de ~15 segundos são enviados para transcrição. A captura só transcreve — para guardar o áudio, use a <a href="#gravacao">Gravação</a>.</p>
         </div>
       </div>
       <div class="step">
         <div class="step-num"></div>
         <div class="step-body">
           <h3>Conduza a reunião normalmente</h3>
-          <p>A cada análise, a sidebar atualiza com sugestões em tempo real. O contador "Próxima análise em Xs" mostra quando a IA processará novamente.</p>
+          <p>A cada análise (cerca de a cada 20 segundos quando há fala nova), a sidebar atualiza com sugestões em tempo real. O contador "Próxima análise em Xs" mostra quando a IA processará novamente.</p>
           <p style="margin-top:6px">Para abrir a tela <em>Cenário do Cliente</em> — slides interativos com perfil DISC, score, diagnóstico financeiro e roteiros gerados pela IA — acesse o Dashboard em outra aba/monitor e use o menu lateral (o atalho direto dentro da sidebar da extensão foi removido na V.1.4.40 para simplificar o painel durante a reunião).</p>
         </div>
       </div>
@@ -567,7 +587,7 @@
         <div class="step-num"></div>
         <div class="step-body">
           <h3>Encerre e consulte o relatório</h3>
-          <p>Clique em <strong>Parar captura</strong> na sidebar. O relatório completo fica disponível imediatamente no Dashboard com score final, perfil DISC, diagnóstico financeiro e próximos passos.</p>
+          <p>Clique em <strong>Parar captura</strong> na sidebar (e em <strong>Encerrar gravação</strong>, se estiver gravando). O relatório completo fica disponível no Dashboard com score final, perfil DISC, diagnóstico financeiro e próximos passos. Ao gerar a recapitulação, o SALEIA identifica o cliente pelo que foi dito e cria ou atualiza o cliente e a oportunidade automaticamente.</p>
         </div>
       </div>
     </div>
@@ -576,7 +596,27 @@
   <!-- ── 5. TRANSCRIÇÃO ── -->
   <section id="transcricao">
     <h2><span class="section-num">5</span> Transcrição de Áudio</h2>
-    <p class="section-desc">O SALEIA captura o microfone e converte fala em texto usando IA automaticamente — você não precisa fazer nada durante a reunião além de iniciar a captura na sidebar.</p>
+    <p class="section-desc">A transcrição que a IA analisa vem de três fontes, todas automáticas depois de ligadas.</p>
+
+    <div class="card">
+      <div class="card-title">📝 De onde vem o texto</div>
+      <table style="margin-top:8px">
+        <tr><th>Fonte</th><th>Como ligar</th><th>Observação</th></tr>
+        <tr><td>Legendas do Meet</td><td>Botão CC do Meet</td><td>Principal fonte. A extensão lê só a área de legendas — avisos, botões e nomes da tela ficam de fora</td></tr>
+        <tr><td>Áudio dos participantes</td><td>Popup → Iniciar captura de áudio</td><td>Transcrito por Whisper/Groq em trechos de 15s</td></tr>
+        <tr><td>Seu microfone</td><td>Sidebar → 🎤 Capturar áudio</td><td>Transcrito por Whisper/Groq</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🧹 Limpeza automática</div>
+      <ul style="padding-left:18px;color:var(--muted);font-size:.92rem">
+        <li>Falas repetidas pelo reenvio da legenda são descartadas; repetições reais do cliente (ex.: a mesma objeção duas vezes) são mantidas.</li>
+        <li>Avisos do Meet/Gemini, nomes de dispositivos e outros textos de tela são removidos antes de chegar à IA.</li>
+        <li>Quando a extensão não consegue saber quem falou, a fala aparece como <strong>"Não identificado"</strong> — nunca é atribuída a um cliente por palpite.</li>
+        <li>A mesma sala do Meet usada de novo depois de 6h parada vira uma reunião nova no histórico.</li>
+      </ul>
+    </div>
 
     <div class="callout callout-tip">
       <div class="callout-icon">💡</div>
@@ -592,6 +632,72 @@
         <strong>Erro na barra de status da sidebar</strong>
         Se aparecer um erro de transcrição durante a reunião, avise o administrador — normalmente é uma chave de acesso vencida do lado do servidor, não algo que você resolve pela extensão.
       </div>
+    </div>
+  </section>
+
+  <!-- ── 5.1 GRAVAÇÃO ── -->
+  <section id="gravacao">
+    <h2><span class="section-num">5.1</span> Gravação da Reunião <span class="badge badge-green">V.1.4.172</span></h2>
+    <p class="section-desc">Guarda o áudio da reunião no servidor, em duas trilhas separadas: o áudio dos participantes (aba do Meet) e o seu microfone. Nunca começa sozinha.</p>
+
+    <div class="callout callout-warn">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <strong>Em validação</strong>
+        A gravação precisa estar ativada pelo administrador e exige a extensão 1.4.23 e login. Se o popup mostrar "Gravação de áudio desativada no servidor", ela ainda não está liberada para uso.
+      </div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <h3>Avise os participantes</h3>
+          <p>Antes de gravar, informe a todos na chamada que a reunião será gravada.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <h3>Inicie pelo popup</h3>
+          <p>Com a aba do Meet aberta, clique no ícone SALEIA → seção <strong>⏺ Gravar a reunião</strong>. Marque <strong>"Informei os participantes que a reunião será gravada."</strong> e clique em <strong>Gravar reunião</strong>. A confirmação é pedida em toda reunião.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <h3>Acompanhe na sidebar</h3>
+          <p>Aparece <strong>● Gravando a reunião</strong> com o tempo decorrido e os botões <strong>Pausar</strong> e <strong>Encerrar gravação</strong>. Ao retomar depois de uma pausa, começa uma gravação nova (o trecho pausado não é gravado).</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <h3>Encerre ao final</h3>
+          <p>Clique em <strong>Encerrar gravação</strong> na sidebar (ou no popup). O servidor confere se o áudio está completo e se toca do início ao fim.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔔 Avisos durante a gravação</div>
+      <table style="margin-top:8px">
+        <tr><th>Aviso</th><th>O que fazer</th></tr>
+        <tr><td>Sem conexão</td><td>Nada — o áudio fica guardado no navegador e é enviado quando a internet voltar</td></tr>
+        <tr><td>Login expirado</td><td>Entre de novo pelo ícone SALEIA; o áudio guardado é enviado depois</td></tr>
+        <tr><td>Seu microfone parou</td><td>Acontece se a página do Meet foi recarregada: clique em Pausar e depois em Retomar</td></tr>
+        <tr><td>Muito áudio sem enviar</td><td>A conexão ficou fora tempo demais e parte do áudio não está sendo guardada — verifique a internet</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔒 Privacidade</div>
+      <ul style="padding-left:18px;color:var(--muted);font-size:.92rem">
+        <li>Só você (e o administrador) acessa o áudio das suas reuniões.</li>
+        <li>As gravações são apagadas automaticamente depois de <strong>90 dias</strong>.</li>
+        <li>A cada 10 minutos a gravação é dividida em partes, para que uma falha não comprometa a reunião inteira.</li>
+        <li>Ainda não há tela no Dashboard para ouvir as gravações — peça ao administrador.</li>
+      </ul>
     </div>
   </section>
 
@@ -612,7 +718,8 @@
       <div class="card">
         <div class="card-title">🎙️ Status de Transcrição</div>
         <div style="margin-top:6px;font-size:.88rem;display:flex;flex-direction:column;gap:6px">
-          <div>🎙️ <strong>gravando...</strong> — áudio sendo capturado</div>
+          <div>🎙️ <strong>gravando...</strong> — áudio sendo capturado para transcrição</div>
+          <div>● <strong>Gravando a reunião</strong> — gravação ativa (ver <a href="#gravacao">Gravação</a>)</div>
           <div>✅ <strong>Transcrito:</strong> — chunk processado com sucesso</div>
           <div>⚠️ <strong>Erro: ...</strong> — problema (chave inválida, servidor, etc.)</div>
         </div>
@@ -1349,6 +1456,18 @@
       <div class="card">
         <div class="card-title">👤 Clientes</div>
         <p style="color:var(--muted);font-size:.92rem">Histórico completo de cada contato: reuniões vinculadas, evolução de score, status (ativo/ganho/em_pausa/perdido) e notas comerciais.</p>
+      </div>
+      <div class="card" style="border-top:3px solid var(--gold)">
+        <div class="card-title">💼 Oportunidades <span class="badge badge-green">V.1.4.115</span></div>
+        <p style="color:var(--muted);font-size:.92rem">Lista das suas oportunidades e botão <strong>+ Nova Oportunidade</strong> (busca o cliente pelo nome). A ficha mostra dores, impacto, decisores, objeções, concorrentes, riscos e próximos passos extraídos das reuniões; campos sem dado aparecem como indisponíveis em vez de inventados. Também são criadas automaticamente pela recapitulação quando a reunião tem vendedor logado.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">🔬 Sales Science <span class="badge badge-blue">V.1.4.117</span></div>
+        <p style="color:var(--muted);font-size:.92rem">Ganhos × perdas, fatores de conversão (estágio, produto, concorrente) e sazonalidade, calculados a partir das oportunidades fechadas. Os demais indicadores aparecem como sem dado suficiente até haver histórico.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">🏋️ Seller Coaching <span class="badge badge-purple">V.1.4.118</span></div>
+        <p style="color:var(--muted);font-size:.92rem">Painel de evolução do vendedor (tempo de fala, qualidade das perguntas, cobertura SPIN, objeções, próximos passos). Ainda em construção: os indicadores aparecem como indisponíveis até o sistema capturar os dados necessários.</p>
       </div>
       <div class="card">
         <div class="card-title">⚙️ Configurações</div>
