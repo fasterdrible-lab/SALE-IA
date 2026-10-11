@@ -261,6 +261,8 @@
       }
     });
 
+    iniciarControlesGravacao();
+
     chrome.runtime.onMessage.addListener(function (msg) {
       if (msg.tipo === 'toggle') { estado.ativo = msg.valor; atualizarStatusSidebar(); }
       if (msg.tipo === 'backendUrl') { CONFIG.backendUrl = msg.valor; }
@@ -286,6 +288,130 @@
           txt.childNodes[1].textContent = msg.online ? ' Conectado' : ' Desconectado';
         }
       }
+    });
+  }
+
+  // ── T02: gravação contínua — trilha do microfone + indicador ──────────
+  // Começa só a pedido do background (popup, depois da confirmação de que os
+  // participantes foram avisados). A permissão de microfone usada aqui é a
+  // do próprio Meet. Gravador e fila: gravacao_rules.js.
+  var gravadorMic = null;
+  var streamMic = null;
+  var configGravacaoMic = null;
+  var estadoGravacao = null;
+  var timerGravacao = null;
+
+  function enviarGravacao(tipo, corpo) {
+    if (!chrome.runtime || !chrome.runtime.id) return Promise.resolve();
+    return chrome.runtime.sendMessage({ tipo: tipo, corpo: corpo }).catch(function (e) {
+      console.warn('[SALEIA] ' + tipo + ' não chegou ao background:', e && e.message);
+    });
+  }
+
+  function iniciarGravacaoMicrofone(cfg) {
+    if (gravadorMic && gravadorMic.gravando()) return Promise.resolve({ ok: true });
+    configGravacaoMic = cfg;
+    return navigator.mediaDevices.getUserMedia({ audio: true, video: false }).then(function (stream) {
+      streamMic = stream;
+      var mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+      gravadorMic = SaleiaGravacao.criarGravadorContinuo({
+        stream: stream, trackId: 'microfone', meetingId: MEETING_ID, mimeType: mime,
+        blocoMs: (cfg.bloco_s || 5) * 1000, rotacaoMs: (cfg.rotacao_s || 600) * 1000,
+        aoIniciar: function (info) { return enviarGravacao('gravacaoIniciar', info); },
+        aoBloco: function (bloco) {
+          return SaleiaGravacao.prepararConteudo(bloco.blob).then(function (c) {
+            var corpo = Object.assign({}, bloco, c);
+            delete corpo.blob;
+            return enviarGravacao('gravacaoBloco', corpo);
+          });
+        },
+        aoEncerrar: function (fim) { return enviarGravacao('gravacaoEncerrar', fim); },
+        aoErro: function (e) { console.error('[SALEIA] gravação do microfone:', e); },
+      });
+      gravadorMic.iniciar();
+      return { ok: true };
+    }).catch(function (e) {
+      return { ok: false, error: (e && (e.name || e.message)) || 'erro' };
+    });
+  }
+
+  function controlarGravacaoMicrofone(acao) {
+    if (acao === 'retomar' && !gravadorMic && configGravacaoMic) return iniciarGravacaoMicrofone(configGravacaoMic);
+    if (!gravadorMic) return Promise.resolve({ ok: true });
+    if (acao === 'pausar') gravadorMic.pausar();
+    if (acao === 'retomar') gravadorMic.retomar();
+    if (acao === 'parar') {
+      var g = gravadorMic;
+      gravadorMic = null;
+      g.parar();
+      if (streamMic) { streamMic.getTracks().forEach(function (t) { t.stop(); }); streamMic = null; }
+    }
+    return Promise.resolve({ ok: true });
+  }
+
+  var AVISOS_GRAVACAO = {
+    login: 'Login expirado: entre de novo na extensão. O áudio fica guardado e é enviado depois.',
+    sem_conexao: 'Sem conexão: o áudio fica guardado e é enviado quando a conexão voltar.',
+    desligada: 'Gravação desativada no servidor.',
+    fila_cheia: 'Muito áudio sem enviar: parte da gravação não está sendo guardada.',
+  };
+
+  function formatarDuracao(ms) {
+    var s = Math.max(0, Math.floor(ms / 1000));
+    var p = function (n) { return (n < 10 ? '0' : '') + n; };
+    return p(Math.floor(s / 3600)) + ':' + p(Math.floor(s / 60) % 60) + ':' + p(s % 60);
+  }
+
+  function renderizarGravacao(est) {
+    estadoGravacao = est;
+    var caixa = document.getElementById('saleia-gravacao');
+    if (!caixa) return;
+    if (!est || !est.ativa) {
+      caixa.style.display = 'none';
+      if (timerGravacao) { clearInterval(timerGravacao); timerGravacao = null; }
+      return;
+    }
+    caixa.style.display = 'block';
+    document.getElementById('saleia-gravacao-texto').textContent = est.pausada ? '⏸ Gravação pausada' : '● Gravando a reunião';
+    document.getElementById('saleia-gravacao-pausar').textContent = est.pausada ? 'Retomar' : 'Pausar';
+    var avisos = [];
+    if (est.ultimo_erro && AVISOS_GRAVACAO[est.ultimo_erro]) avisos.push(AVISOS_GRAVACAO[est.ultimo_erro]);
+    if (est.microfone && est.microfone !== 'gravando') avisos.push('Seu microfone não está sendo gravado (' + est.microfone.replace(/^erro: /, '') + ').');
+    else if (!est.pausada && !gravadorMic) avisos.push('Seu microfone parou (página recarregada?). Clique em Pausar e depois em Retomar.');
+    document.getElementById('saleia-gravacao-aviso').textContent = avisos.join(' ');
+    var atualizarTempo = function () {
+      var el = document.getElementById('saleia-gravacao-tempo');
+      if (el && estadoGravacao && estadoGravacao.inicio_ms) el.textContent = formatarDuracao(Date.now() - estadoGravacao.inicio_ms);
+    };
+    atualizarTempo();
+    if (!timerGravacao) timerGravacao = setInterval(atualizarTempo, 1000);
+  }
+
+  function iniciarControlesGravacao() {
+    var btnPausar = document.getElementById('saleia-gravacao-pausar');
+    var btnEncerrar = document.getElementById('saleia-gravacao-encerrar');
+    if (btnPausar) btnPausar.addEventListener('click', function () {
+      var acao = estadoGravacao && estadoGravacao.pausada ? 'retomar' : 'pausar';
+      chrome.runtime.sendMessage({ tipo: 'controleGravacao', acao: acao });
+    });
+    if (btnEncerrar) btnEncerrar.addEventListener('click', function () {
+      chrome.runtime.sendMessage({ tipo: 'controleGravacao', acao: 'parar' });
+    });
+    chrome.runtime.onMessage.addListener(function (msg, _sender, sendResponse) {
+      if (msg.tipo === 'gravarMicrofone') {
+        iniciarGravacaoMicrofone(msg).then(sendResponse);
+        return true;
+      }
+      if (msg.tipo === 'controleGravacaoMic') {
+        controlarGravacaoMicrofone(msg.acao).then(sendResponse);
+        return true;
+      }
+      if (msg.tipo === 'statusGravacao') renderizarGravacao(msg.estado);
+    });
+    // Página recarregada no meio da gravação: mostra o estado (e o aviso do microfone).
+    chrome.runtime.sendMessage({ tipo: 'statusGravacao' }, function (est) {
+      if (chrome.runtime.lastError) return;
+      if (est && est.ativa && est.meeting_id === MEETING_ID) renderizarGravacao(est);
     });
   }
 
@@ -481,6 +607,20 @@
           🎤 Capturar áudio (Whisper)
         </button>
         <div id="saleia-audio-status" style="font-size:.73rem;min-height:1.1em;margin-bottom:2px;padding:0 2px"></div>
+        <div id="saleia-gravacao" role="status" aria-live="polite"
+          style="display:none;margin:6px 0;padding:7px 8px;border:1px solid #ff4444;border-radius:6px;background:#2d0a0a">
+          <div style="font-size:.8rem;font-weight:600;color:#ff6b6b">
+            <span id="saleia-gravacao-texto">● Gravando a reunião</span>
+            <span id="saleia-gravacao-tempo" style="float:right;font-variant-numeric:tabular-nums">00:00:00</span>
+          </div>
+          <div id="saleia-gravacao-aviso" style="font-size:.72rem;color:#ffb347;margin-top:3px"></div>
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <button id="saleia-gravacao-pausar" type="button"
+              style="flex:1;padding:5px;background:#1a1a2e;border:1px solid #888;color:#ddd;border-radius:5px;font-size:.75rem;cursor:pointer">Pausar</button>
+            <button id="saleia-gravacao-encerrar" type="button"
+              style="flex:1;padding:5px;background:#1a1a2e;border:1px solid #ff4444;color:#ff6b6b;border-radius:5px;font-size:.75rem;cursor:pointer">Encerrar gravação</button>
+          </div>
+        </div>
         <div id="saleia-contador">Próxima análise em: 60s</div>
       </div>
       <div id="saleia-participantes-modal" class="saleia-modal" style="display:none">

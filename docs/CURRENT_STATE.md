@@ -18,8 +18,14 @@
   problemas corrigidos com teste (status por item na seção 3.1 da
   auditoria). Ficam para o roteiro: P16/P18 (T02/T04), P23 (T06), P24
   (T11); P13 depende de instalar a extensão.
-- **Próximo**: deploy da V.1.4.171 (com "sim") + instalar a extensão
-  1.4.22 em todos; depois T02.
+- **T01 em produção** (V.1.4.171, `3cf0708`).
+- **T02 (gravação contínua) feita no código** — V.1.4.172 + ext 1.4.23,
+  local até o deploy. **Desligada por padrão** (`GRAVACAO_AUDIO_ENABLED`).
+  Para testar: ligar a flag na VPS, instalar a ext 1.4.23, logar, abrir o
+  popup na reunião, marcar a confirmação e Gravar. Conferir: blocos em
+  `data/gravacoes/`, `/gravacao/encerrar` com `integridade: ok`, e baixar
+  o áudio em `GET /gravacao/{recording_id}/audio`. Teste manual pendente
+  (30 min, 2 pessoas, sobreposição, pausa, queda de conexão) antes da T03.
 
 ## Resumo de 08-09/10/2026 (leia primeiro)
 

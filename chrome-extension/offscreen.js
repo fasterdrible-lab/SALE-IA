@@ -60,9 +60,42 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     sendResponse({ ok: true });
     return true;
   }
+
+  // ── T02: gravação contínua da trilha da aba ───────────────────────────
+  if (msg.tipo === 'gravarAba') {
+    iniciarGravacaoContinuaAba(msg)
+      .then(function () { sendResponse({ ok: true }); })
+      .catch(function (err) {
+        console.error('[SALEIA-OFFSCREEN] Erro ao gravar a aba:', err.message);
+        sendResponse({ ok: false, error: err.message });
+      });
+    return true;
+  }
+
+  if (msg.tipo === 'controleGravacaoAba') {
+    if (gravadorAba) {
+      if (msg.acao === 'pausar') gravadorAba.pausar();
+      if (msg.acao === 'retomar') gravadorAba.retomar();
+      if (msg.acao === 'parar') {
+        gravadorAba.parar();
+        gravadorAba = null;
+        liberarStreamSeOcioso();
+      }
+    }
+    sendResponse({ ok: true, gravando: !!(gravadorAba && gravadorAba.gravando()) });
+    return true;
+  }
 });
 
-async function iniciarGravacaoAba(tabStreamId) {
+function mimeTypeAudio() {
+  return MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+}
+
+// Um stream da aba só: o Chrome não deixa capturar a mesma aba duas vezes.
+// A transcrição (ciclos de 15s) e a gravação contínua (T02) usam o mesmo.
+async function obterStreamAba(tabStreamId) {
+  if (tabStream && tabStream.active) return tabStream;
+  if (!tabStreamId) throw new Error('sem tabStreamId — tabCapture indisponível');
   tabStream = await navigator.mediaDevices.getUserMedia({
     audio: {
       mandatory: {
@@ -81,14 +114,51 @@ async function iniciarGravacaoAba(tabStreamId) {
   audioContext = new AudioContext();
   const fonte = audioContext.createMediaStreamSource(tabStream);
   fonte.connect(audioContext.destination);
+  return tabStream;
+}
 
-  const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-    ? 'audio/webm;codecs=opus'
-    : 'audio/webm';
-
+async function iniciarGravacaoAba(tabStreamId) {
+  await obterStreamAba(tabStreamId);
   gravandoAba = true;
-  iniciarCicloAba(mimeType);
+  iniciarCicloAba(mimeTypeAudio());
   console.log('[SALEIA-OFFSCREEN] Gravação do áudio da aba iniciada.');
+}
+
+// ── T02: gravação contínua (chrome-extension/gravacao_rules.js) ─────────
+let gravadorAba = null;
+
+function enviarAoBackground(tipo, corpo) {
+  return chrome.runtime.sendMessage({ tipo: tipo, corpo: corpo }).catch(function (e) {
+    console.warn('[SALEIA-OFFSCREEN] ' + tipo + ' não chegou ao background:', e && e.message);
+  });
+}
+
+async function iniciarGravacaoContinuaAba(msg) {
+  if (gravadorAba && gravadorAba.gravando()) return;
+  const stream = await obterStreamAba(msg.tabStreamId);
+  const mimeType = mimeTypeAudio();
+  gravadorAba = SaleiaGravacao.criarGravadorContinuo({
+    stream: stream, trackId: 'aba', meetingId: msg.meeting_id, mimeType: mimeType,
+    blocoMs: (msg.bloco_s || 5) * 1000, rotacaoMs: (msg.rotacao_s || 600) * 1000,
+    aoIniciar: function (info) { return enviarAoBackground('gravacaoIniciar', info); },
+    aoBloco: function (bloco) {
+      return SaleiaGravacao.prepararConteudo(bloco.blob).then(function (c) {
+        const corpo = Object.assign({}, bloco, c);
+        delete corpo.blob;
+        return enviarAoBackground('gravacaoBloco', corpo);
+      });
+    },
+    aoEncerrar: function (fim) { return enviarAoBackground('gravacaoEncerrar', fim); },
+    aoErro: function (e) { console.error('[SALEIA-OFFSCREEN] gravação:', e); },
+  });
+  gravadorAba.iniciar();
+  console.log('[SALEIA-OFFSCREEN] Gravação contínua da aba iniciada.');
+}
+
+function liberarStreamSeOcioso() {
+  if (gravandoAba || (gravadorAba && gravadorAba.gravando())) return;
+  if (tabStream) { tabStream.getTracks().forEach(function (t) { t.stop(); }); tabStream = null; }
+  if (audioContext) { audioContext.close().catch(function () {}); audioContext = null; }
 }
 
 // A12 (V.1.4.21): com start(15000) só o 1º pedaço trazia o cabeçalho do
@@ -135,7 +205,6 @@ function pararGravacaoAba() {
     mediaRecorder.stop();  // envia o último pedaço; o onstop não reinicia
   }
   mediaRecorder = null;
-
-  if (tabStream) { tabStream.getTracks().forEach(function (t) { t.stop(); }); tabStream = null; }
-  if (audioContext) { audioContext.close().catch(function () {}); audioContext = null; }
+  // Parar a transcrição não pode cortar a gravação contínua (T02).
+  liberarStreamSeOcioso();
 }

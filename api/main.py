@@ -32,7 +32,7 @@ load_dotenv()
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect, Header, Form, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, FileResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -296,6 +296,13 @@ async def _loop_metricas() -> None:
                 limite = (orcamento or {}).get("limite_mensal_usd")
                 await asyncio.to_thread(verificar_orcamento, gasto, limite)
 
+            if _tick % 60 == 0:  # T02: gravação abandonada + retenção do áudio
+                try:
+                    from api.gravacao_store import manutencao as _manutencao_gravacao
+                    await asyncio.to_thread(_manutencao_gravacao)
+                except Exception as _ge:
+                    logger.warning("Erro na manutenção das gravações: %s", _ge)
+
             if _tick % 60 == 0:  # a cada ~1h — anomalia nao precisa de mais frequencia que isso
                 from api.database import detectar_anomalias_custo
                 anomalias = await asyncio.to_thread(detectar_anomalias_custo)
@@ -500,6 +507,30 @@ class AudioTranscricaoRequest(BaseModel):
     audio_base64: str = Field(max_length=28_000_000)
     mime_type: Optional[str] = "audio/webm"
     meeting_id: Optional[str] = "default"
+
+
+class GravacaoIniciarRequest(BaseModel):
+    meeting_id: str = Field(max_length=200)
+    track_id: str = Field(max_length=20)
+    recording_id: str = Field(max_length=64)
+    codec: Optional[str] = Field(default="", max_length=80)
+    sample_rate: Optional[int] = None
+    consentimento: bool = False
+
+
+class GravacaoBlocoRequest(BaseModel):
+    recording_id: str = Field(max_length=64)
+    sequence: int
+    start_ms: int
+    end_ms: int
+    content_hash: str = Field(max_length=64)
+    recorded_at: Optional[str] = Field(default=None, max_length=40)
+    audio_base64: str = Field(max_length=1_000_000)  # bloco ≤ 700 KB (nginx: 1 MB)
+
+
+class GravacaoEncerrarRequest(BaseModel):
+    recording_id: str = Field(max_length=64)
+    ultima_sequence: Optional[int] = None
 
 
 class VisualScenarioRequest(BaseModel):
@@ -804,7 +835,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.171",
+        "versao":              "1.4.172",
         "timestamp":           datetime.now().isoformat(),
         "ia_disponivel":       ia["ia_disponivel"],
         "ia_fora_desde":       ia["ia_fora_desde"],
@@ -845,7 +876,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.171",
+        "versao":          "1.4.172",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -3236,6 +3267,98 @@ async def audio_transcricao(req: AudioTranscricaoRequest, request: Request):
                 os.unlink(tmp_path)
             except OSError:
                 pass
+
+
+# ─────────────────────────────────────────────
+# GRAVAÇÃO CONTÍNUA DO ÁUDIO (T02 — Audio-First)
+# Regras: agent/gravacao_rules.py · armazenamento: api/gravacao_store.py
+# Desligada por padrão (GRAVACAO_AUDIO_ENABLED); só vendedor logado; a
+# extensão nunca começa a gravar sozinha. A transcrição de /audio-transcricao
+# continua igual e independente.
+# ─────────────────────────────────────────────
+
+def _gravacao_ou_http(funcao, *args, **kwargs):
+    from api.gravacao_store import GravacaoErro
+    try:
+        return funcao(*args, **kwargs)
+    except GravacaoErro as e:
+        raise HTTPException(status_code=e.status, detail=e.mensagem)
+
+
+def _exigir_gravacao_habilitada():
+    from agent.gravacao_rules import habilitada
+    if not habilitada():
+        raise HTTPException(status_code=403, detail="Gravação de áudio desativada no servidor.")
+
+
+@app.get("/gravacao/config")
+def gravacao_config():
+    from agent.gravacao_rules import configuracao
+    return configuracao()
+
+
+@app.post("/gravacao/iniciar")
+async def gravacao_iniciar(req: GravacaoIniciarRequest, request: Request, authorization: str | None = Header(default=None)):
+    _exigir_gravacao_habilitada()
+    payload = _req_auth(authorization)
+    _rate_limit_por_ip(request, "gravacao-iniciar", limite=60, janela_segundos=60)
+    from starlette.concurrency import run_in_threadpool
+    from api import gravacao_store
+    return await run_in_threadpool(
+        _gravacao_ou_http, gravacao_store.iniciar_gravacao, payload.get("sub"), req.meeting_id,
+        req.track_id, req.recording_id, req.codec or "", req.sample_rate, req.consentimento,
+    )
+
+
+@app.post("/gravacao/bloco")
+async def gravacao_bloco(req: GravacaoBlocoRequest, request: Request, authorization: str | None = Header(default=None)):
+    _exigir_gravacao_habilitada()
+    payload = _req_auth(authorization)
+    # 2 trilhas x 1 bloco/5s = 24/min; folga para reenvio depois de queda.
+    _rate_limit_por_ip(request, "gravacao-bloco", limite=240, janela_segundos=60)
+    import base64
+    raw = req.audio_base64.split(",", 1)[1] if "," in req.audio_base64 else req.audio_base64
+    try:
+        dados = base64.b64decode(raw, validate=True)
+    except Exception:
+        raise HTTPException(status_code=400, detail="audio_base64 inválido")
+    recorded_at = None
+    if req.recorded_at:
+        try:
+            recorded_at = datetime.fromisoformat(req.recorded_at.replace("Z", "+00:00")).replace(tzinfo=None)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="recorded_at inválido")
+    from starlette.concurrency import run_in_threadpool
+    from api import gravacao_store
+    return await run_in_threadpool(
+        _gravacao_ou_http, gravacao_store.receber_bloco, payload.get("sub"), req.recording_id,
+        req.sequence, req.start_ms, req.end_ms, req.content_hash, dados, recorded_at,
+    )
+
+
+@app.post("/gravacao/encerrar")
+async def gravacao_encerrar(req: GravacaoEncerrarRequest, authorization: str | None = Header(default=None)):
+    payload = _req_auth(authorization)
+    from starlette.concurrency import run_in_threadpool
+    from api import gravacao_store
+    return await run_in_threadpool(
+        _gravacao_ou_http, gravacao_store.encerrar_gravacao, payload.get("sub"), req.recording_id,
+        req.ultima_sequence, payload.get("perfil") == "admin",
+    )
+
+
+@app.get("/gravacao/{recording_id}/audio")
+async def gravacao_audio(recording_id: str, authorization: str | None = Header(default=None)):
+    """Áudio completo de uma gravação (dono ou admin) — reprodução independente."""
+    payload = _req_auth(authorization)
+    from starlette.concurrency import run_in_threadpool
+    from api import gravacao_store
+    dados = await run_in_threadpool(
+        _gravacao_ou_http, gravacao_store.audio_da_gravacao, payload.get("sub"), recording_id,
+        payload.get("perfil") == "admin",
+    )
+    return Response(content=dados, media_type="audio/webm",
+                    headers={"Content-Disposition": f'attachment; filename="{recording_id}.webm"'})
 
 
 # ─────────────────────────────────────────────

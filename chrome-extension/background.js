@@ -11,6 +11,9 @@
 
 'use strict';
 
+// T02: gravador contínuo + fila de envio (funções puras, testadas no Node).
+importScripts('gravacao_rules.js');
+
 // ─────────────────────────────────────────────
 // ESTADO GLOBAL DA EXTENSÃO
 // ─────────────────────────────────────────────
@@ -232,8 +235,11 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   if (msg.tipo === 'pararCaptura') {
     chrome.runtime.sendMessage({ tipo: 'pararGravacaoOffscreen' }, function () {
       capturaAtiva = false;
-      chrome.offscreen.closeDocument().catch(function () {});
-      sendResponse({ ok: true });
+      // T02: com a gravação contínua ativa, o offscreen continua aberto.
+      lerEstadoGravacao().then(function (estado) {
+        if (!estado.ativa) chrome.offscreen.closeDocument().catch(function () {});
+        sendResponse({ ok: true });
+      });
     });
     return true;
   }
@@ -257,6 +263,45 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
         sendResponse({ ok: false, error: err.message });
       });
     return true; // resposta assíncrona
+  }
+
+  // ─────────────────────────────────────────────
+  // T02 — GRAVAÇÃO CONTÍNUA DO ÁUDIO
+  // ─────────────────────────────────────────────
+
+  // Popup → começar a gravar (precisa do gesto do popup para o tabCapture)
+  if (msg.tipo === 'iniciarGravacao') {
+    iniciarGravacao(msg).then(sendResponse).catch(function (e) {
+      sendResponse({ ok: false, error: e.message });
+    });
+    return true;
+  }
+
+  // Popup/sidebar → pausar | retomar | parar
+  if (msg.tipo === 'controleGravacao') {
+    controlarGravacao(msg.acao).then(sendResponse).catch(function (e) {
+      sendResponse({ ok: false, error: e.message });
+    });
+    return true;
+  }
+
+  if (msg.tipo === 'statusGravacao') {
+    lerEstadoGravacao().then(function (estado) {
+      return filaGravacao.pendentes().then(function (n) {
+        sendResponse(Object.assign({}, estado, { pendentes: n }));
+      });
+    });
+    return true;
+  }
+
+  // Offscreen (aba) / content.js (microfone) → item para a fila. A resposta
+  // só sai depois de o item estar salvo: o gravador espera por ela.
+  if (msg.tipo === 'gravacaoIniciar' || msg.tipo === 'gravacaoBloco' || msg.tipo === 'gravacaoEncerrar') {
+    enfileirarGravacao(msg.tipo, msg.corpo || {}).then(sendResponse).catch(function (e) {
+      console.error('[SALEIA] fila da gravação:', e);
+      sendResponse({ aceito: false, motivo: e.message });
+    });
+    return true;
   }
 
   // Offscreen → chunk de áudio pronto para enviar ao Whisper
@@ -388,14 +433,7 @@ async function handleIniciarCaptura(tabId, meetingId) {
   }
 
   return new Promise(function (resolve) {
-    chrome.offscreen.createDocument({
-      url: chrome.runtime.getURL('offscreen.html'),
-      reasons: ['USER_MEDIA'],
-      justification: 'Captura do áudio da aba (participantes) para transcrição com Whisper',
-    }).catch(function (e) {
-      // Documento já existe — ok, continuamos
-      console.log('[SALEIA] offscreen já existia:', e && e.message);
-    }).then(function () {
+    garantirOffscreen().then(function () {
       var timer = setTimeout(function () {
         console.error('[SALEIA] Timeout: offscreen não respondeu em 6s');
         resolve({ ok: false, error: 'timeout — offscreen não respondeu' });
@@ -417,4 +455,220 @@ async function handleIniciarCaptura(tabId, meetingId) {
       );
     });
   });
+}
+
+function garantirOffscreen() {
+  return chrome.offscreen.createDocument({
+    url: chrome.runtime.getURL('offscreen.html'),
+    reasons: ['USER_MEDIA'],
+    justification: 'Captura do áudio da aba (participantes) para transcrição e gravação',
+  }).catch(function (e) {
+    // Documento já existe — ok, continuamos
+    console.log('[SALEIA] offscreen já existia:', e && e.message);
+  });
+}
+
+// ─────────────────────────────────────────────
+// T02 — GRAVAÇÃO CONTÍNUA DO ÁUDIO
+// Regras e fila: gravacao_rules.js. Servidor: /gravacao/* (desligado por
+// padrão; só com login; nunca começa sozinha — só pelo popup, com a
+// confirmação de que os participantes foram avisados).
+// ─────────────────────────────────────────────
+
+var BD_GRAVACAO = 'saleia-gravacao';
+var LOJA_FILA = 'fila';
+
+function abrirBdGravacao() {
+  return new Promise(function (resolve, reject) {
+    var req = indexedDB.open(BD_GRAVACAO, 1);
+    req.onupgradeneeded = function () { req.result.createObjectStore(LOJA_FILA, { keyPath: 'id' }); };
+    req.onsuccess = function () { resolve(req.result); };
+    req.onerror = function () { reject(req.error); };
+  });
+}
+
+function operacaoNaFila(modo, operacao) {
+  return abrirBdGravacao().then(function (bd) {
+    return new Promise(function (resolve, reject) {
+      var tx = bd.transaction(LOJA_FILA, modo);
+      var req = operacao(tx.objectStore(LOJA_FILA));
+      tx.oncomplete = function () { bd.close(); resolve(req && req.result); };
+      tx.onerror = function () { bd.close(); reject(tx.error); };
+    });
+  });
+}
+
+// IndexedDB do service worker: persiste quando o MV3 recicla o worker e
+// não tem o limite de 10 MB do chrome.storage.local.
+var armazenamentoFila = {
+  listar: function () { return operacaoNaFila('readonly', function (loja) { return loja.getAll(); }); },
+  inserir: function (item) { return operacaoNaFila('readwrite', function (loja) { return loja.put(item); }); },
+  remover: function (id) { return operacaoNaFila('readwrite', function (loja) { return loja.delete(id); }); },
+};
+
+var ROTAS_GRAVACAO = { iniciar: '/gravacao/iniciar', bloco: '/gravacao/bloco', encerrar: '/gravacao/encerrar' };
+
+function enviarItemGravacao(item) {
+  if (!estadoExtensao.token) return Promise.resolve({ status: 401 });
+  return fetch(estadoExtensao.backendUrl + ROTAS_GRAVACAO[item.tipo], {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + estadoExtensao.token,
+      'X-Extensao-Versao': chrome.runtime.getManifest().version,
+    },
+    body: JSON.stringify(item.corpo),
+  }).then(function (res) { return { status: res.status }; }, function () { return { status: 0 }; });
+}
+
+var filaGravacao = SaleiaGravacao.criarFilaDeEnvio({
+  armazenamento: armazenamentoFila,
+  enviar: enviarItemGravacao,
+  aoDescartar: function (item, status) {
+    console.warn('[SALEIA] gravação: servidor recusou ' + item.tipo + ' (' + status + ')', item.corpo.recording_id, item.corpo.sequence);
+  },
+});
+
+var ESTADO_GRAVACAO_PADRAO = {
+  ativa: false, pausada: false, meeting_id: null, tabId: null, inicio_ms: null,
+  ultimo_erro: null, microfone: null, consentimento_meeting: null,
+};
+
+function lerEstadoGravacao() {
+  return chrome.storage.session.get('saleiaGravacao').then(function (r) {
+    return Object.assign({}, ESTADO_GRAVACAO_PADRAO, r.saleiaGravacao || {});
+  });
+}
+
+function salvarEstadoGravacao(mudancas) {
+  return lerEstadoGravacao().then(function (estado) {
+    var novo = Object.assign(estado, mudancas);
+    return chrome.storage.session.set({ saleiaGravacao: novo }).then(function () {
+      if (novo.tabId) {
+        chrome.tabs.sendMessage(novo.tabId, { tipo: 'statusGravacao', estado: novo }, function () {
+          if (chrome.runtime.lastError) { /* aba sem content.js */ }
+        });
+      }
+      return novo;
+    });
+  });
+}
+
+function processarFilaGravacao() {
+  return filaGravacao.processar().then(function (r) {
+    var erro = r.motivo === 'parar_login' ? 'login' : r.motivo === 'parar_desligada' ? 'desligada'
+      : r.motivo === 'tentar_depois' ? 'sem_conexao' : null;
+    return lerEstadoGravacao().then(function (estado) {
+      if (estado.ultimo_erro !== erro) return salvarEstadoGravacao({ ultimo_erro: erro });
+    });
+  }).catch(function (e) { console.warn('[SALEIA] fila da gravação:', e && e.message); });
+}
+
+// Corpo de cada item da fila: só os campos que a rota aceita.
+function corpoParaFila(tipo, corpo, estado) {
+  if (tipo === 'iniciar') {
+    return {
+      meeting_id: corpo.meeting_id, track_id: corpo.track_id, recording_id: corpo.recording_id,
+      codec: corpo.codec || '', sample_rate: null,
+      // Só existe gravação iniciada pelo popup, depois da confirmação.
+      consentimento: !!estado.consentimento_meeting && estado.consentimento_meeting === corpo.meeting_id,
+    };
+  }
+  if (tipo === 'bloco') {
+    return {
+      recording_id: corpo.recording_id, sequence: corpo.sequence, start_ms: corpo.start_ms, end_ms: corpo.end_ms,
+      content_hash: corpo.content_hash, recorded_at: corpo.recorded_at, audio_base64: corpo.audio_base64,
+    };
+  }
+  return { recording_id: corpo.recording_id, ultima_sequence: corpo.ultima_sequence };
+}
+
+function enfileirarGravacao(tipoMsg, corpo) {
+  var tipo = { gravacaoIniciar: 'iniciar', gravacaoBloco: 'bloco', gravacaoEncerrar: 'encerrar' }[tipoMsg];
+  return lerEstadoGravacao().then(function (estado) {
+    return filaGravacao.adicionar(tipo, corpoParaFila(tipo, corpo, estado)).then(function (r) {
+      if (!r.aceito) salvarEstadoGravacao({ ultimo_erro: r.motivo });
+      processarFilaGravacao();
+      return r;
+    });
+  });
+}
+
+// A cada 30s (sobrevive ao worker reciclado): reenvia o que ficou na fila.
+chrome.alarms.create('saleia-gravacao-fila', { periodInMinutes: 0.5 });
+chrome.alarms.onAlarm.addListener(function (alarme) {
+  if (alarme.name === 'saleia-gravacao-fila') processarFilaGravacao();
+});
+
+function mensagemParaAba(tabId, msg) {
+  return new Promise(function (resolve) {
+    chrome.tabs.sendMessage(tabId, msg, function (resp) {
+      resolve(chrome.runtime.lastError ? { ok: false, error: chrome.runtime.lastError.message } : (resp || { ok: false }));
+    });
+  });
+}
+
+function mensagemParaOffscreen(msg) {
+  return new Promise(function (resolve) {
+    chrome.runtime.sendMessage(msg, function (resp) {
+      resolve(chrome.runtime.lastError ? { ok: false, error: chrome.runtime.lastError.message } : (resp || { ok: false }));
+    });
+  });
+}
+
+async function iniciarGravacao(msg) {
+  if (msg.consentimento !== true) return { ok: false, error: 'Confirme que os participantes foram avisados da gravação.' };
+  if (!estadoExtensao.token) return { ok: false, error: 'Entre na extensão para gravar a reunião.' };
+  if (!msg.tabId || !msg.meeting_id) return { ok: false, error: 'Abra a reunião do Meet antes de gravar.' };
+  var estado = await lerEstadoGravacao();
+  if (estado.ativa) return { ok: false, error: 'Já existe uma gravação ativa.' };
+  var config;
+  try {
+    config = await (await fetch(estadoExtensao.backendUrl + '/gravacao/config')).json();
+  } catch (e) {
+    return { ok: false, error: 'Servidor indisponível.' };
+  }
+  if (!config.habilitada) return { ok: false, error: 'Gravação de áudio desativada no servidor.' };
+
+  await salvarEstadoGravacao({ consentimento_meeting: msg.meeting_id, tabId: msg.tabId });
+  var tabStreamId = null;
+  if (!capturaAtiva) {  // com a transcrição da aba ligada, o offscreen já tem o stream
+    try {
+      tabStreamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: msg.tabId });
+    } catch (e) {
+      await salvarEstadoGravacao({ consentimento_meeting: null });
+      return { ok: false, error: 'Não foi possível capturar a aba: ' + (e && e.message) };
+    }
+  }
+  await garantirOffscreen();
+  var opcoes = { meeting_id: msg.meeting_id, bloco_s: config.bloco_s, rotacao_s: config.rotacao_s };
+  var aba = await mensagemParaOffscreen(Object.assign({ tipo: 'gravarAba', tabStreamId: tabStreamId }, opcoes));
+  if (!aba.ok) {
+    await salvarEstadoGravacao({ consentimento_meeting: null });
+    return { ok: false, error: 'Áudio da aba: ' + (aba.error || 'falhou') };
+  }
+  var mic = await mensagemParaAba(msg.tabId, Object.assign({ tipo: 'gravarMicrofone' }, opcoes));
+  await salvarEstadoGravacao({
+    ativa: true, pausada: false, meeting_id: msg.meeting_id, tabId: msg.tabId, inicio_ms: Date.now(),
+    ultimo_erro: null, microfone: mic.ok ? 'gravando' : ('erro: ' + (mic.error || 'sem resposta')),
+  });
+  return { ok: true, microfone: !!mic.ok, erro_microfone: mic.ok ? null : (mic.error || 'sem resposta') };
+}
+
+async function controlarGravacao(acao) {
+  if (['pausar', 'retomar', 'parar'].indexOf(acao) < 0) return { ok: false, error: 'ação inválida' };
+  var estado = await lerEstadoGravacao();
+  if (!estado.ativa) return { ok: false, error: 'Nenhuma gravação ativa.' };
+  await mensagemParaOffscreen({ tipo: 'controleGravacaoAba', acao: acao });
+  if (estado.tabId) await mensagemParaAba(estado.tabId, { tipo: 'controleGravacaoMic', acao: acao });
+  if (acao === 'parar') {
+    // consentimento_meeting fica até a fila mandar o último "iniciar" (rotação
+    // em voo); a próxima gravação pede a confirmação de novo no popup.
+    await salvarEstadoGravacao({ ativa: false, pausada: false });
+    if (!capturaAtiva) chrome.offscreen.closeDocument().catch(function () {});
+  } else {
+    await salvarEstadoGravacao({ pausada: acao === 'pausar' });
+  }
+  processarFilaGravacao();
+  return { ok: true };
 }

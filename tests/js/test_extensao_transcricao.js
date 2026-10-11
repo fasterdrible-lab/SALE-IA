@@ -55,9 +55,9 @@ test('legenda ainda na tela já gravada igual não é regravada pela varredura',
   assert.equal(regras.jaGravada(t, 'Bruno', 'vamos fechar na sexta feira'), false);
 });
 
-test('content.js e transcricao_rules.js estão no manifest, nessa ordem', () => {
+test('scripts de regras carregam antes do content.js no manifest', () => {
   const m = JSON.parse(fs.readFileSync(path.join(EXT, 'manifest.json'), 'utf8'));
-  assert.deepEqual(m.content_scripts[0].js, ['transcricao_rules.js', 'content.js']);
+  assert.deepEqual(m.content_scripts[0].js, ['transcricao_rules.js', 'gravacao_rules.js', 'content.js']);
 });
 
 test('todos os scripts da extensão têm sintaxe válida', () => {
@@ -69,42 +69,7 @@ test('todos os scripts da extensão têm sintaxe válida', () => {
 // ── background.js com um chrome falso ────────────────────────────────────
 
 function carregarBackground(respostaFetch) {
-  const ouvintes = [];
-  const enviadosParaAbas = [];
-  const fetches = [];
-  const chrome = {
-    runtime: {
-      onInstalled: { addListener() {} },
-      onMessage: { addListener: (fn) => ouvintes.push(fn) },
-      getManifest: () => ({ version: 'teste' }),
-      sendMessage() {},
-      getURL: (p) => p,
-      lastError: undefined,
-    },
-    storage: { local: { get(_k, cb) { cb({}); }, set() {}, remove() {} } },
-    tabs: {
-      query() { throw new Error('não deveria consultar todas as abas'); },
-      sendMessage: (id, msg) => enviadosParaAbas.push([id, msg]),
-      onActivated: { addListener() {} },
-      onUpdated: { addListener() {} },
-      get() {},
-    },
-    action: { setBadgeText() {}, setBadgeBackgroundColor() {} },
-    offscreen: { closeDocument: () => Promise.resolve(), createDocument: () => Promise.resolve() },
-    tabCapture: {},
-  };
-  const fetch = (url, opts) => {
-    fetches.push([url, opts]);
-    if (url.endsWith('/health')) return new Promise(() => {});
-    return Promise.resolve(respostaFetch);
-  };
-  const ctx = { chrome, fetch, console: { log() {}, warn() {}, error() {} }, setInterval() {}, setTimeout, clearTimeout, URL };
-  vm.runInNewContext(fs.readFileSync(path.join(EXT, 'background.js'), 'utf8'), ctx);
-  const enviar = (msg) => new Promise((resolve) => {
-    ouvintes[0](msg, {}, resolve);
-    if (msg.tipo === 'audioChunk') setTimeout(resolve, 20);
-  });
-  return { enviar, enviadosParaAbas, fetches };
+  return require('./background_falso.js').carregarBackground({ fetch: () => Promise.resolve(respostaFetch) });
 }
 
 const resposta = (ok, status, corpo) => ({ ok, status, json: () => Promise.resolve(corpo) });

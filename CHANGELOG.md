@@ -3,6 +3,56 @@
 
 ---
 
+## V.1.4.172 + extensão V.1.4.23 — Gravação contínua do áudio (T02 do roteiro Audio-First)
+
+> Data: 11/10/2026 | Local, aguardando deploy. **Desligada por padrão**
+> (`GRAVACAO_AUDIO_ENABLED=false`); a transcrição atual não muda.
+
+Decisões do usuário: confirmação "Informei os participantes que a
+reunião será gravada" a cada reunião; retenção de 90 dias; só com o
+vendedor logado.
+
+Backend:
+- `agent/gravacao_rules.py` (puro): validação, caminho seguro, lacunas,
+  configuração (`GRAVACAO_BLOCO_S`=5, `GRAVACAO_ROTACAO_S`=600,
+  `GRAVACAO_RETENCAO_DIAS`=90, `GRAVACAO_DIR`=`data/gravacoes`).
+- `api/gravacao_store.py`: bloco em disco com escrita atômica e nome
+  com o hash; tabelas novas `gravacoes_audio` e `gravacoes_blocos`
+  (único por gravação + sequência → reenvio não duplica, 2 workers não
+  gravam versões diferentes); ao encerrar, lacunas + integridade
+  decodificando o áudio inteiro com PyAV; manutenção de hora em hora
+  (encerra gravação sem bloco há 30 min, apaga as vencidas).
+- Rotas: `GET /gravacao/config`, `POST /gravacao/iniciar|bloco|encerrar`
+  (login obrigatório; 403 com a gravação desligada; 400 sem
+  consentimento), `GET /gravacao/{id}/audio` (dono ou admin; 410 depois
+  da retenção).
+- Testes: `tests/test_gravacao_t02.py` (24, com WebM/Opus real gerado
+  pelo PyAV: 100 reenvios, fora de ordem, lacuna, sem cabeçalho, 2
+  workers, outro usuário, retenção, abandono, rotas).
+
+Extensão V.1.4.23:
+- `gravacao_rules.js` (puro): gravador contínuo (MediaRecorder com
+  blocos de 5s, sem para-e-recomeça; rotação a cada 10 min com
+  recording_id novo; pausar = encerra, retomar = gravação nova) e fila
+  de envio (um registro por item no IndexedDB do service worker; ordem
+  iniciar → blocos → encerrar; reenvio depois de queda; 401 para e
+  guarda; 4xx descarta só o item).
+- Trilha da aba no offscreen (mesmo stream da transcrição — o Chrome não
+  captura a aba 2x); trilha do microfone no content.js (permissão do
+  Meet); popup com a caixa de confirmação e o botão Gravar; sidebar com
+  "● Gravando", tempo, Pausar/Retomar, Encerrar e avisos (sem conexão,
+  login expirado, microfone parado).
+- Testes Node: `tests/js/test_gravacao_extensao.js` (21) +
+  `tests/js/background_falso.js` (chrome falso compartilhado).
+
+Validação manual pendente (Meet real): 30 min seguidos, 2 pessoas
+alternando, fala sobreposta, pausa/retomada, queda de conexão, áudio
+recuperável depois de falha parcial.
+
+- Versão: `1.4.171` → `1.4.172`; extensão `1.4.22` → `1.4.23`.
+
+---
+
 ## V.1.4.171 + extensão V.1.4.22 — Correções da auditoria da transcrição (T01)
 
 > Data: 11/10/2026 | Local, aguardando deploy

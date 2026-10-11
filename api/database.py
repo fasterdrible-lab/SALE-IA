@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Optional, List
 
 from dotenv import load_dotenv
-from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, Text, func, text
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, Float, Integer, String, Text, UniqueConstraint, func, text
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.engine import URL as SA_URL
 from sqlalchemy.exc import OperationalError
@@ -138,6 +138,53 @@ class TranscricaoAudioRecente(SQLModel, table=True):
     meeting_id: str = Field(sa_column=Column(String(200), index=True, nullable=False))
     corpo: str = Field(sa_column=Column(Text, nullable=False))  # corpo_normalizado
     criado_em: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, index=True, nullable=False))
+
+
+class GravacaoAudio(SQLModel, table=True):
+    """Uma gravação contínua de uma trilha (T02, `agent/gravacao_rules.py`).
+    A reunião tem várias: uma por trilha a cada rotação/pausa."""
+
+    __tablename__ = "gravacoes_audio"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    recording_id: str = Field(sa_column=Column(String(64), unique=True, index=True, nullable=False))
+    meeting_id: str = Field(sa_column=Column(String(200), index=True, nullable=False))
+    track_id: str = Field(sa_column=Column(String(20), nullable=False))
+    usuario_id: str = Field(sa_column=Column(String(36), index=True, nullable=False))
+    codec: str = Field(default="", sa_column=Column(String(80), nullable=False))
+    sample_rate: Optional[int] = Field(default=None, sa_column=Column(Integer))
+    consentimento_texto: str = Field(sa_column=Column(Text, nullable=False))
+    consentimento_em: datetime = Field(sa_column=Column(DateTime, nullable=False))
+    iniciada_em: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+    encerrada_em: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    # gravando | encerrada | apagada
+    status: str = Field(default="gravando", sa_column=Column(String(20), nullable=False))
+    ultima_sequence_declarada: Optional[int] = Field(default=None, sa_column=Column(Integer))
+    lacunas_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    # pendente | ok | erro
+    integridade: str = Field(default="pendente", sa_column=Column(String(20), nullable=False))
+    integridade_detalhe: str = Field(default="", sa_column=Column(Text, nullable=False))
+    duracao_s: Optional[float] = Field(default=None, sa_column=Column(Float))
+    apagar_em: datetime = Field(sa_column=Column(DateTime, index=True, nullable=False))
+
+
+class GravacaoBloco(SQLModel, table=True):
+    """Um bloco de áudio. Unicidade (recording_id, sequence): o reenvio
+    do mesmo bloco não duplica e 2 workers não gravam versões diferentes."""
+
+    __tablename__ = "gravacoes_blocos"
+    __table_args__ = (UniqueConstraint("recording_id", "sequence", name="uq_gravacao_bloco_seq"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    recording_id: str = Field(sa_column=Column(String(64), index=True, nullable=False))
+    sequence: int = Field(sa_column=Column(Integer, nullable=False))
+    start_ms: int = Field(sa_column=Column(BigInteger, nullable=False))
+    end_ms: int = Field(sa_column=Column(BigInteger, nullable=False))
+    content_hash: str = Field(sa_column=Column(String(64), nullable=False))
+    tamanho: int = Field(sa_column=Column(Integer, nullable=False))
+    caminho: str = Field(sa_column=Column(String(400), nullable=False))
+    recorded_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    recebido_em: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
 
 
 class AiUsageEvent(SQLModel, table=True):

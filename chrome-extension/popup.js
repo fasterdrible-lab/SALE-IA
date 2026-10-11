@@ -176,6 +176,7 @@ document.addEventListener('DOMContentLoaded', function () {
     abaMeetId = tab.id;
     meetingIdAtual = meetingId;
     capturaSecao.style.display = 'block';
+    prepararGravacao();
 
     chrome.runtime.sendMessage({ tipo: 'statusCaptura' }, function (resp) {
       if (chrome.runtime.lastError) return;
@@ -218,6 +219,89 @@ document.addEventListener('DOMContentLoaded', function () {
       );
     });
   }
+
+  // ─────────────────────────────────────────────
+  // T02 — GRAVAR A REUNIÃO (aba + microfone)
+  // Só com login, com a gravação ligada no servidor e com a confirmação
+  // de que os participantes foram avisados (a cada reunião).
+  // ─────────────────────────────────────────────
+  const gravacaoSecao = document.getElementById('popup-gravacao-secao');
+  const gravacaoCheck = document.getElementById('gravacao-consentimento');
+  const gravacaoTexto = document.getElementById('gravacao-consentimento-texto');
+  const gravacaoLabel = document.getElementById('gravacao-consentimento-label');
+  const btnGravacao = document.getElementById('btn-gravacao');
+  const gravacaoFeedback = document.getElementById('gravacao-feedback');
+  var gravacaoAtiva = false;
+  var gravacaoDisponivel = false;
+
+  function feedbackGravacao(texto, tipo) {
+    gravacaoFeedback.textContent = texto || '';
+    gravacaoFeedback.className = 'popup-feedback' + (tipo ? ' popup-feedback-' + tipo : '');
+  }
+
+  function atualizarBotaoGravacao() {
+    gravacaoLabel.style.display = gravacaoAtiva ? 'none' : 'flex';
+    btnGravacao.textContent = gravacaoAtiva ? 'Encerrar gravação' : 'Gravar reunião';
+    btnGravacao.disabled = !gravacaoDisponivel || (!gravacaoAtiva && !gravacaoCheck.checked);
+  }
+
+  function prepararGravacao() {
+    if (!gravacaoSecao || !meetingIdAtual) return;
+    gravacaoSecao.style.display = 'block';
+    chrome.runtime.sendMessage({ tipo: 'statusGravacao' }, function (est) {
+      if (chrome.runtime.lastError) return;
+      gravacaoAtiva = !!(est && est.ativa && est.meeting_id === meetingIdAtual);
+      chrome.runtime.sendMessage({ tipo: 'getAuth' }, function (auth) {
+        if (!auth || !auth.logado) {
+          gravacaoDisponivel = gravacaoAtiva;
+          feedbackGravacao('Entre na extensão (acima) para gravar a reunião.', 'error');
+          atualizarBotaoGravacao();
+          return;
+        }
+        fetch(backendAtual() + '/gravacao/config').then(function (r) { return r.json(); }).then(function (cfg) {
+          gravacaoDisponivel = gravacaoAtiva || !!cfg.habilitada;
+          if (cfg.texto_consentimento) gravacaoTexto.textContent = cfg.texto_consentimento;
+          if (!cfg.habilitada && !gravacaoAtiva) feedbackGravacao('Gravação de áudio desativada no servidor.', 'error');
+          else if (gravacaoAtiva) feedbackGravacao('Gravando esta reunião.', 'success');
+          atualizarBotaoGravacao();
+        }).catch(function () {
+          gravacaoDisponivel = gravacaoAtiva;
+          feedbackGravacao('Servidor indisponível.', 'error');
+          atualizarBotaoGravacao();
+        });
+      });
+    });
+  }
+
+  if (gravacaoCheck) gravacaoCheck.addEventListener('change', atualizarBotaoGravacao);
+
+  if (btnGravacao) btnGravacao.addEventListener('click', function () {
+    btnGravacao.disabled = true;
+    if (gravacaoAtiva) {
+      feedbackGravacao('Encerrando...');
+      chrome.runtime.sendMessage({ tipo: 'controleGravacao', acao: 'parar' }, function (r) {
+        gravacaoAtiva = !(r && r.ok);
+        gravacaoCheck.checked = false;
+        feedbackGravacao(r && r.ok ? 'Gravação encerrada.' : 'Não foi possível encerrar: ' + ((r && r.error) || 'erro'), r && r.ok ? 'success' : 'error');
+        atualizarBotaoGravacao();
+      });
+      return;
+    }
+    feedbackGravacao('Iniciando...');
+    chrome.runtime.sendMessage({
+      tipo: 'iniciarGravacao', meeting_id: meetingIdAtual, tabId: abaMeetId, consentimento: gravacaoCheck.checked === true,
+    }, function (r) {
+      if (chrome.runtime.lastError || !r || !r.ok) {
+        feedbackGravacao('Não foi possível gravar: ' + ((r && r.error) || (chrome.runtime.lastError && chrome.runtime.lastError.message) || 'erro'), 'error');
+        atualizarBotaoGravacao();
+        return;
+      }
+      gravacaoAtiva = true;
+      feedbackGravacao(r.microfone ? 'Gravando: participantes e seu microfone.'
+        : 'Gravando só os participantes — seu microfone não: ' + (r.erro_microfone || 'erro'), r.microfone ? 'success' : 'error');
+      atualizarBotaoGravacao();
+    });
+  });
 
   // ─────────────────────────────────────────────
   // TOGGLE LIGAR/DESLIGAR API

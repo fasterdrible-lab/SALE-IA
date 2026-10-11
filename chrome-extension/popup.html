@@ -70,6 +70,18 @@
       <div id="captura-feedback" class="popup-feedback"></div>
     </div>
 
+    <!-- T02: gravação contínua da reunião (aba + microfone). Também precisa
+         começar daqui (tabCapture). Nunca começa sozinha. -->
+    <div class="popup-secao" id="popup-gravacao-secao" style="display:none">
+      <div class="popup-secao-titulo">⏺ Gravar a reunião</div>
+      <label id="gravacao-consentimento-label" style="display:flex;gap:6px;align-items:flex-start;font-size:.78rem;margin-bottom:6px;cursor:pointer">
+        <input type="checkbox" id="gravacao-consentimento">
+        <span id="gravacao-consentimento-texto">Informei os participantes que a reunião será gravada.</span>
+      </label>
+      <button type="button" id="btn-gravacao" class="popup-login-btn" disabled>Gravar reunião</button>
+      <div id="gravacao-feedback" class="popup-feedback" role="status" aria-live="polite"></div>
+    </div>
+
     <!-- Rodapé -->
     <div class="popup-footer">
       <span id="versao">v1.4.1</span>

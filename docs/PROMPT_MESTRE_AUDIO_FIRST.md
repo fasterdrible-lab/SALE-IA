@@ -7,7 +7,7 @@ pendências manuais registradas como bloqueio).
 | # | Tarefa | Estado |
 |---|---|---|
 | T01 | Auditoria da arquitetura atual | **feita 11/10** — `docs/AUDITORIA_TRANSCRICAO_T01.md`, `tests/test_auditoria_transcricao_t01.py` |
-| T02 | Gravação contínua do áudio (aba + microfone em trilhas separadas, blocos com `meeting_id`/`track_id`/`chunk_id`/`sequence`/`start_ms`/`end_ms`/`codec`/`sample_rate`/`content_hash`/`recorded_at`; consentimento e indicador visível) | não iniciada |
+| T02 | Gravação contínua do áudio (aba + microfone em trilhas separadas, blocos com `meeting_id`/`track_id`/`chunk_id`/`sequence`/`start_ms`/`end_ms`/`codec`/`sample_rate`/`content_hash`/`recorded_at`; consentimento e indicador visível) | **código + testes automáticos feitos 11/10** (V.1.4.172 + ext 1.4.23, desligada por padrão); **bloqueio: validação manual no Meet real** (30 min, 2 pessoas, sobreposição, pausa, queda) |
 | T03 | Pipeline de transcrição incremental (faster-whisper, janelas 5/10/15s, VAD, segmentos com timestamps, provisório × confirmado, `condition_on_previous_text=False` avaliado, WER/CER/latência/CPU medidos) | não iniciada |
 | T04 | Consolidação e deduplicação (idempotência por segmento, unicidade no banco, fora de ordem, 2 workers, repetição legítima preservada) | não iniciada |
 | T05 | Identificação dos participantes (trilha mic × aba, diarização avaliada, rótulos provisórios, confiança, DER) | não iniciada |
