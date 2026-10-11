@@ -3,6 +3,26 @@
 
 ---
 
+## Manual do usuário + início da validação da T02 (sem versão nova)
+
+> Data: 11/10/2026 | Manual em produção (`f6f411d`, sem restart)
+
+- `frontend/manual.html` atualizado de 1.4.100 para 1.4.172 / ext 1.4.23:
+  login na extensão recomendado (sem login a reunião não entra no
+  histórico) e renovação automática; legendas do Meet como fonte
+  principal; captura da aba pelo popup e do microfone pela sidebar;
+  análise a cada ~20s; cliente/oportunidade automáticos pela
+  recapitulação; "Não identificado"; nova seção 5.1 Gravação da Reunião
+  (consentimento, indicador, pausar/encerrar, avisos, retenção 90 dias,
+  "em validação"); Oportunidades, Sales Science e Seller Coaching no
+  Dashboard (com os indicadores ainda sem dado marcados como tal).
+- `GRAVACAO_AUDIO_ENABLED=true` ligada na VPS para o teste manual da T02.
+  1º teste: 2 trilhas, sem lacuna, integridade ok, pausa/retomada ok;
+  trilha da aba com blocos de 1.192 bytes constantes (silêncio) — a
+  confirmar (ver `docs/CURRENT_STATE.md`).
+
+---
+
 ## V.1.4.172 + extensão V.1.4.23 — Gravação contínua do áudio (T02 do roteiro Audio-First)
 
 > Data: 11/10/2026 | Local, aguardando deploy. **Desligada por padrão**
