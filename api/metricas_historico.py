@@ -13,16 +13,25 @@ Isso garante apenas 1 snapshot/min mesmo com 2 workers uvicorn.
 
 import sqlite3
 import time
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional
+from typing import Iterator, Optional
 
 _DB_PATH = Path(__file__).resolve().parents[1] / "data" / "metricas.db"
 
 
-def _conn() -> sqlite3.Connection:
+@contextmanager
+def _conn() -> Iterator[sqlite3.Connection]:
+    # `with sqlite3.connect()` só faz commit/rollback — NÃO fecha a conexão.
+    # Sem o close() explícito cada chamada vazava 1 descritor; em ~17h os
+    # workers batiam o limite de 1024 e a API inteira caía (502, 10-11/10/2026).
     conn = sqlite3.connect(str(_DB_PATH), check_same_thread=False)
     conn.row_factory = sqlite3.Row
-    return conn
+    try:
+        with conn:
+            yield conn
+    finally:
+        conn.close()
 
 
 def criar_tabela_metricas() -> None:

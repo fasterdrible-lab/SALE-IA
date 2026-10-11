@@ -11,6 +11,16 @@ import pymysql
 
 logger = logging.getLogger(__name__)
 
+# Teto só de segurança: MEDIUMTEXT guarda 16 MB (~4M caracteres em utf8mb4)
+# e 3h de reunião dão ~200 mil. O teto antigo de 60 mil cortava o início
+# de 58 das 63 reuniões medidas em 11/10/2026.
+LIMITE_TRANSCRICAO_SESSAO = 2_000_000
+
+
+def acumular_transcricao(atual: str | None, parcial: str) -> str:
+    """Anexa o trecho novo; acima do teto, descarta o início."""
+    return ((atual or "") + "\n\n" + parcial)[-LIMITE_TRANSCRICAO_SESSAO:]
+
 
 def _get_conn():
     required = ("DB_HOST", "DB_USER", "DB_PASS", "DB_NAME")
@@ -81,9 +91,7 @@ def salvar_analise(meeting_id: str, transcricao_parcial: str, analise: dict):
 
             if row:
                 sessao_id, transcricao_atual, num = row
-                # Acumular transcrição (limite de 60 000 chars)
-                nova_transcricao = ((transcricao_atual or "") + "\n\n" + transcricao_parcial)
-                nova_transcricao = nova_transcricao[-60000:]
+                nova_transcricao = acumular_transcricao(transcricao_atual, transcricao_parcial)
                 cur.execute(
                     """UPDATE sessoes
                        SET transcricao_acumulada = %s,
@@ -165,7 +173,7 @@ def salvar_transcricao_bruta(meeting_id: str, transcricao_parcial: str):
             row = cur.fetchone()
             if row:
                 sessao_id, atual = row
-                nova = ((atual or "") + "\n\n" + transcricao_parcial)[-60000:]
+                nova = acumular_transcricao(atual, transcricao_parcial)
                 cur.execute(
                     "UPDATE sessoes SET transcricao_acumulada = %s, updated_at = NOW() WHERE id = %s",
                     (nova, sessao_id),

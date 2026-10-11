@@ -3,6 +3,39 @@
 
 ---
 
+## V.1.4.170 — API fora do ar por vazamento de conexão + sessões sem corte
+
+> Data: 11/10/2026
+
+**Incidente:** a API devolveu 502 de ~23:38 UTC de 10/10 a 12:48 UTC de
+11/10 (~13h). O serviço seguia `active`, mas cada worker tinha 1.024
+descritores abertos (o limite), 999 deles em `data/metricas.db`.
+`api/metricas_historico.py` usava `with sqlite3.connect()`, que só faz
+commit/rollback e não fecha a conexão; o loop de métricas (1x/min por
+worker) vazava uma por chamada até travar a aceitação de conexões. O
+timer das 06:00 não reiniciou em 11/10. Restart manual resolveu.
+
+- `api/metricas_historico.py::_conn()` virou context manager que sempre
+  fecha a conexão.
+- **Fim do corte de 60.000 caracteres** em `sessoes.transcricao_acumulada`
+  (`agent/sessao_manager.py::acumular_transcricao`, teto de segurança de
+  2 milhões; a coluna é MEDIUMTEXT). Medido no backup de 11/10: 58 de 63
+  reuniões desde 20/09 batiam no teto e perdiam o início — e é essa
+  coluna que a tela de Sessões, a exportação para o RAG e a análise da
+  Conta Claude leem.
+- Testes novos: `tests/test_metricas_historico.py`,
+  `tests/test_sessao_acumular_transcricao.py`.
+- Mesmo dia, a pedido do usuário: todas as sessões e dados derivados
+  apagados em produção (backup em
+  `/root/backups/saleia_pre_reset_20261011_130630.sql.gz`).
+- Investigação de precisão (A12, mesmos dados): 99,8% das linhas vêm da
+  legenda do Meet (Whisper local `small` em 2 sessões só), 78% rotuladas
+  "João", texto de tela e CSS ainda presentes, 5,3% de legenda parcial
+  repetida. Extensão 1.4.21 ainda não instalada nos vendedores.
+- Versão: `1.4.169` → `1.4.170`.
+
+---
+
 ## V.1.4.169 + extensão V.1.4.21 — Transcrição mais limpa e precisa (Tarefa A12)
 
 > Data: 09/10/2026 | **Backend em produção** (commit `8c6b1d1`, deploy
