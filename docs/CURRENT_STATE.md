@@ -5,9 +5,8 @@
 - **Produção**: V.1.4.170 (`55473ba`). API ficou ~13h fora (vazamento
   de conexão SQLite, corrigido). Todas as sessões e dados derivados
   apagados a pedido do usuário (backup
-  `/root/backups/saleia_pre_reset_20261011_130630.sql.gz`; cópia para
-  análise no banco `saleia_analise` da VPS — apagar ao fim da
-  investigação).
+  `/root/backups/saleia_pre_reset_20261011_130630.sql.gz`; a cópia de
+  análise `saleia_analise` já foi apagada).
 - **Novo roteiro**: `docs/PROMPT_MESTRE_AUDIO_FIRST.md` (12 tarefas).
   **T01 feita**: `docs/AUDITORIA_TRANSCRICAO_T01.md` — 24 problemas,
   16 reproduzidos em `tests/test_auditoria_transcricao_t01.py`. Os mais
