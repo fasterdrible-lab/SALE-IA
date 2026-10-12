@@ -2,20 +2,22 @@
 
 ## 12/10/2026 (leia primeiro)
 
-- **Produção**: V.1.4.172, `GRAVACAO_AUDIO_ENABLED=true` ligada na VPS
-  para a validação da T02.
+- **Produção**: **V.1.4.173** (`b8a6d5a`, deploy 12/10 ~16:05 UTC por
+  bundle, depois da reunião `rgw-jtcw-iwz` terminar; `NRestarts=0`,
+  journal limpo, `/health` = 1.4.173, `ia_disponivel: true`).
+  `GRAVACAO_AUDIO_ENABLED=true` segue ligada na VPS para a validação da T02.
 - **Validação da T02 (reunião de teste `msz-rzrd-paq`)**: transcrição ok
   e alinhada com o microfone; trilha da aba em silêncio porque o
   vendedor estava sozinho na chamada (captura parece funcionar — pegou um
   aviso do Meet). **Falta testar com outra pessoa na chamada** (ex.: entrar
   pelo celular e falar) para confirmar o áudio dos clientes.
-- **V.1.4.173 + ext 1.4.24 (local, aguardando deploy e reinstalação)**:
+- **V.1.4.173 em produção + ext 1.4.24 (aguarda reinstalação)**:
   gravação fecha sozinha no fim da reunião / aba fechada / página
   recarregada / trilha encerrada (antes ficava aberta e a rotação abria
   gravação vazia); último bloco longo não é mais recusado (lacuna falsa);
   avisos de fim de chamada do Meet saem da transcrição. Detalhe no
   CHANGELOG.
-- **Próximo**: deploy (com "sim" do usuário) + reinstalar a ext 1.4.24 +
+- **Próximo**: reinstalar a ext 1.4.24 (`chrome-extension.zip`) +
   teste com 2 pessoas (30 min, sobreposição, pausa, queda de conexão);
   só então a T03.
 

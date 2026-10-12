@@ -5,7 +5,9 @@
 
 ## V.1.4.173 + extensão V.1.4.24 — Gravação fecha no fim da reunião (validação da T02)
 
-> Data: 12/10/2026 | Local, aguardando deploy
+> Data: 12/10/2026 | **Em produção** (`b8a6d5a`, deploy ~16:05 UTC por
+> bundle com `reunioes_ativas: 0`, `NRestarts=0`, journal limpo). Extensão
+> 1.4.24 aguarda reinstalação.
 
 Reunião de teste de 12/10 (`msz-rzrd-paq`, 14:52-15:04 UTC, vendedor
 sozinho na chamada tocando uma reunião gravada): transcrição completa e
