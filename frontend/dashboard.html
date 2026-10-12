@@ -1058,7 +1058,7 @@
 
       <!-- DASHBOARD -->
       <div class="page active" id="page-dashboard">
-        <h2>Dashboard</h2>
+        <h2>Dashboard <span id="dash-versao" title="Versão da SALEIA em produção" style="display:none;margin-left:10px;padding:3px 10px;border:1px solid var(--primary);border-radius:999px;color:var(--primary);font-size:13px;font-weight:600;vertical-align:middle"></span></h2>
         <div class="status-bar" style="margin-bottom:20px">
           <div class="dot" id="dash-dot"></div>
           <span id="dash-status">Verificando backend...</span>
@@ -3087,6 +3087,13 @@
       const ns = document.getElementById('nav-status');
       if (ds) ds.textContent = ok ? ('Backend online — ' + API) : 'Backend offline';
       if (ns) ns.textContent = ok ? 'online' : 'offline';
+      // Versão em produção (vem do /health, nunca fica desatualizada no HTML)
+      const dv = document.getElementById('dash-versao');
+      const saude = ok ? await r.json().catch(() => null) : null;
+      if (dv && saude && saude.versao) {
+        dv.textContent = 'V.' + saude.versao;
+        dv.style.display = 'inline-block';
+      }
     } catch {
       ['dash-dot', 'nav-dot'].forEach(id => {
         const el = document.getElementById(id);

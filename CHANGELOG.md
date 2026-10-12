@@ -3,6 +3,17 @@
 
 ---
 
+## Versão na tela inicial do Dashboard (sem versão nova)
+
+> Data: 12/10/2026
+
+- `frontend/dashboard.html`: selo "V.x.y.z" ao lado do título Dashboard,
+  lido do `versao` do `/health` (sempre a versão que está rodando; some
+  com o backend offline). `/dashboard` lê o arquivo do disco: deploy sem
+  restart.
+
+---
+
 ## V.1.4.173 + extensão V.1.4.24 — Gravação fecha no fim da reunião (validação da T02)
 
 > Data: 12/10/2026 | **Em produção** (`b8a6d5a`, deploy ~16:05 UTC por
