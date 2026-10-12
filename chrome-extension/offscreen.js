@@ -73,14 +73,20 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   }
 
   if (msg.tipo === 'controleGravacaoAba') {
+    if (gravadorAba && msg.acao === 'parar') {
+      // Só responde depois do último bloco + "encerrar" estarem na fila do
+      // background: em seguida ele pode fechar este documento (máx. 5s).
+      const g = gravadorAba;
+      gravadorAba = null;
+      Promise.race([g.parar(), new Promise(function (r) { setTimeout(r, 5000); })]).then(function () {
+        liberarStreamSeOcioso();
+        sendResponse({ ok: true, gravando: false });
+      });
+      return true;
+    }
     if (gravadorAba) {
       if (msg.acao === 'pausar') gravadorAba.pausar();
       if (msg.acao === 'retomar') gravadorAba.retomar();
-      if (msg.acao === 'parar') {
-        gravadorAba.parar();
-        gravadorAba = null;
-        liberarStreamSeOcioso();
-      }
     }
     sendResponse({ ok: true, gravando: !!(gravadorAba && gravadorAba.gravando()) });
     return true;
@@ -150,6 +156,13 @@ async function iniciarGravacaoContinuaAba(msg) {
     },
     aoEncerrar: function (fim) { return enviarAoBackground('gravacaoEncerrar', fim); },
     aoErro: function (e) { console.error('[SALEIA-OFFSCREEN] gravação:', e); },
+    // Áudio da aba acabou (aba fechada): a gravação já foi encerrada pelo gravador.
+    aoFimDoAudio: function () {
+      console.log('[SALEIA-OFFSCREEN] Áudio da aba terminou: gravação encerrada.');
+      gravadorAba = null;
+      liberarStreamSeOcioso();
+      enviarAoBackground('gravacaoTrilhaAcabou', { track_id: 'aba' });
+    },
   });
   gravadorAba.iniciar();
   console.log('[SALEIA-OFFSCREEN] Gravação contínua da aba iniciada.');

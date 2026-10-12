@@ -23,12 +23,24 @@
     return 'rec-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
   }
 
+  /** Algum áudio da trilha ainda vivo? Stream sem getAudioTracks (testes) conta como vivo. */
+  function trilhaViva(stream) {
+    if (!stream || typeof stream.getAudioTracks !== 'function') return true;
+    return stream.getAudioTracks().some(function (t) { return t.readyState !== 'ended'; });
+  }
+
   /**
    * opcoes: {stream, trackId, meetingId, blocoMs, rotacaoMs, mimeType,
    *          MediaRecorder, agora, gerarId, setTimeout, clearTimeout,
-   *          aoIniciar(info), aoBloco(bloco) -> Promise, aoEncerrar(info)}
-   * Os 3 callbacks rodam em ordem estrita (uma corrente de promises):
+   *          aoIniciar(info), aoBloco(bloco) -> Promise, aoEncerrar(info),
+   *          aoFimDoAudio()}
+   * Os 3 primeiros callbacks rodam em ordem estrita (uma corrente de promises):
    * o encerrar de uma gravação nunca chega antes do último bloco dela.
+   *
+   * Quando o áudio acaba (aba fechada, microfone desconectado — a trilha
+   * fica 'ended'), a gravação é encerrada e nenhuma outra é aberta; avisa
+   * em aoFimDoAudio. Antes (12/10/2026) ficava "gravando" no servidor e a
+   * rotação abria uma gravação nova vazia.
    */
   function criarGravadorContinuo(opcoes) {
     var agora = opcoes.agora || function () { return Date.now(); };
@@ -47,7 +59,13 @@
       return corrente;
     }
 
+    function audioAcabou() {
+      ativo = false;
+      if (opcoes.aoFimDoAudio) opcoes.aoFimDoAudio();
+    }
+
     function comecarGravacao() {
+      if (!trilhaViva(opcoes.stream)) { audioAcabou(); return; }
       var info = {
         recording_id: gerarId(), meeting_id: opcoes.meetingId, track_id: opcoes.trackId,
         codec: opcoes.mimeType || '', iniciada_em_ms: agora(),
@@ -69,11 +87,14 @@
       };
       rec.onstop = function () {
         var ultima = estado.sequence - 1;
-        emOrdem(function () {
+        var encerrada = emOrdem(function () {
           return opcoes.aoEncerrar && opcoes.aoEncerrar({ recording_id: estado.recordingId, ultima_sequence: ultima });
         });
+        estado.parada = encerrada;
+        if (estado.aoParada) encerrada.then(estado.aoParada);
         if (atual === estado) atual = null;
-        if (ativo) comecarGravacao();  // rotação: a próxima começa colada
+        desagendar(estado.timer);
+        if (ativo) comecarGravacao();  // rotação: a próxima começa colada (se ainda há áudio)
       };
       rec.start(opcoes.blocoMs);
       estado.timer = agendar(function () {
@@ -81,19 +102,40 @@
       }, opcoes.rotacaoMs);
     }
 
+    // Resolve depois que o "encerrar" desta gravação passou pelos callbacks
+    // (o stop() do MediaRecorder é assíncrono: o último bloco e o onstop vêm depois).
     function pararAtual() {
-      if (!atual) return;
-      desagendar(atual.timer);
-      if (atual.recorder.state !== 'inactive') atual.recorder.stop();
+      if (!atual) return Promise.resolve();
+      var estado = atual;
+      desagendar(estado.timer);
+      if (estado.parada) return estado.parada;
+      var p = new Promise(function (resolve) { estado.aoParada = resolve; });
+      if (estado.recorder.state !== 'inactive') estado.recorder.stop();
+      return p;
+    }
+
+    // Trilha terminou: fecha a gravação atual; o onstop vê a trilha morta e não reabre.
+    function aoTrilhaTerminar() {
+      if (!ativo) return;
+      if (atual && atual.recorder.state !== 'inactive') pararAtual();
+      else if (!atual) audioAcabou();
+    }
+    var ouvindo = false;
+    function ouvirFimDaTrilha() {
+      if (ouvindo || !opcoes.stream || typeof opcoes.stream.getAudioTracks !== 'function') return;
+      ouvindo = true;
+      opcoes.stream.getAudioTracks().forEach(function (t) {
+        if (t.addEventListener) t.addEventListener('ended', aoTrilhaTerminar);
+      });
     }
 
     return {
-      iniciar: function () { if (ativo) return; ativo = true; comecarGravacao(); },
+      iniciar: function () { if (ativo) return; ativo = true; ouvirFimDaTrilha(); comecarGravacao(); },
       // Pausar encerra a gravação atual; retomar abre outra. Assim o
       // relógio de cada gravação é contínuo (sem tempo "parado" no meio).
       pausar: function () { if (!ativo) return; ativo = false; pararAtual(); },
       retomar: function () { if (ativo) return; ativo = true; comecarGravacao(); },
-      parar: function () { ativo = false; pararAtual(); return corrente; },
+      parar: function () { ativo = false; return pararAtual().then(function () { return corrente; }); },
       gravando: function () { return ativo; },
       recordingAtual: function () { return atual ? atual.recordingId : null; },
       ocioso: function () { return corrente; },
@@ -183,7 +225,20 @@
     };
   }
 
+  // Tela que o Meet mostra depois que a pessoa sai ou a chamada acaba.
+  // Olha botões (não o texto da página: a legenda pode conter "a chamada foi
+  // encerrada" dito por alguém). "Participar agora" (antes de entrar) não conta.
+  var BOTOES_FIM_DA_CHAMADA = /^(participar novamente|voltar (à|a) tela inicial|rejoin|return to home screen)$/i;
+
+  /** A reunião desta página acabou? pathname atual + textos dos botões visíveis. */
+  function reuniaoAcabou(pathname, meetingId, textosDosBotoes) {
+    if (meetingId && String(pathname || '').toLowerCase().indexOf('/' + String(meetingId).toLowerCase()) < 0) return true;
+    return (textosDosBotoes || []).some(function (t) { return BOTOES_FIM_DA_CHAMADA.test(String(t || '').replace(/\s+/g, ' ').trim()); });
+  }
+
   var api = {
+    trilhaViva: trilhaViva,
+    reuniaoAcabou: reuniaoAcabou,
     criarGravadorContinuo: criarGravadorContinuo,
     criarFilaDeEnvio: criarFilaDeEnvio,
     prepararConteudo: prepararConteudo,

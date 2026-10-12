@@ -96,6 +96,79 @@ test('encerrar nunca chega antes do último bloco, mesmo com processamento lento
   assert.deepEqual(t2, [['bloco', 0], ['bloco', 1], ['encerrar', 1]]);
 });
 
+// Stream com uma trilha que o teste pode encerrar (aba fechada, microfone desconectado).
+function streamFalso() {
+  const ouvintes = [];
+  const trilha = { readyState: 'live', addEventListener: (ev, fn) => { if (ev === 'ended') ouvintes.push(fn); } };
+  return {
+    trilha,
+    getAudioTracks: () => [trilha],
+    terminar() { trilha.readyState = 'ended'; ouvintes.forEach((f) => f()); },
+  };
+}
+
+test('trilha termina: encerra a gravação, não abre outra e avisa', async () => {
+  const stream = streamFalso();
+  let fins = 0;
+  const t = montar({ stream, aoFimDoAudio: () => fins++ });
+  t.g.iniciar();
+  t.avancar(5000); t.rec().emitir(100);
+  stream.terminar();
+  await t.g.ocioso();
+  assert.deepEqual(t.eventos.filter((e) => e[0] !== 'bloco'), [['iniciar', 'rec-1'], ['encerrar', 'rec-1', 1]]);
+  assert.equal(fins, 1);
+  assert.equal(t.g.gravando(), false);
+  assert.equal(GravadorFalso.todos.length, 1);
+});
+
+test('rotação com a trilha já morta (sem evento) não abre gravação vazia', async () => {
+  // 12/10/2026: a rotação das 15:12 abriu uma gravação que nunca recebeu bloco.
+  const stream = streamFalso();
+  let fins = 0;
+  const t = montar({ stream, aoFimDoAudio: () => fins++ });
+  t.g.iniciar();
+  stream.trilha.readyState = 'ended';
+  t.timers[0].fn();  // passou rotacaoMs
+  await t.g.ocioso();
+  assert.deepEqual(t.eventos.filter((e) => e[0] !== 'bloco'), [['iniciar', 'rec-1'], ['encerrar', 'rec-1', 0]]);
+  assert.equal(fins, 1);
+  assert.equal(t.g.recordingAtual(), null);
+});
+
+test('retomar depois que a trilha acabou não abre gravação', async () => {
+  const stream = streamFalso();
+  let fins = 0;
+  const t = montar({ stream, aoFimDoAudio: () => fins++ });
+  t.g.iniciar();
+  t.g.pausar();
+  stream.terminar();
+  t.g.retomar();
+  await t.g.ocioso();
+  assert.deepEqual(t.eventos.filter((e) => e[0] === 'iniciar'), [['iniciar', 'rec-1']]);
+  assert.equal(fins, 1);
+  assert.equal(t.g.gravando(), false);
+});
+
+test('parar só resolve depois do último bloco e do encerrar (stop assíncrono como no Chrome)', async () => {
+  class GravadorAssincrono extends GravadorFalso {
+    stop() { this.state = 'inactive'; setTimeout(() => { this.emitir(1); this.onstop(); }, 10); }
+  }
+  const t = montar({ MediaRecorder: GravadorAssincrono });
+  t.g.iniciar();
+  await t.g.parar();
+  assert.deepEqual(t.eventos.at(-1), ['encerrar', 'rec-1', 0]);
+});
+
+test('reuniaoAcabou: saiu da URL da reunião ou tela de fim da chamada', () => {
+  assert.equal(G.reuniaoAcabou('/abc-defg-hij', 'abc-defg-hij', ['Apresentar agora', 'Mais opções']), false);
+  assert.equal(G.reuniaoAcabou('/abc-defg-hij', 'abc-defg-hij', ['Participar agora']), false);  // antes de entrar
+  assert.equal(G.reuniaoAcabou('/', 'abc-defg-hij', []), true);
+  assert.equal(G.reuniaoAcabou('/landing', 'abc-defg-hij', []), true);
+  assert.equal(G.reuniaoAcabou('/abc-defg-hij', 'abc-defg-hij', ['Participar  novamente ']), true);
+  assert.equal(G.reuniaoAcabou('/abc-defg-hij', 'abc-defg-hij', ['Voltar à tela inicial']), true);
+  assert.equal(G.reuniaoAcabou('/abc-defg-hij', 'abc-defg-hij', ['Rejoin']), true);
+});
+
 test('prepararConteudo: SHA-256 e base64 do bloco', async () => {
   const dados = new TextEncoder().encode('audio');
   const r = await G.prepararConteudo({ arrayBuffer: async () => dados.buffer }, webcrypto);
@@ -279,6 +352,72 @@ test('parar avisa as 2 trilhas e marca a gravação como encerrada', async () =>
   assert.ok(bg.enviadosRuntime.some((m) => m.tipo === 'controleGravacaoAba' && m.acao === 'parar'));
   assert.ok(bg.enviadosParaAbas.some(([id, m]) => id === 7 && m.tipo === 'controleGravacaoMic' && m.acao === 'parar'));
   assert.equal(bg.sessao.saleiaGravacao.ativa, false);
+});
+
+const DA_ABA_7 = { tab: { id: 7 } };
+const iniciarTrilha = (track, rid) => ({ tipo: 'gravacaoIniciar', corpo: { meeting_id: 'abc-defg-hij', track_id: track, recording_id: rid } });
+const encerramentos = (bg) => bg.fetches.filter(([u]) => u.endsWith('/gravacao/encerrar')).map(([, o]) => JSON.parse(o.body));
+
+test('aba do Meet fechada: encerra o microfone aberto dela e para a aba no offscreen', async () => {
+  const bg = bgGravando();
+  await bg.enviar(PEDIDO);
+  await bg.enviar(iniciarTrilha('microfone', 'rec-mic'), DA_ABA_7);
+  await bg.enviar(iniciarTrilha('aba', 'rec-aba'));
+  bg.fecharAba(7);
+  await bg.esperar(50);
+  // Só o microfone é forçado: a aba encerra pelo próprio gravador (senão o último bloco dela seria recusado).
+  assert.deepEqual(encerramentos(bg), [{ recording_id: 'rec-mic', ultima_sequence: null }]);
+  assert.ok(bg.enviadosRuntime.some((m) => m.tipo === 'controleGravacaoAba' && m.acao === 'parar'));
+  assert.equal(bg.sessao.saleiaGravacao.ativa, false);
+  assert.deepEqual(Object.keys(bg.sessao.saleiaGravacao.abertas), ['rec-aba']);
+});
+
+test('fechar outra aba não mexe na gravação', async () => {
+  const bg = bgGravando();
+  await bg.enviar(PEDIDO);
+  await bg.enviar(iniciarTrilha('microfone', 'rec-mic'), DA_ABA_7);
+  bg.fecharAba(8);
+  await bg.esperar(30);
+  assert.deepEqual(encerramentos(bg), []);
+  assert.equal(bg.sessao.saleiaGravacao.ativa, true);
+});
+
+test('página recarregada: encerra só o microfone daquela aba e avisa; a aba continua', async () => {
+  const bg = bgGravando();
+  await bg.enviar(PEDIDO);
+  await bg.enviar(iniciarTrilha('microfone', 'rec-mic'), DA_ABA_7);
+  await bg.enviar(iniciarTrilha('aba', 'rec-aba'));
+  await bg.enviar({ tipo: 'gravacaoMicrofoneSaiu' }, DA_ABA_7);
+  await bg.esperar(30);
+  assert.deepEqual(encerramentos(bg), [{ recording_id: 'rec-mic', ultima_sequence: null }]);
+  assert.equal(bg.sessao.saleiaGravacao.ativa, true);
+  assert.match(bg.sessao.saleiaGravacao.microfone, /parado/);
+});
+
+test('gravação encerrada normalmente sai da lista e não é encerrada de novo', async () => {
+  const bg = bgGravando();
+  await bg.enviar(PEDIDO);
+  await bg.enviar(iniciarTrilha('microfone', 'rec-mic'), DA_ABA_7);
+  await bg.enviar({ tipo: 'gravacaoEncerrar', corpo: { recording_id: 'rec-mic', ultima_sequence: 4 } }, DA_ABA_7);
+  bg.fecharAba(7);
+  await bg.esperar(50);
+  assert.deepEqual(encerramentos(bg), [{ recording_id: 'rec-mic', ultima_sequence: 4 }]);
+});
+
+test('áudio da aba acabou: encerra a gravação inteira', async () => {
+  const bg = bgGravando();
+  await bg.enviar(PEDIDO);
+  await bg.enviar({ tipo: 'gravacaoTrilhaAcabou', corpo: { track_id: 'aba' } });
+  assert.equal(bg.sessao.saleiaGravacao.ativa, false);
+  assert.ok(bg.enviadosParaAbas.some(([id, m]) => id === 7 && m.tipo === 'controleGravacaoMic' && m.acao === 'parar'));
+});
+
+test('microfone desconectado: a aba segue e a sidebar avisa', async () => {
+  const bg = bgGravando();
+  await bg.enviar(PEDIDO);
+  await bg.enviar({ tipo: 'gravacaoTrilhaAcabou', corpo: { track_id: 'microfone' } }, DA_ABA_7);
+  assert.equal(bg.sessao.saleiaGravacao.ativa, true);
+  assert.match(bg.sessao.saleiaGravacao.microfone, /desconectado/);
 });
 
 test('fila cheia recusa em vez de crescer sem limite', async () => {

@@ -19,6 +19,7 @@ const EXT = path.join(__dirname, '..', '..', 'chrome-extension');
 function carregarBackground(opcoes) {
   opcoes = opcoes || {};
   const ouvintes = [];
+  const abasFechadas = [];
   const enviadosParaAbas = [];
   const enviadosRuntime = [];
   const fetches = [];
@@ -53,6 +54,7 @@ function carregarBackground(opcoes) {
       },
       onActivated: { addListener() {} },
       onUpdated: { addListener() {} },
+      onRemoved: { addListener: (fn) => abasFechadas.push(fn) },
       get() {},
     },
     action: { setBadgeText() {}, setBadgeBackgroundColor() {} },
@@ -79,12 +81,14 @@ function carregarBackground(opcoes) {
     inserir: async (item) => { filaEmMemoria.set(item.id, item); },
     remover: async (id) => { filaEmMemoria.delete(id); },
   });
-  const enviar = (msg) => new Promise((resolve) => {
-    ouvintes[0](msg, {}, resolve);
+  // sender: {tab: {id}} quando a mensagem vem de um content.js
+  const enviar = (msg, sender) => new Promise((resolve) => {
+    ouvintes[0](msg, sender || {}, resolve);
     if (msg.tipo === 'audioChunk') setTimeout(resolve, 20);
   });
   const esperar = (ms) => new Promise((r) => setTimeout(r, ms || 20));
-  return { enviar, esperar, enviadosParaAbas, enviadosRuntime, fetches, sessao, filaEmMemoria, ctx };
+  const fecharAba = (tabId) => abasFechadas.forEach((fn) => fn(tabId));
+  return { enviar, esperar, fecharAba, enviadosParaAbas, enviadosRuntime, fetches, sessao, filaEmMemoria, ctx };
 }
 
 module.exports = { carregarBackground, EXT };

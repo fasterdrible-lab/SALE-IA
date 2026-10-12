@@ -179,6 +179,11 @@ mais sugestoes
 sugestoes atualizadas
 conversa nao encontrada
 o conteudo esta desatualizado
+sair agora
+continuar na chamada
+participar novamente
+sua reuniao esta segura
+fazer upgrade
 """
 
 _FRASES_SET = {f.strip() for f in _FRASES.strip().splitlines() if f.strip()}
@@ -204,6 +209,10 @@ _PREFIXOS = (
     "remove voce depois de alguns minutos", "mostre a palma da sua mao",
     "definicao padrao (", "controle o meet com seu dispositivo", "capturar o que acontece automaticamente",
     "apos a reuniao, a gravacao sera salva",
+    # fim da chamada (reunião de teste de 12/10/2026)
+    "como nao tem mais ninguem nesta chamada", "para nao ver mais isto, acesse",
+    "a chamada foi encerrada porque", "as pessoas so podem participar de uma reuniao se",
+    "faca upgrade para ter acesso",
 )
 
 _PADROES = [re.compile(p) for p in (

@@ -327,6 +327,12 @@
         },
         aoEncerrar: function (fim) { return enviarGravacao('gravacaoEncerrar', fim); },
         aoErro: function (e) { console.error('[SALEIA] gravação do microfone:', e); },
+        // Microfone desconectado/liberado: a gravação já foi encerrada pelo gravador.
+        aoFimDoAudio: function () {
+          gravadorMic = null;
+          streamMic = null;
+          enviarGravacao('gravacaoTrilhaAcabou', { track_id: 'microfone' });
+        },
       });
       gravadorMic.iniciar();
       return { ok: true };
@@ -413,6 +419,26 @@
       if (chrome.runtime.lastError) return;
       if (est && est.ativa && est.meeting_id === MEETING_ID) renderizarGravacao(est);
     });
+
+    // Página fechando/recarregando: o gravador do microfone morre junto e não
+    // consegue encerrar sozinho — o background encerra pelo que tem na fila.
+    window.addEventListener('pagehide', function () {
+      if (!gravadorMic) return;
+      try { chrome.runtime.sendMessage({ tipo: 'gravacaoMicrofoneSaiu' }); } catch (e) { /* extensão recarregada */ }
+    });
+
+    // Saiu da reunião ou a chamada acabou (tela "Participar novamente"):
+    // encerra as 2 trilhas. Em 12/10/2026 a gravação seguiu aberta depois do fim.
+    var fimJaAvisado = false;
+    setInterval(function () {
+      if (!estadoGravacao || !estadoGravacao.ativa) { fimJaAvisado = false; return; }  // reentrou e gravou de novo
+      if (fimJaAvisado || estadoGravacao.meeting_id !== MEETING_ID) return;
+      var botoes = Array.prototype.map.call(document.querySelectorAll('button'), function (b) { return b.textContent; });
+      if (!SaleiaGravacao.reuniaoAcabou(window.location.pathname, MEETING_ID, botoes)) return;
+      fimJaAvisado = true;
+      console.log('[SALEIA] reunião encerrada: parando a gravação.');
+      chrome.runtime.sendMessage({ tipo: 'controleGravacao', acao: 'parar' });
+    }, 5000);
   }
 
   // Permite arrastar a sidebar pela barra de título (#saleia-header) para

@@ -26,7 +26,13 @@ ROTACAO_S_PADRAO = 600
 RETENCAO_DIAS_PADRAO = 90
 # nginx aceita 1 MB por requisição; o bloco vai em base64 (+33%).
 MAX_BLOCO_BYTES = 700_000
-MAX_DURACAO_BLOCO_MS = 120_000
+# Duração do bloco é o relógio da extensão, não do áudio: quando a trilha
+# fica sem som (aba fechada, chamada encerrada) o MediaRecorder não entrega
+# nada e o bloco seguinte cobre o tempo todo parado — até a rotação inteira
+# (máx. 3600s). Em 12/10 o último bloco cobriu 130s e foi recusado com o
+# limite antigo de 120s, deixando a gravação com lacuna. O tamanho continua
+# limitado por MAX_BLOCO_BYTES.
+MAX_DURACAO_BLOCO_MS = (3600 + 60) * 1000
 TEXTO_CONSENTIMENTO = "Informei os participantes que a reunião será gravada."
 
 _MEETING_RE = re.compile(r"^[a-z]{3}-[a-z]{4}-[a-z]{3}$")

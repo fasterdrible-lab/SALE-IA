@@ -47,6 +47,17 @@ RUIDO_REAL = [
     "hidden;",
     "var(--ink-canvas-outline, 0);",
     "focus {",
+    # fim da chamada (12/10/2026)
+    "Como não tem mais ninguém nesta chamada, ela terminará em menos de 2 minutos. Quer continuar nela?",
+    'Para não ver mais isto, acesse "Configurações" > "Gerais".',
+    "Sair agora",
+    "Continuar na chamada",
+    "A chamada foi encerrada porque todas as pessoas saíram",
+    "Sua reunião está segura",
+    "As pessoas só podem participar de uma reunião se o organizador convidar ou permitir",
+    "Fazer upgrade",
+    "Faça upgrade para ter acesso aos recursos premium",
+    "Participar novamente",
 ]
 
 FALA_REAL = [
@@ -65,6 +76,8 @@ FALA_REAL = [
     "Saiba mais sobre o seu negócio antes de investir",
     "Mais ou menos, depende do mês",
     "A gente tem 60 segundos pra fechar isso? Brincadeira.",
+    "A chamada foi encerrada e ninguém me avisou",
+    "Posso sair agora e voltar depois?",
 ]
 
 

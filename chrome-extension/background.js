@@ -297,10 +297,27 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   // Offscreen (aba) / content.js (microfone) → item para a fila. A resposta
   // só sai depois de o item estar salvo: o gravador espera por ela.
   if (msg.tipo === 'gravacaoIniciar' || msg.tipo === 'gravacaoBloco' || msg.tipo === 'gravacaoEncerrar') {
-    enfileirarGravacao(msg.tipo, msg.corpo || {}).then(sendResponse).catch(function (e) {
+    enfileirarGravacao(msg.tipo, msg.corpo || {}, sender).then(sendResponse).catch(function (e) {
       console.error('[SALEIA] fila da gravação:', e);
       sendResponse({ aceito: false, motivo: e.message });
     });
+    return true;
+  }
+
+  // Offscreen (aba) / content.js (microfone) → o áudio da trilha acabou.
+  if (msg.tipo === 'gravacaoTrilhaAcabou') {
+    trilhaAcabou((msg.corpo || {}).track_id).then(sendResponse, function () { sendResponse({ ok: false }); });
+    return true;
+  }
+
+  // content.js → página do Meet fechando/recarregando com o microfone gravando.
+  if (msg.tipo === 'gravacaoMicrofoneSaiu') {
+    var abaQueSaiu = sender.tab && sender.tab.id;
+    encerrarAbertas(function (a) { return a.track_id === 'microfone' && a.tabId === abaQueSaiu; })
+      .then(function (n) {
+        return n ? salvarEstadoGravacao({ microfone: 'parado: página fechada ou recarregada' }) : null;
+      })
+      .then(function () { sendResponse({ ok: true }); }, function () { sendResponse({ ok: false }); });
     return true;
   }
 
@@ -532,6 +549,9 @@ var filaGravacao = SaleiaGravacao.criarFilaDeEnvio({
 var ESTADO_GRAVACAO_PADRAO = {
   ativa: false, pausada: false, meeting_id: null, tabId: null, inicio_ms: null,
   ultimo_erro: null, microfone: null, consentimento_meeting: null,
+  // recording_id → {track_id, tabId}: gravações iniciadas e ainda sem "encerrar",
+  // para fechar as que o gravador não consegue (aba fechada, página recarregada).
+  abertas: {},
 };
 
 function lerEstadoGravacao() {
@@ -540,19 +560,79 @@ function lerEstadoGravacao() {
   });
 }
 
+// Ler-mudar-gravar em fila: aba e microfone mandam "iniciar" quase juntos.
+var correnteEstadoGravacao = Promise.resolve();
+
 function salvarEstadoGravacao(mudancas) {
-  return lerEstadoGravacao().then(function (estado) {
-    var novo = Object.assign(estado, mudancas);
-    return chrome.storage.session.set({ saleiaGravacao: novo }).then(function () {
-      if (novo.tabId) {
-        chrome.tabs.sendMessage(novo.tabId, { tipo: 'statusGravacao', estado: novo }, function () {
-          if (chrome.runtime.lastError) { /* aba sem content.js */ }
-        });
-      }
-      return novo;
+  var passo = correnteEstadoGravacao.then(function () {
+    return lerEstadoGravacao().then(function (estado) {
+      var novo = Object.assign(estado, typeof mudancas === 'function' ? mudancas(estado) : mudancas);
+      return chrome.storage.session.set({ saleiaGravacao: novo }).then(function () {
+        if (novo.tabId) {
+          chrome.tabs.sendMessage(novo.tabId, { tipo: 'statusGravacao', estado: novo }, function () {
+            if (chrome.runtime.lastError) { /* aba sem content.js */ }
+          });
+        }
+        return novo;
+      });
     });
   });
+  correnteEstadoGravacao = passo.catch(function () {});
+  return passo;
 }
+
+function registrarAberta(tipo, corpo, sender) {
+  if (!corpo.recording_id || (tipo !== 'iniciar' && tipo !== 'encerrar')) return Promise.resolve();
+  return salvarEstadoGravacao(function (estado) {
+    var abertas = Object.assign({}, estado.abertas);
+    if (tipo === 'iniciar') {
+      abertas[corpo.recording_id] = { track_id: corpo.track_id, tabId: (sender && sender.tab && sender.tab.id) || estado.tabId };
+    } else {
+      delete abertas[corpo.recording_id];
+    }
+    return { abertas: abertas };
+  });
+}
+
+/** Põe "encerrar" na fila das gravações abertas que passam no filtro. Devolve quantas. */
+function encerrarAbertas(filtro) {
+  var ids = [];
+  return salvarEstadoGravacao(function (estado) {
+    var abertas = Object.assign({}, estado.abertas);
+    Object.keys(abertas).forEach(function (id) {
+      if (filtro(abertas[id])) { ids.push(id); delete abertas[id]; }
+    });
+    return { abertas: abertas };
+  }).then(function () {
+    // ultima_sequence null: o servidor fecha pelo que recebeu (o fim pode ter morrido com a página).
+    return ids.reduce(function (p, id) {
+      return p.then(function () { return filaGravacao.adicionar('encerrar', { recording_id: id, ultima_sequence: null }); });
+    }, Promise.resolve());
+  }).then(function () {
+    if (ids.length) processarFilaGravacao();
+    return ids.length;
+  });
+}
+
+// Sem áudio da aba não há mais reunião para gravar: encerra tudo. Sem o
+// microfone, a aba continua e a sidebar avisa.
+function trilhaAcabou(trackId) {
+  return lerEstadoGravacao().then(function (estado) {
+    if (!estado.ativa) return { ok: true };
+    if (trackId === 'aba') return controlarGravacao('parar');
+    if (trackId === 'microfone') return salvarEstadoGravacao({ microfone: 'parado: microfone desconectado' }).then(function () { return { ok: true }; });
+    return { ok: true };
+  });
+}
+
+// Aba do Meet fechada: o microfone morreu sem encerrar; a aba é parada no offscreen.
+chrome.tabs.onRemoved.addListener(function (tabId) {
+  lerEstadoGravacao().then(function (estado) {
+    if (estado.tabId !== tabId) return;
+    return encerrarAbertas(function (a) { return a.track_id === 'microfone' && a.tabId === tabId; })
+      .then(function () { if (estado.ativa) return controlarGravacao('parar'); });
+  }).catch(function (e) { console.warn('[SALEIA] gravação ao fechar a aba:', e && e.message); });
+});
 
 function processarFilaGravacao() {
   return filaGravacao.processar().then(function (r) {
@@ -583,13 +663,15 @@ function corpoParaFila(tipo, corpo, estado) {
   return { recording_id: corpo.recording_id, ultima_sequence: corpo.ultima_sequence };
 }
 
-function enfileirarGravacao(tipoMsg, corpo) {
+function enfileirarGravacao(tipoMsg, corpo, sender) {
   var tipo = { gravacaoIniciar: 'iniciar', gravacaoBloco: 'bloco', gravacaoEncerrar: 'encerrar' }[tipoMsg];
   return lerEstadoGravacao().then(function (estado) {
     return filaGravacao.adicionar(tipo, corpoParaFila(tipo, corpo, estado)).then(function (r) {
       if (!r.aceito) salvarEstadoGravacao({ ultimo_erro: r.motivo });
-      processarFilaGravacao();
-      return r;
+      return registrarAberta(tipo, corpo, sender).then(function () {
+        processarFilaGravacao();
+        return r;
+      });
     });
   });
 }

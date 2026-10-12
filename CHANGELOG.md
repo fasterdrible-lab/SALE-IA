@@ -3,6 +3,54 @@
 
 ---
 
+## V.1.4.173 + extensão V.1.4.24 — Gravação fecha no fim da reunião (validação da T02)
+
+> Data: 12/10/2026 | Local, aguardando deploy
+
+Reunião de teste de 12/10 (`msz-rzrd-paq`, 14:52-15:04 UTC, vendedor
+sozinho na chamada tocando uma reunião gravada): transcrição completa e
+alinhada com o microfone (som em 59 de 60 janelas de 10s). Trilha da aba
+em silêncio digital — esperado sem outro participante (o único som foi
+um aviso do Meet perto de 15:01:50, sinal de que a captura funciona).
+Falta um teste com outra pessoa na chamada. Problemas achados e
+corrigidos:
+
+- **Gravação não fechava no fim da chamada**: o microfone parou às
+  15:04:49 e ficou "gravando" no servidor; a aba gravou silêncio até a
+  rotação e abriu uma gravação nova que nunca recebeu bloco. Extensão:
+  - `gravacao_rules.js`: trilha `ended` encerra a gravação, a rotação e o
+    retomar não abrem gravação com a trilha morta, `aoFimDoAudio` avisa;
+    `parar()` só resolve depois do último bloco + encerrar (o `stop()` do
+    MediaRecorder é assíncrono); `reuniaoAcabou()` (saiu da URL da
+    reunião ou botão "Participar novamente"/"Voltar à tela inicial").
+  - `background.js`: lista das gravações abertas (`abertas` no estado);
+    aba do Meet fechada → encerra o microfone dela pela fila
+    (`ultima_sequence` nula) e para a aba; página recarregada
+    (`gravacaoMicrofoneSaiu` no `pagehide`) → encerra o microfone e avisa;
+    áudio da aba acabou → para tudo; microfone desconectado → aviso.
+    Estado da gravação gravado em fila (aba e microfone mandam "iniciar"
+    quase juntos).
+  - `content.js`: `pagehide`, fim do microfone e checagem de fim da
+    reunião a cada 5s (encerra as 2 trilhas). `offscreen.js`: fim do
+    áudio da aba; "parar" responde só depois de fechar (máx. 5s), antes de
+    o background fechar o documento.
+- **Último bloco recusado (400)**: a aba ficou ~130s sem entregar áudio e
+  o bloco do fechamento cobriu esse tempo; o limite era 120s → lacuna e
+  `integridade: erro` com o áudio todo presente. `MAX_DURACAO_BLOCO_MS`
+  passa a 3660s (rotação máxima + folga); o tamanho segue limitado.
+- **Avisos de fim de chamada na transcrição** ("Como não tem mais
+  ninguém nesta chamada…", "Sair agora", "Continuar na chamada", "A
+  chamada foi encerrada porque…", "Sua reunião está segura", "Fazer
+  upgrade"…): adicionados a `agent/ruido_interface_rules.py`.
+
+- Testes: `tests/js/test_gravacao_extensao.js` (+11, 32 no total),
+  `tests/test_gravacao_t02.py` (+1), `tests/test_ruido_interface_rules.py`
+  (+10 ruídos, +2 falas reais).
+- Versão: `1.4.172` → `1.4.173`; extensão `1.4.23` → `1.4.24`
+  (`chrome-extension.zip` regerado).
+
+---
+
 ## Manual do usuário + início da validação da T02 (sem versão nova)
 
 > Data: 11/10/2026 | Manual em produção (`f6f411d`, sem restart)

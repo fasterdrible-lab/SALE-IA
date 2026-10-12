@@ -93,6 +93,15 @@ class TestRegras(unittest.TestCase):
         dados = b"x" * (regras.MAX_BLOCO_BYTES + 1)
         self.assertIn("bloco grande demais", regras.validar_bloco(0, 1, 2, regras.hash_do_conteudo(dados), dados))
 
+    def test_ultimo_bloco_depois_de_trilha_sem_som_e_aceito(self):
+        # 12/10: a aba ficou 130s sem entregar áudio; o bloco do fechamento
+        # cobriu esse tempo todo e era recusado (limite antigo de 120s).
+        dados = b"x" * 100
+        h = regras.hash_do_conteudo(dados)
+        self.assertEqual(regras.validar_bloco(93, 0, 130_000, h, dados), [])
+        self.assertEqual(regras.validar_bloco(0, 0, 3600 * 1000, h, dados), [])  # rotação máxima
+        self.assertIn("bloco longo demais", regras.validar_bloco(0, 0, 2 * 3600 * 1000, h, dados))
+
     def test_lacunas(self):
         self.assertEqual(regras.lacunas([0, 1, 3, 5]), [2, 4])
         self.assertEqual(regras.lacunas([0, 1], ultima=3), [2, 3])
