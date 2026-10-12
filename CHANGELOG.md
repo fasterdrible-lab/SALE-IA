@@ -3,6 +3,19 @@
 
 ---
 
+## V.1.4.175 — Duração certa na lista de Gravações
+
+> Data: 12/10/2026
+
+- `api/gravacao_painel.py`: o fim de cada gravação é o último bloco
+  recebido, não `encerrada_em` (a manutenção fecha a gravação abandonada
+  horas depois; a lista mostrava 2h12 para uma reunião de 20 min).
+  Gravação sem bloco nenhum não tem duração.
+- Teste: `tests/test_gravacao_painel.py` (+1, 20 no arquivo).
+- Versão: `1.4.174` → `1.4.175`.
+
+---
+
 ## V.1.4.174 — Painel de Gravações no Dashboard (ouvir, comparar e medir o WER)
 
 > Data: 12/10/2026 | **Em produção** (`541f8df`, deploy ~19:35 UTC por
@@ -13,10 +26,8 @@
 > cache; aba com som em 0,3% das janelas, microfone em 97%; transcrição
 > certa encontrada (8.051 caracteres).
 >
-> Achado no teste real, corrigido depois (local, aguardando deploy): a
-> lista mostrava 2h12 para a reunião de 20 min — o fim vinha de
-> `encerrada_em`, e a manutenção fecha a gravação abandonada horas depois.
-> Agora o fim é o último bloco recebido (+1 teste, 20 no arquivo).
+> Achado no teste real: a lista mostrava 2h12 para a reunião de 20 min —
+> corrigido na V.1.4.175.
 
 Pedido do usuário: módulo para ouvir as gravações da T02 e comparar com a
 transcrição; fase 1 + fase 2; vendedor vê as próprias, admin vê todas.

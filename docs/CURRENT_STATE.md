@@ -17,8 +17,8 @@
   gravação vazia); último bloco longo não é mais recusado (lacuna falsa);
   avisos de fim de chamada do Meet saem da transcrição. Detalhe no
   CHANGELOG.
-- **V.1.4.174 em produção** (`541f8df`, ~19:35 UTC; fix da duração na
-  lista local, aguardando deploy): menu **🎧 Gravações** no
+- **V.1.4.174 em produção** (`541f8df`, ~19:35 UTC) + **V.1.4.175**
+  (duração certa na lista): menu **🎧 Gravações** no
   Dashboard — ouvir as 2 trilhas juntas com gráfico de volume, comparar
   com a transcrição e salvar trechos de referência com WER (gabarito da
   T03). Vendedor vê as próprias; admin vê todas.
