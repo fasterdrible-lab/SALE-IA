@@ -952,6 +952,29 @@
       margin-top: 2px;
     }
 
+    /* ── Gravações (painel de áudio + transcrição + trechos de referência) ── */
+    .grav-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; }
+    .grav-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+    .grav-tag { font-size: .76rem; padding: 2px 9px; border-radius: 20px; background: rgba(255,255,255,.05); color: var(--muted); border: 1px solid rgba(255,255,255,.06); }
+    .grav-tag.g-ok { color: #2dd4bf; border-color: rgba(45,212,191,.25); }
+    .grav-tag.g-aviso { color: var(--alert); border-color: rgba(245,158,11,.3); background: rgba(245,158,11,.08); }
+    .grav-tag.g-erro { color: #f87171; border-color: rgba(239,68,68,.3); background: rgba(239,68,68,.08); }
+    .grav-player { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+    .grav-player input[type=range] { flex: 1; min-width: 200px; accent-color: var(--primary); }
+    .grav-tempo { font-variant-numeric: tabular-nums; color: var(--text); min-width: 150px; }
+    .grav-trilha { display: grid; grid-template-columns: 150px 1fr; gap: 10px; align-items: center; margin-bottom: 8px; }
+    .grav-trilha label { font-size: .84rem; color: var(--muted); display: flex; gap: 6px; align-items: center; cursor: pointer; }
+    .grav-trilha canvas { width: 100%; height: 48px; background: #0d0d0d; border: 1px solid rgba(255,255,255,.06); border-radius: 8px; cursor: pointer; display: block; }
+    .grav-colunas { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+    @media (max-width: 1000px) { .grav-colunas { grid-template-columns: 1fr; } .grav-trilha { grid-template-columns: 1fr; } }
+    .grav-transcricao { white-space: pre-wrap; max-height: 560px; overflow: auto; font-size: .88rem; line-height: 1.7; background: var(--field); border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px; }
+    .grav-form label { display: block; font-size: .8rem; color: var(--muted); margin: 10px 0 4px; }
+    .grav-form .field-textarea { min-height: 110px; }
+    .grav-form input[type=text] { width: 100%; min-width: 0; }
+    .grav-linha { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .grav-ref { border-top: 1px solid rgba(255,255,255,.06); padding: 10px 0; font-size: .86rem; }
+    .grav-wer { font-weight: 700; color: var(--primary); }
+
     /* ── Responsive ── */
     @media (max-width: 900px) {
       .sidebar { width: var(--sidebar-collapsed); }
@@ -996,6 +1019,9 @@
       </button>
       <button class="nav-item" data-page="sessoes" onclick="mostrarPagina('sessoes', this)">
         <span class="nav-icon">🔴</span><span class="nav-label">Sessões ao Vivo</span>
+      </button>
+      <button class="nav-item" data-page="gravacoes" onclick="mostrarPagina('gravacoes', this)">
+        <span class="nav-icon">🎧</span><span class="nav-label">Gravações</span>
       </button>
       <button class="nav-item" data-page="analisar" onclick="mostrarPagina('analisar', this)">
         <span class="nav-icon">🔍</span><span class="nav-label">Analisar</span>
@@ -1141,6 +1167,91 @@
         </div>
         <div id="det-conteudo"></div>
         <div id="followup-section" style="margin-top:16px"></div>
+      </div>
+
+      <!-- GRAVAÇÕES -->
+      <div class="page" id="page-gravacoes">
+        <div id="grav-lista-wrap">
+          <h2>Gravações</h2>
+          <p style="color:var(--muted);margin-bottom:16px">Ouça o áudio gravado das reuniões (participantes e você), compare com a transcrição e corrija trechos para medir a precisão.</p>
+          <div class="toolbar">
+            <select id="grav-dias" onchange="carregarGravacoes()">
+              <option value="7">Últimos 7 dias</option>
+              <option value="30">Últimos 30 dias</option>
+              <option value="90" selected>Últimos 90 dias</option>
+            </select>
+            <button class="btn" onclick="carregarGravacoes()">↻ Atualizar</button>
+          </div>
+          <div class="reunioes" id="grav-lista"><div style="color:var(--muted)">Carregando...</div></div>
+        </div>
+
+        <div id="grav-detalhe" style="display:none">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+            <button class="back-btn" onclick="fecharGravacao()">← Voltar</button>
+            <h2 id="grav-titulo" style="margin:0">Gravação</h2>
+          </div>
+          <div id="grav-resumo" style="color:var(--muted);font-size:.86rem;margin-bottom:14px"></div>
+
+          <div class="grav-card">
+            <div class="grav-player">
+              <button class="btn" id="grav-play" onclick="gravAlternar()">▶ Tocar</button>
+              <span class="grav-tempo" id="grav-tempo">00:00 / 00:00</span>
+              <input type="range" id="grav-barra" min="0" max="1000" value="0" oninput="gravBuscar(this.value / 1000 * _grav.total)" />
+              <select id="grav-velocidade" onchange="_grav.velocidade = +this.value" title="Velocidade">
+                <option value="0.75">0,75×</option><option value="1" selected>1×</option>
+                <option value="1.25">1,25×</option><option value="1.5">1,5×</option><option value="2">2×</option>
+              </select>
+              <button class="btn btn-secondary" onclick="gravPular(-10)" title="Voltar 10s">↺ 10s</button>
+              <button class="btn btn-secondary" onclick="gravPular(10)" title="Avançar 10s">10s ↻</button>
+            </div>
+            <div id="grav-trilhas"></div>
+            <div id="grav-aviso-carga" style="color:var(--muted);font-size:.8rem;margin-top:6px"></div>
+            <div id="grav-integridade" style="font-size:.8rem;color:var(--muted);margin-top:8px"></div>
+          </div>
+
+          <div class="grav-colunas">
+            <div class="grav-card">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+                <strong>Transcrição</strong>
+                <button class="btn btn-secondary" onclick="gravUsarSelecao()" title="Selecione um pedaço da transcrição e clique">Usar texto selecionado no trecho →</button>
+              </div>
+              <div id="grav-transcricao-obs" style="color:var(--muted);font-size:.78rem;margin-bottom:8px"></div>
+              <div class="grav-transcricao" id="grav-transcricao"></div>
+            </div>
+
+            <div class="grav-card grav-form">
+              <strong id="grav-form-titulo">Trecho de referência</strong>
+              <div style="color:var(--muted);font-size:.8rem;margin-top:4px">Ouça um pedaço, cole o que o sistema transcreveu e escreva o que foi dito de verdade. O erro de palavras (WER) é calculado na hora.</div>
+              <div class="grav-linha" style="margin-top:10px">
+                <button class="btn btn-secondary" onclick="gravMarcar('inicio')">Marcar início</button>
+                <input type="text" id="grav-ref-inicio" placeholder="início (mm:ss)" style="max-width:120px" />
+                <button class="btn btn-secondary" onclick="gravMarcar('fim')">Marcar fim</button>
+                <input type="text" id="grav-ref-fim" placeholder="fim (mm:ss)" style="max-width:120px" />
+                <button class="btn btn-secondary" onclick="gravTocarTrecho()" title="Tocar do início ao fim marcados">▶ Trecho</button>
+              </div>
+              <label for="grav-ref-trilha">Trilha que você ouviu</label>
+              <select id="grav-ref-trilha">
+                <option value="ambas">As duas</option><option value="aba">Aba (participantes)</option><option value="microfone">Microfone (você)</option>
+              </select>
+              <label for="grav-ref-sistema">O que o sistema transcreveu</label>
+              <textarea class="field-textarea" id="grav-ref-sistema" placeholder="Selecione o pedaço na transcrição ao lado e clique em “Usar texto selecionado”."></textarea>
+              <div class="grav-linha" style="justify-content:space-between">
+                <label for="grav-ref-correto" style="margin-bottom:4px">O que foi dito de verdade</label>
+                <button class="btn btn-secondary" style="padding:4px 10px;font-size:.78rem" onclick="document.getElementById('grav-ref-correto').value = document.getElementById('grav-ref-sistema').value">Copiar para corrigir</button>
+              </div>
+              <textarea class="field-textarea" id="grav-ref-correto" placeholder="Escreva exatamente o que foi falado no trecho."></textarea>
+              <label for="grav-ref-obs">Observação (opcional)</label>
+              <input type="text" id="grav-ref-obs" placeholder="ex.: falante trocado, nome do produto errado" />
+              <div class="grav-linha" style="margin-top:12px">
+                <button class="btn" onclick="gravSalvarTrecho()" id="grav-ref-salvar">Salvar trecho</button>
+                <button class="btn btn-secondary" onclick="gravLimparForm()">Limpar</button>
+                <span id="grav-ref-msg" style="font-size:.84rem"></span>
+              </div>
+              <div style="margin-top:16px" id="grav-revisao-total"></div>
+              <div id="grav-refs"></div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- SESSÕES AO VIVO -->
@@ -1980,6 +2091,8 @@
     document.getElementById('page-' + nome).classList.add('active');
     if (btn) btn.classList.add('active');
     if (nome !== 'monitor') _pararMonitor();
+    if (nome !== 'gravacoes') gravParar();
+    if (nome === 'gravacoes')     { fecharGravacao(); carregarGravacoes(); }
     if (nome === 'dashboard')     carregarDashboard();
     if (nome === 'workspace')     carregarWorkspace();
     if (nome === 'reunioes')      carregarReunioes();
@@ -5552,6 +5665,422 @@
       container.innerHTML = '<div class="erro">Erro ao carregar sessões: ' + escHtml(e.message) + '</div>';
     }
   }
+
+  /* ─── Gravações (api/gravacao_painel.py) ─────────────────────────────
+     Fase 1: lista + player das 2 trilhas num relógio só (as gravações de
+     10 min de cada trilha emendadas) + volume + transcrição.
+     Fase 2: trechos de referência (texto correto × transcrito → WER).
+     Vendedor vê as próprias gravações; admin vê todas (o servidor filtra). */
+  const _GRAV_TRILHAS = { aba: { nome: 'Aba (participantes)', cor: '#2dd4bf' }, microfone: { nome: 'Microfone (você)', cor: '#D4AF37' } };
+  const _grav = { dados: null, t: 0, total: 0, tocando: false, velocidade: 1, fimTrecho: null, ultimoQuadro: null,
+                  audios: {}, ativo: { aba: true, microfone: true }, blobs: {}, baixando: {}, editando: null, raf: null };
+
+  function _gravHeaders() {
+    return { Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') };
+  }
+
+  function _gravFmt(seg) {
+    seg = Math.max(0, Math.floor(seg || 0));
+    const h = Math.floor(seg / 3600), m = Math.floor(seg / 60) % 60, s = seg % 60;
+    const p = n => String(n).padStart(2, '0');
+    return (h ? h + ':' + p(m) : p(m)) + ':' + p(s);
+  }
+
+  function _gravLerTempo(txt) {
+    txt = String(txt || '').trim().replace(',', '.');
+    if (!txt) return null;
+    if (/^\d+(\.\d+)?$/.test(txt)) return +txt;
+    const partes = txt.split(':').map(Number);
+    if (partes.some(isNaN)) return null;
+    return partes.reduce((acc, n) => acc * 60 + n, 0);
+  }
+
+  function _gravHora(seg) {  // hora do relógio da extensão naquele ponto
+    if (!_grav.dados || !_grav.dados.inicio_relogio_ms) return '';
+    return new Date(_grav.dados.inicio_relogio_ms + seg * 1000).toLocaleTimeString('pt-BR');
+  }
+
+  function _gravTagsTrilha(id, t) {
+    if (!t) return `<span class="grav-tag g-aviso">${_GRAV_TRILHAS[id].nome}: não gravada</span>`;
+    const tags = [`<span class="grav-tag g-ok">${_GRAV_TRILHAS[id].nome}: ${_gravFmt(t.segundos)}</span>`];
+    if (t.provavel_silencio) tags.push('<span class="grav-tag g-aviso">⚠ provável silêncio</span>');
+    if (t.lacunas) tags.push(`<span class="grav-tag g-erro">${t.lacunas} bloco(s) faltando</span>`);
+    if (t.com_erro) tags.push(`<span class="grav-tag g-erro">${t.com_erro} parte(s) com erro</span>`);
+    if (t.abertas) tags.push(`<span class="grav-tag g-aviso">${t.abertas} ainda aberta(s)</span>`);
+    return tags.join('');
+  }
+
+  async function carregarGravacoes() {
+    const lista = document.getElementById('grav-lista');
+    lista.innerHTML = '<div style="color:var(--muted)">Carregando...</div>';
+    try {
+      const dias = document.getElementById('grav-dias').value;
+      const r = await fetch(API + '/gravacoes?dias=' + encodeURIComponent(dias), { headers: _gravHeaders() });
+      if (r.status === 401) { lista.innerHTML = '<div class="erro">Sessão expirada: entre de novo.</div>'; return; }
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || ('Erro ' + r.status));
+      const d = await r.json();
+      const sessoes = d.sessoes || [];
+      if (!sessoes.length) {
+        lista.innerHTML = '<div style="color:var(--muted)">Nenhuma gravação no período. Para gravar, abra o popup da extensão na reunião, confirme que avisou os participantes e clique em Gravar.</div>';
+        return;
+      }
+      lista.innerHTML = sessoes.map(s => {
+        const rev = s.revisao && s.revisao.trechos
+          ? `<span class="grav-tag g-ok">WER ${(s.revisao.wer * 100).toFixed(1)}% · ${s.revisao.trechos} trecho(s)</span>` : '';
+        return `<div class="reuniao-card" onclick="abrirGravacao('${escHtml(s.sessao_id)}')">
+          <div class="score-circle" style="border-color:var(--primary);color:var(--primary);font-size:1.3rem">🎧</div>
+          <div class="reuniao-info">
+            <div class="reuniao-titulo">${escHtml(_fmtLocal(s.inicio))} · ${escHtml(s.meeting_id)}</div>
+            <div class="reuniao-meta">${escHtml((s.vendedores || []).join(', ') || '—')} · ${_gravFmt(s.duracao_s)}</div>
+            <div class="grav-tags">${_gravTagsTrilha('aba', s.trilhas.aba)}${_gravTagsTrilha('microfone', s.trilhas.microfone)}${rev}</div>
+          </div>
+        </div>`;
+      }).join('');
+    } catch (e) {
+      lista.innerHTML = '<div class="erro">Erro ao carregar gravações: ' + escHtml(e.message) + '</div>';
+    }
+  }
+
+  async function abrirGravacao(sessaoId) {
+    gravParar();
+    _gravLiberarAudios();
+    document.getElementById('grav-lista-wrap').style.display = 'none';
+    document.getElementById('grav-detalhe').style.display = '';
+    document.getElementById('grav-titulo').textContent = 'Carregando...';
+    document.getElementById('grav-trilhas').innerHTML = '<div style="color:var(--muted)">Lendo o áudio (a 1ª abertura de uma reunião longa pode levar alguns segundos)...</div>';
+    document.getElementById('grav-transcricao').textContent = '';
+    gravLimparForm();
+    try {
+      const r = await fetch(API + '/gravacoes/' + encodeURIComponent(sessaoId), { headers: _gravHeaders() });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || ('Erro ' + r.status));
+      const d = await r.json();
+      _grav.dados = d;
+      _grav.total = d.duracao_total_s || 0;
+      _grav.t = 0;
+      _gravRenderizar();
+    } catch (e) {
+      document.getElementById('grav-trilhas').innerHTML = '<div class="erro">' + escHtml(e.message) + '</div>';
+    }
+  }
+
+  function fecharGravacao() {
+    gravParar();
+    _gravLiberarAudios();
+    _grav.dados = null;
+    const det = document.getElementById('grav-detalhe');
+    if (det) det.style.display = 'none';
+    const lw = document.getElementById('grav-lista-wrap');
+    if (lw) lw.style.display = '';
+  }
+
+  function _gravLiberarAudios() {
+    Object.values(_grav.audios).forEach(a => { a.pause(); a.removeAttribute('src'); a.load(); });
+    Object.values(_grav.blobs).forEach(u => URL.revokeObjectURL(u));
+    _grav.audios = {}; _grav.blobs = {}; _grav.baixando = {};
+  }
+
+  function _gravRenderizar() {
+    const d = _grav.dados;
+    document.getElementById('grav-titulo').textContent = _fmtLocal(d.inicio) + ' · ' + d.meeting_id;
+    document.getElementById('grav-resumo').textContent =
+      (d.vendedores || []).join(', ') + ' · duração ' + _gravFmt(_grav.total) +
+      (d.inicio_relogio_ms ? ' · começou às ' + new Date(d.inicio_relogio_ms).toLocaleTimeString('pt-BR') : '');
+    const wrap = document.getElementById('grav-trilhas');
+    wrap.innerHTML = Object.keys(_GRAV_TRILHAS).map(id => {
+      const segs = d.trilhas[id] || [];
+      const som = segs.reduce((a, s) => a + (s.som.com_som || 0), 0), jan = segs.reduce((a, s) => a + (s.som.janelas || 0), 0);
+      const pct = jan ? Math.round(som / jan * 100) + '% com som' : 'não gravada';
+      return `<div class="grav-trilha">
+        <label><input type="checkbox" ${segs.length ? '' : 'disabled'} ${_grav.ativo[id] ? 'checked' : ''} onchange="_grav.ativo['${id}'] = this.checked">
+          <span><span style="color:${_GRAV_TRILHAS[id].cor}">●</span> ${_GRAV_TRILHAS[id].nome}<br><small>${pct}</small></span></label>
+        <canvas id="grav-canvas-${id}" onclick="gravClicarGrafico(event, this)" title="Clique para ir a este ponto"></canvas>
+      </div>`;
+    }).join('');
+    // Integridade por parte de 10 min
+    const linhas = [];
+    Object.keys(d.trilhas).forEach(id => d.trilhas[id].forEach(s => {
+      if (s.integridade !== 'ok' || (s.lacunas && s.lacunas.length) || s.status === 'gravando') {
+        linhas.push(`${_GRAV_TRILHAS[id] ? _GRAV_TRILHAS[id].nome : id} em ${_gravFmt(s.offset_s)}: ` +
+          (s.status === 'gravando' ? 'ainda aberta' : (s.integridade_detalhe || s.integridade)));
+      }
+    }));
+    document.getElementById('grav-integridade').innerHTML = linhas.length
+      ? '⚠ ' + linhas.map(escHtml).join(' · ') : 'Todas as partes íntegras.';
+    const tr = d.transcricao || {};
+    document.getElementById('grav-transcricao-obs').textContent = tr.disponivel ? (tr.observacao || '') : '';
+    document.getElementById('grav-transcricao').textContent = tr.disponivel
+      ? (tr.texto || '(transcrição vazia)') : 'Nenhuma transcrição encontrada para o período desta gravação.';
+    _gravRenderizarRefs();
+    _gravAtualizarTela();
+  }
+
+  function _gravDesenhar() {
+    const d = _grav.dados;
+    if (!d) return;
+    Object.keys(_GRAV_TRILHAS).forEach(id => {
+      const c = document.getElementById('grav-canvas-' + id);
+      if (!c) return;
+      const dpr = window.devicePixelRatio || 1;
+      const W = Math.max(1, c.clientWidth * dpr), H = Math.max(1, c.clientHeight * dpr);
+      if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+      const g = c.getContext('2d');
+      g.clearRect(0, 0, W, H);
+      const total = _grav.total || 1;
+      // trecho marcado
+      const ini = _gravLerTempo(document.getElementById('grav-ref-inicio').value);
+      const fim = _gravLerTempo(document.getElementById('grav-ref-fim').value);
+      if (ini != null && fim != null && fim > ini) {
+        g.fillStyle = 'rgba(212,175,55,.12)';
+        g.fillRect(ini / total * W, 0, (fim - ini) / total * W, H);
+      }
+      g.fillStyle = 'rgba(255,255,255,.06)';
+      g.fillRect(0, H - 1 * dpr, W, 1 * dpr);
+      g.fillStyle = _GRAV_TRILHAS[id].cor;
+      (d.trilhas[id] || []).forEach(s => {
+        const jan = s.janela_s || 2;
+        (s.niveis || []).forEach((n, i) => {
+          if (n == null) return;
+          const alt = Math.max(0, Math.min(1, (n + 60) / 60)) * (H - 2 * dpr);
+          const x = (s.offset_s + i * jan) / total * W;
+          g.fillRect(x, H - alt - 1 * dpr, Math.max(1, jan / total * W - 0.5), Math.max(alt, 1 * dpr));
+        });
+      });
+      g.fillStyle = '#f87171';
+      g.fillRect(_grav.t / total * W - 1 * dpr, 0, 2 * dpr, H);
+    });
+  }
+
+  function _gravAtualizarTela() {
+    const hora = _gravHora(_grav.t);
+    document.getElementById('grav-tempo').textContent = _gravFmt(_grav.t) + ' / ' + _gravFmt(_grav.total) + (hora ? ' · ' + hora : '');
+    if (_grav.total) document.getElementById('grav-barra').value = Math.round(_grav.t / _grav.total * 1000);
+    document.getElementById('grav-play').textContent = _grav.tocando ? '⏸ Pausar' : '▶ Tocar';
+    _gravDesenhar();
+  }
+
+  function _gravSegmento(id, t) {
+    return ((_grav.dados && _grav.dados.trilhas[id]) || []).find(s => t >= s.offset_s && t < s.offset_s + (s.duracao_s || 0)) || null;
+  }
+
+  function _gravBaixar(rid) {
+    if (_grav.blobs[rid] || _grav.baixando[rid]) return;
+    _grav.baixando[rid] = fetch(API + '/gravacao/' + encodeURIComponent(rid) + '/audio', { headers: _gravHeaders() })
+      .then(r => { if (!r.ok) throw new Error('Erro ' + r.status + ' ao baixar o áudio'); return r.blob(); })
+      .then(b => { _grav.blobs[rid] = URL.createObjectURL(b); })
+      .catch(e => { document.getElementById('grav-aviso-carga').textContent = e.message; })
+      .finally(() => { delete _grav.baixando[rid]; });
+  }
+
+  // Cada trilha segue o relógio da página: troca de parte de 10 min sozinha
+  // e corrige a posição quando escorrega mais de 0,35s.
+  function _gravSincronizar() {
+    let carregando = false;
+    Object.keys(_GRAV_TRILHAS).forEach(id => {
+      let a = _grav.audios[id];
+      if (!a) { a = _grav.audios[id] = new Audio(); a.preload = 'auto'; }
+      const seg = _grav.ativo[id] ? _gravSegmento(id, _grav.t) : null;
+      if (!_grav.tocando || !seg) { if (!a.paused) a.pause(); return; }
+      const url = _grav.blobs[seg.recording_id];
+      if (!url) { _gravBaixar(seg.recording_id); carregando = true; if (!a.paused) a.pause(); return; }
+      if (a.dataset.rid !== seg.recording_id) { a.src = url; a.dataset.rid = seg.recording_id; }
+      const alvo = _grav.t - seg.offset_s;
+      a.playbackRate = _grav.velocidade;
+      if (a.readyState >= 1 && Math.abs(a.currentTime - alvo) > 0.35) a.currentTime = alvo;
+      if (a.paused) a.play().catch(() => {});
+      // já baixa a próxima parte
+      const prox = (_grav.dados.trilhas[id] || []).find(s => s.offset_s > seg.offset_s);
+      if (prox && seg.offset_s + seg.duracao_s - _grav.t < 30) _gravBaixar(prox.recording_id);
+    });
+    document.getElementById('grav-aviso-carga').textContent = carregando ? 'Baixando o áudio...' : '';
+    return carregando;
+  }
+
+  function _gravQuadro(agora) {
+    if (!_grav.tocando) return;
+    const carregando = _gravSincronizar();
+    if (_grav.ultimoQuadro != null && !carregando) _grav.t += (agora - _grav.ultimoQuadro) / 1000 * _grav.velocidade;
+    _grav.ultimoQuadro = agora;
+    if (_grav.t >= _grav.total || (_grav.fimTrecho != null && _grav.t >= _grav.fimTrecho)) {
+      _grav.t = Math.min(_grav.t, _grav.total);
+      gravParar();
+      return;
+    }
+    _gravAtualizarTela();
+    _grav.raf = requestAnimationFrame(_gravQuadro);
+  }
+
+  function gravAlternar() {
+    if (!_grav.dados) return;
+    if (_grav.tocando) { gravParar(); return; }
+    if (_grav.t >= _grav.total) _grav.t = 0;
+    _grav.fimTrecho = null;
+    _grav.tocando = true;
+    _grav.ultimoQuadro = null;
+    _grav.raf = requestAnimationFrame(_gravQuadro);
+    _gravAtualizarTela();
+  }
+
+  function gravParar() {
+    _grav.tocando = false;
+    _grav.fimTrecho = null;
+    if (_grav.raf) cancelAnimationFrame(_grav.raf);
+    _grav.raf = null;
+    Object.values(_grav.audios).forEach(a => { if (!a.paused) a.pause(); });
+    if (_grav.dados) _gravAtualizarTela();
+  }
+
+  function gravBuscar(t) {
+    _grav.t = Math.max(0, Math.min(+t || 0, _grav.total));
+    _grav.ultimoQuadro = null;
+    if (_grav.tocando) _gravSincronizar();
+    _gravAtualizarTela();
+  }
+
+  function gravPular(seg) { gravBuscar(_grav.t + seg); }
+
+  function gravClicarGrafico(ev, canvas) {
+    const r = canvas.getBoundingClientRect();
+    gravBuscar((ev.clientX - r.left) / r.width * _grav.total);
+  }
+
+  // ── Fase 2: trechos de referência ──
+  function gravMarcar(qual) {
+    document.getElementById(qual === 'inicio' ? 'grav-ref-inicio' : 'grav-ref-fim').value = _gravFmt(_grav.t);
+    _gravDesenhar();
+  }
+
+  function gravTocarTrecho() {
+    const ini = _gravLerTempo(document.getElementById('grav-ref-inicio').value);
+    const fim = _gravLerTempo(document.getElementById('grav-ref-fim').value);
+    if (ini == null) return;
+    gravParar();
+    gravBuscar(ini);
+    gravAlternar();
+    _grav.fimTrecho = fim != null && fim > ini ? fim : null;
+  }
+
+  function gravUsarSelecao() {
+    const sel = window.getSelection();
+    const box = document.getElementById('grav-transcricao');
+    const txt = sel ? sel.toString().trim() : '';
+    if (!txt || !box.contains(sel.anchorNode)) {
+      document.getElementById('grav-ref-msg').textContent = 'Selecione um pedaço da transcrição primeiro.';
+      return;
+    }
+    document.getElementById('grav-ref-sistema').value = txt;
+    document.getElementById('grav-ref-msg').textContent = '';
+  }
+
+  function gravLimparForm() {
+    _grav.editando = null;
+    ['grav-ref-inicio', 'grav-ref-fim', 'grav-ref-sistema', 'grav-ref-correto', 'grav-ref-obs'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    const t = document.getElementById('grav-ref-trilha'); if (t) t.value = 'ambas';
+    const b = document.getElementById('grav-ref-salvar'); if (b) b.textContent = 'Salvar trecho';
+    const ti = document.getElementById('grav-form-titulo'); if (ti) ti.textContent = 'Trecho de referência';
+    const m = document.getElementById('grav-ref-msg'); if (m) m.textContent = '';
+    _gravDesenhar();
+  }
+
+  async function gravSalvarTrecho() {
+    const msg = document.getElementById('grav-ref-msg');
+    const ini = _gravLerTempo(document.getElementById('grav-ref-inicio').value);
+    const fim = _gravLerTempo(document.getElementById('grav-ref-fim').value);
+    if (ini == null || fim == null || fim <= ini) { msg.textContent = 'Marque o início e o fim do trecho (fim depois do início).'; msg.style.color = '#f87171'; return; }
+    const corpo = {
+      trilha: document.getElementById('grav-ref-trilha').value, inicio_s: ini, fim_s: fim,
+      texto_sistema: document.getElementById('grav-ref-sistema').value,
+      texto_referencia: document.getElementById('grav-ref-correto').value,
+      observacao: document.getElementById('grav-ref-obs').value,
+    };
+    const url = _grav.editando
+      ? API + '/gravacoes/referencias/' + _grav.editando
+      : API + '/gravacoes/' + encodeURIComponent(_grav.dados.sessao_id) + '/referencias';
+    try {
+      const r = await fetch(url, { method: _grav.editando ? 'PUT' : 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, _gravHeaders()), body: JSON.stringify(corpo) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(typeof d.detail === 'string' ? d.detail : ('Erro ' + r.status));
+      const lista = _grav.dados.referencias.filter(x => x.id !== d.id);
+      d.autor = d.autor || 'você';
+      lista.push(d);
+      lista.sort((a, b) => a.inicio_s - b.inicio_s);
+      _grav.dados.referencias = lista;
+      gravLimparForm();
+      msg.style.color = '#2dd4bf';
+      msg.textContent = 'Salvo: WER ' + (d.wer == null ? '—' : (d.wer * 100).toFixed(1) + '%') + ` (${d.erros} erro(s) em ${d.referencia_palavras} palavras).`;
+      _gravRenderizarRefs();
+    } catch (e) {
+      msg.style.color = '#f87171';
+      msg.textContent = e.message;
+    }
+  }
+
+  function _gravResumoLocal(refs) {
+    const palavras = refs.reduce((a, r) => a + (r.referencia_palavras || 0), 0);
+    const erros = refs.reduce((a, r) => a + (r.erros || 0), 0);
+    const seg = refs.reduce((a, r) => a + Math.max(0, r.fim_s - r.inicio_s), 0);
+    return { palavras, erros, seg, wer: palavras ? erros / palavras : null };
+  }
+
+  function _gravRenderizarRefs() {
+    const refs = (_grav.dados && _grav.dados.referencias) || [];
+    const tot = _gravResumoLocal(refs);
+    document.getElementById('grav-revisao-total').innerHTML = refs.length
+      ? `<strong>Precisão desta reunião:</strong> WER <span class="grav-wer">${(tot.wer * 100).toFixed(1)}%</span> · ${tot.erros} erro(s) em ${tot.palavras} palavras · ${_gravFmt(tot.seg)} revisados (${refs.length} trecho(s)). <span style="color:var(--muted)">Meta: ≤ 10%.</span>`
+      : '<span style="color:var(--muted)">Nenhum trecho revisado ainda.</span>';
+    document.getElementById('grav-refs').innerHTML = refs.map(r => `
+      <div class="grav-ref">
+        <div class="grav-linha" style="justify-content:space-between">
+          <span><strong>${_gravFmt(r.inicio_s)}–${_gravFmt(r.fim_s)}</strong> · ${escHtml(r.trilha)} · WER <span class="grav-wer">${r.wer == null ? '—' : (r.wer * 100).toFixed(1) + '%'}</span>
+            <span style="color:var(--muted)">(${r.substituicoes} trocada(s), ${r.delecoes} faltando, ${r.insercoes} a mais · ${escHtml(r.autor || '')})</span></span>
+          <span class="grav-linha">
+            <button class="btn btn-secondary" style="padding:4px 10px;font-size:.78rem" onclick="gravOuvirRef(${r.id})">▶ Ouvir</button>
+            <button class="btn btn-secondary" style="padding:4px 10px;font-size:.78rem" onclick="gravEditarRef(${r.id})">Editar</button>
+            <button class="btn btn-secondary" style="padding:4px 10px;font-size:.78rem" onclick="gravApagarRef(${r.id})">Apagar</button>
+          </span>
+        </div>
+        ${r.observacao ? `<div style="color:var(--muted)">${escHtml(r.observacao)}</div>` : ''}
+      </div>`).join('');
+  }
+
+  function _gravRef(id) { return (_grav.dados.referencias || []).find(r => r.id === id); }
+
+  function gravOuvirRef(id) {
+    const r = _gravRef(id); if (!r) return;
+    document.getElementById('grav-ref-inicio').value = _gravFmt(r.inicio_s);
+    document.getElementById('grav-ref-fim').value = _gravFmt(r.fim_s);
+    gravTocarTrecho();
+  }
+
+  function gravEditarRef(id) {
+    const r = _gravRef(id); if (!r) return;
+    _grav.editando = id;
+    document.getElementById('grav-ref-inicio').value = _gravFmt(r.inicio_s);
+    document.getElementById('grav-ref-fim').value = _gravFmt(r.fim_s);
+    document.getElementById('grav-ref-trilha').value = r.trilha;
+    document.getElementById('grav-ref-sistema').value = r.texto_sistema || '';
+    document.getElementById('grav-ref-correto').value = r.texto_referencia || '';
+    document.getElementById('grav-ref-obs').value = r.observacao || '';
+    document.getElementById('grav-ref-salvar').textContent = 'Salvar alteração';
+    document.getElementById('grav-form-titulo').textContent = 'Editando trecho ' + _gravFmt(r.inicio_s);
+    gravBuscar(r.inicio_s);
+  }
+
+  async function gravApagarRef(id) {
+    if (!confirm('Apagar este trecho de referência?')) return;
+    const r = await fetch(API + '/gravacoes/referencias/' + id, { method: 'DELETE', headers: _gravHeaders() });
+    if (!r.ok) { alert((await r.json().catch(() => ({}))).detail || ('Erro ' + r.status)); return; }
+    _grav.dados.referencias = _grav.dados.referencias.filter(x => x.id !== id);
+    if (_grav.editando === id) gravLimparForm();
+    _gravRenderizarRefs();
+  }
+
+  window.addEventListener('resize', () => { if (_grav.dados) _gravDesenhar(); });
+  ['grav-ref-inicio', 'grav-ref-fim'].forEach(id => document.addEventListener('input', e => {
+    if (e.target && e.target.id === id) _gravDesenhar();
+  }));
 
   function _fmtLocal(utcStr) {
     if (!utcStr) return '—';

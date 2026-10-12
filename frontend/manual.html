@@ -637,7 +637,7 @@
 
   <!-- ── 5.1 GRAVAÇÃO ── -->
   <section id="gravacao">
-    <h2><span class="section-num">5.1</span> Gravação da Reunião <span class="badge badge-green">V.1.4.172</span></h2>
+    <h2><span class="section-num">5.1</span> Gravação da Reunião <span class="badge badge-green">V.1.4.174</span></h2>
     <p class="section-desc">Guarda o áudio da reunião no servidor, em duas trilhas separadas: o áudio dos participantes (aba do Meet) e o seu microfone. Nunca começa sozinha.</p>
 
     <div class="callout callout-warn">
@@ -696,7 +696,17 @@
         <li>Só você (e o administrador) acessa o áudio das suas reuniões.</li>
         <li>As gravações são apagadas automaticamente depois de <strong>90 dias</strong>.</li>
         <li>A cada 10 minutos a gravação é dividida em partes, para que uma falha não comprometa a reunião inteira.</li>
-        <li>Ainda não há tela no Dashboard para ouvir as gravações — peça ao administrador.</li>
+        <li>A gravação se encerra sozinha quando você sai da reunião ou fecha a aba do Meet (extensão 1.4.24).</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🎧 Ouvir e revisar no Dashboard (menu Gravações)</div>
+      <ul style="padding-left:18px;color:var(--muted);font-size:.92rem">
+        <li>Lista das suas reuniões gravadas (o administrador vê todas), com avisos de trilha em silêncio, partes faltando ou com erro.</li>
+        <li>Ao abrir, o player toca as duas trilhas juntas — <strong>Aba (participantes)</strong> e <strong>Microfone (você)</strong> — e você pode desligar uma delas. O gráfico mostra onde houve fala; clique nele para ir àquele ponto.</li>
+        <li>A transcrição da mesma reunião aparece ao lado. Ela ainda não tem horário por fala, então ouça e acompanhe pelo conteúdo.</li>
+        <li><strong>Trecho de referência</strong>: marque início e fim, selecione na transcrição o que o sistema escreveu e clique em <em>Usar texto selecionado</em>, depois escreva o que foi dito de verdade (<em>Copiar para corrigir</em> ajuda) e salve. O SALEIA calcula o erro de palavras (WER) do trecho e o total da reunião — meta: até 10%.</li>
       </ul>
     </div>
   </section>

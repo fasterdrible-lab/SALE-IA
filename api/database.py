@@ -187,6 +187,47 @@ class GravacaoBloco(SQLModel, table=True):
     recebido_em: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
 
 
+class GravacaoNivel(SQLModel, table=True):
+    """Volume (dBFS) por janela de uma gravação encerrada — painel de
+    gravações do Dashboard. Calculado uma vez decodificando o áudio."""
+
+    __tablename__ = "gravacoes_niveis"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    recording_id: str = Field(sa_column=Column(String(64), unique=True, index=True, nullable=False))
+    janela_s: float = Field(sa_column=Column(Float, nullable=False))
+    duracao_s: Optional[float] = Field(default=None, sa_column=Column(Float))
+    niveis_json: str = Field(sa_column=Column(Text, nullable=False))
+    calculado_em: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+
+
+class GravacaoReferencia(SQLModel, table=True):
+    """Trecho de referência (fase 2 do painel de gravações): o que foi dito
+    de verdade × o que o sistema transcreveu, com o WER do trecho.
+    `sessao_id` = recording_id da 1ª gravação da sessão."""
+
+    __tablename__ = "gravacoes_referencias"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    sessao_id: str = Field(sa_column=Column(String(64), index=True, nullable=False))
+    meeting_id: str = Field(sa_column=Column(String(200), index=True, nullable=False))
+    usuario_id: str = Field(sa_column=Column(String(36), index=True, nullable=False))
+    trilha: str = Field(sa_column=Column(String(20), nullable=False))
+    inicio_s: float = Field(sa_column=Column(Float, nullable=False))
+    fim_s: float = Field(sa_column=Column(Float, nullable=False))
+    texto_sistema: str = Field(default="", sa_column=Column(Text, nullable=False))
+    texto_referencia: str = Field(sa_column=Column(Text, nullable=False))
+    wer: Optional[float] = Field(default=None, sa_column=Column(Float))
+    erros: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    substituicoes: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    delecoes: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    insercoes: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    palavras_referencia: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    observacao: str = Field(default="", sa_column=Column(Text, nullable=False))
+    criado_em: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+    atualizado_em: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
+
+
 class AiUsageEvent(SQLModel, table=True):
     """Evento de uso de IA — um registro por chamada a chamar_ia()/fallback
     Claude Account (Cost Intelligence Fase 1).

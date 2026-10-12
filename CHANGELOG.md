@@ -3,6 +3,47 @@
 
 ---
 
+## V.1.4.174 — Painel de Gravações no Dashboard (ouvir, comparar e medir o WER)
+
+> Data: 12/10/2026 | Local, aguardando deploy
+
+Pedido do usuário: módulo para ouvir as gravações da T02 e comparar com a
+transcrição; fase 1 + fase 2; vendedor vê as próprias, admin vê todas.
+Só leitura do que a T02 grava (sem IA, sem custo), kill-switch
+`GRAVACOES_PAINEL_ENABLED` (ligado por padrão).
+
+- **Fase 1** — menu **🎧 Gravações**:
+  - Lista das reuniões gravadas (gravações da mesma sala com mais de 2h
+    de intervalo = reunião nova), com duração, vendedor e avisos por
+    trilha (provável silêncio, blocos faltando, partes com erro ou
+    abertas).
+  - Reunião: player das 2 trilhas num relógio só (as partes de 10 min
+    emendadas; aba e microfone alinhados pelo relógio da extensão),
+    liga/desliga por trilha, velocidade, ±10s; gráfico de volume (dBFS
+    por janela de 2s, calculado uma vez com PyAV e guardado em
+    `gravacoes_niveis`) com clique para ir ao ponto; hora real de cada
+    ponto; integridade por parte; transcrição da mesma reunião ao lado
+    (MeetingMemory com mais sobreposição, inclusive as arquivadas da sala
+    recorrente). Sem horário por fala ainda (vem com a T03).
+- **Fase 2** — trechos de referência (`gravacoes_referencias`): marcar
+  início/fim no player, usar o texto selecionado na transcrição, escrever
+  o que foi dito; WER por trecho (sem rótulo de falante, caixa e
+  pontuação; acento conta) e total da reunião ponderado pelas palavras;
+  editar (só o autor ou admin), apagar, ouvir o trecho.
+- Rotas: `GET /gravacoes`, `GET /gravacoes/{sessao_id}`,
+  `POST /gravacoes/{sessao_id}/referencias`,
+  `PUT|DELETE /gravacoes/referencias/{id}`; o áudio vem do
+  `GET /gravacao/{id}/audio` existente.
+- Arquivos: `agent/gravacao_revisao_rules.py` (puro), `api/gravacao_painel.py`,
+  `api/database.py` (2 tabelas), `api/main.py`, `frontend/dashboard.html`,
+  `frontend/manual.html` (seção 5.1).
+- Testes: `tests/test_gravacao_painel.py` (19: agrupamento, sala
+  recorrente, WER, permissões vendedor × admin, alinhamento das trilhas,
+  volume fala × silêncio e cache, referências, rotas, kill-switch).
+- Versão: `1.4.173` → `1.4.174`.
+
+---
+
 ## Versão na tela inicial do Dashboard (sem versão nova)
 
 > Data: 12/10/2026

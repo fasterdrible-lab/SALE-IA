@@ -17,6 +17,10 @@
   gravação vazia); último bloco longo não é mais recusado (lacuna falsa);
   avisos de fim de chamada do Meet saem da transcrição. Detalhe no
   CHANGELOG.
+- **V.1.4.174 (local, aguardando deploy)**: menu **🎧 Gravações** no
+  Dashboard — ouvir as 2 trilhas juntas com gráfico de volume, comparar
+  com a transcrição e salvar trechos de referência com WER (gabarito da
+  T03). Vendedor vê as próprias; admin vê todas.
 - **Próximo**: reinstalar a ext 1.4.24 (`chrome-extension.zip`) +
   teste com 2 pessoas (30 min, sobreposição, pausa, queda de conexão);
   só então a T03.

@@ -835,7 +835,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.173",
+        "versao":              "1.4.174",
         "timestamp":           datetime.now().isoformat(),
         "ia_disponivel":       ia["ia_disponivel"],
         "ia_fora_desde":       ia["ia_fora_desde"],
@@ -876,7 +876,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.173",
+        "versao":          "1.4.174",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -3359,6 +3359,73 @@ async def gravacao_audio(recording_id: str, authorization: str | None = Header(d
     )
     return Response(content=dados, media_type="audio/webm",
                     headers={"Content-Disposition": f'attachment; filename="{recording_id}.webm"'})
+
+
+# ── Painel de gravações do Dashboard (api/gravacao_painel.py) ──────────
+# Vendedor vê as próprias gravações; admin vê todas. Kill-switch
+# GRAVACOES_PAINEL_ENABLED (ligado por padrão: só leitura).
+
+class GravacaoReferenciaRequest(BaseModel):
+    trilha: str = Field(default="ambas", max_length=20)
+    inicio_s: float
+    fim_s: float
+    texto_referencia: str = Field(max_length=20_000)
+    texto_sistema: str = Field(default="", max_length=20_000)
+    observacao: str = Field(default="", max_length=2_000)
+
+
+def _painel_gravacoes(authorization: str | None) -> tuple:
+    from agent.gravacao_revisao_rules import painel_habilitado
+    if not painel_habilitado():
+        raise HTTPException(status_code=403, detail="Painel de gravações desativado no servidor.")
+    payload = _req_auth(authorization)
+    return payload.get("sub"), payload.get("perfil") == "admin"
+
+
+@app.get("/gravacoes")
+async def gravacoes_listar(dias: int = 90, authorization: str | None = Header(default=None)):
+    usuario, admin = _painel_gravacoes(authorization)
+    from starlette.concurrency import run_in_threadpool
+    from api import gravacao_painel
+    return {"sessoes": await run_in_threadpool(_gravacao_ou_http, gravacao_painel.listar_sessoes, usuario, admin, dias),
+            "admin": admin}
+
+
+@app.get("/gravacoes/{sessao_id}")
+async def gravacoes_detalhe(sessao_id: str, authorization: str | None = Header(default=None)):
+    usuario, admin = _painel_gravacoes(authorization)
+    from starlette.concurrency import run_in_threadpool
+    from api import gravacao_painel
+    # 1ª abertura decodifica o áudio para o volume (fica em cache depois).
+    return await run_in_threadpool(_gravacao_ou_http, gravacao_painel.detalhe_sessao, usuario, admin, sessao_id)
+
+
+@app.post("/gravacoes/{sessao_id}/referencias")
+async def gravacoes_criar_referencia(sessao_id: str, req: GravacaoReferenciaRequest,
+                                     authorization: str | None = Header(default=None)):
+    usuario, admin = _painel_gravacoes(authorization)
+    from starlette.concurrency import run_in_threadpool
+    from api import gravacao_painel
+    return await run_in_threadpool(_gravacao_ou_http, gravacao_painel.criar_referencia, usuario, admin,
+                                   sessao_id, req.model_dump())
+
+
+@app.put("/gravacoes/referencias/{ref_id}")
+async def gravacoes_atualizar_referencia(ref_id: int, req: GravacaoReferenciaRequest,
+                                         authorization: str | None = Header(default=None)):
+    usuario, admin = _painel_gravacoes(authorization)
+    from starlette.concurrency import run_in_threadpool
+    from api import gravacao_painel
+    return await run_in_threadpool(_gravacao_ou_http, gravacao_painel.atualizar_referencia, usuario, admin,
+                                   ref_id, req.model_dump())
+
+
+@app.delete("/gravacoes/referencias/{ref_id}")
+async def gravacoes_apagar_referencia(ref_id: int, authorization: str | None = Header(default=None)):
+    usuario, admin = _painel_gravacoes(authorization)
+    from starlette.concurrency import run_in_threadpool
+    from api import gravacao_painel
+    return await run_in_threadpool(_gravacao_ou_http, gravacao_painel.apagar_referencia, usuario, admin, ref_id)
 
 
 # ─────────────────────────────────────────────
