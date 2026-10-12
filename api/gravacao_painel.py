@@ -61,7 +61,10 @@ def _blocos_por_gravacao(session: Session, ids: list) -> dict:
 
 def _como_item(g: GravacaoAudio, blocos: dict) -> dict:
     b = blocos.get(g.recording_id) or {}
-    fim = g.encerrada_em or b.get("ultimo_recebido") or g.iniciada_em
+    # Fim = último bloco recebido, não encerrada_em: a gravação abandonada é
+    # fechada pela manutenção horas depois (em 12/10 a lista mostrou 2h12 para
+    # uma reunião de 20 min). Sem bloco nenhum, a gravação não tem duração.
+    fim = b.get("ultimo_recebido") or g.iniciada_em
     return {
         "recording_id": g.recording_id, "meeting_id": g.meeting_id, "track_id": g.track_id,
         "usuario_id": g.usuario_id, "status": g.status, "integridade": g.integridade,

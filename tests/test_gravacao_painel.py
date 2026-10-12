@@ -180,6 +180,14 @@ class TestPainel(_Base):
         t = gravacao_painel.detalhe_sessao("u1", False, "rec-aba-1")["transcricao"]
         self.assertEqual((t["disponivel"], t["texto"]), (True, "Paulo: bom dia\nCliente: bom dia"))
 
+    def test_gravacao_fechada_pela_manutencao_nao_estica_a_reuniao(self):
+        self.gravar("rec-aba-1", "aba", 1_000_000, gerar_webm(2.0), encerrar=False)
+        gravacao_store.iniciar_gravacao("u1", MEETING, "aba", "rec-aba-2", "audio/webm", 48000, True)  # nunca recebeu bloco
+        depois = datetime.now() + timedelta(hours=2)
+        gravacao_store.manutencao(agora=depois)  # fecha as 2 por abandono, 2h depois
+        s = gravacao_painel.listar_sessoes("u1")[0]
+        self.assertLess(s["duracao_s"], 60)
+
     def test_lista_resume_trilhas(self):
         self.gravar("rec-aba-1", "aba", 1_000_000, gerar_webm(2.0))
         s = gravacao_painel.listar_sessoes("u1")[0]

@@ -5,7 +5,18 @@
 
 ## V.1.4.174 — Painel de Gravações no Dashboard (ouvir, comparar e medir o WER)
 
-> Data: 12/10/2026 | Local, aguardando deploy
+> Data: 12/10/2026 | **Em produção** (`541f8df`, deploy ~19:35 UTC por
+> bundle, depois de ~2h esperando `reunioes_ativas: 0`; `NRestarts=0`,
+> journal limpo, tabelas `gravacoes_niveis`/`gravacoes_referencias`
+> criadas, `/gravacoes` sem login = 401). Teste com os dados reais (admin):
+> 2 reuniões; detalhe da `msz-rzrd-paq` em 1,8s na 1ª abertura e ~0s com o
+> cache; aba com som em 0,3% das janelas, microfone em 97%; transcrição
+> certa encontrada (8.051 caracteres).
+>
+> Achado no teste real, corrigido depois (local, aguardando deploy): a
+> lista mostrava 2h12 para a reunião de 20 min — o fim vinha de
+> `encerrada_em`, e a manutenção fecha a gravação abandonada horas depois.
+> Agora o fim é o último bloco recebido (+1 teste, 20 no arquivo).
 
 Pedido do usuário: módulo para ouvir as gravações da T02 e comparar com a
 transcrição; fase 1 + fase 2; vendedor vê as próprias, admin vê todas.
