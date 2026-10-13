@@ -6,6 +6,9 @@
   real e **restrito a admin** (antes era público e mostrava acesso à
   VPS). **Lacunas de segurança levantadas na VPS** (detalhe em
   `docs/SECURITY_MODEL.md`): SSH root por senha, ufw inativo.
+- **V.1.4.177 (local, aguardando deploy)**: Groq como 5º provedor de IA
+  nas Configurações (`openai/gpt-oss-120b`, mesma chave da transcrição) +
+  "Definir como principal" passa a mudar a ordem real do roteador.
 - **Backup diário** instalado (`saleia-backup.timer`, 05:30 UTC; MySQL 14
   dias + `data/` 7 dias, ver `docs/BACKUP.md`). Falta cópia para fora da
   VPS (escolher destino).

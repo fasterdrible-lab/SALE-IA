@@ -835,7 +835,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.176",
+        "versao":              "1.4.177",
         "timestamp":           datetime.now().isoformat(),
         "ia_disponivel":       ia["ia_disponivel"],
         "ia_fora_desde":       ia["ia_fora_desde"],
@@ -876,7 +876,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.176",
+        "versao":          "1.4.177",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -5054,7 +5054,15 @@ _PROVEDORES_CONF = {
     "openai":    {"nome": "OpenAI",     "modelo": "gpt-4o",          "env_key": "OPENAI_API_KEY"},
     "anthropic": {"nome": "Anthropic",  "modelo": "claude-sonnet-4-6","env_key": "ANTHROPIC_API_KEY"},
     "gemini":    {"nome": "Gemini",     "modelo": "gemini-2.0-flash", "env_key": "GEMINI_API_KEY"},
+    # Mesma GROQ_API_KEY da transcrição; ligar/desligar como IA usa GROQ_LLM_ATIVO.
+    "groq":      {"nome": "Groq",       "modelo": "openai/gpt-oss-120b", "env_key": "GROQ_API_KEY"},
 }
+
+
+def _modelo_provedor(pid: str) -> str:
+    """Modelo em uso (o do .env quando configurado), igual ao que o roteador usa."""
+    from api.ai_router import PROVIDERS, _model
+    return _model(PROVIDERS[pid]) if pid in PROVIDERS else _PROVEDORES_CONF[pid]["modelo"]
 
 
 def _env_path() -> Path:
@@ -5095,17 +5103,22 @@ def _salvar_env_key(chave_env: str, valor: str):
 def admin_listar_provedores(authorization: str | None = _Header(default=None)):
     _req_admin(authorization)
     env = _ler_env()
-    principal = env.get("PROVEDOR_PREFERIDO", "deepseek")
+    from api.ai_router import ordem_provedores
+    ordem = ordem_provedores()
+    principal = ordem[0] if ordem else env.get("PROVEDOR_PREFERIDO", "deepseek")
     provedores = []
     for pid, conf in _PROVEDORES_CONF.items():
         chave_arquivo = env.get(conf["env_key"], "")
         tem_chave = bool(chave_arquivo and len(chave_arquivo) > 8)
         chave_runtime = os.environ.get(conf["env_key"], "")
         ativo = bool(chave_runtime and len(chave_runtime) > 8)
+        if pid == "groq":
+            from api.ai_router import provedor_desligado
+            ativo = ativo and not provedor_desligado("groq")
         provedores.append({
             "id": pid,
             "nome": conf["nome"],
-            "modelo": conf["modelo"],
+            "modelo": _modelo_provedor(pid),
             "ativo": ativo,
             "principal": pid == principal,
             "tem_chave": tem_chave,
@@ -5162,6 +5175,11 @@ async def admin_testar_provedor(req: AdminTesteRequest, authorization: str | Non
             modelo_gemini = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
             _cliente_gemini = _genai.Client(api_key=chave)
             await asyncio.to_thread(_cliente_gemini.models.generate_content, model=modelo_gemini, contents="ping")
+        elif pid == "groq":
+            from openai import AsyncOpenAI as _OAI
+            async with _OAI(api_key=chave, base_url=os.environ.get("GROQ_BASE_URL", "https://api.groq.com/openai/v1")) as c:
+                # gpt-oss raciocina antes de responder: max_tokens=1 cortaria tudo
+                await c.chat.completions.create(model=_modelo_provedor("groq"), messages=[{"role": "user", "content": "ping"}], max_tokens=64)
         ts_ok = _time.time()
         _ultimo_teste[pid] = {"ok": True, "ts": ts_ok, "detalhe": ""}
         try:
@@ -5196,6 +5214,13 @@ def admin_status_provedor(pid: str, req: AdminStatusRequest, authorization: str 
     chave = env.get(env_key, "")
     if req.ativo and not chave:
         raise HTTPException(status_code=400, detail="Configure a chave de API antes de ativar.")
+    if pid == "groq":
+        # Não apaga a GROQ_API_KEY: ela também serve à transcrição.
+        from api.ai_router import GROQ_LLM_ATIVO_ENV
+        os.environ[GROQ_LLM_ATIVO_ENV] = "true" if req.ativo else "false"
+        if req.ativo:
+            os.environ[env_key] = chave
+        return {"ok": True}
     # Propaga ativação/desativação ao processo atual sem alterar o arquivo .env
     if req.ativo:
         os.environ[env_key] = chave
@@ -5213,7 +5238,12 @@ def admin_definir_principal(req: AdminPrincipalRequest, authorization: str | Non
     _req_admin(authorization)
     if req.provedor not in _PROVEDORES_CONF:
         raise HTTPException(status_code=404, detail="Provedor desconhecido.")
-    _salvar_env_key("PROVEDOR_PREFERIDO", req.provedor)  # já seta os.environ internamente
+    # Antes (até 13/10/2026) só gravava PROVEDOR_PREFERIDO no .env, que o
+    # roteador nunca lê: o botão não mudava nada. Agora põe o provedor no
+    # topo de data/ai_provider_order.json (arquivo: vale para os 2 workers).
+    from api.ai_router import definir_provedor_preferido
+    definir_provedor_preferido(req.provedor)
+    _salvar_env_key("PROVEDOR_PREFERIDO", req.provedor)  # mantido por compatibilidade
     return {"ok": True}
 
 

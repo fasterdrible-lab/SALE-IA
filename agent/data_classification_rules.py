@@ -110,6 +110,7 @@ _BEARER_PATTERN = re.compile(r"(?i)\bBearer\s+\S+")
 _RAW_KEY_PATTERNS = [
     re.compile(r"\bsk-[A-Za-z0-9]{10,}\b"),       # OpenAI/Anthropic/DeepSeek-style
     re.compile(r"\bAIza[0-9A-Za-z_\-]{10,}\b"),   # Google/Gemini-style
+    re.compile(r"\bgsk_[A-Za-z0-9]{10,}\b"),      # Groq
 ]
 
 

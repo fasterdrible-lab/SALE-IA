@@ -124,7 +124,7 @@
   <div class="hero-title">Dev Manual — SALEIA</div>
   <div class="hero-sub">Referência técnica de arquitetura, tecnologia, segurança e operação. Reflete o código e a produção em 13/10/2026.</div>
   <div class="hero-badges">
-    <span class="badge badge-gold">Backend V.1.4.176</span>
+    <span class="badge badge-gold">Backend V.1.4.177</span>
     <span class="badge badge-gold">Extensão V.1.4.24</span>
     <span class="badge badge-green">FastAPI · Python 3.14</span>
     <span class="badge badge-blue">MySQL 8.4 + SQLite</span>
@@ -173,7 +173,7 @@
                                                                      ├─► data/gravacoes/          ── áudio (T02)
                                                                      ├─► Ollama (local)           ── embeddings
                                                                      ├─► faster-whisper (local)   ── áudio → texto
-                                                                     └─► DeepSeek → OpenAI → Anthropic → Gemini (+ conta Claude)</code></pre>
+                                                                     └─► DeepSeek → OpenAI → Anthropic → Gemini → Groq (+ conta Claude)</code></pre>
       </div>
       <div class="grid-2">
         <div class="card">
@@ -223,7 +223,7 @@
         <tr><td>Linguagem / runtime</td><td>Python 3.14.4 (venv), uvicorn 0.52 com 2 workers</td></tr>
         <tr><td>Web / API</td><td>FastAPI 0.111, Pydantic 2, SQLModel 0.0.38 (SQLAlchemy), PyMySQL</td></tr>
         <tr><td>Banco</td><td>MySQL 8.4 (local, só 127.0.0.1); SQLite para métricas e fallback</td></tr>
-        <tr><td>IA (chat)</td><td>DeepSeek <code>deepseek-chat</code>, OpenAI <code>gpt-4o</code>, Anthropic Claude Sonnet, Google Gemini (<code>google-genai</code>), conta Claude pessoal via <code>claude-agent-sdk</code></td></tr>
+        <tr><td>IA (chat)</td><td>DeepSeek <code>deepseek-chat</code>, OpenAI <code>gpt-4o</code>, Anthropic Claude Sonnet, Google Gemini (<code>google-genai</code>), Groq <code>openai/gpt-oss-120b</code> (API compatível com OpenAI), conta Claude pessoal via <code>claude-agent-sdk</code></td></tr>
         <tr><td>Transcrição</td><td>Legenda do Meet + faster-whisper local (<code>small</code>, CPU); Groq e OpenAI Whisper como opções</td></tr>
         <tr><td>Embeddings</td><td>Ollama local (<code>embeddinggemma</code> padrão; <code>nomic-embed-text</code> instalado); OpenAI opcional</td></tr>
         <tr><td>Áudio</td><td>MediaRecorder WebM/Opus na extensão; PyAV (FFmpeg) + NumPy no servidor</td></tr>
@@ -327,7 +327,7 @@
       <div class="card">
         <div class="card-title">Cadeia e resiliência</div>
         <ul>
-          <li>Ordem padrão <code>deepseek → openai → anthropic → gemini</code>, salva em <code>data/ai_provider_order.json</code> e editável no painel admin. Provedor sem chave é pulado.</li>
+          <li>Ordem padrão <code>deepseek → openai → anthropic → gemini → groq</code>, salva em <code>data/ai_provider_order.json</code> (com a lista de provedores conhecidos ao salvar) e editável no painel admin ("Definir como principal" põe o provedor no topo dessa ordem). Provedor sem chave é pulado; arquivo antigo, de antes da Groq, ganha a Groq no fim.</li><li><strong>Groq</strong> (V.1.4.177): mesma <code>GROQ_API_KEY</code> da transcrição; modelo em <code>GROQ_MODEL</code> (padrão <code>openai/gpt-oss-120b</code>, também disponível <code>qwen/qwen3.8-27b</code>). Inativar no painel usa <code>GROQ_LLM_ATIVO</code> e não apaga a chave, para não derrubar a transcrição.</li>
           <li>Circuit breaker por provedor (<code>AI_PROVIDER_FAILURES_TO_OPEN</code>, <code>AI_PROVIDER_COOLDOWN_SECONDS</code>) e timeout (<code>AI_PROVIDER_TIMEOUT_SECONDS</code>).</li>
           <li>Fallback final para a <strong>conta Claude pessoal</strong> (<code>agent/multiagente/claude_fallback.py</code>, <code>CLAUDE_ACCOUNT_PILOT</code>), com token OAuth criptografado (<code>CLAUDE_TOKEN_ENC_KEY</code>).</li>
           <li><code>/health</code> mostra <code>ia_disponivel</code>, <code>ia_fora_desde</code> e a causa por provedor; Telegram avisa "IA FORA DO AR" e "IA voltou".</li>
@@ -515,7 +515,7 @@
           <tr><th>Variável</th><th>Uso</th></tr>
           <tr><td><code>JWT_SECRET</code></td><td>Assinatura dos tokens (a API não sobe sem ela)</td></tr>
           <tr><td><code>DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASS</code></td><td>MySQL</td></tr>
-          <tr><td><code>DEEPSEEK_API_KEY</code>, <code>OPENAI_API_KEY</code>, <code>ANTHROPIC_API_KEY</code>, <code>GEMINI_API_KEY</code> (+ <code>*_MODEL</code>)</td><td>Provedores de IA</td></tr>
+          <tr><td><code>DEEPSEEK_API_KEY</code>, <code>OPENAI_API_KEY</code>, <code>ANTHROPIC_API_KEY</code>, <code>GEMINI_API_KEY</code>, <code>GROQ_API_KEY</code> (+ <code>*_MODEL</code>, <code>GROQ_BASE_URL</code>, <code>GROQ_LLM_ATIVO</code>)</td><td>Provedores de IA (a chave da Groq também serve à transcrição)</td></tr>
           <tr><td><code>CLAUDE_ACCOUNT_PILOT</code>, <code>CLAUDE_TOKEN_ENC_KEY</code></td><td>Conta Claude pessoal (fallback e análise)</td></tr>
           <tr><td><code>TRANSCRICAO_PROVEDOR</code>, <code>GROQ_API_KEY</code>, <code>WHISPER_LOCAL_MODEL/DEVICE/COMPUTE_TYPE</code>, <code>TRANSCRICAO_GLOSSARIO</code></td><td>Transcrição de áudio</td></tr>
           <tr><td><code>EMBEDDING_PROVIDER</code>, <code>OLLAMA_BASE_URL</code>, <code>OLLAMA_EMBEDDING_MODEL</code>, <code>EMBEDDING_FALLBACK_PROVIDER</code></td><td>Embeddings</td></tr>

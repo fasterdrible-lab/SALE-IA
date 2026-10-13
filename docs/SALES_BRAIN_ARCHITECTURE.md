@@ -108,7 +108,8 @@ Todo tráfego de IA passa por `api/ai_router.py::chamar_ia` (exceto o
 fallback para a conta Claude pessoal, `agent/multiagente/claude_fallback.py`,
 que replica as guardas manualmente):
 
-- ordem DeepSeek → OpenAI → Anthropic → Gemini, circuit breaker por provedor;
+- ordem DeepSeek → OpenAI → Anthropic → Gemini → Groq (Groq desde a
+  V.1.4.177, `openai/gpt-oss-120b`), circuit breaker por provedor;
 - anexa `FORBIDDEN_TRIGGER_RULE`, `PROMPT_INJECTION_GUARD_TEXT` e
   `ADVERSARIAL_SALES_GUARD_TEXT` a todo system prompt;
 - registra `AiUsageEvent` (custo/tokens por `feature`) e

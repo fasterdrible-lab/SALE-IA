@@ -34,7 +34,7 @@ load_dotenv()
 
 logger = logging.getLogger("saleia.ai")
 
-DEFAULT_PROVIDER_ORDER = ("deepseek", "openai", "anthropic", "gemini")
+DEFAULT_PROVIDER_ORDER = ("deepseek", "openai", "anthropic", "gemini", "groq")
 PROVIDER_ALIASES = {
     "google": "gemini",
     "claude": "anthropic",
@@ -230,6 +230,9 @@ def _save_provider_order(order: list[str]) -> None:
     STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "order": order,
+        # Provedores que existiam ao salvar: um provedor novo no código (fora
+        # desta lista) não entra sozinho numa ordem escolhida no painel.
+        "conhecidos": sorted(PROVIDERS),
         "updated_at": time.time(),
     }
     tmp_file = STATE_FILE.with_suffix(".tmp")
@@ -321,6 +324,26 @@ def _call_deepseek(system_prompt: str, user_content: str, api_key: str, model: s
     return _extract_json(response.choices[0].message.content), _usage_from_openai_like(response)
 
 
+def _call_groq(system_prompt: str, user_content: str, api_key: str, model: str, timeout: float) -> tuple[dict, ProviderUsage | None]:
+    """Groq (13/10/2026): API compatível com a OpenAI. Mesma chave da
+    transcrição (GROQ_API_KEY). Modelos com JSON mode na conta em 13/10:
+    openai/gpt-oss-120b (padrão) e qwen/qwen3.8-27b."""
+    from openai import OpenAI
+
+    base_url = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
+    with OpenAI(api_key=api_key, base_url=base_url, timeout=timeout) as client:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content},
+            ],
+            temperature=0.3,
+            response_format={"type": "json_object"},
+        )
+    return _extract_json(response.choices[0].message.content), _usage_from_openai_like(response)
+
+
 def _call_anthropic(system_prompt: str, user_content: str, api_key: str, model: str, timeout: float) -> tuple[dict, ProviderUsage | None]:
     import anthropic
 
@@ -389,7 +412,24 @@ PROVIDERS: dict[str, Provider] = {
         default_model="gemini-2.0-flash",
         caller=_call_gemini,
     ),
+    "groq": Provider(
+        name="groq",
+        env_keys=("GROQ_API_KEY",),
+        model_env="GROQ_MODEL",
+        default_model="openai/gpt-oss-120b",
+        caller=_call_groq,
+    ),
 }
+
+# A chave da Groq também serve à transcrição: desligar a Groq como provedor
+# de IA (painel admin) não pode apagar a chave do processo. Desliga por aqui.
+GROQ_LLM_ATIVO_ENV = "GROQ_LLM_ATIVO"
+
+
+def provedor_desligado(name: str) -> bool:
+    if name == "groq":
+        return os.getenv(GROQ_LLM_ATIVO_ENV, "true").strip().lower() in ("0", "false", "no")
+    return False
 
 _breakers: dict[str, CircuitBreaker] = {
     name: CircuitBreaker(name) for name in PROVIDERS
@@ -409,10 +449,34 @@ _counters: dict = {
     "custo_total_usd": 0.0,
     "por_provedor": {
         name: {"sucesso": 0, "falha": 0, "total_ms": 0, "custo_usd": 0.0}
-        for name in ("deepseek", "openai", "anthropic", "gemini")
+        for name in PROVIDERS
     },
     "inicio": time.time(),
 }
+
+
+# Provedores que existiam quando data/ai_provider_order.json era gravado sem
+# o campo "conhecidos" (até 13/10/2026).
+_PROVEDORES_LEGADO = ("deepseek", "openai", "anthropic", "gemini")
+
+
+def _ordem_salva_e_legada() -> bool:
+    try:
+        payload = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return False
+    return not (isinstance(payload, dict) and "conhecidos" in payload)
+
+
+def _completar_ordem_legada(ordered: list[Provider]) -> list[Provider]:
+    """Arquivo de ordem antigo não conhece a Groq: ela vai para o fim, senão
+    nunca seria tentada até alguém reordenar no painel. Arquivo novo (com
+    "conhecidos") é a escolha de quem salvou e fica como está."""
+    if not _ordem_salva_e_legada():
+        return ordered
+    presentes = {p.name for p in ordered}
+    novos = [n for n in _default_provider_names() if n not in presentes and n not in _PROVEDORES_LEGADO]
+    return ordered + [PROVIDERS[n] for n in novos]
 
 
 def _provider_order() -> list[Provider]:
@@ -420,8 +484,9 @@ def _provider_order() -> list[Provider]:
     if saved_order:
         ordered = _order_from_names(saved_order)
         if ordered:
-            return ordered
+            return _completar_ordem_legada(ordered)
 
+    # Ordem do .env é escolha explícita: fica como está (sem completar).
     raw_order = os.getenv("AI_PROVIDER_ORDER", ",".join(DEFAULT_PROVIDER_ORDER))
     ordered = _order_from_names(raw_order.split(","))
     if ordered:
@@ -431,6 +496,8 @@ def _provider_order() -> list[Provider]:
 
 
 def _api_key(provider: Provider) -> str | None:
+    if provedor_desligado(provider.name):
+        return None
     for env_key in provider.env_keys:
         value = os.getenv(env_key)
         if value:
@@ -445,6 +512,7 @@ def _model(provider: Provider) -> str:
 def _safe_error(error: Exception) -> str:
     message = f"{type(error).__name__}: {error}"
     message = re.sub(r"sk-[A-Za-z0-9_\-]+", "[redacted]", message)
+    message = re.sub(r"gsk_[A-Za-z0-9]+", "[redacted]", message)  # chave Groq
     message = re.sub(r"AIza[0-9A-Za-z_\-]{35}", "[redacted]", message)  # chave Google/Gemini
     message = re.sub(r"(?i)(api[_-]?key|token|password|secret)=\S+", r"\1=[redacted]", message)
     message = re.sub(r"(?i)(authorization|bearer)\s+[A-Za-z0-9_\-\.]+", r"\1 [redacted]", message)
@@ -460,6 +528,8 @@ def _safe_error(error: Exception) -> str:
 
 def _status_label(provider: Provider) -> str:
     breaker = _breakers[provider.name]
+    if provedor_desligado(provider.name):
+        return "desligado"
     if not _api_key(provider):
         return "sem_chave"
     if not breaker.available:
@@ -647,6 +717,10 @@ def chamar_ia(
             model = modelo_a_usar(provider.name, model_padrao, feature)
         except Exception:
             model = model_padrao
+
+        if provedor_desligado(provider.name):
+            attempts.append({"provider": provider.name, "status": "desligado"})
+            continue
 
         if not breaker.available:
             attempts.append({"provider": provider.name, "status": "cooldown"})

@@ -3,6 +3,38 @@
 
 ---
 
+## V.1.4.177 — Groq como 5º provedor de IA nas Configurações
+
+> Data: 13/10/2026 | Local, aguardando deploy
+
+Pedido do usuário: "adicione a API da Groq" em Configurações, como
+provedor de IA (não só de transcrição, que já existia).
+
+- `api/ai_router.py`: provedor `groq` (API compatível com a OpenAI,
+  `GROQ_BASE_URL`), mesma `GROQ_API_KEY` da transcrição, modelo
+  `GROQ_MODEL` (padrão `openai/gpt-oss-120b`; conferido na conta em
+  13/10: ele e `qwen/qwen3.8-27b` respondem em JSON mode). Entra no fim da
+  ordem padrão. Arquivo de ordem antigo (`data/ai_provider_order.json`
+  sem `conhecidos`, o de produção) ganha a Groq no fim; arquivos salvos
+  daqui em diante registram os provedores conhecidos e ficam como foram
+  escolhidos. Desligar a Groq como IA usa `GROQ_LLM_ATIVO` (não apaga a
+  chave — a transcrição continua), status `desligado`, sem contar falha.
+  Chave `gsk_` redigida nos erros e logs.
+- `api/pricing_catalog.py`: gpt-oss-120b US$ 0,15/0,60 por milhão
+  (cache 0,075), da página do modelo na documentação da Groq; outros
+  modelos da Groq caem no mesmo preço.
+- Configurações → APIs: card da Groq (chave, testar, ativar/inativar,
+  principal), filtro de provedor em Reuniões, Monitor com os 5.
+- **Corrigido de passagem**: "Definir como principal" só gravava
+  `PROVEDOR_PREFERIDO` no `.env`, que o roteador nunca lia — o botão não
+  mudava nada. Agora põe o provedor no topo da ordem real, e o selo
+  "Principal" mostra quem está de fato em 1º.
+- Manuais (usuário e Dev) com a Groq na cadeia.
+- Testes: `tests/test_groq_provider.py` (12).
+- Versão: `1.4.176` → `1.4.177`.
+
+---
+
 ## Backup diário automático (infra, sem versão nova do backend)
 
 > Data: 13/10/2026

@@ -66,6 +66,13 @@ _CATALOG: dict[tuple[str, str], ModelPrice] = {
         "gemini", "gemini-2.0-flash", 0.10, 0.40, 0.025,
         "gemini_pricing_2026-01", "2026-01-01",
     ),
+    # Groq (13/10/2026): preço da página do modelo na documentação da Groq
+    # (console.groq.com/docs/model/openai/gpt-oss-120b); cache = 50% do input.
+    # Conferir na página de preços da Groq antes de confiar em projeção.
+    ("groq", "openai/gpt-oss-120b"): ModelPrice(
+        "groq", "openai/gpt-oss-120b", 0.15, 0.60, 0.075,
+        "groq_docs_modelo_gpt-oss-120b", "2026-10-13",
+    ),
     # Variantes "economy" — usadas pelo Cost Router (Fase 4, shadow mode)
     # para estimar economia real ao recomendar um modelo mais barato do
     # mesmo provedor. Sem preco proprio aqui, cairiam no fallback generico
@@ -89,6 +96,9 @@ _PROVIDER_FALLBACK: dict[str, ModelPrice] = {
     "openai": ModelPrice("openai", "*", 5.0, 15.0, None, "fallback_provider_generico", "2026-08-31"),
     "anthropic": ModelPrice("anthropic", "*", 3.0, 15.0, None, "fallback_provider_generico", "2026-08-31"),
     "gemini": ModelPrice("gemini", "*", 0.35, 1.05, None, "fallback_provider_generico", "2026-08-31"),
+    # Outros modelos da Groq (ex.: qwen/qwen3.8-27b) sem preço publicado
+    # conferido: assume o do gpt-oss-120b (ordem de grandeza da Groq).
+    "groq": ModelPrice("groq", "*", 0.15, 0.60, None, "fallback_provider_generico", "2026-10-13"),
 }
 
 _DEFAULT_FALLBACK = _PROVIDER_FALLBACK["openai"]

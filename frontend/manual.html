@@ -359,7 +359,7 @@
       <div class="callout-icon">🤖</div>
       <div class="callout-body">
         <strong>IA com fallback automático</strong>
-        O SALEIA usa DeepSeek como principal. Se houver instabilidade, muda automaticamente para OpenAI GPT-4o → Anthropic Claude → Google Gemini. Você nunca fica sem suporte de IA.
+        O SALEIA usa DeepSeek como principal. Se houver instabilidade, muda automaticamente para OpenAI GPT-4o → Anthropic Claude → Google Gemini → Groq. Você nunca fica sem suporte de IA.
       </div>
     </div>
   </section>
@@ -1517,7 +1517,10 @@
         <span class="badge badge-orange">3º Anthropic</span>
         <span style="color:var(--muted)">→</span>
         <span class="badge badge-purple">4º Gemini</span>
+        <span style="color:var(--muted)">→</span>
+        <span class="badge badge-blue">5º Groq</span>
       </div>
+      <p style="color:var(--muted);font-size:.88rem;margin-bottom:12px">A Groq usa a mesma chave da Transcrição de Áudio. Inativar a Groq aqui tira ela só das respostas de IA; a transcrição continua funcionando.</p>
       <table>
         <tr><th>Ação</th><th>Descrição</th></tr>
         <tr><td>Adicionar chave</td><td>Cole a chave de API → Salvar → chave fica mascarada (••••)</td></tr>
@@ -1559,7 +1562,7 @@
   <!-- ── 15. CONTA CLAUDE (PILOTO) ── -->
   <section id="conta-claude">
     <h2><span class="section-num">15</span> Conta Claude <span style="font-size:.75rem;font-weight:400;color:var(--muted);margin-left:4px">(piloto)</span></h2>
-    <p class="section-desc">Conecte sua própria assinatura Claude (Pro ou Max) como reforço pessoal — entra automaticamente quando os 4 provedores centrais de IA (DeepSeek/OpenAI/Anthropic/Gemini) ficam indisponíveis ao mesmo tempo.</p>
+    <p class="section-desc">Conecte sua própria assinatura Claude (Pro ou Max) como reforço pessoal — entra automaticamente quando os 5 provedores centrais de IA (DeepSeek/OpenAI/Anthropic/Gemini/Groq) ficam indisponíveis ao mesmo tempo.</p>
 
     <div class="callout callout-purple">
       <div class="callout-icon">🔷</div>
@@ -1875,7 +1878,7 @@
     <details>
       <summary>O relatório demorou muito ou travou</summary>
       <div class="faq-body">
-        <p>O relatório completo usa múltiplas análises e pode levar 15–45 segundos. Se demorar mais de 1 minuto, o sistema tentará automaticamente o próximo provedor de IA (DeepSeek → OpenAI → Anthropic → Gemini). Se travar completamente, recarregue a página — o relatório pode já ter sido salvo no Dashboard.</p>
+        <p>O relatório completo usa múltiplas análises e pode levar 15–45 segundos. Se demorar mais de 1 minuto, o sistema tentará automaticamente o próximo provedor de IA (DeepSeek → OpenAI → Anthropic → Gemini → Groq). Se travar completamente, recarregue a página — o relatório pode já ter sido salvo no Dashboard.</p>
       </div>
     </details>
 
@@ -1915,7 +1918,7 @@
     <details>
       <summary>Aparece "Serviço de IA indisponível" durante a reunião</summary>
       <div class="faq-body">
-        <p>Todos os provedores de IA (DeepSeek, OpenAI, Anthropic, Gemini) estão com instabilidade simultânea — situação muito rara. O SALEIA tentará novamente automaticamente no próximo ciclo. Se persistir, verifique sua conexão com a internet e o status em <code>https://api.saleia.app.br/health</code>. Se você tiver conectado sua <a href="#conta-claude">Conta Claude</a> e feito login na extensão, o fallback pessoal entra automaticamente nessa situação.</p>
+        <p>Todos os provedores de IA (DeepSeek, OpenAI, Anthropic, Gemini, Groq) estão com instabilidade simultânea — situação muito rara. O SALEIA tentará novamente automaticamente no próximo ciclo. Se persistir, verifique sua conexão com a internet e o status em <code>https://api.saleia.app.br/health</code>. Se você tiver conectado sua <a href="#conta-claude">Conta Claude</a> e feito login na extensão, o fallback pessoal entra automaticamente nessa situação.</p>
       </div>
     </details>
 
