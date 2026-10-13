@@ -1,14 +1,51 @@
 # SALEIA - Estado Atual
 
-## 13/10/2026
+## 13/10/2026 (leia primeiro)
+
+**Onde está cada coisa**
+
+| Item | Versão | Estado |
+|---|---|---|
+| Backend em produção | V.1.4.176 (`43b7380`) | no ar |
+| Backend no GitHub | V.1.4.177 (`27d6f2d`) | deploy autorizado pelo usuário em 13/10, **depois da suíte completa passar** e sem reunião ativa |
+| Extensão | V.1.4.24 no repo | vendedores ainda em versão antiga — reinstalar |
+| Infra na VPS | backup diário (`7149330`) | instalado e conferido |
+
+**Pendências, por prioridade**
+
+1. **Validar a T02 (trava o roteiro)**: reinstalar a extensão 1.4.24 em
+   todos; teste com 2 pessoas (30 min, sobreposição, pausar/retomar,
+   queda de conexão, sair sem Encerrar) e conferir no menu 🎧 Gravações se
+   a trilha da aba gravou o cliente. A gravação está **ligada para todos**
+   na VPS (`GRAVACAO_AUDIO_ENABLED=true`): desligar se a validação não
+   for logo. O `chrome-extension.zip` não está mais na pasta do repo
+   local (há um `chrome-extension. V.1.24.zip` na pasta de cima) — regerar
+   se precisar.
+2. **Medir a transcrição**: revisar ~10 min de reunião real em Gravações
+   → Trecho de referência (1º WER real, gabarito da T03); termos do
+   negócio para `TRANSCRICAO_GLOSSARIO`; legenda do Meet em português.
+3. **Roteiro Audio-First**: T03 (transcrição incremental sobre a gravação,
+   com horário por fala) e depois T04–T12, uma por vez.
+4. **Segurança da VPS** (`docs/SECURITY_MODEL.md`): trocar a senha root
+   (passou por chat em 12 e 13/10); destino externo para o backup; ligar o
+   ufw (22/80/443); chave SSH funcionando e depois desligar senha;
+   revogar e trocar o PAT do GitHub na VPS (deploy segue por bundle).
+5. **Conferir**: saldo/chaves dos provedores de IA (o `/health` mostrava
+   os 4 "ok" em 12/10, saldo não testado); remedir a C3 (Shadow Mode) com
+   reuniões na extensão nova.
+
+**O que foi feito hoje**
 
 - **V.1.4.176**: Dev Manual (`/manual-tecnico`) reescrito para o estado
   real e **restrito a admin** (antes era público e mostrava acesso à
   VPS). **Lacunas de segurança levantadas na VPS** (detalhe em
   `docs/SECURITY_MODEL.md`): SSH root por senha, ufw inativo.
-- **V.1.4.177 (local, aguardando deploy)**: Groq como 5º provedor de IA
-  nas Configurações (`openai/gpt-oss-120b`, mesma chave da transcrição) +
-  "Definir como principal" passa a mudar a ordem real do roteador.
+- **V.1.4.177 (no GitHub, aguardando deploy)**: Groq como 5º provedor de
+  IA nas Configurações (`openai/gpt-oss-120b`, mesma chave da transcrição,
+  já presente e testada na VPS) + "Definir como principal" passa a mudar
+  a ordem real do roteador. Testes ligados à mudança: 124 passando; suíte
+  completa rodando antes do deploy (`python -m unittest discover -s tests`,
+  ~30 min — com `-t .` falha porque `tests/` não é pacote).
 - **Backup diário** instalado (`saleia-backup.timer`, 05:30 UTC; MySQL 14
   dias + `data/` 7 dias, ver `docs/BACKUP.md`). Falta cópia para fora da
   VPS (escolher destino).
