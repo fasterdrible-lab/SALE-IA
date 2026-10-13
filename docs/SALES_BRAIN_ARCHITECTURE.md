@@ -140,7 +140,9 @@ Oportunidade e cliente nascem automaticamente da recapitulação
 | `SALES_EVENT_EXTRACTOR_ENABLED` | true | true (religado em 05/10/2026) |
 | `SELLER_DNA_OBSERVACAO_ENABLED` | false | **true** |
 | `MEDDPICC_EXTRACTOR_ENABLED`, `SALES_EVIDENCE_PERSIST_ENABLED`, `OPPORTUNITY_MEMORY_WRITE_ENABLED`, `OPPORTUNITY_GRAPH_WRITE_ENABLED`, `SELLER_CONTEXT_ENABLED`, `AUTO_OPPORTUNITY_ENABLED`, `RECOMMENDATION_TRACKING_ENABLED`, `BIGFIVE_AGENT_ENABLED`, `SALES_BRAIN_AUTOPILOT_ENABLED` | true | padrão |
-| `KNOWLEDGE_COMPILER_ENABLED` | false | não verificado |
+| `KNOWLEDGE_COMPILER_ENABLED` | false | **true** (conferido em 13/10/2026) |
+| `GRAVACAO_AUDIO_ENABLED` (T02) | false | **true** (validação da gravação) |
+| `GRAVACOES_PAINEL_ENABLED` | true | padrão |
 
 Mudar um flag exige restart do `saleia` (ler `reunioes_ativas` antes).
 

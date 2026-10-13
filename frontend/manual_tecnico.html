@@ -15,7 +15,7 @@
       --surface2: #141414;
       --border:  #1f1f1f;
       --text:    #f0f0f0;
-      --muted:   #666;
+      --muted:   #8a8a8a;
       --green:   #22c55e;
       --red:     #ef4444;
       --blue:    #38bdf8;
@@ -24,7 +24,6 @@
     }
     body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; line-height: 1.7; }
 
-    /* NAV */
     nav { position: sticky; top: 0; z-index: 100; background: rgba(0,0,0,.92); border-bottom: 1px solid var(--border); backdrop-filter: blur(8px); padding: 0 32px; display: flex; align-items: center; gap: 0; height: 52px; }
     .nav-logo { font-weight: 900; font-size: 1.1rem; color: var(--gold); letter-spacing: 2px; margin-right: 32px; flex-shrink: 0; }
     .nav-links { display: flex; gap: 4px; overflow-x: auto; }
@@ -33,7 +32,6 @@
     .nav-back { margin-left: auto; color: var(--muted); text-decoration: none; font-size: .8rem; padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; flex-shrink: 0; }
     .nav-back:hover { border-color: var(--gold-border); color: var(--gold); }
 
-    /* HERO */
     .hero { padding: 56px 32px 40px; border-bottom: 1px solid var(--border); }
     .hero-title { font-size: 2rem; font-weight: 900; color: var(--gold); letter-spacing: -1px; }
     .hero-sub { color: var(--muted); margin-top: 6px; font-size: .95rem; }
@@ -44,49 +42,43 @@
     .badge-blue   { border-color: rgba(56,189,248,.4); color: var(--blue); background: rgba(56,189,248,.08); }
     .badge-orange { border-color: rgba(249,115,22,.4); color: var(--orange); background: rgba(249,115,22,.08); }
 
-    /* LAYOUT */
     .layout { display: grid; grid-template-columns: 220px 1fr; gap: 0; min-height: calc(100vh - 52px); }
     .sidebar { border-right: 1px solid var(--border); padding: 24px 0; position: sticky; top: 52px; height: calc(100vh - 52px); overflow-y: auto; }
     .sidebar a { display: block; padding: 7px 20px; color: var(--muted); text-decoration: none; font-size: .82rem; border-left: 2px solid transparent; transition: all .15s; }
     .sidebar a:hover { color: var(--gold); border-left-color: var(--gold-border); background: var(--gold-dim); }
-    .sidebar-group { padding: 16px 20px 4px; font-size: .7rem; text-transform: uppercase; letter-spacing: 1px; color: #333; font-weight: 700; }
-    .content { padding: 40px 48px 80px; max-width: 900px; }
+    .sidebar-group { padding: 16px 20px 4px; font-size: .7rem; text-transform: uppercase; letter-spacing: 1px; color: #444; font-weight: 700; }
+    .content { padding: 40px 48px 80px; max-width: 940px; min-width: 0; }
 
-    /* SECTIONS */
     .section { margin-bottom: 56px; scroll-margin-top: 72px; }
     .section-title { font-size: 1.3rem; font-weight: 800; color: var(--gold); border-bottom: 1px solid var(--gold-border); padding-bottom: 10px; margin-bottom: 24px; }
 
-    /* CARDS */
     .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 12px; }
     .card-title { font-weight: 700; font-size: .9rem; margin-bottom: 8px; color: var(--text); }
     .card p, .card li { color: var(--muted); font-size: .85rem; }
     .card ul { padding-left: 18px; }
     .card li { margin-bottom: 3px; }
 
-    /* CODE */
     pre { background: #0a0a0a; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; overflow-x: auto; margin: 12px 0; }
     code { font-family: 'Cascadia Code', 'Fira Code', 'Courier New', monospace; font-size: .82rem; color: #e0e0e0; }
     pre code { color: #ccc; }
     .cmd { color: var(--gold); }
-    .cmt { color: #444; }
+    .cmt { color: #555; }
     .str { color: var(--green); }
     .kw  { color: var(--blue); }
 
-    /* TABLE */
+    .tabela { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; font-size: .83rem; margin: 12px 0; }
     th { background: var(--surface2); color: var(--gold); font-weight: 700; padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--gold-border); }
     td { padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--muted); vertical-align: top; }
     tr:last-child td { border-bottom: none; }
     td code { background: var(--surface2); padding: 1px 6px; border-radius: 4px; color: var(--text); font-size: .8rem; }
 
-    /* ALERT */
     .alert { border-radius: var(--radius); padding: 12px 16px; margin: 12px 0; font-size: .85rem; border-left: 3px solid; }
     .alert-red    { background: rgba(239,68,68,.07);   border-color: var(--red);    color: #fca5a5; }
     .alert-gold   { background: var(--gold-dim);        border-color: var(--gold);   color: var(--gold); }
     .alert-green  { background: rgba(34,197,94,.07);   border-color: var(--green);  color: #86efac; }
     .alert-blue   { background: rgba(56,189,248,.07);  border-color: var(--blue);   color: #7dd3fc; }
 
-    /* FLOW */
     .flow-step { display: flex; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
     .flow-step:last-child { border-bottom: none; }
     .flow-num { width: 28px; height: 28px; border-radius: 50%; background: var(--gold); color: #000; font-weight: 800; font-size: .8rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
@@ -94,14 +86,14 @@
     .flow-content p  { font-size: .82rem; color: var(--muted); }
     .flow-content code { background: var(--surface2); padding: 1px 6px; border-radius: 4px; font-size: .78rem; }
 
-    /* GRID */
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    @media (max-width: 720px) { .layout { grid-template-columns: 1fr; } .sidebar { display: none; } .grid-2 { grid-template-columns: 1fr; } .content { padding: 24px 20px 60px; } }
+    @media (max-width: 720px) { .layout { grid-template-columns: 1fr; } .sidebar { display: none; } .grid-2 { grid-template-columns: 1fr; } .content { padding: 24px 16px 60px; } nav { padding: 0 16px; } .hero { padding: 40px 16px 32px !important; } }
 
-    .tag { display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: .72rem; font-weight: 700; margin-left: 6px; }
+    .tag { display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: .72rem; font-weight: 700; margin-right: 4px; }
     .tag-get    { background: rgba(34,197,94,.15); color: var(--green); }
     .tag-post   { background: rgba(56,189,248,.15); color: var(--blue); }
     .tag-patch  { background: rgba(249,115,22,.15); color: var(--orange); }
+    .tag-put    { background: rgba(249,115,22,.15); color: var(--orange); }
     .tag-delete { background: rgba(239,68,68,.15); color: var(--red); }
     .tag-auth   { background: var(--gold-dim); color: var(--gold); }
   </style>
@@ -112,18 +104,17 @@
   <div class="nav-logo">SALEIA</div>
   <div class="nav-links">
     <a href="#arquitetura">Arquitetura</a>
-    <a href="#infra">VPS / Infra</a>
-    <a href="#deploy">Deploy</a>
-    <a href="#env">Variáveis</a>
-    <a href="#arquivos">Arquivos</a>
-    <a href="#endpoints">Endpoints</a>
-    <a href="#ia">IA / Roteador</a>
-    <a href="#motor-nba">Motor NBA</a>
+    <a href="#tempo-real">Tempo real</a>
+    <a href="#transcricao">Transcrição</a>
+    <a href="#gravacao">Gravação</a>
+    <a href="#ia">IA</a>
     <a href="#sales-brain">Sales Brain</a>
-    <a href="#sale-ia-v2">SALE-IA V2</a>
     <a href="#banco">Banco</a>
-    <a href="#monitor">Monitor</a>
+    <a href="#endpoints">Endpoints</a>
     <a href="#seguranca">Segurança</a>
+    <a href="#infra">Infra</a>
+    <a href="#deploy">Deploy</a>
+    <a href="#testes">Testes</a>
     <a href="#troubleshoot">Troubleshoot</a>
   </div>
   <a class="nav-back" href="/dashboard">← Dashboard</a>
@@ -131,12 +122,13 @@
 
 <div class="hero" style="padding-left:48px">
   <div class="hero-title">Dev Manual — SALEIA</div>
-  <div class="hero-sub">Referência técnica para manutenção, deploy e operação em produção.</div>
+  <div class="hero-sub">Referência técnica de arquitetura, tecnologia, segurança e operação. Reflete o código e a produção em 13/10/2026.</div>
   <div class="hero-badges">
-    <span class="badge badge-gold">V.1.4.100</span>
-    <span class="badge badge-green">FastAPI + Python 3.14</span>
-    <span class="badge badge-blue">MySQL + SQLite</span>
-    <span class="badge badge-orange">Hetzner VPS</span>
+    <span class="badge badge-gold">Backend V.1.4.176</span>
+    <span class="badge badge-gold">Extensão V.1.4.24</span>
+    <span class="badge badge-green">FastAPI · Python 3.14</span>
+    <span class="badge badge-blue">MySQL 8.4 + SQLite</span>
+    <span class="badge badge-orange">Ubuntu 26.04 · Hetzner</span>
   </div>
 </div>
 
@@ -144,21 +136,25 @@
   <aside class="sidebar">
     <div class="sidebar-group">Sistema</div>
     <a href="#arquitetura">Arquitetura</a>
-    <a href="#infra">VPS / Infra</a>
-    <a href="#deploy">Deploy</a>
-    <a href="#env">Variáveis de Ambiente</a>
-    <div class="sidebar-group">Código</div>
-    <a href="#arquivos">Estrutura de Arquivos</a>
-    <a href="#endpoints">Endpoints API</a>
+    <a href="#tecnologia">Tecnologia</a>
+    <a href="#tempo-real">Ciclo de tempo real</a>
+    <a href="#transcricao">Transcrição</a>
+    <a href="#gravacao">Gravação do áudio</a>
     <a href="#ia">Roteador de IA</a>
-    <a href="#motor-nba">Motor NBA V.1.4.28</a>
-    <a href="#sales-brain">Sales Brain V.1.4.31–37</a>
-    <a href="#sale-ia-v2">SALE-IA V2 (Fases 1–13)</a>
-    <a href="#banco">Banco de Dados</a>
+    <a href="#sales-brain">Sales Brain</a>
+    <div class="sidebar-group">Código</div>
+    <a href="#arquivos">Estrutura de arquivos</a>
+    <a href="#banco">Banco de dados</a>
+    <a href="#endpoints">Endpoints</a>
+    <a href="#env">Variáveis e kill-switches</a>
     <div class="sidebar-group">Operação</div>
-    <a href="#monitor">Monitor / Métricas</a>
-    <a href="#seguranca">Segurança / Auth</a>
+    <a href="#seguranca">Segurança</a>
+    <a href="#infra">Infraestrutura</a>
+    <a href="#deploy">Deploy</a>
+    <a href="#monitor">Monitor / observabilidade</a>
+    <a href="#testes">Testes</a>
     <a href="#troubleshoot">Troubleshoot</a>
+    <a href="#docs">Outros documentos</a>
   </aside>
 
   <main class="content">
@@ -167,765 +163,533 @@
     <section class="section" id="arquitetura">
       <div class="section-title">Arquitetura</div>
       <div class="card">
-        <div class="card-title">Visão Geral do Sistema</div>
-        <p>Fluxo: Chrome Extension → Nginx (SSL) → Uvicorn (FastAPI) → MySQL + IA providers</p>
+        <div class="card-title">Visão geral</div>
+        <p>O SALEIA acompanha reuniões de vendas no Google Meet, orienta o vendedor em tempo real e gera recapitulação, diagnósticos e inteligência comercial depois. Toda regra de negócio, chave de IA e dado fica no backend; extensão e dashboard só enviam dados e exibem respostas.</p>
+        <pre><code>Extensão Chrome (Meet) ──HTTPS──► Cloudflare ──► nginx (TLS) ──► uvicorn/FastAPI (2 workers, 127.0.0.1:8000)
+                                                                     │
+          Dashboard / Manuais (HTML servido pelo FastAPI) ◄──────────┤
+                                                                     ├─► MySQL 8.4 (local)        ── dados
+                                                                     ├─► SQLite data/metricas.db  ── métricas 24h
+                                                                     ├─► data/gravacoes/          ── áudio (T02)
+                                                                     ├─► Ollama (local)           ── embeddings
+                                                                     ├─► faster-whisper (local)   ── áudio → texto
+                                                                     └─► DeepSeek → OpenAI → Anthropic → Gemini (+ conta Claude)</code></pre>
       </div>
       <div class="grid-2">
         <div class="card">
-          <div class="card-title">Backend</div>
+          <div class="card-title">Extensão Chrome (Manifest V3)</div>
           <ul>
-            <li>FastAPI + Python 3.12</li>
-            <li>Uvicorn com 1 worker</li>
-            <li>Porta interna: <code>127.0.0.1:8000</code></li>
-            <li>Systemd service: <code>saleia.service</code></li>
-            <li>JWT auth (PyJWT + bcrypt)</li>
+            <li>Lê as <strong>legendas do Meet</strong> (só a área de legendas) — fonte principal da transcrição.</li>
+            <li>Captura o áudio da aba (participantes, <code>tabCapture</code> + documento offscreen) e o microfone (content script) para transcrição e para a <a href="#gravacao">gravação</a>.</li>
+            <li>Envia o trecho novo para <code>POST /tempo-real</code> a cada <code>intervalo_analise_s</code> (20s, definido pelo servidor).</li>
+            <li>Sidebar: próxima melhor ação, alertas, recapitulação viva, propensão de compra, estado da gravação.</li>
+            <li>Login JWT pelo popup; sem chave de IA nenhuma.</li>
           </ul>
         </div>
         <div class="card">
-          <div class="card-title">Frontend</div>
+          <div class="card-title">Backend FastAPI</div>
           <ul>
-            <li>HTML/CSS/JS vanilla (sem framework)</li>
-            <li>Servido pelo próprio FastAPI</li>
-            <li>Dashboard: <code>/dashboard</code></li>
-            <li>Cenário: <code>/cenario/{meeting_id}</code></li>
-            <li>Interceptor global JWT no fetch</li>
+            <li>~150 rotas em <code>api/main.py</code> + módulos em <code>api/</code>, <code>agent/</code> e <code>services/</code>.</li>
+            <li>Regras determinísticas em <code>agent/*_rules.py</code> (funções puras, testáveis); IA só para extrair fatos ou raciocinar sobre fatos.</li>
+            <li>Choke-point único de IA: <code>api/ai_router.py::chamar_ia</code>.</li>
+            <li>Tarefas de fundo: métricas a cada 60s, alertas, manutenção da gravação de hora em hora.</li>
           </ul>
         </div>
         <div class="card">
-          <div class="card-title">Banco de Dados</div>
+          <div class="card-title">Dashboard e páginas</div>
           <ul>
-            <li>MySQL remoto: <code>fast5342_AV3D</code></li>
-            <li>SQLite local: <code>data/metricas.db</code> (métricas rolling 24h)</li>
-            <li>Conexão MySQL via PyMySQL</li>
+            <li>HTML/CSS/JS sem framework, servido pelo próprio FastAPI e lido do disco a cada requisição.</li>
+            <li><code>/dashboard</code>, <code>/login</code>, <code>/cenario/{meeting_id}</code>, <code>/visual-scenario</code>, <code>/manual</code>, <code>/manual-tecnico</code> (só admin), <code>/reset</code>.</li>
+            <li>Interceptor global de <code>fetch</code> injeta o JWT nas chamadas à API.</li>
+            <li>Selo da versão em produção no título do Dashboard (vem do <code>/health</code>).</li>
           </ul>
         </div>
         <div class="card">
-          <div class="card-title">Proxy / SSL</div>
+          <div class="card-title">Estado e dados</div>
           <ul>
-            <li>Nginx em <code>80/443</code></li>
-            <li>Certbot SSL (Let's Encrypt)</li>
-            <li>Domínio: <code>api.saleia.app.br</code></li>
-            <li>Proxy pass: <code>127.0.0.1:8000</code></li>
+            <li>MySQL local na VPS (46 tabelas); SQLite só como queda de emergência e para métricas.</li>
+            <li><code>MeetingMemory</code> por reunião (sala recorrente do Meet é arquivada depois de 6h parada).</li>
+            <li>Áudio gravado em disco, com índice no MySQL.</li>
           </ul>
-        </div>
-      </div>
-
-      <div class="card" style="margin-top:12px">
-        <div class="card-title">Fluxo de uma reunião</div>
-        <div class="flow">
-          <div class="flow-step"><div class="flow-num">1</div><div class="flow-content"><h4>Extensão Chrome captura áudio</h4><p>Content script detecta Google Meet → grava fragmentos de áudio a cada ~4s.</p></div></div>
-          <div class="flow-step"><div class="flow-num">2</div><div class="flow-content"><h4>POST /audio-transcricao</h4><p>Fragmento enviado para Groq Whisper Large v3 → retorna texto transcrito.</p></div></div>
-          <div class="flow-step"><div class="flow-num">3</div><div class="flow-content"><h4>POST /tempo-real</h4><p>Transcrição + contexto enviados para <code>agente_tempo_real.analisar_fragmento()</code> → chama <code>chamar_ia_async()</code> com fallback.</p></div></div>
-          <div class="flow-step"><div class="flow-num">4</div><div class="flow-content"><h4>RAG (base de conhecimento)</h4><p>Antes de chamar a IA, busca contexto similar via embedding OpenAI <code>text-embedding-3-small</code>. Injeta no prompt.</p></div></div>
-          <div class="flow-step"><div class="flow-num">5</div><div class="flow-content"><h4>Resposta para a sidebar</h4><p>Dicas retornadas pela IA → sidebar da extensão Chrome exibe em tempo real.</p></div></div>
-          <div class="flow-step"><div class="flow-num">6</div><div class="flow-content"><h4>Finalização: POST /recapitulacao-manual</h4><p>Ao encerrar a reunião → gera recapitulação, DISC, diagnóstico financeiro e salva no MySQL.</p></div></div>
         </div>
       </div>
     </section>
 
-    <!-- INFRA -->
-    <section class="section" id="infra">
-      <div class="section-title">VPS / Infraestrutura</div>
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-title">Acesso</div>
-          <ul>
-            <li>IP: <code>37.27.214.33</code></li>
-            <li>Provider: Hetzner CPX32 (4 vCPU, 8GB RAM, Helsinki)</li>
-            <li>OS: Ubuntu 22.04 LTS</li>
-            <li>SSH: <code>ssh root@37.27.214.33</code></li>
-            <li>App path: <code>/opt/saleia/</code></li>
-            <li><code>RuntimeMaxSec=86400</code> no systemd (reinício diário automático)</li>
-          </ul>
-        </div>
-        <div class="card">
-          <div class="card-title">Serviço Systemd</div>
-          <pre><code><span class="cmd">systemctl status saleia</span>
-<span class="cmd">systemctl restart saleia</span>
-<span class="cmd">systemctl stop saleia</span>
-<span class="cmd">journalctl -u saleia -n 50 --no-pager</span></code></pre>
+    <!-- TECNOLOGIA -->
+    <section class="section" id="tecnologia">
+      <div class="section-title">Tecnologia (versões em produção)</div>
+      <div class="tabela"><table>
+        <tr><th>Camada</th><th>Tecnologia</th></tr>
+        <tr><td>Linguagem / runtime</td><td>Python 3.14.4 (venv), uvicorn 0.52 com 2 workers</td></tr>
+        <tr><td>Web / API</td><td>FastAPI 0.111, Pydantic 2, SQLModel 0.0.38 (SQLAlchemy), PyMySQL</td></tr>
+        <tr><td>Banco</td><td>MySQL 8.4 (local, só 127.0.0.1); SQLite para métricas e fallback</td></tr>
+        <tr><td>IA (chat)</td><td>DeepSeek <code>deepseek-chat</code>, OpenAI <code>gpt-4o</code>, Anthropic Claude Sonnet, Google Gemini (<code>google-genai</code>), conta Claude pessoal via <code>claude-agent-sdk</code></td></tr>
+        <tr><td>Transcrição</td><td>Legenda do Meet + faster-whisper local (<code>small</code>, CPU); Groq e OpenAI Whisper como opções</td></tr>
+        <tr><td>Embeddings</td><td>Ollama local (<code>embeddinggemma</code> padrão; <code>nomic-embed-text</code> instalado); OpenAI opcional</td></tr>
+        <tr><td>Áudio</td><td>MediaRecorder WebM/Opus na extensão; PyAV (FFmpeg) + NumPy no servidor</td></tr>
+        <tr><td>Auth</td><td>PyJWT (HS256), bcrypt</td></tr>
+        <tr><td>Documentos</td><td>pypdf, pdfplumber, python-docx, BeautifulSoup, fpdf2</td></tr>
+        <tr><td>Observabilidade</td><td>OpenTelemetry → Grafana Cloud Tempo; Langfuse (opcional, desligado); Telegram para alertas</td></tr>
+        <tr><td>Infra</td><td>Hetzner (4 vCPU, 8 GB, 150 GB), Ubuntu 26.04 LTS, nginx 1.28, Certbot, Cloudflare, systemd</td></tr>
+        <tr><td>Extensão</td><td>Chrome MV3: service worker, offscreen document, content scripts, IndexedDB (fila da gravação)</td></tr>
+        <tr><td>Testes</td><td><code>unittest</code> (backend) e <code>node --test</code> (extensão)</td></tr>
+      </table></div>
+    </section>
+
+    <!-- TEMPO REAL -->
+    <section class="section" id="tempo-real">
+      <div class="section-title">Ciclo de tempo real (<code>POST /tempo-real</code>)</div>
+      <div class="card">
+        <div class="flow">
+          <div class="flow-step"><div class="flow-num">1</div><div class="flow-content"><h4>Extensão envia o trecho novo</h4><p>A cada 20s (<code>SALEIA_REALTIME_INTERVALO_S</code>), com <code>transcricao_nova</code> + janela recente, <code>meeting_id</code> e o token. A resposta traz <code>auth_status</code> e, perto de vencer, <code>token_renovado</code>.</p></div></div>
+          <div class="flow-step"><div class="flow-num">2</div><div class="flow-content"><h4>Limpeza</h4><p>Append idempotente e deduplicação (<code>transcript_dedup_rules.py</code>), filtro de texto de tela do Meet (<code>ruido_interface_rules.py</code>), <code>compactar_transcricao</code> antes de ir para a IA.</p></div></div>
+          <div class="flow-step"><div class="flow-num">3</div><div class="flow-content"><h4>Gate de custo</h4><p>A IA só roda com ≥ 120 caracteres novos e ≥ 15s desde a última análise; senão devolve a última sugestão (<code>analysis_status=skipped</code>).</p></div></div>
+          <div class="flow-step"><div class="flow-num">4</div><div class="flow-content"><h4>Multiagente</h4><p><code>orquestrador.analisar_fragmento_multi()</code>: RAG uma vez, depois <code>asyncio.gather</code> de Coach, DISC, Finance, Closer e Big Five; <code>_mesclar()</code> monta <code>next_best_action</code>, propensão, score e eventos.</p></div></div>
+          <div class="flow-step"><div class="flow-num">5</div><div class="flow-content"><h4>Guarda de contrato</h4><p><code>contract_repair_rules.py</code> repara JSON quase válido e cai em fallback seguro; a sidebar nunca recebe estrutura quebrada.</p></div></div>
+          <div class="flow-step"><div class="flow-num">6</div><div class="flow-content"><h4>Fora do caminho do vendedor</h4><p><code>RecommendationEvent</code> (rastreio de uso da sugestão) e Shadow Mode do <code>SalesReasoningEngine</code> (no máximo 1 por reunião por minuto, em <code>create_task</code>). No Piloto o motor novo é aguardado e substitui a sugestão.</p></div></div>
         </div>
       </div>
       <div class="card">
-        <div class="card-title">Estrutura na VPS</div>
+        <div class="card-title">Campos principais da resposta</div>
+        <div class="tabela"><table>
+          <tr><th>Campo</th><th>Conteúdo</th></tr>
+          <tr><td><code>next_best_action</code></td><td><code>type</code> (question / insight / warning / next_step), <code>category</code>, <code>title</code>, <code>message</code>, <code>objective</code>, <code>reason</code>, <code>expected_effect</code>, <code>risk_if_ignored</code>, <code>follow_up</code>, <code>confidence</code></td></tr>
+          <tr><td><code>next_best_question</code></td><td>Alias derivado de <code>next_best_action</code> (extensões antigas)</td></tr>
+          <tr><td><code>conversation_stage</code>, <code>kare_type</code></td><td>Estágio SPIN e tipo de conta</td></tr>
+          <tr><td><code>maturity_score</code>, <code>score_compra</code></td><td>Uso interno; não aparecem como número na extensão</td></tr>
+          <tr><td><code>propensao</code></td><td><code>{nivel}</code> alta / media / baixa / nao_determinada (<code>propensao_rules.py</code>, sem IA)</td></tr>
+          <tr><td><code>intervalo_analise_s</code>, <code>analysis_status</code>, <code>auth_status</code>, <code>token_renovado</code></td><td>Controle do ciclo e da sessão</td></tr>
+        </table></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Depois da reunião</div>
+        <ul>
+          <li><code>POST /recapitulacao-manual</code> / <code>/recapitulacao-completa</code>: recapitulação, DISC, diagnóstico financeiro, propensão detalhada e <code>cliente_identificado</code>.</li>
+          <li>A recapitulação cria/vincula cliente e oportunidade automaticamente (<code>auto_opportunity_rules</code>, kill-switch <code>AUTO_OPPORTUNITY_ENABLED</code>).</li>
+          <li>Sales Memory, playbooks, skills e follow-ups (WhatsApp/e-mail/LinkedIn) a partir das reuniões.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- TRANSCRIÇÃO -->
+    <section class="section" id="transcricao">
+      <div class="section-title">Transcrição</div>
+      <div class="card">
+        <ul>
+          <li><strong>Fonte principal: legenda do Meet</strong>, lida pela extensão só na região de legendas (<code>role=region</code> "Legendas"/"Captions"). Falante pela estrutura da legenda; sem nome confiável vira <strong>"Não identificado"</strong>.</li>
+          <li><strong>Áudio</strong> (aba e microfone) vai para <code>POST /audio-transcricao</code>, roteado por <code>TRANSCRICAO_PROVEDOR</code>: <code>whisper_local</code> (faster-whisper na própria VPS, em produção), <code>groq</code> ou <code>whisper</code> (OpenAI). Roda fora do event loop e grava em <code>transcricoes_audio_recentes</code>.</li>
+          <li>Vocabulário do negócio para o Whisper em <code>TRANSCRICAO_GLOSSARIO</code>; descarte de alucinação típica do Whisper.</li>
+          <li>Legenda e áudio nunca são misturados automaticamente; a deduplicação por similaridade só compara legenda com o texto vindo do áudio.</li>
+          <li>Roteiro <strong>Audio-First</strong> (<code>docs/PROMPT_MESTRE_AUDIO_FIRST.md</code>): T01 (auditoria) e T02 (gravação) feitas; T03 (transcrição incremental com faster-whisper sobre a gravação, segmentos com horário) é a próxima.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- GRAVAÇÃO -->
+    <section class="section" id="gravacao">
+      <div class="section-title">Gravação contínua do áudio (T02) e painel Gravações</div>
+      <div class="alert alert-gold">Ligada por <code>GRAVACAO_AUDIO_ENABLED</code> (padrão desligada; ligada em produção para validação). Só com vendedor logado, confirmação "Informei os participantes que a reunião será gravada" a cada reunião e indicador visível na sidebar.</div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Extensão</div>
+          <ul>
+            <li>Duas trilhas: <code>aba</code> (offscreen, mesmo stream da transcrição) e <code>microfone</code> (content script).</li>
+            <li>MediaRecorder contínuo com blocos de 5s; nova gravação (<code>recording_id</code>) a cada 10 min; pausar encerra, retomar abre outra.</li>
+            <li>Fila no IndexedDB do service worker: iniciar → blocos → encerrar, reenvio depois de queda, 401 para e guarda.</li>
+            <li>Encerra sozinha quando o áudio acaba, a aba fecha, a página recarrega (microfone) ou a reunião termina (1.4.24).</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">Servidor</div>
+          <ul>
+            <li><code>agent/gravacao_rules.py</code> (puro) + <code>api/gravacao_store.py</code>.</li>
+            <li>Bloco em disco com escrita atômica e hash no nome: <code>data/gravacoes/&lt;reunião&gt;/&lt;trilha&gt;/&lt;recording&gt;/</code>.</li>
+            <li>Único por <code>(recording_id, sequence)</code>: reenvio não duplica, 2 workers não divergem.</li>
+            <li>Ao encerrar: lacunas + integridade decodificando o áudio inteiro (PyAV).</li>
+            <li>Manutenção de hora em hora: fecha gravação sem bloco há 30 min e apaga as vencidas (retenção 90 dias).</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Painel 🎧 Gravações no Dashboard (V.1.4.174–175)</div>
+        <ul>
+          <li><code>api/gravacao_painel.py</code> + <code>agent/gravacao_revisao_rules.py</code>. Vendedor vê só as próprias gravações; admin vê todas. Kill-switch <code>GRAVACOES_PAINEL_ENABLED</code> (padrão ligado).</li>
+          <li>Lista por reunião (mesma sala com mais de 2h de intervalo = reunião nova) com avisos de silêncio, blocos faltando e partes com erro.</li>
+          <li>Player das 2 trilhas num relógio único (alinhadas pelo relógio da extensão), gráfico de volume (dBFS por janela de 2s, cacheado em <code>gravacoes_niveis</code>) e a transcrição da mesma reunião.</li>
+          <li>Trechos de referência (<code>gravacoes_referencias</code>): texto correto × transcrito → WER por trecho e total ponderado. É o gabarito para medir a T03.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- IA -->
+    <section class="section" id="ia">
+      <div class="section-title">Roteador de IA (<code>api/ai_router.py</code>)</div>
+      <div class="card">
+        <div class="card-title">Cadeia e resiliência</div>
+        <ul>
+          <li>Ordem padrão <code>deepseek → openai → anthropic → gemini</code>, salva em <code>data/ai_provider_order.json</code> e editável no painel admin. Provedor sem chave é pulado.</li>
+          <li>Circuit breaker por provedor (<code>AI_PROVIDER_FAILURES_TO_OPEN</code>, <code>AI_PROVIDER_COOLDOWN_SECONDS</code>) e timeout (<code>AI_PROVIDER_TIMEOUT_SECONDS</code>).</li>
+          <li>Fallback final para a <strong>conta Claude pessoal</strong> (<code>agent/multiagente/claude_fallback.py</code>, <code>CLAUDE_ACCOUNT_PILOT</code>), com token OAuth criptografado (<code>CLAUDE_TOKEN_ENC_KEY</code>).</li>
+          <li><code>/health</code> mostra <code>ia_disponivel</code>, <code>ia_fora_desde</code> e a causa por provedor; Telegram avisa "IA FORA DO AR" e "IA voltou".</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">O que todo prompt recebe</div>
+        <ul>
+          <li><code>FORBIDDEN_TRIGGER_RULE</code>, <code>PROMPT_INJECTION_GUARD_TEXT</code> (transcrição e documentos são dados, nunca instruções) e <code>ADVERSARIAL_SALES_GUARD_TEXT</code> (sem difamar concorrente, desconto oculto ou ROI garantido).</li>
+          <li>Reparo sintático de JSON e, na saída do motor novo, guarda de alucinação crítica e de contrato.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">Custo</div>
+        <ul>
+          <li>Todo uso grava <code>AiUsageEvent</code> (tokens, custo, <code>feature</code>, reunião, usuário) — base das telas de Custos.</li>
+          <li>Cost Router (<code>api/cost_router.py</code>, <code>COST_ROUTER_ATIVO</code>), orçamento mensal, otimização de contexto e bloqueio de loop caro por reunião (HTTP 429).</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">RAG e embeddings</div>
+        <ul>
+          <li><code>services/embeddings/</code>: <code>get_embedding_provider()</code> é a única porta (Ollama padrão, OpenAI opcional, fallback configurável). Metadados de provedor/modelo/dimensão por linha.</li>
+          <li><code>agent/base_conhecimento.py</code> (RAG), <code>semantic_index</code> (busca semântica), Biblioteca de Inteligência (<code>services/knowledge_compiler/</code>, item só vale depois de aprovado).</li>
+          <li>Reindexação: <code>scripts/reindex_embeddings.py</code>.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- SALES BRAIN -->
+    <section class="section" id="sales-brain">
+      <div class="section-title">Sales Brain e SALE-IA V2</div>
+      <div class="alert alert-blue">Detalhe completo em <code>docs/SALES_BRAIN_ARCHITECTURE.md</code>, <code>docs/SALES_SCIENCE.md</code>, <code>docs/AUTONOMY_POLICY.md</code> e <code>docs/DATA_DICTIONARY.md</code>. Aqui fica o mapa.</div>
+      <div class="card">
+        <div class="card-title">Princípios</div>
+        <ul>
+          <li>Regra separada de IA: decisão determinística mora em <code>agent/*_rules.py</code>.</li>
+          <li>Evidência antes de interpretação: todo fato extraído tem <code>evidence_quote</code> checada literalmente contra a conversa.</li>
+          <li>Vocabulário fechado (SPIN, MEDDPICC, motivadores, sinais, objeções, 14 tipos de SalesEvent, 9 frameworks).</li>
+          <li>Vazio é informação (<code>null</code>, nunca suposição); associação, nunca causa.</li>
+          <li>Melhor esforço fora do caminho do vendedor, com kill-switch por etapa.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">SalesReasoningEngine (Shadow Mode ligado; Piloto desligado)</div>
+        <p>11 campos de entrada reais: <code>meeting_memory</code>, <code>rag_context</code>, <code>objections</code>, <code>historical_patterns</code>, <code>opportunity_memory</code>, <code>opportunity_graph</code>, <code>spin_state</code>, <code>behavioral_signals</code>, <code>buyer_motivation</code>, <code>meddpicc_state</code>, <code>seller_context</code>. No mesmo ciclo, escritores gravam SalesEvidence, OpportunityMemory (append-only), arestas do OpportunityGraph e SalesEvent. Cada chamada gera <code>AuditTrailEntry</code> com as versões de prompt, guardas e conhecimento.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">Módulos de produto</div>
+        <div class="tabela"><table>
+          <tr><th>Módulo</th><th>Onde</th></tr>
+          <tr><td>Sales Memory, Playbooks, Skills (aprovação antes de valer)</td><td><code>agent/sales_memory.py</code>, <code>playbook_generator.py</code>, <code>skill_resolver.py</code></td></tr>
+          <tr><td>Clientes e Oportunidades (+ histórico de estágio, intelligence)</td><td><code>agent/client_intelligence.py</code>, rotas <code>/clientes</code>, <code>/opportunities</code></td></tr>
+          <tr><td>Follow-up por canal com agenda determinística</td><td><code>agent/followup_generator.py</code></td></tr>
+          <tr><td>Sales Science, Seller Coaching, Seller DNA</td><td><code>sales_science_engine.py</code>, rotas <code>/sales-science/insights</code>, <code>/seller-coaching/{id}</code></td></tr>
+          <tr><td>Workspace Comercial e Grafo</td><td><code>/workspace/*</code>, <code>/grafo/conexoes/*</code></td></tr>
+          <tr><td>Análise pela conta Claude</td><td><code>agent/claude_account.py</code>, rotas <code>/claude-account/*</code></td></tr>
+          <tr><td>Visual Cenário</td><td><code>agent/visual_scenario.py</code></td></tr>
+          <tr><td>Prontidão (9 critérios da Fase 25) e Data Quality</td><td><code>GET /admin/readiness</code>, <code>GET /admin/data-quality</code></td></tr>
+        </table></div>
+      </div>
+    </section>
+
+    <!-- ARQUIVOS -->
+    <section class="section" id="arquivos">
+      <div class="section-title">Estrutura de arquivos</div>
+      <pre><code>SALEIA/
+├── api/                 <span class="cmt"># FastAPI: main.py (rotas), ai_router, database (SQLModel), processador_tempo_real,</span>
+│                        <span class="cmt">#   cost_router, gravacao_store, gravacao_painel, metricas_historico</span>
+├── agent/               <span class="cmt"># ~110 módulos: *_rules.py (puros), extratores, agentes, sessao_manager, alertas</span>
+│   ├── multiagente/     <span class="cmt"># orquestrador + Coach/DISC/Finance/Closer/BigFive + claude_fallback</span>
+│   ├── prompt_templates/
+│   └── skills/
+├── services/            <span class="cmt"># embeddings/, knowledge_compiler/, observability/</span>
+├── frontend/            <span class="cmt"># dashboard, login, cenario, visual-scenario, manual, manual_tecnico</span>
+├── chrome-extension/    <span class="cmt"># manifest, background, offscreen, content, popup, transcricao_rules, gravacao_rules</span>
+├── scripts/             <span class="cmt"># golden dataset, benchmark, qualidade de recomendação, reindex, shadow mode</span>
+├── evals/               <span class="cmt"># cenários e datasets de avaliação</span>
+├── deploy/systemd/      <span class="cmt"># saleia.service, timer de reinício diário, instalar.sh</span>
+├── tests/               <span class="cmt"># unittest (backend) + tests/js (extensão, node --test)</span>
+├── docs/                <span class="cmt"># estado atual, arquitetura, segurança, dicionário de dados, roteiros</span>
+└── data/                <span class="cmt"># estado de produção (não versionado): metricas.db, gravacoes/, base_arquivos/ ...</span></code></pre>
+    </section>
+
+    <!-- BANCO -->
+    <section class="section" id="banco">
+      <div class="section-title">Banco de dados</div>
+      <div class="card">
+        <div class="card-title">MySQL — 46 tabelas, por domínio</div>
+        <div class="tabela"><table>
+          <tr><th>Domínio</th><th>Tabelas</th></tr>
+          <tr><td>Usuários e auditoria</td><td><code>usuarios</code>, <code>audit_logs</code>, <code>audit_trail_entries</code>, <code>auditoria_financeira</code>, <code>policy_violation_events</code></td></tr>
+          <tr><td>Reunião</td><td><code>meeting_memory</code>, <code>sessoes</code>, <code>transcricoes_audio_recentes</code>, <code>relatorio</code>, <code>meeting_status</code>, <code>visual_scenarios</code>, <code>claude_meeting_analyses</code></td></tr>
+          <tr><td>Gravação</td><td><code>gravacoes_audio</code>, <code>gravacoes_blocos</code>, <code>gravacoes_niveis</code>, <code>gravacoes_referencias</code></td></tr>
+          <tr><td>Clientes e vendas</td><td><code>client_profiles</code>, <code>client_meetings</code>, <code>opportunities</code>, <code>opportunity_stage_history</code>, <code>opportunity_memories</code>, <code>opportunity_graph_edges</code>, <code>followups</code></td></tr>
+          <tr><td>Inteligência</td><td><code>sales_events</code>, <code>sales_evidences</code>, <code>sales_memories</code>, <code>playbooks</code>, <code>skills</code>, <code>recommendation_events</code>, <code>shadow_mode_comparisons</code>, <code>seller_dna_observacoes</code>, <code>readiness_medicoes</code>, <code>graph_edges</code>, <code>semantic_index</code></td></tr>
+          <tr><td>Conhecimento</td><td><code>base_conhecimento</code>, <code>knowledge_sources</code>, <code>knowledge_items</code></td></tr>
+          <tr><td>Custo de IA</td><td><code>ai_usage_events</code>, <code>orcamento_ia</code>, <code>planos_preco</code>, <code>router_decisoes</code>, <code>admin_route_rules</code>, <code>otimizacao_decisoes</code>, <code>alertas_automaticos</code></td></tr>
+          <tr><td>Integrações</td><td><code>api_integrations</code>, <code>claude_connections</code></td></tr>
+        </table></div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Schema e migrações</div>
+          <ul>
+            <li>Tabelas novas nascem no startup por <code>create_all</code>, serializado entre os 2 workers com <code>GET_LOCK</code> do MySQL (<code>lock_de_schema</code>).</li>
+            <li>Colunas novas: migrações idempotentes no startup (<code>migrar_colunas_*</code>).</li>
+            <li>Textos longos em <code>MEDIUMTEXT</code> (transcrição, memória, key moments).</li>
+            <li>Gravação de <code>MeetingMemory</code> com compare-and-swap e nova tentativa (2 workers).</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">SQLite <code>data/metricas.db</code></div>
+          <ul>
+            <li><code>metricas_historico</code> (rolling 24h, a cada 60s) e <code>teste_provedores</code> (estado compartilhado entre workers).</li>
+            <li>Cada acesso abre e <strong>fecha</strong> a conexão (o vazamento de 10/10/2026 derrubou a API).</li>
+          </ul>
+        </div>
+      </div>
+      <div class="alert alert-red"><strong>Testes:</strong> o <code>.env</code> local aponta o banco para produção. Teste que não isola o <code>engine</code> (SQLite temporário) grava no MySQL real.</div>
+    </section>
+
+    <!-- ENDPOINTS -->
+    <section class="section" id="endpoints">
+      <div class="section-title">Endpoints</div>
+      <div class="alert alert-blue">Lista completa em <code>api/main.py</code> (procure por <code>@app.</code>). <span class="tag tag-auth">AUTH</span> = JWT; <span class="tag tag-auth">ADMIN</span> = JWT de admin.</div>
+      <div class="card">
+        <div class="card-title">Públicos</div>
+        <div class="tabela"><table>
+          <tr><td><span class="tag tag-get">GET</span><code>/health</code></td><td>Status, versão, banco, IA (<code>ia_disponivel</code>), transcrição, <code>reunioes_ativas</code></td></tr>
+          <tr><td><span class="tag tag-post">POST</span><code>/auth/login</code> · <code>/auth/cadastro</code> · <code>/auth/recuperar-senha</code> · <code>/auth/redefinir-senha</code></td><td>Sessão e senha (resposta neutra na recuperação)</td></tr>
+          <tr><td><span class="tag tag-get">GET</span><code>/gravacao/config</code></td><td>Se a gravação está ligada e os parâmetros (bloco, rotação, retenção)</td></tr>
+          <tr><td><span class="tag tag-post">POST</span><code>/webhook/tactiq</code></td><td>Integração Tactiq (segredo próprio)</td></tr>
+        </table></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Reunião e tempo real</div>
+        <div class="tabela"><table>
+          <tr><td><span class="tag tag-post">POST</span><code>/tempo-real</code></td><td>Ciclo de análise (login recomendado; sem login a reunião fica anônima)</td></tr>
+          <tr><td><span class="tag tag-post">POST</span><code>/audio-transcricao</code></td><td>Áudio → texto (rate limit 40/min por IP)</td></tr>
+          <tr><td><span class="tag tag-post">POST</span><code>/iniciar-sessao</code>, <code>/recapitulacao-manual</code>, <code>/recapitulacao-completa</code>, <code>/recapitulacao-viva</code>, <code>/perfil-disc</code>, <code>/diagnostico-financeiro</code></td><td>Análises da reunião</td></tr>
+          <tr><td><span class="tag tag-get">GET</span><code>/relatorios</code>, <code>/relatorio</code>, <code>/sessoes</code>, <code>/historico/uso</code></td><td>Histórico e relatórios</td></tr>
+          <tr><td><span class="tag tag-post">POST</span><code>/cenario/{meeting_id}/conducao</code>, <code>/generate-visual-scenario</code></td><td>Condução e Visual Cenário <span class="tag tag-auth">AUTH</span></td></tr>
+        </table></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Gravação <span class="tag tag-auth">AUTH</span></div>
+        <div class="tabela"><table>
+          <tr><td><span class="tag tag-post">POST</span><code>/gravacao/iniciar</code> · <code>/gravacao/bloco</code> · <code>/gravacao/encerrar</code></td><td>Recebimento das trilhas (403 com a gravação desligada; 400 sem consentimento)</td></tr>
+          <tr><td><span class="tag tag-get">GET</span><code>/gravacao/{recording_id}/audio</code></td><td>Áudio completo (dono ou admin; 410 depois da retenção)</td></tr>
+          <tr><td><span class="tag tag-get">GET</span><code>/gravacoes</code> · <code>/gravacoes/{sessao_id}</code></td><td>Painel: lista e reunião (trilhas, volume, transcrição, referências)</td></tr>
+          <tr><td><span class="tag tag-post">POST</span><code>/gravacoes/{sessao_id}/referencias</code> · <span class="tag tag-put">PUT</span><span class="tag tag-delete">DELETE</span><code>/gravacoes/referencias/{id}</code></td><td>Trechos de referência com WER</td></tr>
+        </table></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Conhecimento e Sales Brain <span class="tag tag-auth">AUTH</span></div>
+        <div class="tabela"><table>
+          <tr><td><code>/base</code>, <code>/base/{id}/download</code>, <code>/base/ocr</code></td><td>Base de Conhecimento (RAG), arquivo original, OCR</td></tr>
+          <tr><td><code>/biblioteca/fontes</code>, <code>/biblioteca/itens</code></td><td>Biblioteca de Inteligência (extrair, compilar, aprovar, gerar playbook/skill)</td></tr>
+          <tr><td><code>/sales-memories</code>, <code>/playbooks</code>, <code>/skills</code>, <code>/busca-semantica</code></td><td>Memória comercial</td></tr>
+          <tr><td><code>/clientes</code>, <code>/opportunities</code>, <code>/opportunities/{id}/intelligence</code>, <code>/followups</code></td><td>Clientes, oportunidades e follow-up</td></tr>
+          <tr><td><code>/sales-science/insights</code>, <code>/seller-coaching/{seller_id}</code>, <code>/workspace/*</code>, <code>/grafo/*</code></td><td>Análises</td></tr>
+          <tr><td><code>/claude-account/*</code></td><td>Conectar a conta Claude e analisar reuniões com ela</td></tr>
+        </table></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Admin e monitor <span class="tag tag-auth">ADMIN</span></div>
+        <div class="tabela"><table>
+          <tr><td><code>/admin/usuarios</code> (perfil, plano, status, inativar, reativar, resetar senha, excluir)</td><td>Usuários</td></tr>
+          <tr><td><code>/admin/api/*</code>, <code>/ai/provedor/*</code>, <code>/admin/transcricao/*</code>, <code>/admin/embeddings/status</code></td><td>Provedores de IA, transcrição e embeddings</td></tr>
+          <tr><td><code>/admin/costs/*</code></td><td>Custos: resumo, por usuário/reunião, projeção, margem, anomalias, orçamento, router, export</td></tr>
+          <tr><td><code>/admin/readiness</code>, <code>/admin/data-quality</code>, <code>/admin/shadow-mode/resumo</code>, <code>/admin/observabilidade/metricas</code>, <code>/admin/claude-account/metricas</code></td><td>Qualidade e prontidão</td></tr>
+          <tr><td><code>/monitor/metricas</code>, <code>/monitor/historico</code> <span class="tag tag-auth">AUTH</span></td><td>Aba Monitor</td></tr>
+        </table></div>
+      </div>
+    </section>
+
+    <!-- ENV -->
+    <section class="section" id="env">
+      <div class="section-title">Variáveis de ambiente e kill-switches</div>
+      <div class="alert alert-red">O <code>.env</code> fica só na VPS. Nunca vai para o git, para o frontend ou para a extensão. Mudar uma variável exige reiniciar o serviço (sem reunião ativa).</div>
+      <div class="card">
+        <div class="card-title">Essenciais</div>
+        <div class="tabela"><table>
+          <tr><th>Variável</th><th>Uso</th></tr>
+          <tr><td><code>JWT_SECRET</code></td><td>Assinatura dos tokens (a API não sobe sem ela)</td></tr>
+          <tr><td><code>DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASS</code></td><td>MySQL</td></tr>
+          <tr><td><code>DEEPSEEK_API_KEY</code>, <code>OPENAI_API_KEY</code>, <code>ANTHROPIC_API_KEY</code>, <code>GEMINI_API_KEY</code> (+ <code>*_MODEL</code>)</td><td>Provedores de IA</td></tr>
+          <tr><td><code>CLAUDE_ACCOUNT_PILOT</code>, <code>CLAUDE_TOKEN_ENC_KEY</code></td><td>Conta Claude pessoal (fallback e análise)</td></tr>
+          <tr><td><code>TRANSCRICAO_PROVEDOR</code>, <code>GROQ_API_KEY</code>, <code>WHISPER_LOCAL_MODEL/DEVICE/COMPUTE_TYPE</code>, <code>TRANSCRICAO_GLOSSARIO</code></td><td>Transcrição de áudio</td></tr>
+          <tr><td><code>EMBEDDING_PROVIDER</code>, <code>OLLAMA_BASE_URL</code>, <code>OLLAMA_EMBEDDING_MODEL</code>, <code>EMBEDDING_FALLBACK_PROVIDER</code></td><td>Embeddings</td></tr>
+          <tr><td><code>SMTP_*</code>, <code>EMAIL_FROM</code>, <code>APP_BASE_URL</code></td><td>E-mail de recuperação de senha</td></tr>
+          <tr><td><code>TELEGRAM_TOKEN</code>, <code>TELEGRAM_CHAT_ID</code></td><td>Alertas</td></tr>
+          <tr><td><code>OTEL_EXPORTER_OTLP_ENDPOINT/HEADERS</code>, <code>OTEL_SERVICE_NAME</code>, <code>OBSERVABILITY_*</code>, <code>LANGFUSE_*</code></td><td>Observabilidade</td></tr>
+          <tr><td><code>SALEIA_REALTIME_*</code>, <code>SHADOW_MODE_MIN_INTERVAL_S</code>, <code>AI_PROVIDER_*</code>, <code>OTIMIZACAO_*</code>, <code>FX_USD_BRL_RATE</code></td><td>Ritmo, custo e roteamento</td></tr>
+        </table></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Kill-switches</div>
+        <div class="tabela"><table>
+          <tr><th>Variável</th><th>Padrão</th><th>Produção</th></tr>
+          <tr><td><code>GRAVACAO_AUDIO_ENABLED</code></td><td>false</td><td><strong>true</strong> (validação da T02)</td></tr>
+          <tr><td><code>GRAVACOES_PAINEL_ENABLED</code></td><td>true</td><td>padrão</td></tr>
+          <tr><td><code>SHADOW_MODE_ENABLED</code></td><td>false</td><td><strong>true</strong></td></tr>
+          <tr><td><code>PILOT_MODE</code> (off / pilot_user / 5pct…100pct) + <code>PILOT_USER_IDS</code></td><td>off</td><td>off</td></tr>
+          <tr><td><code>SELLER_DNA_OBSERVACAO_ENABLED</code></td><td>false</td><td><strong>true</strong></td></tr>
+          <tr><td><code>KNOWLEDGE_COMPILER_ENABLED</code></td><td>false</td><td><strong>true</strong></td></tr>
+          <tr><td><code>SALES_EVENT_EXTRACTOR_ENABLED</code>, <code>MEDDPICC_EXTRACTOR_ENABLED</code>, <code>SALES_EVIDENCE_PERSIST_ENABLED</code>, <code>OPPORTUNITY_MEMORY_WRITE_ENABLED</code>, <code>OPPORTUNITY_GRAPH_WRITE_ENABLED</code>, <code>SELLER_CONTEXT_ENABLED</code>, <code>AUTO_OPPORTUNITY_ENABLED</code>, <code>RECOMMENDATION_TRACKING_ENABLED</code>, <code>BIGFIVE_AGENT_ENABLED</code>, <code>SALES_BRAIN_AUTOPILOT_ENABLED</code>, <code>COST_ROUTER_ATIVO</code></td><td>true</td><td>padrão</td></tr>
+          <tr><td><code>OBSERVABILITY_ENABLED</code> (Langfuse)</td><td>false</td><td>padrão</td></tr>
+        </table></div>
+      </div>
+    </section>
+
+    <!-- SEGURANÇA -->
+    <section class="section" id="seguranca">
+      <div class="section-title">Segurança</div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Autenticação e sessão</div>
+          <ul>
+            <li>JWT HS256, validade de 72h. Payload: <code>sub</code> (id do usuário), <code>email</code>, <code>perfil</code>, <code>exp</code>.</li>
+            <li>Sessão deslizante: faltando menos de 24h, o <code>/tempo-real</code> devolve <code>token_renovado</code>; a extensão sai sozinha quando o token vence.</li>
+            <li>Senhas com bcrypt; recuperação por token de 1h, resposta sempre neutra.</li>
+            <li>5 tentativas de login erradas → 15 min de bloqueio por e-mail.</li>
+            <li>Perfis: <code>admin</code> e <code>operador</code> (o 1º cadastro vira admin). Rotas <code>/admin/*</code> e este Dev Manual exigem admin.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">Isolamento de dados</div>
+          <ul>
+            <li>Reunião com dono (<code>MeetingMemory.usuario_id</code>) só aparece para o dono ou admin.</li>
+            <li>Gravações e painel de Gravações: dono ou admin; gravação de outra pessoa responde 404 (não confirma que existe).</li>
+            <li>Reunião sem login fica sem dono (visível a qualquer usuário autenticado).</li>
+            <li>Uso interno de uma empresa: sem multi-tenancy; a Base de Conhecimento é global.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">Segredos e IA</div>
+          <ul>
+            <li>Chaves só no <code>.env</code>; o painel admin mostra a chave mascarada.</li>
+            <li>Redação de segredos em todo log (<code>redigir_segredos()</code> no formatter JSON).</li>
+            <li>Token OAuth da conta Claude gravado criptografado.</li>
+            <li>Guardas anti prompt injection e de venda adversarial em todo prompt; detecções viram <code>PolicyViolationEvent</code>.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">Rede e limites</div>
+          <ul>
+            <li>Cloudflare → nginx (TLS Certbot) → uvicorn só em <code>127.0.0.1</code>. MySQL e Ollama só aceitam conexão local.</li>
+            <li>nginx repassa <code>X-Forwarded-For</code>/<code>X-Real-IP</code>; corpo máximo de 20 MB; timeout de 120s.</li>
+            <li>CORS restrito ao domínio da API, localhost e túneis ngrok.</li>
+            <li>Rate limit por IP: <code>/audio-transcricao</code> 40/min, <code>/gravacao/iniciar</code> 60/min, <code>/gravacao/bloco</code> 240/min (em memória, por worker).</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Gravação, privacidade e auditoria</div>
+        <ul>
+          <li>Gravação só com login, confirmação de aviso aos participantes a cada reunião e indicador visível; nunca começa sozinha.</li>
+          <li>Retenção de 90 dias aplicada de verdade (job de hora em hora apaga áudio e blocos vencidos).</li>
+          <li>Classificação de dados (<code>agent/data_classification_rules.py</code>): PUBLIC, INTERNAL, CONFIDENTIAL, PII, SENSITIVE.</li>
+          <li><code>AuditTrailEntry</code> registra quem, quando, ação, campos usados (nunca o conteúdo) e versões da inteligência; <code>AuditoriaFinanceira</code> registra mudanças de orçamento e preço.</li>
+        </ul>
+      </div>
+      <div class="alert alert-gold">Lacunas conhecidas e o plano para cada uma ficam em <code>docs/SECURITY_MODEL.md</code> no repositório (este manual é público e não lista detalhes operacionais de acesso).</div>
+    </section>
+
+    <!-- INFRA -->
+    <section class="section" id="infra">
+      <div class="section-title">Infraestrutura</div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Servidor</div>
+          <ul>
+            <li>Hetzner, 4 vCPU, 8 GB RAM, 150 GB de disco (Helsinki).</li>
+            <li>Ubuntu 26.04 LTS.</li>
+            <li>Aplicação em <code>/opt/saleia</code>, venv próprio.</li>
+            <li>Domínio <code>api.saleia.app.br</code> atrás da Cloudflare; certificado Certbot renovado automaticamente.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">Serviços (systemd)</div>
+          <ul>
+            <li><code>saleia.service</code>: uvicorn, 2 workers, <code>--timeout-graceful-shutdown 25</code>, <code>TimeoutStopSec=30</code>, <code>RuntimeMaxSec=48h</code> como rede de segurança.</li>
+            <li><code>saleia-restart-diario.timer</code>: 06:00 UTC (03:00 BRT), só reinicia com <code>reunioes_ativas = 0</code>.</li>
+            <li><code>mysql.service</code>, <code>nginx.service</code>, <code>ollama.service</code>.</li>
+            <li>Units versionadas em <code>deploy/systemd/</code>; instalar com <code>bash deploy/systemd/instalar.sh</code> (não editar só na VPS).</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Estado de produção (fora do git)</div>
         <pre><code>/opt/saleia/
-├── api/           <span class="cmt"># Backend FastAPI</span>
-├── agent/         <span class="cmt"># Agentes de IA</span>
-├── frontend/      <span class="cmt"># HTML/CSS/JS</span>
-├── data/          <span class="cmt"># ⚠️ NÃO sobrescrever em deploy</span>
-│   ├── metricas.db
-│   └── ai_provider_order.json
-├── logs/          <span class="cmt"># ⚠️ NÃO sobrescrever em deploy</span>
-│   └── saleia.log
-├── venv/          <span class="cmt"># ⚠️ NÃO sobrescrever em deploy</span>
-├── .env           <span class="cmt"># ⚠️ NÃO sobrescrever em deploy</span>
-└── requirements.txt</code></pre>
-      </div>
-      <div class="alert alert-red">
-        <strong>Nunca sobrescrever em deploy:</strong> <code>.env</code>, <code>venv/</code>, <code>data/</code>, <code>logs/</code>. Esses diretórios contêm estado de produção.
-      </div>
-      <div class="card" style="margin-top:12px">
-        <div class="card-title">Logs em tempo real</div>
-        <pre><code><span class="cmd">tail -f /opt/saleia/logs/saleia.log</span>
-<span class="cmt"># Filtrar por categoria:</span>
-<span class="cmd">tail -f /opt/saleia/logs/saleia.log | grep -i "error\|warning"</span>
-<span class="cmd">tail -f /opt/saleia/logs/saleia.log | grep "RAG\|embedding"</span></code></pre>
+├── .env                    <span class="cmt"># segredos e flags — nunca sobrescrever</span>
+├── venv/
+└── data/
+    ├── ai_provider_order.json
+    ├── metricas.db
+    ├── gravacoes/          <span class="cmt"># áudio da T02 (retenção 90 dias)</span>
+    ├── base_arquivos/      <span class="cmt"># arquivos originais da Base</span>
+    ├── biblioteca_arquivos/
+    ├── clientes/  precos/  relatorios/</code></pre>
+        <p>Logs: só no journald (JSON, com segredos redigidos) — <code>journalctl -u saleia</code>.</p>
       </div>
     </section>
 
     <!-- DEPLOY -->
     <section class="section" id="deploy">
       <div class="section-title">Deploy</div>
-      <div class="alert alert-green">
-        Deploy é via <strong>git pull</strong> na VPS. O repo está atualizado e sincronizado com GitHub.
-      </div>
-      <div class="card" style="margin-top:12px">
-        <div class="card-title">Comando padrão de deploy (SSH)</div>
-        <pre><code><span class="cmt"># Comando único de deploy</span>
-<span class="cmd">ssh root@37.27.214.33 "cd /opt/saleia && git pull origin main && systemctl restart saleia"</span>
-
-<span class="cmt"># Verificar saúde após deploy</span>
-<span class="cmd">curl -s https://api.saleia.app.br/health</span>
-<span class="cmt"># Esperado: {"status":"online","versao":"1.4.28",...}</span></code></pre>
-      </div>
+      <div class="alert alert-red"><strong>Regra de ouro:</strong> nunca reiniciar com reunião ativa. Conferir <code>reunioes_ativas</code> no <code>/health</code> antes do restart (reunião = atividade nos últimos 5 min). Reuniões reais duram horas: espere, não force.</div>
       <div class="card">
-        <div class="card-title">Checklist de deploy</div>
+        <div class="card-title">Fluxo atual</div>
         <div class="flow">
-          <div class="flow-step"><div class="flow-num">1</div><div class="flow-content"><h4>Commit + push local</h4><p>Commitar alterações no repo local + push para GitHub (<code>git push origin main</code>).</p></div></div>
-          <div class="flow-step"><div class="flow-num">2</div><div class="flow-content"><h4>git pull na VPS</h4><p><code>ssh root@37.27.214.33 "cd /opt/saleia && git pull origin main"</code></p></div></div>
-          <div class="flow-step"><div class="flow-num">3</div><div class="flow-content"><h4>Se requirements.txt mudou</h4><p><code>ssh root@37.27.214.33 "cd /opt/saleia && venv/bin/pip install -r requirements.txt"</code></p></div></div>
-          <div class="flow-step"><div class="flow-num">4</div><div class="flow-content"><h4>Reiniciar serviço</h4><p><code>ssh root@37.27.214.33 "systemctl restart saleia"</code></p></div></div>
-          <div class="flow-step"><div class="flow-num">5</div><div class="flow-content"><h4>Validar health</h4><p><code>curl -s https://api.saleia.app.br/health</code> → verificar <code>versao</code> e <code>status: online</code>.</p></div></div>
-          <div class="flow-step"><div class="flow-num">6</div><div class="flow-content"><h4>Nunca sobrescrever</h4><p><code>.env</code>, <code>venv/</code>, <code>data/</code>, <code>logs/</code> — estado de produção, não entram no git pull.</p></div></div>
-        </div>
-      </div>
-      <div class="alert alert-red" style="margin-top:12px">
-        <strong>Conflito no git pull?</strong> Use <code>git checkout -- arquivo</code> para arquivos do repo e <code>git clean -f pasta/</code> para arquivos não rastreados antes do pull. Nunca force-push na main.
-      </div>
-    </section>
-
-    <!-- ENV -->
-    <section class="section" id="env">
-      <div class="section-title">Variáveis de Ambiente (.env)</div>
-      <div class="alert alert-red">O arquivo <code>.env</code> fica em <code>/opt/saleia/.env</code> na VPS. <strong>Nunca commitar, nunca expor no frontend.</strong></div>
-      <table>
-        <tr><th>Variável</th><th>Descrição</th><th>Obrigatória</th></tr>
-        <tr><td><code>JWT_SECRET</code></td><td>Chave secreta para assinar tokens JWT. Mínimo 32 caracteres.</td><td>✅</td></tr>
-        <tr><td><code>DB_HOST / DB_NAME / DB_USER / DB_PASS</code></td><td>Credenciais MySQL remoto.</td><td>✅</td></tr>
-        <tr><td><code>DEEPSEEK_API_KEY</code></td><td>Chave DeepSeek (provedor preferido).</td><td>✅</td></tr>
-        <tr><td><code>OPENAI_API_KEY</code></td><td>Chave OpenAI — usada para RAG (embeddings) + fallback gpt-4o.</td><td>✅</td></tr>
-        <tr><td><code>ANTHROPIC_API_KEY</code></td><td>Chave Anthropic — fallback claude-sonnet.</td><td>Recomendada</td></tr>
-        <tr><td><code>GEMINI_API_KEY</code></td><td>Chave Google Gemini — último fallback.</td><td>Recomendada</td></tr>
-        <tr><td><code>GROQ_API_KEY</code></td><td>Chave Groq — transcrição de áudio (Whisper Large v3).</td><td>✅</td></tr>
-        <tr><td><code>GEMINI_MODEL</code></td><td>Modelo Gemini ativo. Padrão: <code>gemini-2.5-flash</code>.</td><td>Opcional</td></tr>
-        <tr><td><code>AI_PROVIDER_ORDER</code></td><td>Ordem dos provedores (fallback via env). Preferir editar <code>data/ai_provider_order.json</code>.</td><td>Opcional</td></tr>
-        <tr><td><code>SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS</code></td><td>SMTP para envio de e-mail (recuperação de senha).</td><td>Opcional</td></tr>
-        <tr><td><code>TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID</code></td><td>Bot Telegram para alertas do Monitor.</td><td>Opcional</td></tr>
-        <tr><td><code>OTEL_EXPORTER_OTLP_ENDPOINT / OTEL_EXPORTER_OTLP_HEADERS</code></td><td>Grafana Cloud Tempo (OpenTelemetry traces).</td><td>Opcional</td></tr>
-        <tr><td><code>OTEL_SERVICE_NAME</code></td><td>Nome do serviço no Grafana. Padrão: <code>saleia</code>.</td><td>Opcional</td></tr>
-      </table>
-      <div class="card" style="margin-top:12px">
-        <div class="card-title">Verificar chaves configuradas (sem expor valores)</div>
-        <pre><code><span class="cmd">ssh root@37.27.214.33 "python3 -c \"
-from dotenv import dotenv_values
-env = dotenv_values('/opt/saleia/.env')
-for k in ['DEEPSEEK_API_KEY','OPENAI_API_KEY','ANTHROPIC_API_KEY','GEMINI_API_KEY','GROQ_API_KEY','JWT_SECRET']:
-    val = env.get(k, '')
-    print(k, '✅' if val and len(val) > 10 else '❌')
-\""</span></code></pre>
-      </div>
-    </section>
-
-    <!-- ARQUIVOS -->
-    <section class="section" id="arquivos">
-      <div class="section-title">Estrutura de Arquivos</div>
-      <table>
-        <tr><th>Arquivo</th><th>Responsabilidade</th></tr>
-        <tr><td><code>api/main.py</code></td><td>App FastAPI — todos os endpoints, startup, middleware, auth, admin, monitor.</td></tr>
-        <tr><td><code>api/ai_router.py</code></td><td>Roteador central de IA — fallback chain, circuit breaker, contadores em memória, custo estimado.</td></tr>
-        <tr><td><code>api/metricas_historico.py</code></td><td>SQLite rolling 24h para sparklines do Monitor. Tabela <code>metricas_historico</code>.</td></tr>
-        <tr><td><code>agent/agente_tempo_real.py</code></td><td>Motor legado — substituído pelo orquestrador multiagente em V.1.4.36.</td></tr>
-        <tr><td><code>agent/base_conhecimento.py</code></td><td>RAG — embeddings OpenAI, cosine similarity, cache em memória, busca top-k.</td></tr>
-        <tr><td><code>agent/sessao_manager.py</code></td><td>Gerencia <code>MeetingMemory</code> — transcrição, buffer, resumo, DISC, score, key moments.</td></tr>
-        <tr><td><code>agent/recapitulacao.py</code></td><td>Gera recapitulação pós-reunião via IA.</td></tr>
-        <tr><td><code>agent/diagnostico.py</code></td><td>Diagnóstico emocional e score da reunião.</td></tr>
-        <tr><td><code>agent/perfil_disc.py</code></td><td>Perfil DISC do cliente.</td></tr>
-        <tr><td><code>agent/visual_scenario.py</code></td><td>Gera imagens DALL-E 3 (Visual Cenário AI). Requer créditos OpenAI.</td></tr>
-        <tr><td><code>agent/alertas.py</code></td><td>Alertas Telegram por threshold (taxa de falha, latência, circuit breaker).</td></tr>
-        <tr><td><code>agent/prompt_templates/agente_tempo_real.txt</code></td><td>Prompt legado do Motor NBA.</td></tr>
-        <tr><td><code>api/processador_tempo_real.py</code></td><td>Orquestra o fluxo de análise em tempo real. V.1.4.36: chama <code>analisar_fragmento_multi()</code> em vez do agente legado.</td></tr>
-        <tr><td><code>agent/email_service.py</code></td><td>Envio de e-mail SMTP (recuperação de senha).</td></tr>
-        <tr><td colspan="2" style="color:var(--gold);font-size:.78rem;padding-top:10px">── SALES BRAIN (V.1.4.31–V.1.4.37) ──</td></tr>
-        <tr><td><code>agent/sales_memory.py</code></td><td>Extrai e persiste memórias de vendas após cada reunião. Tabela <code>sales_memories</code>.</td></tr>
-        <tr><td><code>agent/playbook_generator.py</code></td><td>Gera playbook de reuniões marcadas como ganhas. Tabela <code>playbooks</code>.</td></tr>
-        <tr><td><code>agent/skill_resolver.py</code></td><td>Seleciona skill ativa com base em DISC, score e estágio. Injeta contexto no orquestrador.</td></tr>
-        <tr><td><code>agent/client_intelligence.py</code></td><td>CRUD de clientes e vinculação reunião↔cliente. Tabelas <code>client_profiles</code> e <code>client_meetings</code>.</td></tr>
-        <tr><td><code>agent/followup_generator.py</code></td><td>Gera follow-ups por canal (WhatsApp/Email/LinkedIn), agenda inteligente por score. Tabela <code>followups</code>.</td></tr>
-        <tr><td><code>agent/multiagente/orquestrador.py</code></td><td>Dispara os 4 agentes em paralelo (<code>asyncio.gather</code>), busca RAG uma vez, mescla resultados.</td></tr>
-        <tr><td><code>agent/multiagente/coach_agent.py</code></td><td>Agente Coach — estágio SPIN, NBA, alertas, texto falável.</td></tr>
-        <tr><td><code>agent/multiagente/disc_agent.py</code></td><td>Agente DISC — perfil D/I/S/C, KARE, temperatura da conversa.</td></tr>
-        <tr><td><code>agent/multiagente/finance_agent.py</code></td><td>Agente Finance — mapa financeiro, objeções de preço, capacidade de investimento.</td></tr>
-        <tr><td><code>agent/multiagente/closer_agent.py</code></td><td>Agente Closer — score de compra, maturity score, próxima pergunta decisiva.</td></tr>
-        <tr><td><code>agent/prompt_templates/multiagente_coach.txt</code></td><td>Prompt do Coach: SPIN 8 estágios, 10 regras de NBA, schema JSON completo.</td></tr>
-        <tr><td><code>agent/prompt_templates/multiagente_disc.txt</code></td><td>Prompt DISC + KARE + temperatura.</td></tr>
-        <tr><td><code>agent/prompt_templates/multiagente_finance.txt</code></td><td>Prompt de extração de sinais financeiros.</td></tr>
-        <tr><td><code>agent/prompt_templates/multiagente_closer.txt</code></td><td>Prompt de score (parte de 50, ±pts) e maturity (7 critérios).</td></tr>
-        <tr><td><code>agent/prompt_templates/followup_generator.txt</code></td><td>Prompt de follow-up: regras DISC por canal, schema JSON {whatsapp, email, linkedin}.</td></tr>
-        <tr><td><code>data/ai_provider_order.json</code></td><td>Ordem ativa dos provedores de IA. Editável via painel admin ou SSH.</td></tr>
-        <tr><td><code>data/metricas.db</code></td><td>SQLite com histórico de métricas (24h rolling). Não commitar.</td></tr>
-        <tr><td><code>frontend/dashboard.html</code></td><td>Dashboard principal — métricas, reuniões, admin, monitor, configurações.</td></tr>
-        <tr><td><code>frontend/cenario.html</code></td><td>Página de cenário ativo da reunião.</td></tr>
-        <tr><td><code>frontend/login.html</code></td><td>Tela de login JWT.</td></tr>
-        <tr><td><code>chrome-extension/</code></td><td>Extensão Chrome — popup, content script, background, sidebar.</td></tr>
-      </table>
-    </section>
-
-    <!-- ENDPOINTS -->
-    <section class="section" id="endpoints">
-      <div class="section-title">Endpoints API</div>
-      <div class="card">
-        <div class="card-title">Públicos (sem auth)</div>
-        <table>
-          <tr><th>Método</th><th>Rota</th><th>Descrição</th></tr>
-          <tr><td><span class="tag tag-get">GET</span></td><td><code>/health</code></td><td>Status + versão do serviço.</td></tr>
-          <tr><td><span class="tag tag-get">GET</span></td><td><code>/dashboard</code></td><td>Serve dashboard.html.</td></tr>
-          <tr><td><span class="tag tag-post">POST</span></td><td><code>/auth/login</code></td><td>Retorna JWT. Body: <code>{email, senha}</code>.</td></tr>
-          <tr><td><span class="tag tag-post">POST</span></td><td><code>/auth/cadastro</code></td><td>Cria usuário. Body: <code>{nome, email, senha}</code>.</td></tr>
-          <tr><td><span class="tag tag-post">POST</span></td><td><code>/auth/recuperar-senha</code></td><td>Envia e-mail de reset.</td></tr>
-        </table>
-      </div>
-      <div class="card">
-        <div class="card-title">Reunião (requer JWT) <span class="tag tag-auth">AUTH</span></div>
-        <table>
-          <tr><th>Método</th><th>Rota</th><th>Descrição</th></tr>
-          <tr><td><span class="tag tag-post">POST</span></td><td><code>/tempo-real</code></td><td>Analisa fragmento de transcrição em tempo real.</td></tr>
-          <tr><td><span class="tag tag-post">POST</span></td><td><code>/audio-transcricao</code></td><td>Transcreve fragmento de áudio via Groq.</td></tr>
-          <tr><td><span class="tag tag-post">POST</span></td><td><code>/recapitulacao-manual</code></td><td>Gera recapitulação completa da reunião.</td></tr>
-          <tr><td><span class="tag tag-get">GET</span></td><td><code>/relatorios</code></td><td>Lista reuniões com score, custo, DISC.</td></tr>
-          <tr><td><span class="tag tag-get">GET</span></td><td><code>/historico/uso</code></td><td>Histórico de uso por reunião.</td></tr>
-        </table>
-      </div>
-      <div class="card">
-        <div class="card-title">Sessões ao Vivo</div>
-        <table>
-          <tr><th>Método</th><th>Rota</th><th>Descrição</th></tr>
-          <tr><td><span class="tag tag-get">GET</span></td><td><code>/sessoes</code></td><td>Lista até 200 sessões, enriquecidas com <code>cliente_nome</code>/<code>cliente_empresa</code> via subquery em <code>client_meetings</code>+<code>client_profiles</code> (V.1.4.40). Busca/filtro/ordenação são client-side no dashboard.</td></tr>
-          <tr><td><span class="tag tag-get">GET</span></td><td><code>/sessoes/{id}</code></td><td>Detalhe de uma sessão.</td></tr>
-          <tr><td><span class="tag tag-delete">DELETE</span></td><td><code>/sessoes/{id}</code></td><td>Remove a sessão.</td></tr>
-          <tr><td><span class="tag tag-post">POST</span></td><td><code>/sessoes/{id}/exportar-base</code></td><td>Converte a transcrição da sessão em documento da Base de Conhecimento.</td></tr>
-        </table>
-      </div>
-      <div class="card">
-        <div class="card-title">Base de Conhecimento (RAG)</div>
-        <table>
-          <tr><th>Método</th><th>Rota</th><th>Descrição</th></tr>
-          <tr><td><span class="tag tag-get">GET</span></td><td><code>/base</code></td><td>Lista documentos (sem embeddings). Cada item traz <code>arquivo_nome</code>/<code>arquivo_tamanho</code> quando há arquivo original anexado (V.1.4.40).</td></tr>
-          <tr><td><span class="tag tag-post">POST</span></td><td><code>/base</code></td><td><strong>Multipart</strong> desde V.1.4.40 (era JSON): <code>Form(titulo, tipo, texto)</code> + <code>File(arquivo)</code> opcional. Gera embedding via <code>services.embeddings</code>; se um arquivo for enviado, grava em <code>data/base_arquivos/&lt;uuid&gt;_&lt;nome&gt;</code> e referencia nas colunas <code>arquivo_*</code>.</td></tr>
-          <tr><td><span class="tag tag-get">GET</span></td><td><code>/base/{id}/download</code></td><td><span class="tag tag-auth">AUTH</span> <span class="badge badge-gold" style="font-size:.65rem">V.1.4.40</span> Baixa o arquivo original via <code>FileResponse</code>. Exige JWT (<code>_req_auth</code> — base é global, sem tenant, permissão é só "estar logado"). 404 se o documento não tiver arquivo.</td></tr>
-          <tr><td><span class="tag tag-delete">DELETE</span></td><td><code>/base/{id}</code></td><td>Remove o documento e, se houver, apaga também o arquivo em disco.</td></tr>
-          <tr><td><span class="tag tag-post">POST</span></td><td><code>/base/ocr</code></td><td>Extrai texto de imagem via Claude/GPT-4o Vision (multipart, <code>UploadFile</code>). A imagem nunca é persistida — só o texto extraído retorna.</td></tr>
-        </table>
-      </div>
-      <div class="card">
-        <div class="card-title">Sales Brain — Memórias, Playbooks, Skills <span class="tag tag-auth">AUTH</span></div>
-        <table>
-          <tr><th>Método</th><th>Rota</th><th>Descrição</th></tr>
-          <tr><td><span class="tag tag-get">GET</span></td><td><code>/relatorios/{mid}/memoria</code></td><td>Retorna memória de vendas extraída da reunião.</td></tr>
-          <tr><td><span class="tag tag-post">POST</span></td><td><code>/relatorios/{mid}/gerar-memoria</code></td><td>Gera/regera memória de vendas via IA.</td></tr>
-          <tr><td><span class="tag tag-post">POST</span></td><td><code>/relatorios/{mid}/marcar-ganha</code></td><td>Marca reunião como ganha e dispara geração de playbook.</td></tr>
-          <tr><td><span class="tag tag-get">GET</span></td><td><code>/playbooks</code></td><td>Lista todos os playbooks do usuário.</td></tr>
-          <tr><td><span class="tag tag-get">GET</span></td><td><code>/playbooks/{pid}</code></td><td>Detalhe de um playbook.</td></tr>
-          <tr><td><span class="tag tag-delete">DELETE</span></td><td><code>/playbooks/{pid}</code></td><td>Remove um playbook.</td></tr>
-        </table>
-      </div>
-      <div class="card">
-        <div class="card-title">Sales Brain — Clientes <span class="tag tag-auth">AUTH</span></div>
-        <table>
-          <tr><th>Método</th><th>Rota</th><th>Descrição</th></tr>
-          <tr><td><span class="tag tag-get">GET</span></td><td><code>/clientes</code></td><td>Lista clientes com métricas agregadas (total reuniões, score médio, última reunião).</td></tr>
-          <tr><td><span class="tag tag-post">POST</span></td><td><code>/clientes</code></td><td>Cria novo cliente. Body: <code>{nome, empresa, cargo, email, whatsapp, notas}</code>.</td></tr>
-          <tr><td><span class="tag tag-get">GET</span></td><td><code>/clientes/{cid}</code></td><td>Detalhe do cliente com reuniões vinculadas e histórico de score.</td></tr>
-          <tr><td><span class="tag tag-patch">PATCH</span></td><td><code>/clientes/{cid}</code></td><td>Atualiza campos do cliente (nome, status, notas, etc.).</td></tr>
-          <tr><td><span class="tag tag-delete">DELETE</span></td><td><code>/clientes/{cid}</code></td><td>Remove cliente (mantém reuniões — apenas desvincula).</td></tr>
-          <tr><td><span class="tag tag-post">POST</span></td><td><code>/clientes/{cid}/reunioes/{mid}</code></td><td>Vincula reunião ao cliente.</td></tr>
-          <tr><td><span class="tag tag-delete">DELETE</span></td><td><code>/clientes/{cid}/reunioes/{mid}</code></td><td>Desvincula reunião do cliente.</td></tr>
-        </table>
-      </div>
-      <div class="card">
-        <div class="card-title">Sales Brain — Follow-ups <span class="tag tag-auth">AUTH</span></div>
-        <table>
-          <tr><th>Método</th><th>Rota</th><th>Descrição</th></tr>
-          <tr><td><span class="tag tag-post">POST</span></td><td><code>/relatorios/{mid}/followups/gerar</code></td><td>Gera follow-ups via IA, calcula agenda e salva no MySQL. Retorna lista com 3 mensagens.</td></tr>
-          <tr><td><span class="tag tag-get">GET</span></td><td><code>/relatorios/{mid}/followups</code></td><td>Lista follow-ups de uma reunião, ordenados por <code>dias_apos ASC</code>.</td></tr>
-          <tr><td><span class="tag tag-patch">PATCH</span></td><td><code>/followups/{fid}</code></td><td>Atualiza mensagem, assunto, call_to_action, status ou agendado_para.</td></tr>
-          <tr><td><span class="tag tag-delete">DELETE</span></td><td><code>/followups/{fid}</code></td><td>Remove follow-up. Retorna <code>204 No Content</code>.</td></tr>
-        </table>
-      </div>
-      <div class="card">
-        <div class="card-title">Monitor (requer JWT) <span class="tag tag-auth">AUTH</span></div>
-        <table>
-          <tr><th>Método</th><th>Rota</th><th>Descrição</th></tr>
-          <tr><td><span class="tag tag-get">GET</span></td><td><code>/monitor/metricas</code></td><td>Snapshot atual — uptime, chamadas IA, por provedor, DB, reuniões.</td></tr>
-          <tr><td><span class="tag tag-get">GET</span></td><td><code>/monitor/historico?horas=6</code></td><td>Série histórica SQLite (sparklines). Máx 24h.</td></tr>
-        </table>
-      </div>
-      <div class="card">
-        <div class="card-title">Admin (requer JWT admin) <span class="tag tag-auth">ADMIN</span></div>
-        <table>
-          <tr><th>Método</th><th>Rota</th><th>Descrição</th></tr>
-          <tr><td><span class="tag tag-get">GET</span></td><td><code>/admin/usuarios</code></td><td>Lista todos os usuários.</td></tr>
-          <tr><td><span class="tag tag-patch">PATCH</span></td><td><code>/admin/usuarios/{uid}</code></td><td>Altera perfil/plano/status do usuário.</td></tr>
-          <tr><td><span class="tag tag-get">GET</span></td><td><code>/admin/api/provedores</code></td><td>Lista provedores IA com status runtime.</td></tr>
-          <tr><td><span class="tag tag-post">POST</span></td><td><code>/admin/api/provedores/{pid}/chave</code></td><td>Salva chave de API de um provedor.</td></tr>
-          <tr><td><span class="tag tag-patch">PATCH</span></td><td><code>/admin/api/provedores/{pid}/status</code></td><td>Ativa/inativa provedor em memória.</td></tr>
-          <tr><td><span class="tag tag-post">POST</span></td><td><code>/admin/api/principal</code></td><td>Define provedor preferido.</td></tr>
-          <tr><td><span class="tag tag-post">POST</span></td><td><code>/admin/api/teste</code></td><td>Testa conexão de um provedor IA.</td></tr>
-          <tr><td><span class="tag tag-get">GET</span></td><td><code>/admin/transcricao/config</code></td><td>Lê provedor de transcrição ativo e status das chaves.</td></tr>
-          <tr><td><span class="tag tag-post">POST</span></td><td><code>/admin/transcricao/config</code></td><td>Define provedor ativo e/ou salva chave Groq ou OpenAI (<code>apenas_salvar: true</code> para salvar sem ativar).</td></tr>
-          <tr><td><span class="tag tag-post">POST</span></td><td><code>/admin/transcricao/teste</code></td><td>Valida chave de transcrição via <code>models.list()</code> — retorna <code>{"ok": bool, "detalhe": str}</code>.</td></tr>
-        </table>
-      </div>
-    </section>
-
-    <!-- IA -->
-    <section class="section" id="ia">
-      <div class="section-title">Roteador de IA (ai_router.py)</div>
-      <div class="card">
-        <div class="card-title">Cadeia de fallback</div>
-        <pre><code><span class="str">deepseek</span> → <span class="str">openai</span> → <span class="str">anthropic</span> → <span class="str">gemini</span>
-
-<span class="cmt"># Ordem salva em: /opt/saleia/data/ai_provider_order.json
-# Corrigir ordem via SSH:</span>
-<span class="cmd">ssh root@37.27.214.33 "python3 -c \"import json,time; \
-open('/opt/saleia/data/ai_provider_order.json','w').write(\
-json.dumps({'order':['deepseek','openai','anthropic','gemini'],'updated_at':time.time()},indent=2))\""</span></code></pre>
-      </div>
-      <div class="card">
-        <div class="card-title">Circuit Breaker</div>
-        <ul>
-          <li>Abre após <strong>3 falhas consecutivas</strong> (variável <code>AI_PROVIDER_FAILURES_TO_OPEN</code>)</li>
-          <li>Cooldown: <strong>60 segundos</strong> (variável <code>AI_PROVIDER_COOLDOWN_SECONDS</code>)</li>
-          <li>Durante cooldown, provedor é pulado automaticamente</li>
-          <li>Alerta Telegram enviado ao abrir o circuit breaker</li>
-        </ul>
-      </div>
-      <div class="card">
-        <div class="card-title">Contadores em memória</div>
-        <p>Resetam a cada restart do serviço. Visíveis na aba Monitor do dashboard.</p>
-        <ul style="margin-top:8px">
-          <li><code>chamadas_total / sucesso / falha</code></li>
-          <li><code>fallbacks</code> — quantas vezes caiu para o próximo provedor</li>
-          <li><code>por_provedor[name].sucesso / falha / total_ms</code></li>
-          <li>Provedor sem chave configurada → incrementa <code>falha</code> (desde V.1.4.14)</li>
-        </ul>
-      </div>
-      <div class="card">
-        <div class="card-title">RAG — Base de Conhecimento</div>
-        <ul>
-          <li>Arquivo: <code>agent/base_conhecimento.py</code></li>
-          <li>Embedding: provedor configurável via <code>services/embeddings/</code> (V.1.4.39) — <code>ollama</code>/<code>embeddinggemma</code> local é o padrão, <code>openai</code>/<code>text-embedding-3-small</code> é opcional. Metadados <code>embedding_provider</code>/<code>embedding_model</code>/<code>embedding_dim</code> por linha evitam comparar vetores de dimensões diferentes</li>
-          <li>Cache em memória carregado no primeiro acesso</li>
-          <li>Busca cosine similarity para top-k contextos similares</li>
-          <li>Falha silenciosa: se embedding falhar, IA responde sem contexto RAG</li>
-          <li><span class="badge badge-gold" style="font-size:.65rem">V.1.4.40</span> Cada documento pode ter um arquivo original anexado (colunas <code>arquivo_nome_original</code>/<code>arquivo_path</code>/<code>arquivo_mime</code>/<code>arquivo_tamanho</code>, gravado em <code>data/base_arquivos/</code>) — o texto/embedding não mudam, o arquivo é só preservado para download em <code>GET /base/{id}/download</code></li>
-        </ul>
-      </div>
-      <div class="card">
-        <div class="card-title">Transcrição de áudio</div>
-        <ul>
-          <li>Provider: Groq (<code>whisper-large-v3</code>)</li>
-          <li>Configurado via <code>GROQ_API_KEY</code></li>
-          <li>Endpoint: <code>POST /audio-transcricao</code></li>
-          <li>Alternativa anterior (desativada por quota): OpenAI Whisper</li>
-        </ul>
-      </div>
-    </section>
-
-    <!-- MOTOR NBA V.1.4.28 -->
-    <section class="section" id="motor-nba">
-      <div class="section-title">Motor de Próxima Melhor Ação (V.1.4.28)</div>
-
-      <div class="alert alert-gold">
-        Implementado em <code>agent/prompt_templates/agente_tempo_real.txt</code> + <code>api/processador_tempo_real.py</code>. Combina SPIN, Sandler Enterprise e Venda Desafiadora.
-      </div>
-
-      <div class="card">
-        <div class="card-title">Campos retornados por <code>POST /tempo-real</code></div>
-        <table>
-          <tr><th>Campo</th><th>Tipo</th><th>Descrição</th></tr>
-          <tr><td><code>next_best_action</code></td><td>object</td><td>Ação consultiva recomendada (ver sub-campos abaixo)</td></tr>
-          <tr><td><code>conversation_stage</code></td><td>string</td><td>Estágio SPIN atual: abertura | situação | problema | implicação | necessidade | apresentação | negociação | compromisso</td></tr>
-          <tr><td><code>kare_type</code></td><td>string</td><td>Tipo da conta: keep | attain | recapture | expand</td></tr>
-          <tr><td><code>maturity_score</code></td><td>object</td><td>Score 0-100 + 7 critérios booleanos</td></tr>
-          <tr><td><code>score_compra</code></td><td>object</td><td><code>{valor, justificativa}</code> — score interno 0-100 (independente do maturity). Não é mais exibido diretamente na sidebar desde a V.1.4.40 (ver <code>propensao</code>)</td></tr>
-          <tr><td><code>propensao</code></td><td>object</td><td><span class="badge badge-gold" style="font-size:.65rem">V.1.4.40</span> <code>{nivel}</code> — alta | media | baixa | nao_determinada. Derivado deterministicamente de <code>score_compra.valor</code> por <code>agent/propensao_rules.py::classificar_propensao</code> (limiares: ≥70 alta, ≥45 media, senão baixa) dentro de <code>orquestrador.py::_mesclar</code> — nenhuma chamada de IA extra por fragmento. É o único campo de propensão que a extensão renderiza.</td></tr>
-          <tr><td><code>next_best_question</code></td><td>string</td><td>Alias backward-compat — derivado de <code>next_best_action.message</code></td></tr>
-        </table>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Sub-campos de <code>next_best_action</code></div>
-        <table>
-          <tr><th>Campo</th><th>Tipo</th><th>Descrição</th></tr>
-          <tr><td><code>type</code></td><td>string</td><td>question | insight | warning | next_step</td></tr>
-          <tr><td><code>category</code></td><td>string</td><td>spin_situacao | spin_problema | spin_implicacao | spin_necessidade | insight_desafiador | objecao | urgencia | autoridade | budget | valor</td></tr>
-          <tr><td><code>title</code></td><td>string</td><td>Nome curto da ação (ex: "Explorar impacto financeiro")</td></tr>
-          <tr><td><code>message</code></td><td>string</td><td>O que dizer — texto adaptado ao perfil DISC</td></tr>
-          <tr><td><code>objective</code></td><td>string</td><td>Meta da ação (ex: "Quantificar a dor")</td></tr>
-          <tr><td><code>reason</code></td><td>string</td><td>Por que a IA escolheu essa ação agora</td></tr>
-          <tr><td><code>expected_effect</code></td><td>string</td><td>O que deve acontecer se o cliente responder bem</td></tr>
-          <tr><td><code>risk_if_ignored</code></td><td>string</td><td>Consequência de não executar a ação</td></tr>
-          <tr><td><code>follow_up</code></td><td>string</td><td>O que fazer após a resposta do cliente</td></tr>
-          <tr><td><code>confidence</code></td><td>number</td><td>Confiança da IA na escolha, 0.0–1.0</td></tr>
-        </table>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Sub-campos de <code>maturity_score</code></div>
-        <table>
-          <tr><th>Campo</th><th>Descrição</th></tr>
-          <tr><td><code>total</code></td><td>Score geral 0-100 (soma ponderada dos 7 critérios)</td></tr>
-          <tr><td><code>dor_identificada</code></td><td>0 ou 1 — cliente verbalizou dor concreta</td></tr>
-          <tr><td><code>impacto_quantificado</code></td><td>0 ou 1 — impacto financeiro/operacional mensurado</td></tr>
-          <tr><td><code>urgencia</code></td><td>0 ou 1 — prazo ou pressão identificada</td></tr>
-          <tr><td><code>decisor_identificado</code></td><td>0 ou 1 — quem assina a compra é conhecido</td></tr>
-          <tr><td><code>budget_disponivel</code></td><td>0 ou 1 — capacidade de investimento confirmada</td></tr>
-          <tr><td><code>valor_verbalizado</code></td><td>0 ou 1 — cliente expressou desejo pela solução</td></tr>
-          <tr><td><code>proximo_passo_acordado</code></td><td>0 ou 1 — compromisso concreto de avanço acordado</td></tr>
-        </table>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Matriz de Decisão — 10 Regras (ordem de prioridade)</div>
-        <pre><code><span class="cmt"># Implementada em: agent/prompt_templates/agente_tempo_real.txt</span>
-<span class="cmt"># A IA percorre em ordem — aplica a PRIMEIRA regra que se encaixa</span>
-
-<span class="str">1. objeção ativa</span>         → type=warning   (prioridade absoluta)
-<span class="str">2. score≥70 + maturity≥60</span> → type=next_step  (momento de propor)
-<span class="str">3. preço antes de valor</span>   → type=warning   (ancorar valor primeiro)
-<span class="str">4. prob. operac. c/ implic.</span>→ type=insight   (Insight Desafiador)
-<span class="str">5. dor sem impacto</span>        → type=question  (SPIN Implicação)
-<span class="str">6. dor sem urgência</span>       → type=question  (SPIN urgência)
-<span class="str">7. sem dor identificada</span>   → type=question  (SPIN Situação/Problema)
-<span class="str">8. decisor desconhecido</span>   → type=question  (processo de decisão)
-<span class="str">9. sem budget</span>             → type=question  (capacidade de investimento)
-<span class="str">10. valor não verbalizado</span>  → type=question  (SPIN Necessidade)</code></pre>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Arquivos envolvidos</div>
-        <table>
-          <tr><th>Arquivo</th><th>Papel</th></tr>
-          <tr><td><code>agent/prompt_templates/agente_tempo_real.txt</code></td><td>Prompt completo com 10 regras, exemplos DISC por perfil, schema JSON de saída</td></tr>
-          <tr><td><code>api/processador_tempo_real.py</code></td><td>Normalização da resposta, fallbacks <code>_FALLBACK_NBA</code> e <code>_FALLBACK_MATURITY</code>, conversão NBA→NBQ</td></tr>
-          <tr><td><code>chrome-extension/content.js</code></td><td>Renderização: <code>renderizarStageKare()</code>, <code>renderizarNBQ()</code> (usa NBA), <code>renderizarMaturity()</code></td></tr>
-          <tr><td><code>chrome-extension/content.css</code></td><td>Estilos: <code>.saleia-stage-kare</code>, <code>.saleia-maturity-box</code>, <code>.saleia-maturity-chip</code></td></tr>
-        </table>
-      </div>
-
-      <div class="alert alert-blue">
-        <strong>Backward compatibility:</strong> <code>next_best_question</code> é mantido como alias derivado de <code>next_best_action.message</code> pela função <code>_nba_para_nbq()</code> em <code>processador_tempo_real.py</code>. Extensões antigas que lêem <code>next_best_question</code> continuam funcionando.
-      </div>
-    </section>
-
-    <!-- SALES BRAIN -->
-    <section class="section" id="sales-brain">
-      <div class="section-title">Sales Brain — Inteligência Comercial Acumulativa (V.1.4.31–V.1.4.37)</div>
-
-      <div class="alert alert-gold">O Sales Brain é o conjunto de módulos que transformam o SALEIA de ferramenta de reunião em plataforma de inteligência comercial acumulativa. Cada módulo adiciona uma camada de contexto que melhora as análises subsequentes.</div>
-
-      <!-- Multiagente -->
-      <div class="card" style="margin-top:16px">
-        <div class="card-title">Arquitetura Multiagente em Tempo Real <span class="badge badge-blue" style="font-size:.7rem;padding:2px 8px;margin-left:6px">V.1.4.36</span></div>
-        <p>O endpoint <code>POST /tempo-real</code> agora dispara 4 agentes especializados em paralelo via <code>asyncio.gather(return_exceptions=True)</code>:</p>
-        <pre><code><span class="cmt"># orquestrador.py — fluxo principal</span>
-<span class="kw">async def</span> analisar_fragmento_multi(transcricao_parcial, historico, perfil_disc_atual,
-        mapa_financeiro, resumo_vivo, diagnostico_atual, historico_scores, eventos,
-        skill_context<span class="str">=""</span>, client_context<span class="str">=""</span>) -> dict:
-
-    <span class="cmt"># RAG buscado uma única vez, compartilhado entre todos os agentes</span>
-    rag = await _buscar_rag(transcricao_parcial)
-    client_context += rag
-
-    coach, disc, finance, closer = await asyncio.gather(
-        analisar_coach(..., skill_context, client_context),
-        analisar_disc(...),
-        analisar_finance(...),
-        analisar_closer(...),
-        return_exceptions=<span class="kw">True</span>
-    )
-    <span class="cmt"># _safe() converte Exception em {} para degradação graceful</span>
-    <span class="kw">return</span> _mesclar(_safe(coach), _safe(disc), _safe(finance), _safe(closer))</code></pre>
-        <table style="margin-top:12px">
-          <tr><th>Agente</th><th>Arquivo</th><th>Saída principal</th></tr>
-          <tr><td>Coach</td><td><code>multiagente/coach_agent.py</code></td><td>conversation_stage, next_best_action, alerta_urgente, texto_falavel, key_moments</td></tr>
-          <tr><td>DISC</td><td><code>multiagente/disc_agent.py</code></td><td>perfil_disc, kare_type, temperatura</td></tr>
-          <tr><td>Finance</td><td><code>multiagente/finance_agent.py</code></td><td>mapa_financeiro, objecao_detectada</td></tr>
-          <tr><td>Closer</td><td><code>multiagente/closer_agent.py</code></td><td>score_compra, maturity_score, resumo_vivo, proxima_pergunta</td></tr>
-        </table>
-        <div class="alert alert-blue" style="margin-top:12px"><strong>Backward compat:</strong> <code>next_best_question</code> é gerado por <code>_nba_para_nbq()</code> no orquestrador — extensões Chrome antigas continuam funcionando sem alteração.</div>
-        <div class="alert alert-gold" style="margin-top:8px"><strong>V.1.4.40:</strong> logo após montar <code>score_compra</code>, <code>_mesclar()</code> também calcula <code>resultado["propensao"] = {"nivel": classificar_propensao(score.get("valor"))}</code> via <code>agent/propensao_rules.py</code> — puramente determinístico, sem chamada de IA adicional. É esse campo (não <code>score_compra</code>) que a extensão Chrome lê para exibir a Propensão de Compra na sidebar.</div>
-      </div>
-
-      <!-- Skills -->
-      <div class="card">
-        <div class="card-title">Skill Resolver <span class="badge badge-gold" style="font-size:.7rem;padding:2px 8px;margin-left:6px">V.1.4.33</span></div>
-        <p>O <code>skill_resolver.py</code> seleciona a skill ativa antes de cada chamada ao orquestrador:</p>
-        <pre><code><span class="kw">from</span> agent.skill_resolver <span class="kw">import</span> resolver_skill_context
-
-skill_context = resolver_skill_context(
-    disc_profile=<span class="str">"D"</span>,
-    score=<span class="str">72</span>,
-    conversation_stage=<span class="str">"fechamento"</span>
-)
-<span class="cmt"># Retorna string com instruções da skill "fechamento"
-# injetada em client_context do orquestrador</span></code></pre>
-        <table style="margin-top:8px">
-          <tr><th>Skill</th><th>Condição de Ativação</th></tr>
-          <tr><td>fechamento</td><td>score ≥ 70 + stage == "fechamento"</td></tr>
-          <tr><td>objecao_preco</td><td>objecao_detectada == true no Finance agent</td></tr>
-          <tr><td>prospecting</td><td>stage == "abertura"</td></tr>
-          <tr><td>negociacao</td><td>stage == "proposta" + temperatura != "alta"</td></tr>
-          <tr><td>reativacao</td><td>kare_type == "recapture" + score &lt; 40</td></tr>
-        </table>
-      </div>
-
-      <!-- Memórias -->
-      <div class="card">
-        <div class="card-title">Sales Memory <span class="badge badge-gold" style="font-size:.7rem;padding:2px 8px;margin-left:6px">V.1.4.31</span></div>
-        <p>Gerada assincronamente após <code>POST /recapitulacao-manual</code>. Extrai via <code>chamar_ia()</code> e persiste em <code>sales_memories</code>.</p>
-        <table>
-          <tr><th>Campo MySQL</th><th>Tipo</th><th>Descrição</th></tr>
-          <tr><td>id</td><td>CHAR(36) PK</td><td>UUID v4</td></tr>
-          <tr><td>meeting_id</td><td>VARCHAR(255)</td><td>FK lógica para reunião</td></tr>
-          <tr><td>user_id</td><td>INT</td><td>FK para usuarios</td></tr>
-          <tr><td>disc_profile</td><td>VARCHAR(5)</td><td>D / DI / IS / SC …</td></tr>
-          <tr><td>objections_json</td><td>JSON</td><td>Lista de objeções</td></tr>
-          <tr><td>pain_themes_json</td><td>JSON</td><td>Temas de dor</td></tr>
-          <tr><td>next_steps_json</td><td>JSON</td><td>Próximos passos acordados</td></tr>
-          <tr><td>final_score</td><td>INT</td><td>Score ao final da reunião</td></tr>
-          <tr><td>lessons_learned</td><td>TEXT</td><td>Lições para reuniões futuras</td></tr>
-        </table>
-      </div>
-
-      <!-- Playbooks -->
-      <div class="card">
-        <div class="card-title">Playbook Generator <span class="badge badge-gold" style="font-size:.7rem;padding:2px 8px;margin-left:6px">V.1.4.32</span></div>
-        <p>Ativado por <code>POST /relatorios/{mid}/marcar-ganha</code>. Lê a memória + recapitulação da reunião, gera roteiro via IA e salva na tabela <code>playbooks</code>.</p>
-        <table>
-          <tr><th>Campo</th><th>Tipo</th><th>Descrição</th></tr>
-          <tr><td>id</td><td>CHAR(36) PK</td><td>UUID v4</td></tr>
-          <tr><td>meeting_id</td><td>VARCHAR(255)</td><td>Reunião de origem</td></tr>
-          <tr><td>titulo</td><td>VARCHAR(500)</td><td>Título gerado pela IA</td></tr>
-          <tr><td>conteudo</td><td>LONGTEXT</td><td>Roteiro completo (markdown)</td></tr>
-          <tr><td>disc_profile</td><td>VARCHAR(5)</td><td>Perfil DISC para matching</td></tr>
-          <tr><td>stage</td><td>VARCHAR(50)</td><td>Estágio SPIN (abertura…compromisso)</td></tr>
-          <tr><td>score_origem</td><td>INT</td><td>Score final da reunião ganhadora</td></tr>
-        </table>
-      </div>
-
-      <!-- Clientes -->
-      <div class="card">
-        <div class="card-title">Client Intelligence <span class="badge badge-gold" style="font-size:.7rem;padding:2px 8px;margin-left:6px">V.1.4.34</span></div>
-        <div class="grid-2" style="margin-top:8px">
-          <div>
-            <p style="font-size:.83rem;font-weight:700;margin-bottom:6px">Tabela <code>client_profiles</code></p>
-            <table>
-              <tr><th>Campo</th><th>Tipo</th></tr>
-              <tr><td>id</td><td>CHAR(36) PK</td></tr>
-              <tr><td>user_id</td><td>INT</td></tr>
-              <tr><td>nome</td><td>VARCHAR(200)</td></tr>
-              <tr><td>empresa</td><td>VARCHAR(200)</td></tr>
-              <tr><td>cargo</td><td>VARCHAR(100)</td></tr>
-              <tr><td>email</td><td>VARCHAR(200)</td></tr>
-              <tr><td>whatsapp</td><td>VARCHAR(30)</td></tr>
-              <tr><td>notas</td><td>TEXT</td></tr>
-              <tr><td>status</td><td>VARCHAR(20) DEFAULT 'ativo'</td></tr>
-            </table>
-          </div>
-          <div>
-            <p style="font-size:.83rem;font-weight:700;margin-bottom:6px">Tabela <code>client_meetings</code></p>
-            <table>
-              <tr><th>Campo</th><th>Tipo</th></tr>
-              <tr><td>client_id</td><td>CHAR(36) FK</td></tr>
-              <tr><td>meeting_id</td><td>VARCHAR(255)</td></tr>
-              <tr><td>score_reuniao</td><td>INT</td></tr>
-              <tr><td>vinculado_em</td><td>DATETIME</td></tr>
-            </table>
-            <p style="font-size:.82rem;color:var(--muted);margin-top:8px">Status válidos: <code>ativo</code> <code>ganho</code> <code>em_pausa</code> <code>perdido</code>. Metrics (total reuniões, score médio) calculados na query de listagem via JOIN + AVG.</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Follow-up -->
-      <div class="card">
-        <div class="card-title">Follow-up Inteligente <span class="badge badge-gold" style="font-size:.7rem;padding:2px 8px;margin-left:6px">V.1.4.37</span></div>
-        <p>Fluxo: <code>POST /relatorios/{mid}/followups/gerar</code> → lê memória + DISC + score → <code>gerar_e_salvar_followups()</code> → IA gera 3 mensagens → <code>agenda_inteligente(score)</code> calcula timing → 3 INSERTs no MySQL.</p>
-        <pre><code><span class="cmt"># Agenda inteligente — server-side, determinístico, sem risco de alucinação de datas</span>
-<span class="kw">def</span> agenda_inteligente(score: int) -> list[dict]:
-    <span class="kw">if</span> score >= <span class="str">65</span>:   <span class="cmt"># hot</span>
-        <span class="kw">return</span> [{<span class="str">"dias"</span>: <span class="str">1</span>, <span class="str">"canal"</span>: <span class="str">"whatsapp"</span>}, {<span class="str">"dias"</span>: <span class="str">4</span>, <span class="str">"canal"</span>: <span class="str">"email"</span>}, {<span class="str">"dias"</span>: <span class="str">10</span>, <span class="str">"canal"</span>: <span class="str">"linkedin"</span>}]
-    <span class="kw">elif</span> score >= <span class="str">35</span>: <span class="cmt"># warm</span>
-        <span class="kw">return</span> [{<span class="str">"dias"</span>: <span class="str">3</span>, ...}, {<span class="str">"dias"</span>: <span class="str">7</span>, ...}, {<span class="str">"dias"</span>: <span class="str">15</span>, ...}]
-    <span class="kw">else</span>:              <span class="cmt"># cold</span>
-        <span class="kw">return</span> [{<span class="str">"dias"</span>: <span class="str">2</span>, ...}, {<span class="str">"dias"</span>: <span class="str">5</span>, ...}, {<span class="str">"dias"</span>: <span class="str">14</span>, ...}]</code></pre>
-        <table style="margin-top:8px">
-          <tr><th>Campo MySQL (<code>followups</code>)</th><th>Tipo</th><th>Descrição</th></tr>
-          <tr><td>id</td><td>CHAR(36) PK</td><td>UUID v4</td></tr>
-          <tr><td>meeting_id</td><td>VARCHAR(255)</td><td>Reunião de origem</td></tr>
-          <tr><td>client_id</td><td>CHAR(36) NULL</td><td>Cliente vinculado (opcional)</td></tr>
-          <tr><td>canal</td><td>VARCHAR(20)</td><td>whatsapp / email / linkedin</td></tr>
-          <tr><td>assunto</td><td>VARCHAR(500)</td><td>Assunto do e-mail (NULL p/ outros canais)</td></tr>
-          <tr><td>mensagem</td><td>LONGTEXT</td><td>Texto gerado pela IA</td></tr>
-          <tr><td>call_to_action</td><td>VARCHAR(500)</td><td>CTA específico do canal</td></tr>
-          <tr><td>tom</td><td>VARCHAR(100)</td><td>Tom usado pela IA (informal, profissional…)</td></tr>
-          <tr><td>disc_profile</td><td>VARCHAR(5)</td><td>Perfil DISC no momento da geração</td></tr>
-          <tr><td>score</td><td>INT</td><td>Score da reunião</td></tr>
-          <tr><td>dias_apos</td><td>INT</td><td>Dias após a reunião para envio sugerido</td></tr>
-          <tr><td>agendado_para</td><td>DATETIME</td><td>Data/hora UTC calculada automaticamente</td></tr>
-          <tr><td>status</td><td>VARCHAR(20)</td><td>pendente / enviado / descartado</td></tr>
-        </table>
-        <div class="alert alert-blue" style="margin-top:10px"><strong>STATUS_VALIDOS</strong>: apenas <code>pendente</code>, <code>enviado</code> e <code>descartado</code> são aceitos pelo <code>atualizar_followup()</code> — qualquer outro valor levanta <code>ValueError</code> antes de atingir o banco.</div>
-      </div>
-    </section>
-
-    <!-- SALE-IA V2 -->
-    <section class="section" id="sale-ia-v2">
-      <div class="section-title">SALE-IA V2 — "PROMPT MESTRE" (Fases 1–13)</div>
-      <div class="alert alert-blue">Roadmap de 25 fases (`PROMPT MESTRE — SALE-IA V2-03_09_26.txt`, raiz do repo), <strong>diferente</strong> do "PROMPT MESTRE — EVOLUÇÃO DA SALEIA.txt" (Observabilidade/Promptfoo/Whisper Local/Biblioteca de Inteligência, já documentados acima). Fases 1–13 concluídas (V.1.4.73–1.4.99); Fase 14 (Experiment Engine) em diante exige nova confirmação explícita do usuário antes de começar — ver <code>docs/TASKS.md</code>.</div>
-      <div class="card">
-        <div class="card-title">Padrão comum a todas as 13 fases</div>
-        <ul>
-          <li>Cada tarefa é um módulo novo em <code>agent/*_rules.py</code> (ou nome próprio tipo <code>sales_reasoning_engine.py</code>) — <strong>função pura, zero IA e zero banco</strong>, exceto onde indicado.</li>
-          <li><strong>Nenhum está integrado</strong> a <code>orquestrador.py</code>/<code>processador_tempo_real.py</code> nem exposto por endpoint HTTP — são motores prontos, aguardando decisão de produto separada para plugar no tempo real.</li>
-          <li>Disciplina de evidência: dado de domínio (SalesEvent, SalesEvidence, hipóteses de MEDDPICC/motivação/objeção) nunca nasce sem uma <code>evidence_quote</code>/evidência real — valida com <code>ValueError</code>, nunca falha silenciosa como <code>AiUsageEvent</code>.</li>
-          <li>Estatística sem <code>scipy</code>: significância usa <code>win_loss_rules.amostra_suficiente()</code> (n≥30) + <code>intervalo_confianca_wilson()</code> (Fase 8), reaproveitados por Seasonality (9), Benchmark (12) e Sales Science (13).</li>
-          <li>Guarda de causalidade: templates de texto fixos, nunca f-string ad hoc, testados por <code>GuardaContraCausalidadeTest</code> (grep pela palavra "causa", inclusive dentro de negações).</li>
-        </ul>
-      </div>
-      <table>
-        <tr><th>Fase</th><th>Nome</th><th>Módulo(s)</th><th>Versão</th></tr>
-        <tr><td>1</td><td>Modelo canônico (SalesEvent/SalesEvidence)</td><td><code>sales_event_rules.py</code>, <code>sales_evidence_rules.py</code></td><td>1.4.73–74</td></tr>
-        <tr><td>2</td><td>Opportunity Memory + Graph</td><td><code>opportunity_memory_rules.py</code>, <code>opportunity_graph_rules.py</code></td><td>1.4.75</td></tr>
-        <tr><td>3</td><td>SPIN Coverage + Question Gap</td><td><code>spin_coverage_rules.py</code>, <code>question_gap_rules.py</code></td><td>1.4.76–77</td></tr>
-        <tr><td>4</td><td>MEDDPICC + Deal Risk</td><td><code>meddpicc_rules.py</code>, <code>deal_risk_rules.py</code></td><td>1.4.78–79</td></tr>
-        <tr><td>5</td><td>Motivação + Sinais Comportamentais</td><td><code>buyer_motivation_rules.py</code>, <code>behavioral_signal_rules.py</code></td><td>1.4.80–81</td></tr>
-        <tr><td>6</td><td>Objeção (taxonomia + root cause) + Negociação</td><td><code>objection_rules.py</code>, <code>negotiation_rules.py</code></td><td>1.4.82–83</td></tr>
-        <tr><td>7</td><td>Sales Reasoning Engine (motor central)</td><td><code>sales_reasoning_engine.py</code> — único com chamada de IA real (<code>raciocinar_async()</code>, via <code>claude_fallback</code>)</td><td>1.4.84–85</td></tr>
-        <tr><td>8</td><td>Outcome Tracking + Win/Loss Intelligence</td><td><code>outcome_rules.py</code>, <code>win_loss_rules.py</code></td><td>1.4.86–87</td></tr>
-        <tr><td>9</td><td>Data Warehouse + Sazonalidade (temporal/contextual)</td><td><code>data_warehouse_rules.py</code>, <code>seasonality_rules.py</code>, <code>contextual_seasonality_rules.py</code></td><td>1.4.88–90</td></tr>
-        <tr><td>10</td><td>RecommendationEvent + uso + efetividade</td><td>tabela <code>RecommendationEvent</code>, <code>recommendation_usage_rules.py</code> (embeddings), <code>recommendation_effectiveness_rules.py</code></td><td>1.4.91–93</td></tr>
-        <tr><td>11</td><td>Seller Coaching (métricas de conversa + scorecard)</td><td><code>conversation_metrics_rules.py</code>, <code>seller_scorecard_rules.py</code></td><td>1.4.94–95</td></tr>
-        <tr><td>12</td><td>Collective Sales Intelligence</td><td><code>seller_benchmark_rules.py</code>, <code>pattern_discovery_rules.py</code></td><td>1.4.96–97</td></tr>
-        <tr><td>13</td><td>Sales Science Engine (consolidação, 7 submódulos)</td><td><code>sales_science_engine.py</code> + <code>objection_trend_analyzer.py</code> + <code>conversion_driver_analyzer.py</code> (reshape puro dos módulos das Fases 8–12, via <code>montar_insight()</code>)</td><td>1.4.98–99</td></tr>
-      </table>
-      <div class="card" style="margin-top:12px">
-        <div class="card-title">Onde ler o detalhe de cada fase</div>
-        <p>Cada versão tem uma seção própria em <code>CHANGELOG.md</code> e um resumo em <code>CLAUDE.md</code> (mesmo nome de seção da fase) com as decisões de escopo tomadas naquela rodada — este manual só mapeia onde o código está, não repete o histórico de decisões.</p>
-      </div>
-    </section>
-
-    <!-- BANCO -->
-    <section class="section" id="banco">
-      <div class="section-title">Banco de Dados</div>
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-title">MySQL — Tabelas</div>
-          <ul>
-            <li><code>usuarios</code> — auth, perfil, plano, reset_token</li>
-            <li><code>reunioes</code> — meeting_id, dados da sessão</li>
-            <li><code>meeting_memory</code> — SQLModel, <code>api/database.py::MeetingMemory</code>. <code>transcript_full</code>/<code>transcript_buffer</code>/<code>accumulated_summary</code>/<code>current_diagnosis</code> usam <code>_LongText</code> (<code>MEDIUMTEXT</code>, até 16MB) desde V.1.4.100 — eram <code>Text</code> puro (64KB) e estouravam em reuniões reais longas (ver Troubleshoot)</li>
-            <li><code>base_conhecimento</code> — textos + embeddings para RAG</li>
-            <li><code>relatorios</code> — recapitulações, DISC, score history</li>
-            <li><code>sales_memories</code> — memórias extraídas por reunião</li>
-            <li><code>meeting_status</code> — flags de reunião (ganha, etc.)</li>
-            <li><code>playbooks</code> — roteiros de reuniões ganhas</li>
-            <li><code>skills</code> — módulos de skill com instruções</li>
-            <li><code>client_profiles</code> — perfis de clientes</li>
-            <li><code>client_meetings</code> — vínculo cliente↔reunião</li>
-            <li><code>followups</code> — mensagens de follow-up por canal</li>
-            <li><code>opportunities</code> / <code>opportunity_memories</code> / <code>opportunity_graph_edges</code> / <code>sales_events</code> / <code>sales_evidences</code> / <code>recommendation_events</code> — schema do "SALE-IA V2" (ver seção própria abaixo)</li>
-          </ul>
-        </div>
-        <div class="card">
-          <div class="card-title">SQLite — Métricas e Estado Compartilhado</div>
-          <ul>
-            <li>Path: <code>data/metricas.db</code></li>
-            <li>Tabela <code>metricas_historico</code>: <code>ts, banco_latencia, reunioes_ativas, chamadas_ia, falhas_ia</code> — retenção 24h, escrita a cada 60s</li>
-            <li>Tabela <code>teste_provedores</code>: <code>pid, ok, ts, detalhe</code> — resultado do último teste de conexão por provedor (upsert atômico via <code>ON CONFLICT DO UPDATE</code>)</li>
-            <li><strong>Multi-worker:</strong> com <code>--workers 2</code>, estado in-memory (<code>_ultimo_teste</code>) é isolado por processo. A tabela <code>teste_provedores</code> é o único estado compartilhado entre workers — todos leem/escrevem via <code>metricas_historico.py</code></li>
-            <li>Criação automática no startup via <code>criar_tabela_metricas()</code> e <code>criar_tabela_teste_provedores()</code></li>
-          </ul>
+          <div class="flow-step"><div class="flow-num">1</div><div class="flow-content"><h4>Testes, versão e documentação</h4><p>Suíte relevante passando; versão nova em <code>api/main.py</code> (2 lugares) e/ou <code>chrome-extension/manifest.json</code>; CHANGELOG e <code>docs/CURRENT_STATE.md</code>.</p></div></div>
+          <div class="flow-step"><div class="flow-num">2</div><div class="flow-content"><h4>Commit + push</h4><p>Só os arquivos da mudança (<code>git add &lt;arquivos&gt;</code>), push para <code>main</code>.</p></div></div>
+          <div class="flow-step"><div class="flow-num">3</div><div class="flow-content"><h4>Levar o código à VPS</h4><p>Por <strong>git bundle</strong>: <code>git bundle create x.bundle &lt;HEAD da VPS&gt;..main</code>, enviar por SFTP e <code>git pull --ff-only x.bundle main</code> em <code>/opt/saleia</code> (a credencial do remote na VPS precisa ser renovada para voltar ao <code>git pull origin</code>).</p></div></div>
+          <div class="flow-step"><div class="flow-num">4</div><div class="flow-content"><h4>Dependências</h4><p>Se <code>requirements.txt</code> mudou: <code>./venv/bin/pip install -r requirements.txt</code> e <code>pip check</code> antes do restart.</p></div></div>
+          <div class="flow-step"><div class="flow-num">5</div><div class="flow-content"><h4>Restart (sem reunião ativa)</h4><p><code>systemctl restart saleia</code>. Só HTML do <code>frontend/</code>? Não precisa reiniciar: as páginas são lidas do disco.</p></div></div>
+          <div class="flow-step"><div class="flow-num">6</div><div class="flow-content"><h4>Validar</h4><p><code>/health</code> com a versão nova e <code>ia_disponivel</code>, <code>systemctl is-active saleia</code>, <code>NRestarts=0</code> e journal sem ERROR/Traceback. Tabela nova: confirmar que foi criada.</p></div></div>
         </div>
       </div>
       <div class="card">
-        <div class="card-title">Migrations automáticas no startup</div>
-        <p>A função <code>migrar_colunas_usuarios()</code> em <code>main.py</code> roda no startup e adiciona colunas faltantes na tabela <code>usuarios</code> sem recriar a tabela. Seguro para produção.</p>
+        <div class="card-title">Extensão</div>
+        <p>Gerar o <code>chrome-extension.zip</code> com Python <code>zipfile</code> (barras normais; o Compress-Archive do PowerShell 5.1 grava barra invertida). O vendedor precisa reinstalar a extensão — o servidor não atualiza a extensão sozinho. A versão em uso aparece nos logs (<code>ext_ver</code>).</p>
       </div>
     </section>
 
     <!-- MONITOR -->
     <section class="section" id="monitor">
-      <div class="section-title">Monitor / Observabilidade</div>
-      <div class="card">
-        <div class="card-title">Aba Monitor no Dashboard</div>
-        <ul>
-          <li>Uptime, chamadas IA, sucesso/falha, fallbacks, circuit breaks</li>
-          <li>Reuniões ativas e hoje</li>
-          <li>Tabela por provedor: sucesso, falha, latência média, status%</li>
-          <li>Sparklines de 6h via histórico SQLite</li>
-          <li>Banco de dados: latência, modo (mysql/fallback)</li>
-        </ul>
-      </div>
-      <div class="card">
-        <div class="card-title">Grafana Cloud Tempo (OpenTelemetry)</div>
-        <ul>
-          <li>Stack: <code>slimturtle2775</code> — região <code>sa-east-1</code></li>
-          <li>Traces de todas as rotas FastAPI chegam em tempo real</li>
-          <li>Datasource: <code>grafanacloud-slimturtle2775-traces</code></li>
-          <li>Configuração via <code>OTEL_EXPORTER_OTLP_ENDPOINT</code> e <code>OTEL_EXPORTER_OTLP_HEADERS</code></li>
-          <li>Instrumentação em nível de módulo — <code>FastAPIInstrumentor.instrument_app(app)</code></li>
-        </ul>
-      </div>
-      <div class="card">
-        <div class="card-title">Alertas Telegram</div>
-        <ul>
-          <li>Disparado por: circuit breaker aberto, taxa de falha alta, latência alta</li>
-          <li>Configurar: <code>TELEGRAM_BOT_TOKEN</code> + <code>TELEGRAM_CHAT_ID</code> no <code>.env</code></li>
-          <li>Arquivo: <code>agent/alertas.py</code></li>
-        </ul>
+      <div class="section-title">Monitor e observabilidade</div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Dashboard</div>
+          <ul>
+            <li>Aba Monitor: uptime, chamadas de IA, falhas, fallbacks, circuit breaks, latência por provedor, sparklines de 6h, transcrição, reuniões ativas.</li>
+            <li>Custos: gasto por usuário, reunião, feature e provedor; projeção, margem e anomalias.</li>
+            <li><code>/admin/readiness</code> (9 critérios da Fase 25) e <code>/admin/data-quality</code>.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">Fora do Dashboard</div>
+          <ul>
+            <li>OpenTelemetry → Grafana Cloud Tempo (traces das rotas).</li>
+            <li>Telegram: banco offline/lento, IA fora do ar e volta, taxa de erro, circuit breaker (1 por provedor/hora), orçamento, anomalia de custo, escalonamento humano. Envio em thread de fundo, por IPv4.</li>
+            <li>Langfuse disponível, desligado.</li>
+          </ul>
+        </div>
       </div>
     </section>
 
-    <!-- SEGURANÇA -->
-    <section class="section" id="seguranca">
-      <div class="section-title">Segurança / Auth</div>
+    <!-- TESTES -->
+    <section class="section" id="testes">
+      <div class="section-title">Testes</div>
       <div class="card">
-        <div class="card-title">JWT</div>
         <ul>
-          <li>Algoritmo: HS256</li>
-          <li>Secret: <code>JWT_SECRET</code> no <code>.env</code> — mínimo 32 caracteres</li>
-          <li>Payload: <code>{sub: email, role: admin|gerente|usuario, exp}</code></li>
-          <li>Header: <code>Authorization: Bearer &lt;token&gt;</code></li>
-          <li>Interceptado automaticamente pelo fetch global no dashboard</li>
+          <li>Backend: ~150 arquivos <code>tests/test_*.py</code> (~1.900 testes, ~30 min a suíte completa). Rodar com o Python do venv: <code>./venv/Scripts/python.exe -m unittest tests.test_x</code>.</li>
+          <li>Extensão: <code>node --test tests/js/test_gravacao_extensao.js</code> e <code>tests/js/test_extensao_transcricao.js</code> (arquivo a arquivo; diretório falha no Windows). <code>tests/js/background_falso.js</code> carrega o service worker com um <code>chrome</code> falso.</li>
+          <li>Avaliação: Golden Dataset (<code>scripts/quality_monitoring_golden_run.py --real</code>), benchmark de transcrição, qualidade de recomendação, avaliação do Shadow Mode — rodados na VPS, gravam em <code>readiness_medicoes</code>.</li>
+          <li>Áudio real nos testes: WebM/Opus gerado com PyAV.</li>
         </ul>
       </div>
-      <div class="card">
-        <div class="card-title">Perfis de acesso</div>
-        <table>
-          <tr><th>Perfil</th><th>Acesso</th></tr>
-          <tr><td><code>admin</code></td><td>Tudo — admin de usuários, APIs, monitor, configurações.</td></tr>
-          <tr><td><code>gerente</code></td><td>Monitor + relatórios. Sem gestão de usuários/APIs.</td></tr>
-          <tr><td><code>usuario</code></td><td>Reuniões e relatórios próprios.</td></tr>
-        </table>
-      </div>
-      <div class="card">
-        <div class="card-title">Admin padrão</div>
-        <p>Email: <code>phpos35@gmail.com</code> — cadastrado via <code>POST /auth/cadastro</code> e promovido para admin direto no MySQL.</p>
-      </div>
-      <div class="alert alert-red">
-        <strong>Nunca expor no frontend:</strong> chaves de API, JWT_SECRET, credenciais de banco. O frontend nunca recebe segredos — apenas tokens JWT de curta duração.
-      </div>
+      <div class="alert alert-red">Isolar o banco em todo teste novo (SQLite temporário + <code>patch.object(database, "engine", ...)</code>) e substituir chamadas que leem usuários do MySQL — o <code>.env</code> local aponta para produção.</div>
     </section>
 
     <!-- TROUBLESHOOT -->
@@ -933,109 +697,76 @@ skill_context = resolver_skill_context(
       <div class="section-title">Troubleshoot</div>
 
       <div class="card">
-        <div class="card-title">Serviço não sobe</div>
-        <pre><code><span class="cmt"># Ver erro de startup</span>
-<span class="cmd">journalctl -u saleia -n 50 --no-pager</span>
-<span class="cmd">tail -50 /opt/saleia/logs/saleia.log</span>
-<span class="cmt"># Testar manualmente</span>
-<span class="cmd">cd /opt/saleia && venv/bin/uvicorn api.main:app --host 127.0.0.1 --port 8001</span></code></pre>
+        <div class="card-title">Diagnóstico rápido (na VPS)</div>
+        <pre><code><span class="cmd">curl -s http://127.0.0.1:8000/health | python3 -m json.tool</span>
+<span class="cmd">systemctl status saleia --no-pager -l</span>
+<span class="cmd">journalctl -u saleia --since '-30 min' --no-pager -o cat | grep -E '"level": "(ERROR|CRITICAL)"|Traceback'</span>
+<span class="cmt"># Erros reais de IA (sem o ruído de circuit breaker/cooldown):</span>
+<span class="cmd">journalctl -u saleia --since '-1h' -o cat | grep -E 'WARNING|ERROR' | grep -vE 'circuit breaker is open|cooldown'</span></code></pre>
       </div>
 
       <div class="card">
-        <div class="card-title">Monitor retorna 401</div>
-        <p>O fetch interceptor global injeta o token automaticamente. Se falhar:</p>
-        <ul style="margin-top:8px">
-          <li>Verificar se <code>saleia_token</code> existe no localStorage</li>
-          <li>Verificar se o token não expirou</li>
-          <li>Fazer logout e login novamente</li>
-        </ul>
+        <div class="card-title">IA fora do ar (todas as sugestões vazias)</div>
+        <p>Quase sempre é saldo ou chave: <code>/health</code> mostra <code>ia_disponivel: false</code> e a causa por provedor (402/429 = sem saldo, 400 de crédito baixo, chave inválida). Recarregar o provedor resolve; o Telegram avisa quando volta.</p>
       </div>
 
       <div class="card">
-        <div class="card-title">DeepSeek não aparece no Monitor (0/0)</div>
+        <div class="card-title">API devolve 502 depois de horas no ar</div>
+        <p>Já foi vazamento de descritores (conexão SQLite não fechada, 10/10/2026). Contar os abertos por worker: <code>ls /proc/&lt;pid&gt;/fd | wc -l</code> (limite 1024). Restart resolve na hora; o código atual fecha as conexões.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Deploy não reinicia</div>
+        <p>Há reunião ativa (<code>reunioes_ativas &gt; 0</code>). Espere: o restart pode ser refeito em loop a cada poucos minutos até liberar. O reinício diário das 06:00 UTC também só acontece sem reunião.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Erro 1684 no startup</div>
+        <p>Corrida de DDL entre os 2 workers ao criar tabela nova — resolvida com <code>GET_LOCK</code> (<code>lock_de_schema</code>). Se reaparecer, conferir se a tabela nova foi criada fora de <code>criar_tabelas()</code>.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Gravação</div>
         <ul>
-          <li>Verificar ordem em <code>data/ai_provider_order.json</code> na VPS</li>
-          <li>Se Anthropic/OpenAI estiverem antes, resolvem tudo antes do DeepSeek ser tentado</li>
-          <li>Corrigir ordem via SSH (ver seção Roteador de IA)</li>
-          <li>Verificar se <code>DEEPSEEK_API_KEY</code> está no <code>.env</code></li>
+          <li>Popup diz "desativada no servidor": <code>GRAVACAO_AUDIO_ENABLED</code> está desligada.</li>
+          <li>Trilha da aba em silêncio: normal se ninguém mais estava na chamada; confira no painel Gravações (gráfico de volume).</li>
+          <li>Gravação ficou "gravando": a extensão antiga não fechava no fim da reunião; a manutenção fecha depois de 30 min sem bloco.</li>
+          <li>Integridade "erro": ver as lacunas na reunião do painel; falta do bloco 0 = sem cabeçalho, a parte não toca.</li>
         </ul>
       </div>
 
       <div class="card">
-        <div class="card-title">Provedor retorna 429 (quota)</div>
+        <div class="card-title">Transcrição com texto de tela ou falante errado</div>
         <ul>
-          <li>OpenAI: verificar quota em platform.openai.com</li>
-          <li>Anthropic: verificar créditos em console.anthropic.com</li>
-          <li>O roteador faz fallback automaticamente após 3 falhas (circuit breaker)</li>
-          <li>Groq (transcrição): verificar limits em console.groq.com</li>
+          <li>Texto do Meet/Gemini/Tactiq na transcrição: incluir a frase em <code>agent/ruido_interface_rules.py</code> (vale também para extensões antigas).</li>
+          <li>Tudo com o mesmo falante: extensão antiga (antes da 1.4.20) ou legenda do Meet sem nome — reinstalar a extensão.</li>
         </ul>
       </div>
 
       <div class="card">
-        <div class="card-title">RAG não funciona / documento salvo sem embedding</div>
-        <p>Desde a V.1.4.39, o provedor padrão é <code>EMBEDDING_PROVIDER=ollama</code> (local) — o erro mais comum não é mais 401 da OpenAI, é o Ollama inacessível.</p>
-        <ul style="margin-top:8px">
-          <li><strong>Se <code>EMBEDDING_PROVIDER=ollama</code> (padrão):</strong> verificar <code>ollama.service</code> ativo na VPS (<code>ssh root@37.27.214.33 "systemctl status ollama"</code>) e que escuta em <code>127.0.0.1:11434</code>. Checar status agregado em <code>GET /admin/embeddings/status</code> (JWT admin).</li>
-          <li><strong>Se <code>EMBEDDING_PROVIDER=openai</code>:</strong> a chave <code>OPENAI_API_KEY</code> está inválida ou expirada — atualizar via painel admin → APIs → OpenAI → Salvar.</li>
-          <li>Em ambos os casos a falha é graciosa: o documento é salvo <em>sem</em> embedding (aviso no retorno de <code>POST /base</code>) em vez de derrubar a requisição — rodar <code>scripts/reindex_embeddings.py</code> depois de corrigir o provedor.</li>
-        </ul>
+        <div class="card-title">RAG sem contexto / documento salvo sem embedding</div>
+        <p>Com <code>EMBEDDING_PROVIDER=ollama</code> (padrão), conferir <code>ollama.service</code> e o status em <code>GET /admin/embeddings/status</code>. A falha é graciosa: o documento é salvo sem embedding; rodar <code>scripts/reindex_embeddings.py</code> depois.</p>
       </div>
 
       <div class="card">
-        <div class="card-title">Transcrição some no meio de uma reunião longa (fix V.1.4.100)</div>
-        <p><code>pymysql.err.DataError (1406, "Data too long for column 'transcript_full'")</code> — reunião com mais de ~1h30 estourava o limite de 64KB do MySQL <code>TEXT</code> puro (achado real em 15-16/09/2026). Desde a V.1.4.100, <code>MeetingMemory.transcript_full</code>/<code>transcript_buffer</code>/<code>accumulated_summary</code>/<code>current_diagnosis</code> usam <code>MEDIUMTEXT</code> (até 16MB) no código.</p>
-        <div class="alert alert-red" style="margin-top:8px"><code>create_all()</code> não migra colunas de tabela já existente — em qualquer VPS que ainda não rodou o <code>ALTER TABLE</code> abaixo, o bug continua ativo mesmo com o código já atualizado.</div>
-        <pre><code><span class="cmt"># Rodar só com reunioes_ativas: 0 confirmado em /health</span>
-<span class="cmd">mysql -h $DB_HOST -u $DB_USER -p$DB_PASS $DB_NAME -e "
-ALTER TABLE meeting_memory MODIFY transcript_full MEDIUMTEXT,
-  MODIFY transcript_buffer MEDIUMTEXT,
-  MODIFY accumulated_summary MEDIUMTEXT,
-  MODIFY current_diagnosis MEDIUMTEXT;"</span></code></pre>
+        <div class="card-title">Monitor ou painel com 401</div>
+        <p>Token vencido ou ausente (<code>saleia_token</code> no localStorage): sair e entrar de novo.</p>
       </div>
+    </section>
 
-      <div class="card">
-        <div class="card-title">Gemini retorna 404 (modelo descontinuado)</div>
-        <pre><code><span class="cmt"># Atualizar modelo no .env da VPS</span>
-<span class="cmd">ssh root@37.27.214.33 "sed -i 's/GEMINI_MODEL=.*/GEMINI_MODEL=gemini-2.5-flash/' /opt/saleia/.env && systemctl restart saleia"</span></code></pre>
-      </div>
-
-      <div class="card">
-        <div class="card-title">502 Bad Gateway (workers zombie)</div>
-        <p>Uvicorn aceita a conexão TCP mas retorna resposta vazia após ~2,5 dias de uptime. O Nginx recebe "Empty reply from server" e repassa o 502 ao Cloudflare.</p>
-        <ul style="margin-top:8px">
-          <li><strong>Diagnóstico:</strong> <code>curl -v --resolve api.saleia.app.br:443:37.27.214.33 https://api.saleia.app.br/health</code> → "Empty reply from server"</li>
-          <li><strong>Fix imediato:</strong> <code>ssh root@37.27.214.33 "systemctl restart saleia"</code></li>
-          <li><strong>Prevenção permanente:</strong> <code>RuntimeMaxSec=86400</code> no <code>/etc/systemd/system/saleia.service</code> — reinício automático diário (já aplicado)</li>
-          <li>Após editar a unit: <code>systemctl daemon-reload && systemctl restart saleia</code></li>
-        </ul>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Serviço fica em stop-sigterm (timeout 90s)</div>
-        <p>Uvicorn não finaliza limpo — ocorre quando há conexões pendentes. Causa comum: 2 workers com estado compartilhado.</p>
-        <ul style="margin-top:8px">
-          <li>VPS configurada com <code>--workers 1</code> para evitar isolamento de contadores</li>
-          <li>Se ocorrer: <code>systemctl kill -s SIGKILL saleia && systemctl start saleia</code></li>
-        </ul>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Comandos de diagnóstico rápido</div>
-        <pre><code><span class="cmt"># Health</span>
-<span class="cmd">curl -s https://api.saleia.app.br/health | python3 -m json.tool</span>
-
-<span class="cmt"># Status do serviço</span>
-<span class="cmd">ssh root@37.27.214.33 "systemctl status saleia --no-pager -l"</span>
-
-<span class="cmt"># Últimas 30 linhas de log</span>
-<span class="cmd">ssh root@37.27.214.33 "tail -30 /opt/saleia/logs/saleia.log"</span>
-
-<span class="cmt"># Ordem dos provedores</span>
-<span class="cmd">ssh root@37.27.214.33 "cat /opt/saleia/data/ai_provider_order.json"</span>
-
-<span class="cmt"># Verificar chaves</span>
-<span class="cmd">ssh root@37.27.214.33 "python3 -c \"from dotenv import dotenv_values; env=dotenv_values('/opt/saleia/.env'); [print(k,'✅' if env.get(k,'') else '❌') for k in ['DEEPSEEK_API_KEY','OPENAI_API_KEY','ANTHROPIC_API_KEY','GROQ_API_KEY']]\""</span></code></pre>
-      </div>
+    <!-- DOCS -->
+    <section class="section" id="docs">
+      <div class="section-title">Outros documentos (repositório)</div>
+      <div class="tabela"><table>
+        <tr><th>Arquivo</th><th>Conteúdo</th></tr>
+        <tr><td><code>docs/CURRENT_STATE.md</code></td><td>Estado atual e pendências — ler primeiro</td></tr>
+        <tr><td><code>CHANGELOG.md</code></td><td>Histórico por versão, com decisões e números</td></tr>
+        <tr><td><code>docs/ARCHITECTURE.md</code>, <code>docs/SALES_BRAIN_ARCHITECTURE.md</code></td><td>Arquitetura geral e do motor de inteligência</td></tr>
+        <tr><td><code>docs/SECURITY_MODEL.md</code></td><td>Modelo de segurança e lacunas conhecidas</td></tr>
+        <tr><td><code>docs/DATA_DICTIONARY.md</code></td><td>Tabelas e campos</td></tr>
+        <tr><td><code>docs/TEST_STRATEGY.md</code>, <code>docs/SALES_SCIENCE.md</code>, <code>docs/AUTONOMY_POLICY.md</code></td><td>Testes, ciência de vendas, política de autonomia</td></tr>
+        <tr><td><code>docs/PROMPT_MESTRE_AUDIO_FIRST.md</code>, <code>docs/tasks-prompt-mestre-v2-restante.md</code></td><td>Roteiros em andamento</td></tr>
+      </table></div>
     </section>
 
   </main>

@@ -11,6 +11,13 @@
 > partes abaixo (domínio `api.saleia.com.br`, "stub" de recuperação de
 > senha) são históricas — o domínio atual é `api.saleia.app.br` e a
 > recuperação por e-mail existe desde a V.1.4.2.
+>
+> **Referência técnica atualizada (13/10/2026, V.1.4.175):** o Dev Manual
+> (`frontend/manual_tecnico.html`, servido em `/manual-tecnico`) cobre
+> tecnologia, ciclo de tempo real, transcrição, gravação do áudio (T02) e
+> painel de Gravações, banco (46 tabelas), endpoints, kill-switches,
+> segurança, infraestrutura e deploy por `git bundle`. Lacunas de
+> segurança: [SECURITY_MODEL.md](SECURITY_MODEL.md).
 
 ## Visao Geral
 
@@ -184,17 +191,20 @@ O dashboard web permite:
 
 ## Deploy
 
-O deploy de producao atual usa:
+O deploy de producao atual usa (conferido em 13/10/2026):
 
-- `/opt/saleia`
-- `saleia.service`
-- `uvicorn api.main:app --host 127.0.0.1 --port 8000 --workers 2`
-- nginx como reverse proxy para `api.saleia.com.br`
+- `/opt/saleia` numa VPS Hetzner com Ubuntu 26.04, Python 3.14 e MySQL 8.4 local
+- `saleia.service` (units versionadas em `deploy/systemd/`) + `saleia-restart-diario.timer`
+- `uvicorn api.main:app --host 127.0.0.1 --port 8000 --workers 2 --timeout-graceful-shutdown 25`
+- nginx (TLS Certbot) atrás da Cloudflare para `api.saleia.app.br`
+- código levado por `git bundle` + `git pull --ff-only` (credencial do remote na VPS inválida)
 
 Durante deploy:
 
 - Nao sobrescrever `.env`.
 - Nao apagar `data`.
 - Nao apagar `logs`.
-- Reiniciar `saleia.service`.
-- Validar `/health` e `/dashboard`.
+- Não apagar `data/gravacoes` (áudio da T02, retenção de 90 dias).
+- Reiniciar `saleia.service` só com `reunioes_ativas: 0` no `/health`
+  (mudança só em `frontend/` não precisa de restart).
+- Validar `/health` (versão nova, `ia_disponivel`) e `/dashboard`.

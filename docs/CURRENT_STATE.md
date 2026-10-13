@@ -1,5 +1,13 @@
 # SALEIA - Estado Atual
 
+## 13/10/2026
+
+- **V.1.4.176**: Dev Manual (`/manual-tecnico`) reescrito para o estado
+  real e **restrito a admin** (antes era público e mostrava acesso à
+  VPS). **Lacunas de segurança levantadas na VPS** (detalhe em
+  `docs/SECURITY_MODEL.md`): SSH root por senha, ufw inativo, sem backup
+  automático do MySQL nem de `data/`.
+
 ## 12/10/2026 (leia primeiro)
 
 - **Produção**: **V.1.4.173** (`b8a6d5a`, deploy 12/10 ~16:05 UTC por

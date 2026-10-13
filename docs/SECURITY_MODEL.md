@@ -1,7 +1,11 @@
 # SALEIA — Modelo de Segurança
 
-> Seção 35 do "PROMPT MESTRE — SALE-IA V2" (Tarefa D9). Estado em
-> **V.1.4.164** (05/10/2026). Inclui as lacunas conhecidas.
+> Seção 35 do "PROMPT MESTRE — SALE-IA V2" (Tarefa D9). Criado na
+> V.1.4.164 (05/10/2026); revisado em **V.1.4.175 (13/10/2026)** com a
+> gravação de áudio, o painel de Gravações e um levantamento da VPS.
+> Inclui as lacunas conhecidas. Este arquivo fica só no repositório; o
+> Dev Manual (`/manual-tecnico`, só admin desde a V.1.4.176) não repete
+> os detalhes da seção 7.
 
 ## 1. Autenticação e sessão
 
@@ -25,6 +29,10 @@
   restringe a reunião ao dono ou a admin.
 - **Lacuna**: reuniões anônimas (extensão sem login) ou anteriores à
   Fase 18 não têm dono e ficam visíveis a qualquer usuário autenticado.
+- **Gravações (T02) e painel de Gravações**: áudio, volume, trechos de
+  referência e transcrição mostrada no painel só para o dono da gravação
+  ou admin; gravação de outra pessoa responde 404 (não confirma que
+  existe). Editar/apagar trecho de referência: só o autor ou admin.
 - Não há multi-tenancy: o SALEIA é de uso interno de uma empresa
   (decisão registrada em `KnowledgeSource`). A Base de Conhecimento é
   global.
@@ -60,9 +68,16 @@
 (transcrições, diagnósticos, memórias, playbooks), PII (nome, e-mail,
 telefone, nascimento, `usuario_id`), SENSITIVE (senha, token, chave).
 
-**Lacuna**: os prazos de retenção (CONFIDENTIAL 365 dias, PII 180 dias)
-são **só referência**. Não existe job de expiração; transcrições ficam
-indefinidamente. Definir retenção real é decisão de produto/jurídica.
+**Gravação de áudio** (V.1.4.172+): só com login, confirmação de que os
+participantes foram avisados a cada reunião e indicador visível; nunca
+começa sozinha. **Retenção de 90 dias aplicada de verdade**: a
+manutenção de hora em hora apaga áudio e blocos vencidos
+(`api/gravacao_store.py::manutencao`).
+
+**Lacuna**: para o resto (transcrições, diagnósticos, memórias), os
+prazos de retenção (CONFIDENTIAL 365 dias, PII 180 dias) são **só
+referência**. Não existe job de expiração; ficam indefinidamente.
+Definir retenção real é decisão de produto/jurídica.
 
 ## 6. Auditoria
 
@@ -79,23 +94,45 @@ indefinidamente. Definir retenção real é decisão de produto/jurídica.
   (o `*` com credenciais foi removido).
 - TLS por Certbot.
 - **Rate limit por IP** (`_rate_limit_por_ip`, em memória, por
-  processo) nos endpoints anônimos por design; hoje aplicado a
-  `/audio-transcricao` (40/min). O IP vem do `X-Forwarded-For`; não foi
-  verificado se o nginx da VPS propaga esse header (se não propagar, o
-  limite vira global).
+  processo): `/audio-transcricao` 40/min, `/gravacao/iniciar` 60/min,
+  `/gravacao/bloco` 240/min. O IP vem do `X-Forwarded-For`; **confirmado
+  em 13/10/2026** que o nginx da VPS repassa `X-Forwarded-For`,
+  `X-Real-IP` e `X-Forwarded-Proto` (corpo máx. 20 MB, timeout 120s).
 - Bloqueio de loop caro de IA por reunião (`verificar_loop_caro`,
   HTTP 429) no roteador.
+- Portas abertas para fora (13/10/2026): só 22 (SSH), 80 e 443. MySQL
+  (3306/33060), uvicorn (8000) e Ollama (11434) escutam só em
+  `127.0.0.1`.
 
-**Lacunas operacionais (05/10/2026):**
+**Lacunas operacionais (atualizadas em 13/10/2026):**
 
-- acesso root à VPS por **senha** (a chave `saleia_vps` é recusada);
+- acesso root à VPS por **senha** (`PermitRootLogin yes` e
+  `PasswordAuthentication yes` no sshd; a chave `saleia_vps` é
+  recusada). Recomendado: chave SSH funcionando, depois desligar senha e
+  root direto;
+- **firewall (ufw) inativo**: hoje só o que escuta em 0.0.0.0 fica
+  exposto (22/80/443), mas qualquer serviço novo que escute em todas as
+  interfaces fica aberto. Recomendado: ufw liberando só 22/80/443 e, se
+  possível, SSH restrito;
+- **sem backup automático**: o único dump do MySQL é o manual de
+  11/10/2026 (`/root/backups/`), na própria VPS; `data/` (gravações,
+  arquivos da Base) também não tem cópia. Recomendado: dump diário +
+  cópia para fora da VPS;
 - o PAT do GitHub no remote de `/opt/saleia` foi recusado e apareceu num
-  log de erro: precisa ser **revogado** e trocado;
-- a senha root passou por chat: precisa ser **trocada**;
+  log de erro: precisa ser **revogado** e trocado (deploy segue por
+  `git bundle`);
+- a senha root passou por chat (de novo em 12/10/2026): precisa ser
+  **trocada**;
 - `/tempo-real` aceita reunião sem login e não passa pelo rate limit
   por IP (só pelo bloqueio de loop caro de IA);
 - contadores de rate limit e de login ficam em memória por worker (2
-  workers): o limite efetivo pode ser até o dobro e zera a cada restart.
+  workers): o limite efetivo pode ser até o dobro e zera a cada restart;
+- ~~Dev Manual público~~ — **resolvido na V.1.4.176**: até 13/10/2026 o
+  `/manual-tecnico` era aberto e mostrava IP da VPS, acesso root por SSH,
+  e-mail do admin e comandos para conferir chaves. Agora o conteúdo só
+  sai de `/manual-tecnico/conteudo` com JWT de admin, e o texto não traz
+  mais esses detalhes. O manual do usuário (`/manual`) segue público (não
+  tem dado operacional).
 
 ## 8. Alertas de segurança e operação
 

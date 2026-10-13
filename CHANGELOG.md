@@ -3,6 +3,42 @@
 
 ---
 
+## V.1.4.176 — Dev Manual reescrito e restrito a admin
+
+> Data: 13/10/2026
+
+- **Só admin**: `/manual-tecnico` virou uma casca pública sem conteúdo
+  (`noindex`) que busca o manual em `GET /manual-tecnico/conteudo` com o
+  JWT salvo pelo login (`localStorage.saleia_token`, mesma origem do
+  Dashboard). Sem token → link para o login; operador → "Restrito a
+  administradores". Conteúdo com `Cache-Control: no-store`.
+- Teste: `tests/test_manual_tecnico.py` (casca sem conteúdo, 401/403/200,
+  manual sem IP da VPS, `root@` ou e-mail).
+- Versão: `1.4.175` → `1.4.176`.
+
+- `frontend/manual_tecnico.html` estava na V.1.4.100 e errado em vários
+  pontos (Python 3.12, 1 worker, MySQL remoto, deploy por `git pull`,
+  logs em `logs/saleia.log`, JWT com e-mail no `sub`, transcrição só por
+  Groq). Reescrito a partir do código e de um levantamento só-leitura da
+  VPS: tecnologia com as versões reais, ciclo de tempo real, transcrição
+  (legenda do Meet + faster-whisper local), gravação (T02) e painel de
+  Gravações, roteador de IA e custo, Sales Brain, 46 tabelas por
+  domínio, ~150 rotas agrupadas, variáveis e kill-switches com o valor
+  em produção, segurança, infraestrutura, deploy por `git bundle`,
+  testes e troubleshoot atualizado.
+- **A página era pública** (`/manual-tecnico`, sem login, descrita no
+  código como "para apresentação a compradores"). A versão antiga
+  mostrava IP da VPS, acesso root por SSH, e-mail do admin e comandos
+  para conferir chaves; a nova não mostra, e agora exige admin. As lacunas de segurança
+  ficaram em `docs/SECURITY_MODEL.md`, revisado: SSH root por senha,
+  ufw inativo, sem backup automático, nginx propagando `X-Forwarded-For`
+  (confirmado), retenção de 90 dias da gravação aplicada, isolamento do
+  painel de Gravações.
+- `docs/ARCHITECTURE.md` (deploy atual) e `docs/SALES_BRAIN_ARCHITECTURE.md`
+  (kill-switches da gravação, Knowledge Compiler ligado) ajustados.
+
+---
+
 ## V.1.4.175 — Duração certa na lista de Gravações
 
 > Data: 12/10/2026

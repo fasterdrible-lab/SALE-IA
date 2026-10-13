@@ -835,7 +835,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.175",
+        "versao":              "1.4.176",
         "timestamp":           datetime.now().isoformat(),
         "ia_disponivel":       ia["ia_disponivel"],
         "ia_fora_desde":       ia["ia_fora_desde"],
@@ -876,7 +876,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.175",
+        "versao":          "1.4.176",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -2384,12 +2384,58 @@ def manual():
         raise HTTPException(status_code=404, detail="manual.html não encontrado")
 
 
+# Dev Manual só para admin (13/10/2026): era público e chegou a mostrar IP
+# da VPS e acesso root. O link do Dashboard abre a página sem cabeçalho de
+# autenticação, então /manual-tecnico serve só esta casca (sem conteúdo),
+# que busca o manual em /manual-tecnico/conteudo com o JWT salvo pelo login
+# (localStorage `saleia_token`, mesma origem do Dashboard).
+_MANUAL_TECNICO_CASCA = """<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>SALEIA — Dev Manual</title>
+<style>
+  body { background: #000; color: #f0f0f0; font-family: 'Segoe UI', system-ui, sans-serif; margin: 0;
+         min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .caixa { max-width: 420px; text-align: center; }
+  h1 { color: #D4AF37; font-size: 1.3rem; letter-spacing: 1px; }
+  p { color: #8a8a8a; }
+  a { color: #D4AF37; }
+</style></head>
+<body><div class="caixa"><h1>SALEIA — Dev Manual</h1><p id="msg">Carregando...</p></div>
+<script>
+(async function () {
+  var msg = document.getElementById('msg');
+  var token = null;
+  try { token = localStorage.getItem('saleia_token'); } catch (e) {}
+  if (!token) { msg.innerHTML = 'Restrito a administradores. <a href="/login">Entre no SALEIA</a> e abra o manual pelo Dashboard.'; return; }
+  try {
+    var r = await fetch('/manual-tecnico/conteudo', { headers: { Authorization: 'Bearer ' + token } });
+    if (r.status === 401) { msg.innerHTML = 'Sessão expirada. <a href="/login">Entre de novo</a>.'; return; }
+    if (r.status === 403) { msg.textContent = 'Restrito a administradores.'; return; }
+    if (!r.ok) { msg.textContent = 'Não foi possível carregar o manual (erro ' + r.status + ').'; return; }
+    var html = await r.text();
+    document.open(); document.write(html); document.close();
+    if (location.hash) { var alvo = document.getElementById(location.hash.slice(1)); if (alvo) alvo.scrollIntoView(); }
+  } catch (e) { msg.textContent = 'Sem conexão com o servidor.'; }
+})();
+</script></body></html>"""
+
+
 @app.get("/manual-tecnico", response_class=HTMLResponse)
 def manual_tecnico():
-    """Manual técnico para apresentação a compradores."""
+    """Casca pública do Dev Manual (sem conteúdo); o manual vem de /manual-tecnico/conteudo."""
+    return HTMLResponse(content=_MANUAL_TECNICO_CASCA, headers={"X-Robots-Tag": "noindex, nofollow"})
+
+
+@app.get("/manual-tecnico/conteudo", response_class=HTMLResponse)
+def manual_tecnico_conteudo(authorization: str | None = Header(default=None)):
+    """Dev Manual completo — só admin."""
+    _req_admin(authorization)
     caminho = Path(__file__).parent.parent / "frontend" / "manual_tecnico.html"
     try:
-        return HTMLResponse(content=caminho.read_text(encoding="utf-8"))
+        return HTMLResponse(content=caminho.read_text(encoding="utf-8"),
+                            headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow"})
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="manual_tecnico.html não encontrado")
 
