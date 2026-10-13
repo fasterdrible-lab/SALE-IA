@@ -79,7 +79,9 @@ contrário). Para voltar no tempo, use o dump e o snapshot do mesmo dia.
 
 ## Espaço
 
-Dump do MySQL: ~16 MB comprimido (11/10/2026). `data/` cresce com as
+1º backup (13/10/2026 20:47 UTC, rodado à mão na instalação): dump do
+MySQL **3,8 MB** (46 tabelas, conferido), snapshot de `data/` **26 MB**
+(gravações idênticas às de produção), total 30 MB, em ~1s. `data/` cresce com as
 gravações (~60-70 MB por hora de reunião com as 2 trilhas; retenção de
 90 dias); os snapshots só ocupam o que mudou. Disco em 13/10/2026: 150 GB,
 117 GB livres. A mensagem do backup informa uso total e disco livre.
