@@ -1,0 +1,12 @@
+# /etc/systemd/system/saleia-backup.timer — backup diário (13/10/2026, infra sem versão nova do backend).
+# 05:30 UTC = 02:30 em Brasília, antes do reinício diário das 06:00 UTC.
+# Persistent=true: se a VPS estava desligada no horário, roda ao ligar.
+[Unit]
+Description=SALEIA - agenda o backup diario
+
+[Timer]
+OnCalendar=*-*-* 05:30:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

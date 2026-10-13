@@ -10,11 +10,15 @@ cp /etc/systemd/system/saleia.service "/etc/systemd/system/saleia.service.bak_$(
 install -m 644 "$DIR/saleia.service" /etc/systemd/system/saleia.service
 install -m 644 "$DIR/saleia-restart-diario.service" /etc/systemd/system/saleia-restart-diario.service
 install -m 644 "$DIR/saleia-restart-diario.timer" /etc/systemd/system/saleia-restart-diario.timer
-chmod +x "$DIR/saleia-restart-diario.sh"
+install -m 644 "$DIR/saleia-backup.service" /etc/systemd/system/saleia-backup.service
+install -m 644 "$DIR/saleia-backup.timer" /etc/systemd/system/saleia-backup.timer
+chmod +x "$DIR/saleia-restart-diario.sh" "$DIR/saleia-backup.sh"
 
 systemd-analyze verify /etc/systemd/system/saleia.service \
     /etc/systemd/system/saleia-restart-diario.service \
-    /etc/systemd/system/saleia-restart-diario.timer
+    /etc/systemd/system/saleia-restart-diario.timer \
+    /etc/systemd/system/saleia-backup.service \
+    /etc/systemd/system/saleia-backup.timer
 systemctl daemon-reload
-systemctl enable --now saleia-restart-diario.timer
-systemctl list-timers saleia-restart-diario.timer --no-pager
+systemctl enable --now saleia-restart-diario.timer saleia-backup.timer
+systemctl list-timers 'saleia-*' --no-pager

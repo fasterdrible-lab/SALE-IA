@@ -114,10 +114,10 @@ Definir retenção real é decisão de produto/jurídica.
   exposto (22/80/443), mas qualquer serviço novo que escute em todas as
   interfaces fica aberto. Recomendado: ufw liberando só 22/80/443 e, se
   possível, SSH restrito;
-- **sem backup automático**: o único dump do MySQL é o manual de
-  11/10/2026 (`/root/backups/`), na própria VPS; `data/` (gravações,
-  arquivos da Base) também não tem cópia. Recomendado: dump diário +
-  cópia para fora da VPS;
+- **backup diário desde 13/10/2026** (`saleia-backup.timer`, ver
+  [BACKUP.md](BACKUP.md)): MySQL 14 dias + snapshots de `data/` 7 dias,
+  aviso no Telegram se falhar. **Falta a cópia para fora da VPS** — hoje
+  o backup não sobrevive à perda do servidor;
 - o PAT do GitHub no remote de `/opt/saleia` foi recusado e apareceu num
   log de erro: precisa ser **revogado** e trocado (deploy segue por
   `git bundle`);

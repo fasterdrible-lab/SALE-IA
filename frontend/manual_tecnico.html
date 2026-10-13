@@ -613,6 +613,7 @@
           <ul>
             <li><code>saleia.service</code>: uvicorn, 2 workers, <code>--timeout-graceful-shutdown 25</code>, <code>TimeoutStopSec=30</code>, <code>RuntimeMaxSec=48h</code> como rede de segurança.</li>
             <li><code>saleia-restart-diario.timer</code>: 06:00 UTC (03:00 BRT), só reinicia com <code>reunioes_ativas = 0</code>.</li>
+            <li><code>saleia-backup.timer</code>: 05:30 UTC — dump do MySQL (14 dias) e snapshot de <code>data/</code> (7 dias) em <code>/root/backups/saleia/</code>; aviso no Telegram se falhar. Restauração em <code>docs/BACKUP.md</code>.</li>
             <li><code>mysql.service</code>, <code>nginx.service</code>, <code>ollama.service</code>.</li>
             <li>Units versionadas em <code>deploy/systemd/</code>; instalar com <code>bash deploy/systemd/instalar.sh</code> (não editar só na VPS).</li>
           </ul>
@@ -763,6 +764,7 @@
         <tr><td><code>CHANGELOG.md</code></td><td>Histórico por versão, com decisões e números</td></tr>
         <tr><td><code>docs/ARCHITECTURE.md</code>, <code>docs/SALES_BRAIN_ARCHITECTURE.md</code></td><td>Arquitetura geral e do motor de inteligência</td></tr>
         <tr><td><code>docs/SECURITY_MODEL.md</code></td><td>Modelo de segurança e lacunas conhecidas</td></tr>
+        <tr><td><code>docs/BACKUP.md</code></td><td>Backup diário, conferência e restauração</td></tr>
         <tr><td><code>docs/DATA_DICTIONARY.md</code></td><td>Tabelas e campos</td></tr>
         <tr><td><code>docs/TEST_STRATEGY.md</code>, <code>docs/SALES_SCIENCE.md</code>, <code>docs/AUTONOMY_POLICY.md</code></td><td>Testes, ciência de vendas, política de autonomia</td></tr>
         <tr><td><code>docs/PROMPT_MESTRE_AUDIO_FIRST.md</code>, <code>docs/tasks-prompt-mestre-v2-restante.md</code></td><td>Roteiros em andamento</td></tr>

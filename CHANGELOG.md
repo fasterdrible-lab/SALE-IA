@@ -3,6 +3,24 @@
 
 ---
 
+## Backup diário automático (infra, sem versão nova do backend)
+
+> Data: 13/10/2026
+
+Antes não havia backup automático (só o dump manual de 11/10). Agora:
+- `deploy/systemd/saleia-backup.{sh,service,timer}`, instalados por
+  `instalar.sh`: todo dia 05:30 UTC (02:30 BRT), antes do reinício diário.
+- MySQL: `mysqldump --single-transaction` (não trava, roda com reunião),
+  gzip conferido (`gzip -t` + ≥ 40 tabelas), 14 dias em
+  `/root/backups/saleia/mysql/`.
+- `data/`: snapshot com `rsync --link-dest` (o que não mudou vira
+  hardlink), 7 dias em `/root/backups/saleia/data/`.
+- Falha → Telegram. Prioridade baixa de CPU/disco.
+- `docs/BACKUP.md`: conferir, restaurar (banco, banco à parte, arquivos)
+  e o limite — o backup está no mesmo disco; falta destino externo.
+
+---
+
 ## V.1.4.176 — Dev Manual reescrito e restrito a admin
 
 > Data: 13/10/2026

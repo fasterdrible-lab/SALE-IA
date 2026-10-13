@@ -5,8 +5,10 @@
 - **V.1.4.176**: Dev Manual (`/manual-tecnico`) reescrito para o estado
   real e **restrito a admin** (antes era público e mostrava acesso à
   VPS). **Lacunas de segurança levantadas na VPS** (detalhe em
-  `docs/SECURITY_MODEL.md`): SSH root por senha, ufw inativo, sem backup
-  automático do MySQL nem de `data/`.
+  `docs/SECURITY_MODEL.md`): SSH root por senha, ufw inativo.
+- **Backup diário** instalado (`saleia-backup.timer`, 05:30 UTC; MySQL 14
+  dias + `data/` 7 dias, ver `docs/BACKUP.md`). Falta cópia para fora da
+  VPS (escolher destino).
 
 ## 12/10/2026 (leia primeiro)
 

@@ -1,0 +1,11 @@
+# /etc/systemd/system/saleia-backup.service — backup diário (13/10/2026, infra sem versão nova do backend).
+[Unit]
+Description=SALEIA - backup diario (MySQL + data/)
+After=mysql.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/saleia/deploy/systemd/saleia-backup.sh
+TimeoutStartSec=2h
+Nice=19
+IOSchedulingClass=idle
