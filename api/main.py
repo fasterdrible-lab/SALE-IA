@@ -507,6 +507,9 @@ class AudioTranscricaoRequest(BaseModel):
     audio_base64: str = Field(max_length=28_000_000)
     mime_type: Optional[str] = "audio/webm"
     meeting_id: Optional[str] = "default"
+    # V.1.4.179 / ext 1.4.25: "microfone" (vendedor) ou "aba" (participantes).
+    # Extensão antiga não manda: transcreve como antes.
+    fonte: Optional[str] = None
 
 
 class GravacaoIniciarRequest(BaseModel):
@@ -835,7 +838,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.178",
+        "versao":              "1.4.179",
         "timestamp":           datetime.now().isoformat(),
         "ia_disponivel":       ia["ia_disponivel"],
         "ia_fora_desde":       ia["ia_fora_desde"],
@@ -876,7 +879,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.178",
+        "versao":          "1.4.179",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -3252,6 +3255,13 @@ async def audio_transcricao(req: AudioTranscricaoRequest, request: Request):
     login, limita por IP para conter flood/exaustão financeira.
     """
     _rate_limit_por_ip(request, "audio-transcricao", limite=40, janela_segundos=60)
+
+    # V.1.4.179: a voz do vendedor já chega pela legenda do Meet; transcrever
+    # o microfone dobrava o consumo da Groq (cota grátis: 7.200 s de áudio
+    # por hora) para quase nada de conteúdo novo. Religar sem reinstalar a
+    # extensão: TRANSCRICAO_MICROFONE_ATIVA=true no .env.
+    if req.fonte == "microfone" and os.getenv("TRANSCRICAO_MICROFONE_ATIVA", "false").strip().lower() != "true":
+        return {"texto": "", "ok": True, "motivo": "microfone_desligado"}
 
     import base64
     import tempfile

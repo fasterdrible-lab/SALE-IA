@@ -3,6 +3,35 @@
 
 ---
 
+## V.1.4.179 + ext 1.4.25 — Groq transcreve só o áudio do cliente
+
+> Data: 14/10/2026 | Local, aguardando deploy + reinstalação da extensão
+
+Cota grátis da Groq (whisper-large-v3): 7.200 s de áudio por hora e
+28.800 por dia. Com as 2 trilhas, 1 reunião gastava a cota da hora inteira
+(~4 h de reunião por dia, nunca 2 ao mesmo tempo). A voz do vendedor já
+chega pela legenda do Meet (88% do áudio transcrito em 14/10 já estava na
+legenda).
+
+- `POST /audio-transcricao` aceita `fonte` (`microfone` | `aba`). Com
+  `fonte=microfone` e `TRANSCRICAO_MICROFONE_ATIVA` diferente de `true`
+  (padrão), devolve `{"texto": "", "ok": true, "motivo":
+  "microfone_desligado"}` sem chamar o provedor. Religar sem reinstalar a
+  extensão: `TRANSCRICAO_MICROFONE_ATIVA=true` no `.env` + restart.
+  Extensão antiga (sem `fonte`) transcreve como antes.
+- Extensão 1.4.25: `background.js` manda `fonte` nas duas rotas; a sidebar,
+  ao receber `microfone_desligado`, para o ciclo do microfone e avisa "Sua
+  voz já vem pela legenda — só o áudio do cliente é transcrito". A
+  gravação (T02) das 2 trilhas não muda.
+- Efeito esperado: metade do consumo — 2 reuniões ao mesmo tempo e ~8 h
+  de reunião por dia no plano grátis.
+- Testes: `tests/test_transcricao_vocabulario.py` (+3),
+  `tests/js/test_extensao_transcricao.js` (+2).
+- Versão: `1.4.178` → `1.4.179`; extensão `1.4.24` → `1.4.25`
+  (`chrome-extension.zip` regerado).
+
+---
+
 ## V.1.4.178 — Transcrição sem fala duplicada (legenda × áudio e bloco reenviado)
 
 > Data: 14/10/2026 | Local, aguardando deploy

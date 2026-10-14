@@ -93,5 +93,21 @@ test('P20/P21: pedaço da aba usa a própria reunião e volta só para a aba cap
     fonte: 'aba', meeting_id: 'abc-defg-hij', tabId: 7 });
   const corpo = JSON.parse(bg.fetches.find(([u]) => u.endsWith('/audio-transcricao'))[1].body);
   assert.equal(corpo.meeting_id, 'abc-defg-hij');
+  assert.equal(corpo.fonte, 'aba');
   assert.deepEqual(bg.enviadosParaAbas.map(([id]) => id), [7]);
+});
+
+test('V.1.4.179: pedaço do microfone vai marcado e a resposta do servidor volta ao content.js', async () => {
+  const bg = carregarBackground(resposta(true, 200, { texto: '', ok: true, motivo: 'microfone_desligado' }));
+  const r = await bg.enviar({ tipo: 'whisperChunk', audio_base64: 'data:audio/webm;base64,AAAA',
+    mime_type: 'audio/webm', meeting_id: 'abc-defg-hij', fonte: 'microfone', backendUrl: 'https://x' });
+  const corpo = JSON.parse(bg.fetches.find(([u]) => u.endsWith('/audio-transcricao'))[1].body);
+  assert.equal(corpo.fonte, 'microfone');
+  assert.equal(r.motivo, 'microfone_desligado');
+});
+
+test('V.1.4.179: content.js para o microfone quando o servidor o desliga', () => {
+  const src = fs.readFileSync(path.join(EXT, 'content.js'), 'utf8');
+  const trecho = src.slice(src.indexOf("fonte: 'microfone'"), src.indexOf("commitarFrase('Vendedor', texto, 'audio')"));
+  assert.match(trecho, /data\.motivo === 'microfone_desligado'[\s\S]*pararWhisper\(\)[\s\S]*return;/);
 });

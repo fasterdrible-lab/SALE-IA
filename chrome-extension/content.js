@@ -188,8 +188,20 @@
           audio_base64: base64,
           mime_type: blob.type,
           meeting_id: MEETING_ID,
+          fonte: 'microfone',
           backendUrl: CONFIG.backendUrl,
         }, function (data) {
+          // V.1.4.179 (ext 1.4.25): a voz do vendedor já chega pela legenda;
+          // o servidor só transcreve o áudio do cliente. Para de mandar.
+          if (data && data.motivo === 'microfone_desligado') {
+            pararWhisper();
+            if (btnAudio) {
+              btnAudio.textContent = '🎤 Capturar áudio (Whisper)';
+              btnAudio.style.background = '#1a1a2e'; btnAudio.style.borderColor = '#00d4aa'; btnAudio.style.color = '#00d4aa';
+            }
+            setAudioStatus('🎤 Sua voz já vem pela legenda — só o áudio do cliente é transcrito', '#aaa');
+            return;
+          }
           if (data && data.texto && data.texto.trim()) {
             var texto = data.texto.trim();
             if (!passaFiltroRuidoAudio(texto)) {

@@ -6,9 +6,9 @@
 
 | Item | Versão | Estado |
 |---|---|---|
-| Backend em produção | V.1.4.177 (`27d6f2d`) | no ar — conferido em 14/10: `/health` = 1.4.177, Groq `ok`, `reunioes_ativas: 0`; suíte completa local verde (1961 testes, 0 falhas, 1 skip) |
-| Backend no GitHub | V.1.4.177 + docs (`1a278af`) | só documentação à frente da produção, sem restart necessário |
-| Backend local | V.1.4.178 (sem commit) | fala duplicada legenda × áudio e bloco reenviado; aguarda "sim" para push + deploy |
+| Backend em produção | V.1.4.178 (`9db7d57` = VPS HEAD) | deploy 14/10 16:18 UTC por bundle, depois de ~1h20 esperando reunião terminar; `NRestarts=0`, journal limpo, `/health` = 1.4.178, `/dashboard` 200 |
+| Transcrição de áudio | Groq (`whisper-large-v3`) | desde 14/10 (era `whisper_local`, travou a API) |
+| Backend local | V.1.4.179 + ext 1.4.25 (sem commit) | Groq transcreve só o áudio do cliente; aguarda "sim" para deploy + reinstalar a extensão |
 | Extensão | V.1.4.24 no repo | vendedores ainda em versão antiga — reinstalar |
 | Infra na VPS | backup diário (`7149330`) | instalado e conferido |
 
@@ -35,7 +35,10 @@
   pontuais. Groq grátis (whisper-large-v3): 7.200 s de áudio/h e 28.800/dia
   = 1 reunião por vez e ~4 h de reunião/dia (2 trilhas). Duplicação
   corrigida na V.1.4.178; pendentes: nome do falante na legenda e
-  transcrever só a trilha do cliente.
+  transcrever só a trilha do cliente. Filtro de "eco do prompt"
+  (`eh_alucinacao`) conferido: os 102 textos de áudio descartados em 14/10
+  já estavam na transcrição pela legenda (o prompt leva o fim da
+  conversa) — não perde fala, sem mudança.
 - Limpeza no banco de produção (pedido do usuário, 14/10 ~14:42-14:55
   UTC), aplicando só as 2 regras novas da V.1.4.178: `vwm-fnzn-zrg` 884 →
   560 linhas (meeting_memory + sessoes id 496), `cdz-qhfe-hnv` 147 → 125.

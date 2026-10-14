@@ -254,6 +254,7 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
         audio_base64: msg.audio_base64,
         mime_type: msg.mime_type,
         meeting_id: msg.meeting_id || 'default',
+        fonte: msg.fonte || 'microfone',
       }),
     })
       .then(function (res) { return res.json(); })
@@ -333,6 +334,7 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
         audio_base64: msg.base64,
         mime_type: msg.mimeType,
         meeting_id: meetingDoPedaco,
+        fonte: msg.fonte || 'aba',
       }),
     })
       .then(function (res) { return res.json(); })

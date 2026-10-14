@@ -104,6 +104,27 @@ class AudioTranscricaoEndpointTest(unittest.TestCase):
         self.assertEqual(body["motivo"], "descartado")
         salvar.assert_not_called()
 
+    def test_microfone_desligado_por_padrao_nao_transcreve(self):
+        with patch.dict(os.environ, {"TRANSCRICAO_MICROFONE_ATIVA": ""}), \
+             patch("agent.whisper_local.transcrever", return_value="ola mundo") as fake:
+            r = self.client.post("/audio-transcricao", json={**self.payload, "fonte": "microfone"})
+        self.assertEqual(r.json(), {"texto": "", "ok": True, "motivo": "microfone_desligado"})
+        fake.assert_not_called()
+
+    def test_microfone_religado_pelo_env_transcreve(self):
+        with patch.dict(os.environ, {"TRANSCRICAO_MICROFONE_ATIVA": "true"}), \
+             patch("agent.whisper_local.transcrever", return_value="ola mundo") as fake:
+            r = self.client.post("/audio-transcricao", json={**self.payload, "fonte": "microfone"})
+        self.assertEqual(r.json()["texto"], "ola mundo")
+        fake.assert_called_once()
+
+    def test_aba_e_extensao_antiga_continuam_transcrevendo(self):
+        for corpo in ({**self.payload, "fonte": "aba"}, self.payload):
+            with patch("agent.whisper_local.transcrever", return_value="ola mundo") as fake:
+                r = self.client.post("/audio-transcricao", json=corpo)
+            self.assertEqual(r.json()["texto"], "ola mundo")
+            fake.assert_called_once()
+
     def test_sem_banco_vai_so_o_glossario(self):
         with patch("api.database.obter_trecho_final_transcricao", side_effect=RuntimeError("banco fora")), \
              patch("agent.whisper_local.transcrever", return_value="ola mundo") as fake:
