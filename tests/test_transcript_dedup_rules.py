@@ -10,7 +10,9 @@ from unittest.mock import patch
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel, create_engine
 
-from agent.transcript_dedup_rules import compactar_transcricao, corpo_normalizado, deduplicar_fragmento, eh_duplicata
+from agent.transcript_dedup_rules import (
+    coberta_pela_outra_fonte, compactar_transcricao, corpo_normalizado, deduplicar_fragmento, eh_duplicata,
+)
 
 LEGENDA = "Felipe: Caraca vocês estão botando um bichinho para trabalhar então, hein?"
 WHISPER = "Paulo: Caraca, vocês estão botando bichinho pra trabalhar, então hein? Caraca!"
@@ -93,6 +95,97 @@ class DeduplicarFragmentoTest(unittest.TestCase):
         self.assertEqual(deduplicar_fragmento(LEGENDA, ""), ("", 0))
 
 
+class LegendaEAudioCortadosDiferenteTest(unittest.TestCase):
+    """V.1.4.178 — reunião real de 14/10: o áudio junta ~15s numa linha e a
+    legenda quebra a mesma fala em pedaços; as duas versões entravam."""
+
+    LEGENDA_1 = "Não identificado: Faz um tempinho faz um tempinho porque eu não tinha nem filho. Então faz pelo"
+    LEGENDA_2 = "Não identificado: menos quatro anos que eu não fui faz uns cinco anos que eu fui."
+    AUDIO = ("Cliente: Faz um tempinho, faz um tempinho porque eu não tinha nem filho. "
+             "Então faz pelo menos quatro anos que eu não fui. É, faz uns cinco anos.")
+    AUDIO_NOVO = "Cliente: O custo disso para mim foi oito mil reais, pagos no pix, na mesma semana."
+
+    def _audio(self, *linhas):
+        return {corpo_normalizado(l) for l in linhas}
+
+    def test_audio_que_a_legenda_ja_trouxe_e_descartado(self):
+        filtrado, descartadas = deduplicar_fragmento(
+            f"{self.LEGENDA_1}\n{self.LEGENDA_2}", self.AUDIO, corpos_audio=self._audio(self.AUDIO)
+        )
+        self.assertEqual((filtrado, descartadas), ("", 1))
+
+    def test_legenda_que_o_audio_ja_trouxe_e_descartada(self):
+        filtrado, _ = deduplicar_fragmento(
+            self.AUDIO, f"{self.LEGENDA_1}\n{self.LEGENDA_2}", corpos_audio=self._audio(self.AUDIO)
+        )
+        self.assertEqual(filtrado, "")
+
+    def test_audio_com_conteudo_novo_fica(self):
+        filtrado, descartadas = deduplicar_fragmento(
+            f"{self.LEGENDA_1}\n{self.LEGENDA_2}", self.AUDIO_NOVO, corpos_audio=self._audio(self.AUDIO_NOVO)
+        )
+        self.assertEqual((filtrado, descartadas), (self.AUDIO_NOVO, 0))
+
+    def test_sem_audio_na_reuniao_nada_muda(self):
+        # Duas falas da legenda nunca são juntadas por cobertura (P8).
+        base = "Ana: Nosso maior problema hoje é o follow-up dos leads que se perde."
+        outra = "Bruno: O maior problema hoje é o follow-up dos leads que se perde mesmo."
+        filtrado, _ = deduplicar_fragmento(base, outra, corpos_audio=set())
+        self.assertEqual(filtrado, outra)
+
+    def test_duas_falas_do_audio_nunca_sao_juntadas_por_cobertura(self):
+        # Mesmas palavras, ordem e frase diferentes: só a cobertura pegaria.
+        a1 = "Cliente: Nosso problema maior hoje é perder leads quando falta follow-up rápido."
+        a2 = "Vendedor: Quando falta follow-up rápido, vocês perdem leads? Esse é o problema maior hoje?"
+        self.assertFalse(coberta_pela_outra_fonte(a2, [a1], self._audio(a1, a2)))
+        filtrado, _ = deduplicar_fragmento(a1, a2, corpos_audio=self._audio(a1, a2))
+        self.assertEqual(filtrado, a2)
+
+    def test_fala_curta_nunca_e_descartada_por_cobertura(self):
+        filtrado, _ = deduplicar_fragmento(
+            "Não identificado: Tudo bem e você", "Cliente: Tudo bem, e você?",
+            corpos_audio=self._audio("Cliente: Tudo bem, e você?"),
+        )
+        self.assertEqual(filtrado, "Cliente: Tudo bem, e você?")
+
+
+class BlocoReenviadoLongeDoFimTest(unittest.TestCase):
+    """V.1.4.178 — servidor lento em 14/10: o pedido preso foi gravado
+    minutos depois do reenvio e o bloco repetido caiu longe do fim."""
+
+    BLOCO = [
+        "Cliente: Aí é um saco, né? Aí eu fui tirar visto para a viagem.",
+        "Não identificado: Aí eu fui tirar visto só nada muito sério nada para visitar.",
+        "Não identificado: Entendi, você veio para qual região aqui de São Paulo?",
+    ]
+
+    def _meio(self, n):
+        return [f"Não identificado: fala intermediária número {i} sobre outro assunto." for i in range(n)]
+
+    def test_bloco_repetido_longe_do_fim_e_descartado(self):
+        base = "\n".join(self.BLOCO + self._meio(30))
+        nova = "Cliente: Para a capital mesmo, ficamos uma semana inteira lá."
+        filtrado, descartadas = deduplicar_fragmento(base, "\n".join(self.BLOCO + [nova]))
+        self.assertEqual((filtrado, descartadas), (nova, 3))
+
+    def test_objecao_repetida_sozinha_fica(self):
+        # P7: o cliente insistindo é uma linha só, não um bloco.
+        objecao = "Cliente: Mas olha, sinceramente, eu acho que está caro para o momento."
+        base = "\n".join([objecao] + self._meio(30))
+        filtrado, _ = deduplicar_fragmento(base, objecao)
+        self.assertEqual(filtrado, objecao)
+
+    def test_respostas_curtas_seguidas_nao_formam_bloco(self):
+        base = "\n".join(["Cliente: Sim.", "Vendedor: Perfeito."] + self._meio(10))
+        filtrado, _ = deduplicar_fragmento(base, "Cliente: Sim.\nVendedor: Perfeito.")
+        self.assertEqual(filtrado.splitlines(), ["Cliente: Sim.", "Vendedor: Perfeito."])
+
+    def test_bloco_alem_da_janela_fica(self):
+        base = "\n".join(self.BLOCO + self._meio(400))
+        filtrado, _ = deduplicar_fragmento(base, "\n".join(self.BLOCO))
+        self.assertEqual(len(filtrado.splitlines()), 3)
+
+
 class RegistrarTranscricaoIdempotenteTest(unittest.TestCase):
     def setUp(self):
         import api.database as database
@@ -122,6 +215,17 @@ class RegistrarTranscricaoIdempotenteTest(unittest.TestCase):
         self.assertNotIn("Paulo:", r["transcript_full"])
         self.assertIn("follow-up que se perde", r["transcript_full"])
         self.assertEqual(r["fragmento_aceito"], "Cliente: Nosso maior problema é o follow-up que se perde.")
+
+    def test_audio_cortado_diferente_da_legenda_nao_duplica(self):
+        audio = LegendaEAudioCortadosDiferenteTest.AUDIO
+        self._database.registrar_transcricao_audio("abc-defg-hij", audio.split(": ", 1)[1])
+        self._database.registrar_transcricao_meeting(
+            "abc-defg-hij",
+            f"{LegendaEAudioCortadosDiferenteTest.LEGENDA_1}\n{LegendaEAudioCortadosDiferenteTest.LEGENDA_2}",
+        )
+        r = self._database.registrar_transcricao_meeting("abc-defg-hij", audio)
+        self.assertEqual(r["fragmento_aceito"], "")
+        self.assertNotIn("Cliente:", r["transcript_full"])
 
     def test_substituir_nao_passa_pela_dedup(self):
         self._database.registrar_transcricao_meeting("abc-defg-hij", LEGENDA)

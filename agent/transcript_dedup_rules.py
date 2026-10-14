@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import difflib
 import re
+import unicodedata
 
 JANELA_EXATA_PADRAO = 80
 JANELA_SIMILAR_PADRAO = 15
@@ -39,6 +40,19 @@ JANELA_ARTEFATO_PADRAO = 6
 # Reenvio do delta (retry): o bloco reenviado aparece no fim da base, com
 # no máximo esta folga de linhas que chegaram depois (P9).
 FOLGA_REENVIO_PADRAO = 5
+# V.1.4.178 (reunião real de 14/10, servidor lento): pedidos presos foram
+# gravados minutos depois do reenvio, e o bloco repetido caiu longe do fim
+# (22% das linhas). Duas ou mais linhas seguidas idênticas, com pelo menos
+# duas longas, em qualquer ponto destas últimas linhas = reenvio.
+JANELA_BLOCO_PADRAO = 300
+MIN_LINHAS_BLOCO = 2
+# V.1.4.178: legenda e áudio cortam a mesma fala em pontos diferentes (o
+# áudio junta ~15s numa linha, a legenda quebra em 2-3), então linha contra
+# linha nunca passa do limiar de similaridade. Por conteúdo: a fala de uma
+# fonte cujas palavras já estão quase todas nas falas recentes da outra.
+JANELA_COBERTURA_PADRAO = 60
+LIMIAR_COBERTURA_PADRAO = 0.7
+MIN_PALAVRAS_COBERTURA = 4
 
 _ROTULO_RE = re.compile(r"^([^:\n]{1,60}):\s*(.*)$")
 _NAO_PALAVRA_RE = re.compile(r"[^\w\s]", re.UNICODE)
@@ -58,6 +72,59 @@ def _linhas(texto: str) -> list:
     return [l.strip() for l in (texto or "").splitlines() if l.strip()]
 
 
+def palavras_significativas(linha: str) -> list:
+    """Palavras do corpo com mais de 3 letras, sem acento."""
+    corpo = unicodedata.normalize("NFKD", corpo_normalizado(linha))
+    corpo = "".join(ch for ch in corpo if not unicodedata.combining(ch))
+    return [p for p in corpo.split() if len(p) > 3]
+
+
+def coberta_pela_outra_fonte(
+    linha: str,
+    recentes: list,
+    corpos_audio: set,
+    *,
+    janela: int = JANELA_COBERTURA_PADRAO,
+    limiar: float = LIMIAR_COBERTURA_PADRAO,
+) -> bool:
+    """A fala já entrou pela outra fonte (legenda × áudio do servidor)?
+    Só compara fontes diferentes: duas falas da legenda, ou duas do áudio,
+    nunca são juntadas por aqui (P8)."""
+    if not corpos_audio:
+        return False
+    palavras = palavras_significativas(linha)
+    if len(palavras) < MIN_PALAVRAS_COBERTURA:
+        return False
+    do_audio = corpo_normalizado(linha) in corpos_audio
+    da_outra_fonte = set()
+    for anterior in recentes[-janela:]:
+        if (corpo_normalizado(anterior) in corpos_audio) != do_audio:
+            da_outra_fonte.update(palavras_significativas(anterior))
+    cobertas = sum(1 for p in palavras if p in da_outra_fonte)
+    return cobertas / len(palavras) >= limiar
+
+
+def tamanho_bloco_reenviado(linhas: list, inicio: int, historico: list) -> int:
+    """Quantas linhas a partir de `linhas[inicio]` repetem, em sequência,
+    linhas já gravadas em `historico`. Vale só com `MIN_LINHAS_BLOCO` ou
+    mais linhas seguidas e pelo menos duas longas: a objeção repetida (P7)
+    é uma linha só e fica."""
+    alvo = linhas[inicio].strip()
+    melhor = 0
+    for j, anterior in enumerate(historico):
+        if anterior.strip() != alvo:
+            continue
+        n = longas = 0
+        while (inicio + n < len(linhas) and j + n < len(historico)
+               and linhas[inicio + n].strip() == historico[j + n].strip()):
+            if len(corpo_normalizado(linhas[inicio + n])) >= MIN_CHARS_CORPO_PADRAO:
+                longas += 1
+            n += 1
+        if n >= MIN_LINHAS_BLOCO and longas >= 2:
+            melhor = max(melhor, n)
+    return melhor
+
+
 def eh_duplicata(
     linha: str,
     recentes: list,
@@ -74,6 +141,8 @@ def eh_duplicata(
     do áudio desta reunião. Com ele, a regra de similaridade só junta uma
     fala com a sua versão do áudio — duas pessoas dizendo quase a mesma
     coisa ficam (P8). `None` mantém a regra antiga (qualquer par)."""
+    if corpos_audio and coberta_pela_outra_fonte(linha, recentes, corpos_audio):
+        return True
     corpo = corpo_normalizado(linha)
     if len(corpo) < min_chars:
         return False
@@ -230,16 +299,26 @@ def deduplicar_fragmento(
     trecho reenviado (`linhas_reenviadas`); depois compara cada linha
     contra o final de `base` e contra as linhas já aceitas do próprio
     fragmento. Nunca altera o texto de uma linha mantida."""
-    recentes = _linhas(base)[-janela_exata:]
+    historico = _linhas(base)[-JANELA_BLOCO_PADRAO:]
+    recentes = historico[-janela_exata:]
     linhas = _linhas(fragmento)
     descartadas = linhas_reenviadas(recentes, linhas)
     mantidas = []
-    for linha in linhas[descartadas:]:
+    i = descartadas
+    while i < len(linhas):
+        bloco = tamanho_bloco_reenviado(linhas, i, historico)
+        if bloco:
+            descartadas += bloco
+            i += bloco
+            continue
+        linha = linhas[i]
+        i += 1
         if eh_duplicata(linha, recentes, janela_similar=janela_similar, limiar=limiar,
                         min_chars=min_chars, corpos_audio=corpos_audio):
             descartadas += 1
             continue
         mantidas.append(linha)
+        historico.append(linha)
         recentes.append(linha)
         if len(recentes) > janela_exata:
             recentes.pop(0)

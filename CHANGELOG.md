@@ -3,6 +3,46 @@
 
 ---
 
+## V.1.4.178 — Transcrição sem fala duplicada (legenda × áudio e bloco reenviado)
+
+> Data: 14/10/2026 | Local, aguardando deploy
+
+Achado na reunião real `vwm-fnzn-zrg` (14/10, 84 min, legenda + áudio):
+884 linhas e 304 palavras/min, quase o dobro de uma reunião só com legenda
+(138-183). A IA lia a mesma conversa duas vezes, com rótulos diferentes.
+
+- **Mesma fala pelas duas fontes (154 linhas)**: o áudio junta ~15s numa
+  linha e a legenda quebra a mesma fala em 2-3; a comparação linha contra
+  linha (0,85) nunca casava. `agent/transcript_dedup_rules.py::
+  coberta_pela_outra_fonte()`: descarta a fala de uma fonte cujas palavras
+  (> 3 letras, sem acento) já estão ≥ 70% nas últimas 60 falas da outra.
+  Só compara legenda × áudio do servidor (P8 continua: duas falas da mesma
+  fonte nunca são juntadas por aqui); fala com < 4 palavras nunca sai.
+  Conteúdo novo do áudio fica (ex.: "o custo disso para mim foi 8 mil").
+- **Bloco reenviado longe do fim (164 linhas, 22%)**: com o servidor
+  lento, pedidos presos foram gravados minutos depois do reenvio da
+  extensão; `linhas_reenviadas` só via o bloco colado no fim.
+  `tamanho_bloco_reenviado()`: ≥ 2 linhas seguidas idênticas (≥ 2 longas)
+  em qualquer ponto das últimas 300 = reenvio. A objeção repetida (P7) é
+  uma linha só e fica; "Sim." / "Perfeito." seguidos também.
+- Vale para `meeting_memory` e `sessoes` (mesma função).
+- Reprodução das reuniões reais na VPS (só leitura): `vwm-fnzn-zrg` 884 →
+  571 linhas, 304 → 181 palavras/min; 4 reuniões só com legenda idênticas.
+- Testes: `tests/test_transcript_dedup_rules.py` (+11).
+- Versão: `1.4.177` → `1.4.178`.
+
+---
+
+## Incidente 14/10/2026 — API travada pela transcrição local (sem versão nova)
+
+API sem resposta ~12:25 → 13:14 UTC: `TRANSCRICAO_PROVEDOR="whisper_local"`
+(faster-whisper em CPU) + rajada de áudio da ext 1.4.24 + Ollama saturaram
+a VPS (load 9 em 4 vCPU, 523 tarefas presas). `.env` da VPS trocado para
+`groq` + restart (autorizado pelo usuário). Detalhe em
+`docs/CURRENT_STATE.md`.
+
+---
+
 ## V.1.4.177 — Groq como 5º provedor de IA nas Configurações
 
 > Data: 13/10/2026 | Local, aguardando deploy

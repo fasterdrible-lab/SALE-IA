@@ -17,7 +17,7 @@ Nenhuma tarefa nova começa sem confirmação explícita do usuário, uma de cad
 - VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
-- Versão atual: **V.1.4.177** (Groq como 5º provedor de IA, 13/10; Dev Manual só para admin desde a 1.4.176; painel 🎧 Gravações desde a 1.4.174; gravação ligada na VPS para a validação da T02) · extensão **V.1.4.24** no repo · testes da extensão: `node --test tests/js/test_extensao_transcricao.js` e `node --test tests/js/test_gravacao_extensao.js` (arquivo a arquivo — diretório falha no Windows) · extensão Chrome **V.1.4.21** no repo (`chrome-extension/manifest.json`, versionada separadamente; vendedores ainda na 1.4.15 em 08/10, falta reinstalar)
+- Versão atual: **V.1.4.178** (sem fala duplicada legenda × áudio, 14/10; Groq como 5º provedor de IA desde a 1.4.177; transcrição de áudio em produção pela Groq desde 14/10; Dev Manual só para admin desde a 1.4.176; painel 🎧 Gravações desde a 1.4.174; gravação ligada na VPS para a validação da T02) · extensão **V.1.4.24** no repo · testes da extensão: `node --test tests/js/test_extensao_transcricao.js` e `node --test tests/js/test_gravacao_extensao.js` (arquivo a arquivo — diretório falha no Windows) · extensão Chrome **V.1.4.21** no repo (`chrome-extension/manifest.json`, versionada separadamente; vendedores ainda na 1.4.15 em 08/10, falta reinstalar)
 - Ritmo do tempo real (desde V.1.4.167 / ext V.1.4.19): intervalo de envio vem do servidor (`SALEIA_REALTIME_INTERVALO_S`, padrão 20s) — mudar ritmo não exige reinstalar a extensão.
 - Usuário admin: `phpos35@gmail.com`
 

@@ -6,10 +6,45 @@
 
 | Item | Versão | Estado |
 |---|---|---|
-| Backend em produção | V.1.4.176 (`43b7380`) | no ar |
-| Backend no GitHub | V.1.4.177 (`27d6f2d`) | deploy autorizado pelo usuário em 13/10, **depois da suíte completa passar** e sem reunião ativa |
+| Backend em produção | V.1.4.177 (`27d6f2d`) | no ar — conferido em 14/10: `/health` = 1.4.177, Groq `ok`, `reunioes_ativas: 0`; suíte completa local verde (1961 testes, 0 falhas, 1 skip) |
+| Backend no GitHub | V.1.4.177 + docs (`1a278af`) | só documentação à frente da produção, sem restart necessário |
+| Backend local | V.1.4.178 (sem commit) | fala duplicada legenda × áudio e bloco reenviado; aguarda "sim" para push + deploy |
 | Extensão | V.1.4.24 no repo | vendedores ainda em versão antiga — reinstalar |
 | Infra na VPS | backup diário (`7149330`) | instalado e conferido |
+
+**Incidente 14/10/2026 (API fora ~12:25 → 13:14 UTC)**
+
+- Sintoma: `/health`, `/login`, `/dashboard` e `/audio-transcricao` sem
+  resposta (452 `upstream timed out` no nginx); só `/tempo-real` passava
+  às vezes. Serviço `active`, `NRestarts=0`, sem OOM, fds normais (não é
+  o vazamento de 11/10).
+- Causa: transcrição rodando na própria VPS
+  (`TRANSCRICAO_PROVEDOR="whisper_local"`, faster-whisper em CPU, ~2 GB
+  por worker) + rajada de áudio da ext 1.4.24 numa reunião real (63
+  `/audio-transcricao` e ~190 `/gravacao` em 10 min) + Ollama a 43% de
+  CPU. Load 9 em 4 vCPU, 681 MB livres; no restart os 2 workers
+  cancelaram 523 tarefas presas.
+- Correção (autorizada pelo usuário, com 1 reunião ativa): `.env` da VPS
+  `TRANSCRICAO_PROVEDOR="groq"` (backup
+  `.env.bak_pre_groq_transcricao_20261014_131337`) + restart. Depois:
+  `/health` 200 em ~1s, 1.186 requisições 200 sem nenhum timeout, load
+  0,33, 4,3 GB livres.
+- Avaliação legenda × áudio (mesma reunião): 88% do que o áudio
+  transcreveu a legenda já tinha; o ganho do áudio é o rótulo
+  Cliente/Vendedor (a legenda está ~100% "Não identificado") e trechos
+  pontuais. Groq grátis (whisper-large-v3): 7.200 s de áudio/h e 28.800/dia
+  = 1 reunião por vez e ~4 h de reunião/dia (2 trilhas). Duplicação
+  corrigida na V.1.4.178; pendentes: nome do falante na legenda e
+  transcrever só a trilha do cliente.
+- Limpeza no banco de produção (pedido do usuário, 14/10 ~14:42-14:55
+  UTC), aplicando só as 2 regras novas da V.1.4.178: `vwm-fnzn-zrg` 884 →
+  560 linhas (meeting_memory + sessoes id 496), `cdz-qhfe-hnv` 147 → 125.
+  Nenhuma outra reunião tinha duplicação. Backups em
+  `/root/backups/saleia/manual/pre_dedup_20261014_144240.sql.gz` (antes
+  de tudo) e `..._145508.sql.gz` (antes da 2ª passada).
+- A decidir: voltar ao `whisper_local` só com fila/limite de
+  concorrência (hoje cada pedido abre uma transcrição em paralelo no
+  threadpool). Senha root passou pelo chat de novo em 14/10.
 
 **Pendências, por prioridade**
 
