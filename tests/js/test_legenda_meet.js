@@ -40,7 +40,7 @@ function montar() {
   w.eval(regras);
   w.eval('var estado = { participantes: { vendedor: "Carlos", clientes: ["Cliente"] }, transcricao: [], ultimoIndexEnviado: 0 };' +
     'function ocultarAvisoLegenda(){}; var console = { log(){}, warn(){} };' + codigo +
-    ';window.__t = { processarElementoLegenda, commitarFrase, captionBuffer, estado, detectarFalantePorEstrutura };');
+    ';window.__t = { processarElementoLegenda, commitarFrase, captionBuffer, estado, detectarFalantePorEstrutura, bufferPronto };');
   let relogio = 100000;
   w.Date.now = () => relogio;
   const regiao = w.document.querySelector('[role="region"]');
@@ -74,7 +74,7 @@ function montar() {
       relogio += 500;
       Object.keys(t.captionBuffer).forEach((s) => {
         const buf = t.captionBuffer[s];
-        if (relogio - buf.lastSeen > 3500) { t.commitarFrase(s, buf.texto, 'legenda', buf.curta); delete t.captionBuffer[s]; }
+        if (t.bufferPronto(buf, relogio)) { t.commitarFrase(s, buf.texto, 'legenda', buf.curta); delete t.captionBuffer[s]; }
       });
     }
   }
@@ -170,4 +170,27 @@ test('V.1.4.29: bloco que cresce antes de ser enviado vira uma fala só', { skip
   txt.textContent = 'Olha, o preço'; t.processarElementoLegenda(txt); passar(5000);
   txt.textContent = 'Olha, o preço ficou acima do que a gente imaginava'; t.processarElementoLegenda(txt); passar(5000);
   assert.deepEqual(puro(t.estado.transcricao.map((x) => x.text)), ['Olha, o preço ficou acima do que a gente imaginava']);
+});
+
+test('V.1.4.30: fala contínua sem pausa é gravada aos pedaços (a cada ~15 s), sem repetir', { skip: !JSDOM && 'sem jsdom' }, () => {
+  // Teste real de 15/10 (der-vxjx-qab): monólogo de minutos, nenhuma pausa
+  // de 3,5 s — a sidebar ficou em "1 frase" e nada chegava ao painel.
+  const { t, passar, regiao, modelo } = montar();
+  const b = modelo.cloneNode(true);
+  b.querySelector('.NWpY1d').textContent = 'Você';
+  const txt = b.querySelector('.ygicle');
+  regiao.insertBefore(b, regiao.querySelector('.IMKgW').previousElementSibling);
+  const palavras = Array.from({ length: 60 }, (_, i) => 'palavra' + i);
+  let primeiraGravacaoEm = null;
+  palavras.forEach((_, i) => {
+    txt.textContent = palavras.slice(0, i + 1).join(' ');
+    t.processarElementoLegenda(txt);
+    passar(1000);  // 1 palavra por segundo, nunca 3,5 s parado
+    if (primeiraGravacaoEm === null && t.estado.transcricao.length) primeiraGravacaoEm = i + 1;
+    t.estado.ultimoIndexEnviado = t.estado.transcricao.length;  // envio a cada ciclo
+  });
+  passar(5000);
+  assert.ok(primeiraGravacaoEm !== null && primeiraGravacaoEm <= 17, 'primeira gravação em ' + primeiraGravacaoEm + ' s');
+  assert.ok(t.estado.transcricao.length >= 3);
+  assert.equal(t.estado.transcricao.map((x) => x.text).join(' '), palavras.join(' '));  // tudo, na ordem, sem repetir
 });

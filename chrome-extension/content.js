@@ -921,12 +921,21 @@
     if (dbg) dbg.textContent = '📝 ' + estado.transcricao.length + ' frase(s) capturada(s)';
   }
 
+  // Fala pronta para gravar: parou há > 3,5 s ou (V.1.4.30) está aberta há
+  // > 15 s. Quem fala sem pausa (teste real de 15/10: monólogo de minutos)
+  // nunca chegava aos 3,5 s de silêncio e nada ia para o servidor. Com a
+  // 1.4.29, a próxima gravação do mesmo bloco leva só o pedaço novo.
+  var FALA_MAX_ABERTA_MS = 15000;
+  function bufferPronto(buf, agora) {
+    return !!buf && (agora - buf.lastSeen > 3500 || agora - (buf.inicio || buf.lastSeen) > FALA_MAX_ABERTA_MS);
+  }
+
   // A cada 800ms commita frases "silenciadas" (speaker parou há >2.5s)
   setInterval(function () {
     var agora = Date.now();
     Object.keys(captionBuffer).forEach(function (speaker) {
       var buf = captionBuffer[speaker];
-      if (buf && agora - buf.lastSeen > 3500) {
+      if (bufferPronto(buf, agora)) {
         commitarFrase(speaker, buf.texto, 'legenda', buf.curta);
         delete captionBuffer[speaker];
       }
@@ -1218,7 +1227,12 @@
     if (eRuidoUI(texto)) return;
     if (texto.includes('Ir para o fim') || texto.includes('Go to the end')) return;
     // Debug: loga o que passa pelo filtro para identificar elementos reais de CC
-    console.log('[SALEIA-DBG] tag=' + el.tagName + ' class="' + (el.className||'') + '" jsname="' + (el.getAttribute&&el.getAttribute('jsname')||'') + '" aria-live="' + (el.getAttribute&&el.getAttribute('aria-live')||'') + '" texto="' + texto.substring(0,80) + '"');
+    // V.1.4.30: só loga quando o texto do elemento muda (o Meet redesenha a
+    // legenda várias vezes por segundo e o console virava um "loop").
+    if (el.__saleiaUltimoLog !== texto) {
+      el.__saleiaUltimoLog = texto;
+      console.log('[SALEIA-DBG] tag=' + el.tagName + ' class="' + (el.className||'') + '" chars=' + texto.length + ' fim="…' + texto.slice(-60) + '"');
+    }
 
     // Detectar speaker
     var speaker = 'Participante';
@@ -1252,7 +1266,7 @@
     var buf = captionBuffer[speaker];
 
     if (!buf) {
-      captionBuffer[speaker] = { texto: texto, lastSeen: agora, curta: naLegenda };
+      captionBuffer[speaker] = { texto: texto, lastSeen: agora, inicio: agora, curta: naLegenda };
       return;
     }
 
@@ -1276,7 +1290,7 @@
     } else {
       // Nova frase diferente — commita a anterior e inicia nova
       commitarFrase(speaker, buf.texto, 'legenda', buf.curta);
-      captionBuffer[speaker] = { texto: texto, lastSeen: agora, curta: naLegenda };
+      captionBuffer[speaker] = { texto: texto, lastSeen: agora, inicio: agora, curta: naLegenda };
     }
   }
 

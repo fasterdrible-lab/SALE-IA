@@ -3,6 +3,27 @@
 
 ---
 
+## ext 1.4.30 — Fala contínua sem pausa gravada a cada 15 s
+
+> Data: 15/10/2026 | Só extensão (backend segue V.1.4.180)
+
+Teste real da 1.4.29 (`der-vxjx-qab`, áudio contínuo de minutos): a
+sidebar ficou em "1 frase" — a fala só era gravada depois de 3,5 s de
+silêncio, que nunca vinham. Num vendedor que fala 2–3 min seguidos o coach
+também ficaria sem nada.
+
+- `bufferPronto()`: fala gravada após 3,5 s parada **ou 15 s aberta**
+  (`FALA_MAX_ABERTA_MS`). Com a 1.4.29, a gravação seguinte do mesmo bloco
+  leva só o pedaço novo.
+- Console: `[SALEIA-DBG]` só quando o texto do elemento muda, com o
+  tamanho e o FIM do texto (antes: a cada redesenho do Meet e só os 80
+  primeiros caracteres — parecia um loop com texto parado).
+- Testes: `tests/js/test_legenda_meet.js` (+1: 60 s de fala sem pausa =
+  1ª gravação em ≤ 17 s, texto completo, na ordem, sem repetir).
+- Versão: extensão `1.4.29` → `1.4.30`
+
+---
+
 ## ext 1.4.29 — Monólogo sem repetição em escada
 
 > Data: 15/10/2026 | Só extensão (backend segue V.1.4.180)
