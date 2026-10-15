@@ -95,6 +95,22 @@ fonte de áudio e a garantia de que nada se perde.
 - **Pronto quando**: reunião real com zero chamadas ao Whisper/Groq,
   gravação completa e transcrição da legenda normal.
 
+### Situação 1.1 + 1.2 (15/10/2026)
+- **V.1.4.180 em produção** (`dd9b8db` = VPS HEAD, deploy 17:24 UTC por
+  bundle, sem reunião ativa; `NRestarts=0`). Suíte completa local: 1.979
+  testes OK. Conferido depois do deploy: `/gravacao/config` =
+  `bitrate 32000, retencao_dias 7, transcricao_tempo_real false`;
+  `/audio-transcricao` = `tempo_real_desligado`; 10 pedidos de extensões
+  antigas depois do restart, 0 chamadas à Groq.
+- **Ext 1.4.26** em `chrome-extension.zip` (e cópia `chrome-extension.
+  V.1.4.26.zip` na pasta de cima): **falta reinstalar nos vendedores**.
+  Até lá a gravação continua a 128 kbps (o bitrate é aplicado pela
+  extensão) e as extensões antigas seguem subindo pedaços que o servidor
+  ignora.
+- Achado: o limite da Groq que estourou também é de **2.000 pedidos por
+  dia** (RPD), não só de segundos de áudio — relevante para a 3.1
+  (mandar pedaços longos, não de 15 s).
+
 ---
 
 ## Fase 2 — Qualidade da legenda em tempo real
