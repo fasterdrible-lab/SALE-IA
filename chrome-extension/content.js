@@ -904,10 +904,15 @@
     var nova = { speaker: speaker, text: t, timestamp: new Date().toISOString(), fonte: fonte || 'legenda' };
     var decisao = SaleiaTranscricao.decidirCommit(estado.transcricao, nova, estado.ultimoIndexEnviado);
     if (decisao.acao === 'ignorar') return;
+    // V.1.4.29: bloco = texto inteiro da legenda; text = só o que ainda não
+    // tinha sido gravado (continuação de um bloco já enviado).
     if (decisao.acao === 'substituir') {
-      estado.transcricao[decisao.indice].text = t;
+      estado.transcricao[decisao.indice].text = decisao.texto || t;
+      estado.transcricao[decisao.indice].bloco = decisao.bloco || t;
       return;
     }
+    if (decisao.texto) nova.text = decisao.texto;
+    nova.bloco = decisao.bloco || t;
     estado.transcricao.push(nova);
     legendasDetectadas = true;
     ocultarAvisoLegenda();

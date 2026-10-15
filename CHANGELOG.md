@@ -3,6 +3,26 @@
 
 ---
 
+## ext 1.4.29 — Monólogo sem repetição em escada
+
+> Data: 15/10/2026 | Só extensão (backend segue V.1.4.180)
+
+Teste real da 1.4.28 (sessão 506, `yab-pvvs-tav`): a fala chegou ao
+painel, mas em escada — quem fala sem parar fica num único bloco da
+legenda que só cresce, e a cada pausa o bloco inteiro era gravado de novo
+("Tá dominado" / "Tá dominado Só isso…" / "Tá dominado Só isso… Tive a
+coragem…").
+
+- Cada fala guarda `bloco` (texto inteiro do bloco da legenda). A junção
+  parcial/completa (`decidirCommit`) compara com o bloco: continuação de
+  bloco já enviado entra **só com o pedaço novo**; ainda não enviado, o
+  pedaço novo é emendado na mesma fala. `jaGravada` também olha o bloco.
+- Testes: `tests/js/test_legenda_meet.js` (+2, monólogo com envio entre
+  as pausas = pedaços sem repetição), `tests/js/test_extensao_transcricao.js` (+2).
+- Versão: extensão `1.4.28` → `1.4.29`
+
+---
+
 ## ext 1.4.28 — Fala presa no buffer (painel vazio no teste da 1.4.27)
 
 > Data: 15/10/2026 | Só extensão (backend segue V.1.4.180)

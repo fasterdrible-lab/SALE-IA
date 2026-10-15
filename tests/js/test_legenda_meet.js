@@ -139,3 +139,35 @@ test('V.1.4.28: enquanto o texto cresce (pessoa falando) a fala não é cortada'
   passar(5000);
   assert.deepEqual(puro(t.estado.transcricao.map((x) => x.text)), [palavras.join(' ')]);
 });
+
+test('V.1.4.29: bloco que cresce (monólogo) entra só com o pedaço novo, sem repetir o já enviado', { skip: !JSDOM && 'sem jsdom' }, () => {
+  // Teste real de 15/10 (sessão 506): a cada pausa o bloco inteiro entrava
+  // de novo — "Tá dominado" / "Tá dominado Só isso…" / … em escada.
+  const { t, passar, regiao, modelo } = montar();
+  const b = modelo.cloneNode(true);
+  b.querySelector('.NWpY1d').textContent = 'Você';
+  const txt = b.querySelector('.ygicle');
+  regiao.insertBefore(b, regiao.querySelector('.IMKgW').previousElementSibling);
+  const etapas = ['Tá dominado', 'Só isso. Chama o bombeiro.', 'Tive a coragem de aceitar, dei uma chance.'];
+  let bloco = '';
+  etapas.forEach((pedaco) => {
+    bloco = (bloco + ' ' + pedaco).trim();
+    txt.textContent = bloco;
+    t.processarElementoLegenda(txt);
+    passar(5000);                                          // pausa: a fala é gravada
+    t.estado.ultimoIndexEnviado = t.estado.transcricao.length;  // e enviada ao servidor
+  });
+  assert.deepEqual(puro(t.estado.transcricao.map((x) => x.text)), etapas);
+  assert.equal(t.estado.transcricao.map((x) => x.text).join(' '), bloco);
+});
+
+test('V.1.4.29: bloco que cresce antes de ser enviado vira uma fala só', { skip: !JSDOM && 'sem jsdom' }, () => {
+  const { t, passar, regiao, modelo } = montar();
+  const b = modelo.cloneNode(true);
+  b.querySelector('.NWpY1d').textContent = CLIENTE;
+  const txt = b.querySelector('.ygicle');
+  regiao.insertBefore(b, regiao.querySelector('.IMKgW').previousElementSibling);
+  txt.textContent = 'Olha, o preço'; t.processarElementoLegenda(txt); passar(5000);
+  txt.textContent = 'Olha, o preço ficou acima do que a gente imaginava'; t.processarElementoLegenda(txt); passar(5000);
+  assert.deepEqual(puro(t.estado.transcricao.map((x) => x.text)), ['Olha, o preço ficou acima do que a gente imaginava']);
+});

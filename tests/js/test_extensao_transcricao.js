@@ -176,3 +176,17 @@ test('V.1.4.27: legenda escondida da tela sem display:none e botão na sidebar',
   assert.match(src, /id="saleia-btn-legenda"/);
   assert.match(src, /saleiaLegendaOculta !== false/);  // escondida por padrão
 });
+
+test('V.1.4.29: continuação de bloco já enviado entra só com o resto', () => {
+  const t = [{ speaker: 'Ana', text: 'Tá dominado', bloco: 'Tá dominado', fonte: 'legenda' }];
+  const d = regras.decidirCommit(t, fala('Ana', 'Tá dominado Só isso. Chama o bombeiro.'), 1);
+  assert.deepEqual([d.acao, d.texto, d.bloco], ['adicionar', 'Só isso. Chama o bombeiro.', 'Tá dominado Só isso. Chama o bombeiro.']);
+});
+
+test('V.1.4.29: compara com o bloco inteiro, não só com o resto gravado', () => {
+  const t = [{ speaker: 'Ana', text: 'Só isso.', bloco: 'Tá dominado Só isso.', fonte: 'legenda' }];
+  const d = regras.decidirCommit(t, fala('Ana', 'Tá dominado Só isso. Tive a coragem'), 1);
+  assert.deepEqual([d.acao, d.texto], ['adicionar', 'Tive a coragem']);
+  assert.equal(regras.decidirCommit(t, fala('Ana', 'Tá dominado Só isso.'), 1).acao, 'ignorar');
+  assert.equal(regras.jaGravada(t, 'Ana', 'Tá dominado Só isso.'), true);
+});

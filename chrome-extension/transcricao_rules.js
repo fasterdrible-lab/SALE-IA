@@ -43,11 +43,23 @@
     return texto.length > prefixo.length && texto.slice(0, prefixo.length + 1) === prefixo + ' ';
   }
 
+  // Texto original depois das primeiras palavras de `prefixoNormalizado`.
+  function restoDepois(texto, prefixoNormalizado) {
+    var k = prefixoNormalizado ? prefixoNormalizado.split(' ').length : 0;
+    var orig = String(texto || '').trim().split(/\s+/);
+    var contadas = 0, i = 0;
+    while (i < orig.length && contadas < k) { contadas += palavras(orig[i]).length; i++; }
+    return orig.slice(i).join(' ');
+  }
+
   /**
-   * transcricao: [{speaker, text, fonte}] (fonte 'audio' ou ausente = legenda)
+   * transcricao: [{speaker, text, fonte, bloco?}] (fonte 'audio' ou ausente = legenda;
+   *   bloco = texto inteiro do bloco da legenda de onde a fala saiu — V.1.4.29)
    * nova: {speaker, text, fonte}
    * indiceEnviado: quantas falas já foram enviadas ao backend
-   * Retorna {acao: 'ignorar'|'substituir'|'adicionar', indice?, motivo}
+   * Retorna {acao: 'ignorar'|'substituir'|'adicionar', indice?, motivo,
+   *          texto?, bloco?} — texto/bloco (V.1.4.29): o que gravar quando a
+   *          fala é a continuação de um bloco já gravado.
    */
   function decidirCommit(transcricao, nova, indiceEnviado) {
     var t = normalizar(nova.text);
@@ -65,10 +77,21 @@
       // fala nova — e a conversa saía fora de ordem.
       if (ultimaDoFalante) {
         ultimaDoFalante = false;
-        if (comecaCom(n, t)) return { acao: 'ignorar', motivo: 'pedaco_de_gravada' };
-        if (comecaCom(t, n)) {
-          if (i >= indiceEnviado) return { acao: 'substituir', indice: i, motivo: 'completa_a_gravada' };
-          return { acao: 'adicionar', motivo: 'completa_a_ja_enviada' };
+        // V.1.4.29: compara com o bloco inteiro da legenda. Quem fala sem
+        // parar fica num bloco só que cresce; antes, a cada pausa o bloco
+        // inteiro entrava de novo (teste real de 15/10: "Tá dominado" →
+        // "Tá dominado Só isso…" → … em escada). Agora entra só o pedaço novo.
+        var base = normalizar(e.bloco || e.text);
+        if (base === t) return { acao: 'ignorar', motivo: 'igual' };
+        if (comecaCom(base, t)) return { acao: 'ignorar', motivo: 'pedaco_de_gravada' };
+        if (comecaCom(t, base)) {
+          var resto = restoDepois(nova.text, base);
+          if (!resto) return { acao: 'ignorar', motivo: 'igual' };
+          if (i >= indiceEnviado) {
+            return { acao: 'substituir', indice: i, motivo: 'completa_a_gravada',
+                     texto: (String(e.text).trim() + ' ' + resto).trim(), bloco: nova.text };
+          }
+          return { acao: 'adicionar', motivo: 'completa_a_ja_enviada', texto: resto, bloco: nova.text };
         }
       }
     }
@@ -93,7 +116,9 @@
     var t = normalizar(texto);
     var inicio = Math.max(0, transcricao.length - JANELA);
     for (var i = transcricao.length - 1; i >= inicio; i--) {
-      if (transcricao[i].speaker === speaker && normalizar(transcricao[i].text) === t) return true;
+      if (transcricao[i].speaker !== speaker) continue;
+      if (normalizar(transcricao[i].text) === t) return true;
+      if (transcricao[i].bloco && normalizar(transcricao[i].bloco) === t) return true;
     }
     return false;
   }
