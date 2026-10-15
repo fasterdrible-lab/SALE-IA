@@ -40,7 +40,7 @@ function montar() {
   w.eval(regras);
   w.eval('var estado = { participantes: { vendedor: "Carlos", clientes: ["Cliente"] }, transcricao: [], ultimoIndexEnviado: 0 };' +
     'function ocultarAvisoLegenda(){}; var console = { log(){}, warn(){} };' + codigo +
-    ';window.__t = { processarElementoLegenda, commitarFrase, captionBuffer, estado, detectarFalantePorEstrutura, bufferPronto };');
+    ';window.__t = { processarElementoLegenda, commitarFrase, captionBuffer, estado, detectarFalantePorEstrutura, bufferPronto, get legendasDetectadas() { return legendasDetectadas; } };');
   let relogio = 100000;
   w.Date.now = () => relogio;
   const regiao = w.document.querySelector('[role="region"]');
@@ -193,4 +193,28 @@ test('V.1.4.30: fala contínua sem pausa é gravada aos pedaços (a cada ~15 s),
   assert.ok(primeiraGravacaoEm !== null && primeiraGravacaoEm <= 17, 'primeira gravação em ' + primeiraGravacaoEm + ' s');
   assert.ok(t.estado.transcricao.length >= 3);
   assert.equal(t.estado.transcricao.map((x) => x.text).join(' '), palavras.join(' '));  // tudo, na ordem, sem repetir
+});
+
+test('V.1.4.31: sem a área de legendas (CC desligado), texto de botão não vira fala nem conta como legenda', { skip: !JSDOM && 'sem jsdom' }, () => {
+  // Teste real de 15/10 (der-vxjx-qab): depois do F5 o CC voltou desligado;
+  // "Fazer upgrade" virou fala, a legenda foi dada como funcionando e o CC
+  // nunca foi ligado. Sessão com 3 envios e 0 caracteres.
+  const { t, passar, regiao, w } = montar();
+  regiao.remove();
+  const botao = w.document.createElement('span');
+  botao.textContent = 'Fazer upgrade';
+  const dica = w.document.createElement('div');
+  dica.textContent = 'Faça upgrade para ter acesso aos recursos premium';
+  w.document.body.append(botao, dica);
+  t.processarElementoLegenda(botao);
+  t.processarElementoLegenda(dica);
+  passar(5000);
+  assert.equal(t.estado.transcricao.length, 0);
+  assert.equal(t.legendasDetectadas, false);
+});
+
+test('V.1.4.31: fala lida da área de legendas marca a legenda como funcionando', { skip: !JSDOM && 'sem jsdom' }, () => {
+  const { t, falar } = montar();
+  falar(CLIENTE, 'Pode me mandar a proposta?');
+  assert.equal(t.legendasDetectadas, true);
 });

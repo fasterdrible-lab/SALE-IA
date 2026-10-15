@@ -3,6 +3,26 @@
 
 ---
 
+## ext 1.4.31 — CC ligado de verdade; sem texto de tela quando a legenda está desligada
+
+> Data: 15/10/2026 | Só extensão (backend segue V.1.4.180)
+
+Teste real da 1.4.30 (`der-vxjx-qab`, sessão 510: 3 envios, 0
+caracteres): depois do F5 o CC voltou desligado. Sem a área de legendas,
+a extensão varria a página inteira, gravou "Fazer upgrade" como fala e
+isso marcou a legenda como funcionando (`legendasDetectadas`) — o CC
+nunca foi ligado e o aviso sumiu. O servidor descartou o texto de botão.
+
+- Sem a área de legendas a página **não é lida**; a varredura antiga só
+  roda se o CC estiver ligado e a área não for achada (Meet mudou o
+  rótulo). `ccLigadoNoMeet()` compartilhado com a checagem do aviso.
+- `legendasDetectadas` só com fala da área de legendas (ou do áudio).
+- 1ª checagem do CC (e ligar sozinho) 4 s depois de abrir a página, não 10 s.
+- Testes: `tests/js/test_legenda_meet.js` (+2).
+- Versão: extensão `1.4.30` → `1.4.31`
+
+---
+
 ## ext 1.4.30 — Fala contínua sem pausa gravada a cada 15 s
 
 > Data: 15/10/2026 | Só extensão (backend segue V.1.4.180)

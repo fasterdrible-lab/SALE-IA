@@ -914,7 +914,9 @@
     if (decisao.texto) nova.text = decisao.texto;
     nova.bloco = decisao.bloco || t;
     estado.transcricao.push(nova);
-    legendasDetectadas = true;
+    // V.1.4.31: "legenda funcionando" = fala lida da área de legendas (ou do
+    // áudio), nunca texto da página.
+    if (curtaOk || fonte === 'audio') legendasDetectadas = true;
     ocultarAvisoLegenda();
     // Debug: mostra contagem de frases capturadas na sidebar
     var dbg = document.getElementById('saleia-debug-count');
@@ -1006,6 +1008,7 @@
     }, 2000);
 
     verificacaoLegendaTimer = setInterval(verificarLegendas, 10000);
+    setTimeout(verificarLegendas, 4000);  // V.1.4.31: liga o CC logo depois do F5
   }
 
   // Padrões de ruído do Google Meet (ícones Material + botões de UI)
@@ -1207,11 +1210,27 @@
     return _regiaoLegendas;
   }
 
+  // CC ligado: o botão do Meet muda de "Ativar" para "Desativar legendas".
+  function ccLigadoNoMeet() {
+    return !!document.querySelector(
+      '[aria-label*="esativar legenda" i],[aria-label*="urn off caption" i],' +
+      '[data-tooltip*="esativar legenda" i],[data-tooltip*="urn off caption" i],' +
+      'button[aria-pressed="true"][aria-label*="legenda" i],' +
+      'button[aria-pressed="true"][aria-label*="caption" i]'
+    );
+  }
+
   function processarElementoLegenda(el) {
     if (!el || !el.textContent) return;
     if (el.closest && el.closest('#saleia-sidebar')) return;
     var regiao = regiaoLegendas();
     if (regiao && !regiao.contains(el)) return;
+    // V.1.4.31: sem a área de legendas, a página inteira só tinha texto de
+    // tela ("Fazer upgrade", "Tom de pele"...) — e ele marcava a legenda
+    // como "funcionando", então o CC não era ligado (teste real, 15/10).
+    // Varredura da página só como reserva: CC ligado e área não achada
+    // (o Meet mudou o rótulo dela).
+    if (!regiao && !ccLigadoNoMeet()) return;
     // Tarefa A1: <style>/<script> são "folhas" de texto para o observer e
     // vazavam CSS ("height: 100%;") como se fosse fala.
     if (el.closest && el.closest('style,script,noscript,template')) return;
@@ -1296,14 +1315,7 @@
 
   function verificarLegendas() {
     if (legendasDetectadas) { ocultarAvisoLegenda(); return; }
-    // Detecta CC ligado pelo aria-label do botão (muda de "Ativar" para "Desativar")
-    var ccAtivo = document.querySelector(
-      '[aria-label*="esativar legenda" i],[aria-label*="urn off caption" i],' +
-      '[data-tooltip*="esativar legenda" i],[data-tooltip*="urn off caption" i],' +
-      'button[aria-pressed="true"][aria-label*="legenda" i],' +
-      'button[aria-pressed="true"][aria-label*="caption" i]'
-    );
-    if (ccAtivo) { ocultarAvisoLegenda(); return; }
+    if (ccLigadoNoMeet()) { ocultarAvisoLegenda(); return; }
     // V.1.4.27: com a legenda escondida o vendedor nem vê o CC — liga sozinho
     // (1x por página; se ele desligar depois, só volta o aviso).
     if (!_ccLigadoPelaExtensao) {
