@@ -175,12 +175,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
     abaMeetId = tab.id;
     meetingIdAtual = meetingId;
-    capturaSecao.style.display = 'block';
     prepararGravacao();
 
+    // V.1.4.180 (ext 1.4.26): a captura da aba para transcrição só aparece
+    // com a transcrição em tempo real ligada no servidor — ou ativa, para
+    // poder parar.
     chrome.runtime.sendMessage({ tipo: 'statusCaptura' }, function (resp) {
       if (chrome.runtime.lastError) return;
-      atualizarBotaoCaptura(!!(resp && resp.ativo));
+      var ativa = !!(resp && resp.ativo);
+      atualizarBotaoCaptura(ativa);
+      if (ativa) { capturaSecao.style.display = 'block'; return; }
+      fetch(backendAtual() + '/gravacao/config').then(function (r) { return r.json(); }).then(function (cfg) {
+        if (cfg && cfg.transcricao_tempo_real === true) capturaSecao.style.display = 'block';
+      }).catch(function () { /* servidor fora: sem captura */ });
     });
   });
 

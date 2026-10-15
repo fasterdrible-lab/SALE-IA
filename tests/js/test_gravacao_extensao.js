@@ -425,3 +425,34 @@ test('fila cheia recusa em vez de crescer sem limite', async () => {
   await fila.adicionar('bloco', {}); await fila.adicionar('bloco', {});
   assert.deepEqual(await fila.adicionar('bloco', {}), { aceito: false, motivo: 'fila_cheia' });
 });
+
+// ── V.1.4.180 (ext 1.4.26): voz a 32 kbps ───────────────────────────────
+
+test('V.1.4.180: gravador usa a taxa de bits vinda do servidor', () => {
+  const t = montar({ audioBitsPerSecond: 32000 });
+  t.g.iniciar();
+  assert.deepEqual(t.rec().opts, { mimeType: 'audio/webm;codecs=opus', audioBitsPerSecond: 32000 });
+});
+
+test('V.1.4.180: sem taxa de bits, gravador fica com o padrão do navegador', () => {
+  const t = montar();
+  t.g.iniciar();
+  assert.deepEqual(t.rec().opts, { mimeType: 'audio/webm;codecs=opus' });
+});
+
+test('V.1.4.180: background passa a taxa de bits às 2 trilhas', async () => {
+  const bg = bgGravando({
+    fetch: (url) => (url.endsWith('/gravacao/config') ? json(200, Object.assign({}, CONFIG_LIGADA, { bitrate: 32000 })) : json(200, {})),
+  });
+  const r = await bg.enviar(PEDIDO);
+  assert.equal(r.ok, true);
+  assert.equal(bg.enviadosRuntime.find((m) => m.tipo === 'gravarAba').bitrate, 32000);
+  assert.equal(bg.enviadosParaAbas.find(([, m]) => m.tipo === 'gravarMicrofone')[1].bitrate, 32000);
+});
+
+test('V.1.4.180: offscreen e content.js entregam a taxa de bits ao gravador', () => {
+  const fs = require('node:fs');
+  const ext = path.join(__dirname, '..', '..', 'chrome-extension');
+  assert.match(fs.readFileSync(path.join(ext, 'offscreen.js'), 'utf8'), /trackId: 'aba'[^\n]*audioBitsPerSecond: msg\.bitrate/);
+  assert.match(fs.readFileSync(path.join(ext, 'content.js'), 'utf8'), /trackId: 'microfone'[^\n]*audioBitsPerSecond: cfg\.bitrate/);
+});

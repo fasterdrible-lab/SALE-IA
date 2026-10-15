@@ -103,7 +103,7 @@ class TranscricaoConfigSuite(unittest.TestCase):
         payload_b64 = "data:audio/webm;base64," + base64.b64encode(audio_bytes).decode()
 
         with patch("agent.whisper_local.transcrever", return_value="ola mundo") as fake_transcrever, \
-             patch.dict("os.environ", {"TRANSCRICAO_PROVEDOR": "whisper_local"}):
+             patch.dict("os.environ", {"TRANSCRICAO_PROVEDOR": "whisper_local", "TRANSCRICAO_TEMPO_REAL_ATIVA": "true"}):
             r = self.client.post(
                 "/audio-transcricao",
                 json={"audio_base64": payload_b64, "mime_type": "audio/webm", "meeting_id": "default"},

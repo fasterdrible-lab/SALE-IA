@@ -108,7 +108,18 @@ class TestRegras(unittest.TestCase):
 
     def test_desligada_por_padrao(self):
         self.assertFalse(regras.habilitada({}))
-        self.assertEqual(regras.configuracao({})["retencao_dias"], 90)
+        self.assertEqual(regras.configuracao({})["retencao_dias"], 7)
+
+    def test_v180_voz_a_32kbps_e_limites(self):
+        self.assertEqual(regras.configuracao({})["bitrate"], 32_000)
+        self.assertEqual(regras.configuracao({"GRAVACAO_BITRATE": "64000"})["bitrate"], 64_000)
+        self.assertEqual(regras.configuracao({"GRAVACAO_BITRATE": "1000"})["bitrate"], 16_000)
+        self.assertEqual(regras.configuracao({"GRAVACAO_BITRATE": "x"})["bitrate"], 32_000)
+
+    def test_v180_transcricao_tempo_real_desligada_por_padrao(self):
+        self.assertFalse(regras.configuracao({})["transcricao_tempo_real"])
+        self.assertTrue(regras.configuracao({"TRANSCRICAO_TEMPO_REAL_ATIVA": "true"})["transcricao_tempo_real"])
+        self.assertFalse(regras.transcricao_tempo_real_ativa({"TRANSCRICAO_TEMPO_REAL_ATIVA": "nao"}))
 
 
 class TestArmazenamento(_Base):

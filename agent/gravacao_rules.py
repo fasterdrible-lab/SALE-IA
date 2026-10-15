@@ -11,6 +11,12 @@ os demais só tocam colados a ele, em ordem.
 Decisões do usuário (11/10/2026): confirmação de que os participantes
 foram avisados a cada reunião; retenção de 90 dias; gravação só com o
 vendedor logado. Desligada por padrão (`GRAVACAO_AUDIO_ENABLED`).
+
+V.1.4.180 (15/10/2026, docs/tasks-legenda-tempo-real.md 1.1/1.2): retenção
+de 7 dias (decisão do usuário), áudio a 32 kbps (voz; 128 kbps gastava
+~58 MB/h por trilha) e transcrição de áudio em tempo real desligada por
+padrão — durante a reunião a IA usa a legenda do Meet; a gravação é a
+única fonte de áudio.
 """
 from __future__ import annotations
 
@@ -23,7 +29,8 @@ from pathlib import Path
 TRILHAS = ("aba", "microfone")
 BLOCO_S_PADRAO = 5
 ROTACAO_S_PADRAO = 600
-RETENCAO_DIAS_PADRAO = 90
+RETENCAO_DIAS_PADRAO = 7
+BITRATE_PADRAO = 32_000
 # nginx aceita 1 MB por requisição; o bloco vai em base64 (+33%).
 MAX_BLOCO_BYTES = 700_000
 # Duração do bloco é o relógio da extensão, não do áudio: quando a trilha
@@ -45,6 +52,13 @@ def habilitada(env: dict | None = None) -> bool:
     return str(env.get("GRAVACAO_AUDIO_ENABLED", "false")).strip().lower() in ("1", "true", "yes")
 
 
+def transcricao_tempo_real_ativa(env: dict | None = None) -> bool:
+    """`/audio-transcricao` durante a reunião. Desligada por padrão: em
+    14/10 travou a VPS (Whisper local) e esgotou a cota da Groq."""
+    env = os.environ if env is None else env
+    return str(env.get("TRANSCRICAO_TEMPO_REAL_ATIVA", "false")).strip().lower() in ("1", "true", "yes")
+
+
 def _inteiro_env(nome: str, padrao: int, minimo: int, maximo: int, env: dict | None = None) -> int:
     env = os.environ if env is None else env
     try:
@@ -61,6 +75,8 @@ def configuracao(env: dict | None = None) -> dict:
         "bloco_s": _inteiro_env("GRAVACAO_BLOCO_S", BLOCO_S_PADRAO, 2, 30, env),
         "rotacao_s": _inteiro_env("GRAVACAO_ROTACAO_S", ROTACAO_S_PADRAO, 60, 3600, env),
         "retencao_dias": _inteiro_env("GRAVACAO_RETENCAO_DIAS", RETENCAO_DIAS_PADRAO, 1, 3650, env),
+        "bitrate": _inteiro_env("GRAVACAO_BITRATE", BITRATE_PADRAO, 16_000, 256_000, env),
+        "transcricao_tempo_real": transcricao_tempo_real_ativa(env),
         "texto_consentimento": TEXTO_CONSENTIMENTO,
         "trilhas": list(TRILHAS),
     }

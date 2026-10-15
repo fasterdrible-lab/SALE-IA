@@ -838,7 +838,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.179",
+        "versao":              "1.4.180",
         "timestamp":           datetime.now().isoformat(),
         "ia_disponivel":       ia["ia_disponivel"],
         "ia_fora_desde":       ia["ia_fora_desde"],
@@ -879,7 +879,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.179",
+        "versao":          "1.4.180",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -3255,6 +3255,13 @@ async def audio_transcricao(req: AudioTranscricaoRequest, request: Request):
     login, limita por IP para conter flood/exaustão financeira.
     """
     _rate_limit_por_ip(request, "audio-transcricao", limite=40, janela_segundos=60)
+
+    # V.1.4.180: durante a reunião a IA usa a legenda do Meet; o áudio fica
+    # na gravação (T02). Religar: TRANSCRICAO_TEMPO_REAL_ATIVA=true + restart.
+    # Cobre também extensões antigas, que continuam mandando pedaços.
+    from agent.gravacao_rules import transcricao_tempo_real_ativa
+    if not transcricao_tempo_real_ativa():
+        return {"texto": "", "ok": True, "motivo": "tempo_real_desligado"}
 
     # V.1.4.179: a voz do vendedor já chega pela legenda do Meet; transcrever
     # o microfone dobrava o consumo da Groq (cota grátis: 7.200 s de áudio

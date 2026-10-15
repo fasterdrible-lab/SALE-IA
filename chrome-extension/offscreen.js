@@ -144,7 +144,7 @@ async function iniciarGravacaoContinuaAba(msg) {
   const stream = await obterStreamAba(msg.tabStreamId);
   const mimeType = mimeTypeAudio();
   gravadorAba = SaleiaGravacao.criarGravadorContinuo({
-    stream: stream, trackId: 'aba', meetingId: msg.meeting_id, mimeType: mimeType,
+    stream: stream, trackId: 'aba', meetingId: msg.meeting_id, mimeType: mimeType, audioBitsPerSecond: msg.bitrate,
     blocoMs: (msg.bloco_s || 5) * 1000, rotacaoMs: (msg.rotacao_s || 600) * 1000,
     aoIniciar: function (info) { return enviarAoBackground('gravacaoIniciar', info); },
     aoBloco: function (bloco) {

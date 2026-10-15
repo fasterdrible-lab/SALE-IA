@@ -182,7 +182,7 @@ class TestSessoesRepeteTexto(_ComBancoSessoes):
         texto = "quanto custa a implantação para as três lojas"
         registrados = []
         with patch.dict(main._TRANSCRICAO_FUNCOES, {"whisper": lambda c, prompt=None: (texto, "[Teste]")}), \
-             patch.dict("os.environ", {"TRANSCRICAO_PROVEDOR": "whisper"}), \
+             patch.dict("os.environ", {"TRANSCRICAO_PROVEDOR": "whisper", "TRANSCRICAO_TEMPO_REAL_ATIVA": "true"}), \
              patch.object(main, "_prompt_whisper_da_reuniao", lambda _m: ""), \
              patch.object(database, "registrar_transcricao_audio", lambda m, t: registrados.append((m, t))):
             r = TestClient(main.app).post("/audio-transcricao", json={
@@ -402,7 +402,7 @@ class TestAudioTranscricaoBloqueiaLoop(unittest.TestCase):
             return "", "[Teste]"
 
         with patch.dict(main._TRANSCRICAO_FUNCOES, {"whisper": provedor_falso}), \
-             patch.dict("os.environ", {"TRANSCRICAO_PROVEDOR": "whisper"}), \
+             patch.dict("os.environ", {"TRANSCRICAO_PROVEDOR": "whisper", "TRANSCRICAO_TEMPO_REAL_ATIVA": "true"}), \
              patch.object(main, "_prompt_whisper_da_reuniao", lambda _m: ""):
             r = TestClient(main.app).post("/audio-transcricao", json={
                 "audio_base64": base64.b64encode(b"\x00" * 2048).decode(),

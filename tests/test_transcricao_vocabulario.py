@@ -79,7 +79,7 @@ class AudioTranscricaoEndpointTest(unittest.TestCase):
             "mime_type": "audio/webm", "meeting_id": "abc-defg-hij",
         }
         for p in (
-            patch.dict(os.environ, {"TRANSCRICAO_PROVEDOR": "whisper_local", "TRANSCRICAO_GLOSSARIO": ""}),
+            patch.dict(os.environ, {"TRANSCRICAO_PROVEDOR": "whisper_local", "TRANSCRICAO_GLOSSARIO": "", "TRANSCRICAO_TEMPO_REAL_ATIVA": "true"}),
             patch("api.database.obter_trecho_final_transcricao", return_value=TRECHO),
             patch("agent.sessao_manager.registrar_sessao"),
             patch("agent.sessao_manager.salvar_transcricao_bruta"),
@@ -103,6 +103,20 @@ class AudioTranscricaoEndpointTest(unittest.TestCase):
         self.assertEqual(body["texto"], "")
         self.assertEqual(body["motivo"], "descartado")
         salvar.assert_not_called()
+
+    def test_v180_tempo_real_desligado_nao_transcreve_nenhuma_trilha(self):
+        for corpo in ({**self.payload, "fonte": "aba"}, {**self.payload, "fonte": "microfone"}, self.payload):
+            with patch.dict(os.environ, {"TRANSCRICAO_TEMPO_REAL_ATIVA": "false", "TRANSCRICAO_MICROFONE_ATIVA": "true"}), \
+                 patch("agent.whisper_local.transcrever", return_value="ola mundo") as fake:
+                r = self.client.post("/audio-transcricao", json=corpo)
+            self.assertEqual(r.json(), {"texto": "", "ok": True, "motivo": "tempo_real_desligado"})
+            fake.assert_not_called()
+
+    def test_v180_config_informa_a_extensao(self):
+        with patch.dict(os.environ, {"TRANSCRICAO_TEMPO_REAL_ATIVA": ""}):
+            cfg = self.client.get("/gravacao/config").json()
+        self.assertIs(cfg["transcricao_tempo_real"], False)
+        self.assertEqual(cfg["bitrate"], 32_000)
 
     def test_microfone_desligado_por_padrao_nao_transcreve(self):
         with patch.dict(os.environ, {"TRANSCRICAO_MICROFONE_ATIVA": ""}), \

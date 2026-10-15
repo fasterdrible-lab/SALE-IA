@@ -3,6 +3,44 @@
 
 ---
 
+## V.1.4.180 + ext 1.4.26 — Legenda em tempo real; áudio só na gravação
+
+> Data: 15/10/2026 | Plano `docs/tasks-legenda-tempo-real.md`, tarefas 1.1 e 1.2
+
+Avaliação de produção de 15/10: a legenda do Meet já cobre 88% do que o
+áudio transcrevia; transcrever áudio durante a reunião travou a VPS
+(14/10, Whisper local) e esgotou a cota grátis da Groq no mesmo dia (1.289
+erros 429). A gravação a 128 kbps gastava ~58 MB/h por trilha.
+
+- **Transcrição em tempo real desligada por padrão**
+  (`TRANSCRICAO_TEMPO_REAL_ATIVA`, padrão `false`): `POST
+  /audio-transcricao` devolve `{"texto": "", "ok": true, "motivo":
+  "tempo_real_desligado"}` sem chamar provedor nenhum — vale também para
+  extensões antigas. Durante a reunião a IA usa a legenda; o áudio fica
+  na gravação (T02). Religar: `TRANSCRICAO_TEMPO_REAL_ATIVA=true` +
+  restart.
+- `GET /gravacao/config` ganhou `bitrate` (`GRAVACAO_BITRATE`, padrão
+  32000, entre 16000 e 256000) e `transcricao_tempo_real`.
+- Retenção padrão das gravações: 90 → **7 dias** (decisão do usuário,
+  15/10; já aplicada na VPS via `.env` e nas gravações existentes).
+- Extensão 1.4.26: gravador das 2 trilhas com `audioBitsPerSecond`
+  vindo do servidor (32 kbps); com a transcrição desligada, o popup não
+  mostra "Áudio da aba (participantes)", a sidebar esconde "Capturar
+  áudio (Whisper)", o background recusa iniciar a captura e, se ela já
+  estava rodando, para na 1ª resposta `tempo_real_desligado`. A gravação
+  não muda.
+- Também em 15/10 (só `.env` da VPS, sem código): conta Claude pessoal
+  fora da reserva de IA (`CLAUDE_ACCOUNT_PILOT=false`; ~US$ 142
+  estimados gastos desde 03/09 só como reserva) e binlog do MySQL com
+  retenção de 3 dias (17 GB → 4,7 GB).
+- Testes: `tests/test_gravacao_t02.py` (+2), `tests/test_transcricao_vocabulario.py`
+  (+2), `tests/js/test_gravacao_extensao.js` (+4),
+  `tests/js/test_extensao_transcricao.js` (+4); testes que transcrevem
+  ligam `TRANSCRICAO_TEMPO_REAL_ATIVA=true`.
+- Versão: `1.4.179` → `1.4.180`; extensão `1.4.25` → `1.4.26`
+
+---
+
 ## V.1.4.179 + ext 1.4.25 — Groq transcreve só o áudio do cliente
 
 > Data: 14/10/2026 | Local, aguardando deploy + reinstalação da extensão

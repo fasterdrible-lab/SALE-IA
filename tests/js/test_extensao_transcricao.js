@@ -111,3 +111,39 @@ test('V.1.4.179: content.js para o microfone quando o servidor o desliga', () =>
   const trecho = src.slice(src.indexOf("fonte: 'microfone'"), src.indexOf("commitarFrase('Vendedor', texto, 'audio')"));
   assert.match(trecho, /data\.motivo === 'microfone_desligado'[\s\S]*pararWhisper\(\)[\s\S]*return;/);
 });
+
+// ── V.1.4.180 (ext 1.4.26): transcrição em tempo real desligada ─────────
+
+test('V.1.4.180: servidor desligou → background manda o offscreen parar e não repassa texto', async () => {
+  const bg = carregarBackground(resposta(true, 200, { texto: '', ok: true, motivo: 'tempo_real_desligado' }));
+  await bg.enviar({ tipo: 'audioChunk', base64: 'data:audio/webm;base64,AAAA', mimeType: 'audio/webm',
+    fonte: 'aba', meeting_id: 'abc-defg-hij', tabId: 7 });
+  assert.ok(bg.enviadosRuntime.some((m) => m.tipo === 'pararGravacaoOffscreen'));
+  assert.deepEqual(bg.enviadosParaAbas, []);
+});
+
+test('V.1.4.180: captura da aba para transcrição é recusada com o servidor desligado', async () => {
+  const bg = carregarBackground(resposta(true, 200, { habilitada: true, transcricao_tempo_real: false }));
+  const r = await bg.enviar({ tipo: 'iniciarCaptura', meeting_id: 'abc-defg-hij', tabId: 7 });
+  assert.equal(r.ok, false);
+  assert.equal(r.desligada, true);
+  assert.ok(!bg.enviadosRuntime.some((m) => m.tipo === 'iniciarGravacaoOffscreen'));
+});
+
+test('V.1.4.180: captura da aba segue funcionando com o servidor ligado', async () => {
+  const bg = require('./background_falso.js').carregarBackground({
+    fetch: () => Promise.resolve(resposta(true, 200, { transcricao_tempo_real: true })),
+    aoMensagemRuntime: (m) => (m.tipo === 'iniciarGravacaoOffscreen' ? { ok: true } : undefined),
+  });
+  const r = await bg.enviar({ tipo: 'iniciarCaptura', meeting_id: 'abc-defg-hij', tabId: 7 });
+  assert.equal(r.ok, true);
+});
+
+test('V.1.4.180: content.js para o microfone e esconde o botão; popup só mostra a captura se ligada', () => {
+  const src = fs.readFileSync(path.join(EXT, 'content.js'), 'utf8');
+  assert.match(src, /data\.motivo === 'tempo_real_desligado'\)\s*\{\s*pararWhisper\(\);\s*esconderBotaoWhisper\(\);/);
+  assert.match(src, /transcricao_tempo_real === false\) esconderBotaoWhisper\(\)/);
+  const popup = fs.readFileSync(path.join(EXT, 'popup.js'), 'utf8');
+  assert.match(popup, /cfg\.transcricao_tempo_real === true\) capturaSecao\.style\.display = 'block'/);
+  assert.doesNotMatch(popup, /meetingIdAtual = meetingId;\s*capturaSecao\.style\.display = 'block'/);
+});

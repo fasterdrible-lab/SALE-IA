@@ -339,6 +339,17 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     })
       .then(function (res) { return res.json(); })
       .then(function (data) {
+        // V.1.4.180: servidor desligou a transcrição em tempo real → para de
+        // mandar pedaços (a gravação contínua, se houver, continua).
+        // Sempre manda parar: o service worker pode ter sido reciclado e
+        // esquecido capturaAtiva, e parar no offscreen é idempotente.
+        if (data && data.motivo === 'tempo_real_desligado') {
+          capturaAtiva = false;
+          chrome.runtime.sendMessage({ tipo: 'pararGravacaoOffscreen' }, function () {
+            if (chrome.runtime.lastError) { /* offscreen já fechado */ }
+          });
+          return;
+        }
         if (data.texto && data.texto.trim()) {
           // Envia texto transcrito para o content.js da aba CAPTURADA.
           // fonte:'aba' identifica que veio do tabCapture (participantes),
@@ -437,12 +448,29 @@ setInterval(verificarHeartbeat, 15000);
 // ─────────────────────────────────────────────
 // CAPTURA DE ÁUDIO — helper async
 // ─────────────────────────────────────────────
+var MSG_TEMPO_REAL_DESLIGADO = 'Transcrição do áudio desligada: a conversa vem pela legenda do Meet e o áudio fica na gravação.';
+
+// Sem resposta do servidor = não liga (o servidor também recusa).
+async function transcricaoTempoRealAtiva() {
+  try {
+    var cfg = await (await fetch(estadoExtensao.backendUrl + '/gravacao/config')).json();
+    return cfg.transcricao_tempo_real === true;
+  } catch (e) {
+    return false;
+  }
+}
+
 async function handleIniciarCaptura(tabId, meetingId) {
   // Fase 3 do PROMPT MESTRE ("Meetily") — captura o áudio da ABA (voz dos
   // participantes), complementando o microfone do vendedor que já é
   // capturado direto em content.js (getUserMedia na própria página do
   // Meet). O streamId do tabCapture só pode ser obtido aqui (contexto do
   // service worker) — content scripts não têm acesso a chrome.tabCapture.
+  // V.1.4.180: transcrição em tempo real desligada no servidor → nem abre
+  // a captura (o áudio da reunião vai só pela gravação).
+  if (!(await transcricaoTempoRealAtiva())) {
+    return { ok: false, desligada: true, error: MSG_TEMPO_REAL_DESLIGADO };
+  }
   var tabStreamId = null;
   try {
     tabStreamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: tabId });
@@ -725,7 +753,7 @@ async function iniciarGravacao(msg) {
     }
   }
   await garantirOffscreen();
-  var opcoes = { meeting_id: msg.meeting_id, bloco_s: config.bloco_s, rotacao_s: config.rotacao_s };
+  var opcoes = { meeting_id: msg.meeting_id, bloco_s: config.bloco_s, rotacao_s: config.rotacao_s, bitrate: config.bitrate };
   var aba = await mensagemParaOffscreen(Object.assign({ tipo: 'gravarAba', tabStreamId: tabStreamId }, opcoes));
   if (!aba.ok) {
     await salvarEstadoGravacao({ consentimento_meeting: null });

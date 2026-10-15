@@ -31,7 +31,7 @@
 
   /**
    * opcoes: {stream, trackId, meetingId, blocoMs, rotacaoMs, mimeType,
-   *          MediaRecorder, agora, gerarId, setTimeout, clearTimeout,
+   *          audioBitsPerSecond, MediaRecorder, agora, gerarId, setTimeout, clearTimeout,
    *          aoIniciar(info), aoBloco(bloco) -> Promise, aoEncerrar(info),
    *          aoFimDoAudio()}
    * Os 3 primeiros callbacks rodam em ordem estrita (uma corrente de promises):
@@ -70,7 +70,11 @@
         recording_id: gerarId(), meeting_id: opcoes.meetingId, track_id: opcoes.trackId,
         codec: opcoes.mimeType || '', iniciada_em_ms: agora(),
       };
-      var rec = new Recorder(opcoes.stream, opcoes.mimeType ? { mimeType: opcoes.mimeType } : undefined);
+      var opcoesRec = {};
+      if (opcoes.mimeType) opcoesRec.mimeType = opcoes.mimeType;
+      // V.1.4.180: voz a 32 kbps (vem do servidor); padrão do Chrome ~128 kbps.
+      if (opcoes.audioBitsPerSecond) opcoesRec.audioBitsPerSecond = opcoes.audioBitsPerSecond;
+      var rec = new Recorder(opcoes.stream, Object.keys(opcoesRec).length ? opcoesRec : undefined);
       var estado = { recorder: rec, recordingId: info.recording_id, sequence: 0, inicioBloco: info.iniciada_em_ms, timer: null };
       atual = estado;
       emOrdem(function () { return opcoes.aoIniciar && opcoes.aoIniciar(info); });

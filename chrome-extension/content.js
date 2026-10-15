@@ -123,6 +123,21 @@
     function setAudioStatus(txt, cor) {
       if (statusAudio) { statusAudio.textContent = txt; statusAudio.style.color = cor || '#888'; }
     }
+    // V.1.4.180 (ext 1.4.26): com a transcrição em tempo real desligada no
+    // servidor, o botão some — a conversa vem pela legenda do Meet.
+    function esconderBotaoWhisper() {
+      if (btnAudio) btnAudio.style.display = 'none';
+      setAudioStatus('', '');
+    }
+    if (chrome.runtime && chrome.runtime.id) {
+      chrome.runtime.sendMessage(
+        { tipo: 'fetchBackend', method: 'GET', url: CONFIG.backendUrl + '/gravacao/config' },
+        function (resp) {
+          if (chrome.runtime.lastError) return;
+          if (resp && resp.ok && resp.data && resp.data.transcricao_tempo_real === false) esconderBotaoWhisper();
+        }
+      );
+    }
     function pararWhisper() {
       capturaAudioAtiva = false;
       if (whisperCicloTimer) { clearTimeout(whisperCicloTimer); whisperCicloTimer = null; }
@@ -200,6 +215,12 @@
               btnAudio.style.background = '#1a1a2e'; btnAudio.style.borderColor = '#00d4aa'; btnAudio.style.color = '#00d4aa';
             }
             setAudioStatus('🎤 Sua voz já vem pela legenda — só o áudio do cliente é transcrito', '#aaa');
+            return;
+          }
+          // V.1.4.180 (ext 1.4.26): transcrição em tempo real desligada no servidor.
+          if (data && data.motivo === 'tempo_real_desligado') {
+            pararWhisper();
+            esconderBotaoWhisper();
             return;
           }
           if (data && data.texto && data.texto.trim()) {
@@ -327,7 +348,7 @@
       streamMic = stream;
       var mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
       gravadorMic = SaleiaGravacao.criarGravadorContinuo({
-        stream: stream, trackId: 'microfone', meetingId: MEETING_ID, mimeType: mime,
+        stream: stream, trackId: 'microfone', meetingId: MEETING_ID, mimeType: mime, audioBitsPerSecond: cfg.bitrate,
         blocoMs: (cfg.bloco_s || 5) * 1000, rotacaoMs: (cfg.rotacao_s || 600) * 1000,
         aoIniciar: function (info) { return enviarGravacao('gravacaoIniciar', info); },
         aoBloco: function (bloco) {
