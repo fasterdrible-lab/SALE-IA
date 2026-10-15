@@ -106,6 +106,7 @@
   function iniciar() {
     if (document.getElementById('saleia-sidebar')) return;
     criarSidebar();
+    iniciarLegendaOculta();
     iniciarObservadorLegendas();
     iniciarContadorRegressivo();
     iniciarEnvioPeriodico();
@@ -660,6 +661,7 @@
         </div>
         <div id="saleia-login-aviso" class="saleia-secao saleia-aviso" style="display:none"></div>
         <div id="saleia-debug-count" style="font-size:.75rem;color:#666;margin-top:4px"></div>
+        <button id="saleia-btn-legenda" class="saleia-discreto-btn" style="margin-top:4px;width:100%">👁 Mostrar legenda na tela</button>
         <button id="saleia-btn-audio-capture"
           style="margin:6px 0 2px;width:100%;padding:7px;background:#1a1a2e;border:1px solid #00d4aa;
                  color:#00d4aa;border-radius:6px;font-size:.8rem;font-weight:600;cursor:pointer">
@@ -893,8 +895,9 @@
   // (limpo a cada 60s) descartava a versão completa de uma frase longa e
   // deixava a varredura regravar legendas antigas.
   // fonte: 'audio' quando o texto veio do Whisper (microfone ou aba).
-  function commitarFrase(speaker, texto, fonte) {
-    if (!texto || texto.trim().length < 10) return;
+  // curtaOk (V.1.4.27): fala da área de legendas — resposta curta vale.
+  function commitarFrase(speaker, texto, fonte, curtaOk) {
+    if (!texto || texto.trim().length < (curtaOk ? 2 : 10)) return;
     if (eRuidoUI(texto.trim())) return;
     speaker = rotuloParticipante(speaker);
     var t = texto.trim();
@@ -919,7 +922,7 @@
     Object.keys(captionBuffer).forEach(function (speaker) {
       var buf = captionBuffer[speaker];
       if (buf && agora - buf.lastSeen > 3500) {
-        commitarFrase(speaker, buf.texto);
+        commitarFrase(speaker, buf.texto, 'legenda', buf.curta);
         delete captionBuffer[speaker];
       }
     });
@@ -1086,10 +1089,10 @@
 
   function pareceNomeDeFalante(texto) {
     var t = String(texto || '').trim();
-    if (t.length < 2 || t.length > 40) return false;
+    if (t.length < 2 || t.length > 60) return false;
     if (/[.,!?;:…"“”_@#()\d]/.test(t)) return false;
     var palavras = t.split(/\s+/);
-    if (palavras.length > 4) return false;
+    if (palavras.length > 8) return false;  // V.1.4.27: era 4 — nome completo tem 6+
     if (normalizarNomeParticipante(t) === 'voce' || normalizarNomeParticipante(t) === 'you') return true;
     // Nome: toda palavra começa com maiúscula, exceto partículas (da, de, dos...).
     // Fala ("Tudo bem com você") quase nunca passa nisso.
@@ -1125,6 +1128,18 @@
   function detectarFalantePorEstrutura(el) {
     var bloco = blocoDoFalante(el);
     if (!bloco) return { nome: null, eONome: false };
+    // V.1.4.27 (HTML real da legenda, 15/10/2026): cada bloco é
+    //   div(bloco) > [ div(img foto + span nome) , div(fala) ]
+    // O nome é o texto que fica junto da foto — sem adivinhar "parece nome"
+    // (a regra antiga recusava nome com mais de 4 palavras, ex.: "Paulo
+    // Henrique Pagoti de Oliveira Silva", e a fala virava "Não identificado").
+    var foto = bloco.querySelector('img, [role="img"]');
+    var cabecalho = foto && foto.parentElement;
+    if (cabecalho && cabecalho !== bloco) {
+      var nomeCab = cabecalho.textContent.trim();
+      if (cabecalho.contains(el)) return { nome: null, eONome: !!nomeCab };
+      if (nomeCab && nomeCab.length <= 80) return { nome: nomeCab, eONome: false };
+    }
     var folhas = folhasDeTexto(bloco);
     var nomeEl = null;
     for (var i = 0; i < folhas.length - 1; i++) {  // nome nunca é o último (depois dele vem a fala)
@@ -1187,9 +1202,12 @@
     // vazavam CSS ("height: 100%;") como se fosse fala.
     if (el.closest && el.closest('style,script,noscript,template')) return;
     var texto = el.textContent.trim();
-    // Mínimo: 2 palavras e 10 chars para ser fala real
-    if (!texto || texto.length < 10) return;
-    if (texto.split(/\s+/).length < 2) return;
+    // V.1.4.27: dentro da área de legendas só há fala, então resposta curta
+    // ("sim", "bem", "caro") vale. Fora dela (Meet sem a área) o mínimo de
+    // 2 palavras / 10 caracteres segue barrando botão e texto de tela.
+    var naLegenda = !!(regiao && regiao.contains(el));
+    if (!texto || texto.length < (naLegenda ? 2 : 10)) return;
+    if (!naLegenda && texto.split(/\s+/).length < 2) return;
     if (RUIDO_REGEX.test(texto)) return;
     if (RUIDO_PREFIXO_RE.test(texto)) return;
     if (eRuidoUI(texto)) return;
@@ -1229,7 +1247,7 @@
     var buf = captionBuffer[speaker];
 
     if (!buf) {
-      captionBuffer[speaker] = { texto: texto, lastSeen: agora };
+      captionBuffer[speaker] = { texto: texto, lastSeen: agora, curta: naLegenda };
       return;
     }
 
@@ -1244,8 +1262,8 @@
       buf.lastSeen = agora;
     } else {
       // Nova frase diferente — commita a anterior e inicia nova
-      commitarFrase(speaker, buf.texto);
-      captionBuffer[speaker] = { texto: texto, lastSeen: agora };
+      commitarFrase(speaker, buf.texto, 'legenda', buf.curta);
+      captionBuffer[speaker] = { texto: texto, lastSeen: agora, curta: naLegenda };
     }
   }
 
@@ -1259,8 +1277,16 @@
       'button[aria-pressed="true"][aria-label*="caption" i]'
     );
     if (ccAtivo) { ocultarAvisoLegenda(); return; }
+    // V.1.4.27: com a legenda escondida o vendedor nem vê o CC — liga sozinho
+    // (1x por página; se ele desligar depois, só volta o aviso).
+    if (!_ccLigadoPelaExtensao) {
+      var btnCC = document.querySelector(
+        'button[aria-label*="tivar legenda" i]:not([aria-label*="esativar" i]),button[aria-label*="urn on caption" i]');
+      if (btnCC) { _ccLigadoPelaExtensao = true; btnCC.click(); console.log('[SALEIA-LEGENDA] CC ligado pela extensão'); return; }
+    }
     exibirAvisoLegenda();
   }
+  var _ccLigadoPelaExtensao = false;
   // Tarefa B8: /tempo-real devolve auth_status. Sem isso, token expirado
   // virava anônimo em silêncio e a reunião ficava sem vendedor. O aviso
   // só orienta o vendedor — nunca mostra detalhe técnico (regra da
@@ -1287,6 +1313,27 @@
     var texto = TEXTOS_AVISO_LOGIN[dados.auth_status];
     aviso.textContent = texto || '';
     aviso.style.display = texto ? 'block' : 'none';
+  }
+
+  // V.1.4.27: legenda do Meet fora da tela por padrão (sidebar.css,
+  // html.saleia-legenda-oculta). O texto continua na página para a leitura.
+  function aplicarLegendaOculta(oculta) {
+    document.documentElement.classList.toggle('saleia-legenda-oculta', oculta);
+    var btn = document.getElementById('saleia-btn-legenda');
+    if (btn) btn.textContent = oculta ? '👁 Mostrar legenda na tela' : '🙈 Esconder legenda da tela';
+  }
+
+  function iniciarLegendaOculta() {
+    aplicarLegendaOculta(true);
+    chrome.storage.local.get(['saleiaLegendaOculta'], function (r) {
+      aplicarLegendaOculta(r.saleiaLegendaOculta !== false);
+    });
+    var btn = document.getElementById('saleia-btn-legenda');
+    if (btn) btn.addEventListener('click', function () {
+      var oculta = !document.documentElement.classList.contains('saleia-legenda-oculta');
+      aplicarLegendaOculta(oculta);
+      chrome.storage.local.set({ saleiaLegendaOculta: oculta });
+    });
   }
 
   function exibirAvisoLegenda() { const a = document.getElementById('saleia-legenda-aviso'); if (a) a.style.display = 'block'; }

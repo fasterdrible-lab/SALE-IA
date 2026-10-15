@@ -115,7 +115,20 @@ fonte de áudio e a garantia de que nada se perde.
 
 ## Fase 2 — Qualidade da legenda em tempo real
 
-### 2.1 Falante pelo volume do microfone (principal ganho)
+### 2.0 Nome do falante pela legenda + legenda escondida — FEITA (ext 1.4.27, 15/10)
+- Pedido do usuário depois de comparar com o Tactiq (lê a legenda do Meet,
+  separa por nome, esconde a legenda, não grava áudio). HTML real da área
+  de legendas obtido numa reunião: o nome é o texto junto da foto de cada
+  bloco. Conversa de referência do Tactiq: 1.4.26 = 7/13 falas (3 com
+  nome); 1.4.27 = 13/13, na ordem, todas com nome. Detalhe no CHANGELOG.
+- Também: respostas curtas mantidas, legenda escondida por padrão (botão
+  na sidebar), CC ligado pela extensão.
+- **Falta validar no Meet real** e reinstalar nos vendedores (a 1.4.27
+  inclui a 1.4.26).
+- Com isso a 2.1 abaixo vira reserva: só fazer se, depois da 1.4.27
+  instalada, ainda sobrar "Não identificado" relevante.
+
+### 2.1 Falante pelo volume do microfone (reserva — ver 2.0)
 - No `content.js`, um `AnalyserNode` no stream do microfone (o mesmo da
   gravação) registra uma linha do tempo de "voz no microfone" (RMS acima
   do limiar, com ~300 ms de folga).

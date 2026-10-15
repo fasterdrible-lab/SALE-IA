@@ -53,15 +53,23 @@
     var t = normalizar(nova.text);
     if (!t) return { acao: 'ignorar', motivo: 'vazia' };
     var inicio = Math.max(0, transcricao.length - JANELA);
+    var ultimaDoFalante = true;
     for (var i = transcricao.length - 1; i >= inicio; i--) {
       var e = transcricao[i];
       var n = normalizar(e.text);
       if (n === t && e.speaker === nova.speaker) return { acao: 'ignorar', motivo: 'igual' };
       if (e.speaker !== nova.speaker) continue;
-      if (comecaCom(n, t)) return { acao: 'ignorar', motivo: 'pedaco_de_gravada' };
-      if (comecaCom(t, n)) {
-        if (i >= indiceEnviado) return { acao: 'substituir', indice: i, motivo: 'completa_a_gravada' };
-        return { acao: 'adicionar', motivo: 'completa_a_ja_enviada' };
+      // V.1.4.27: pedaço/versão completa só vale contra a ÚLTIMA fala da
+      // pessoa (é a legenda que o Meet ainda está escrevendo). Antes, "Aí
+      // sim." de 3 falas atrás era trocada por "Aí sim foi corrido hoje" —
+      // fala nova — e a conversa saía fora de ordem.
+      if (ultimaDoFalante) {
+        ultimaDoFalante = false;
+        if (comecaCom(n, t)) return { acao: 'ignorar', motivo: 'pedaco_de_gravada' };
+        if (comecaCom(t, n)) {
+          if (i >= indiceEnviado) return { acao: 'substituir', indice: i, motivo: 'completa_a_gravada' };
+          return { acao: 'adicionar', motivo: 'completa_a_ja_enviada' };
+        }
       }
     }
     var p = palavras(nova.text);

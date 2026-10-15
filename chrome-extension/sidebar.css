@@ -545,3 +545,17 @@
   font-style: italic;
   line-height: 1.35;
 }
+
+/* V.1.4.27: legenda do Meet escondida da tela (como o Tactiq). O Meet
+   continua escrevendo o texto na página e a extensão segue lendo — só não
+   aparece. Nunca display:none: o texto precisa continuar sendo atualizado.
+   Botão na sidebar: "Mostrar legenda na tela". */
+html.saleia-legenda-oculta [role="region"][aria-label*="egenda" i]:not(#saleia-sidebar *),
+html.saleia-legenda-oculta [role="region"][aria-label*="aption" i]:not(#saleia-sidebar *) {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  overflow: hidden !important;
+}

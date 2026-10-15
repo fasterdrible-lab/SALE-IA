@@ -147,3 +147,32 @@ test('V.1.4.180: content.js para o microfone e esconde o botão; popup só mostr
   assert.match(popup, /cfg\.transcricao_tempo_real === true\) capturaSecao\.style\.display = 'block'/);
   assert.doesNotMatch(popup, /meetingIdAtual = meetingId;\s*capturaSecao\.style\.display = 'block'/);
 });
+
+// ── V.1.4.27 (ext 1.4.27): legenda lida igual ao Tactiq ─────────────────
+
+test('V.1.4.27: fala nova que começa igual a uma antiga da mesma pessoa não troca a antiga de lugar', () => {
+  const t = [fala('Paulo', 'Aí sim.'), fala('Enzo', 'também'), fala('Paulo', 'Que bacana, hein, cara?'), fala('Enzo', 'não tô em casa')];
+  const d = regras.decidirCommit(t, fala('Paulo', 'Aí sim foi corrido hoje. Eita,'), 0);
+  assert.equal(d.acao, 'adicionar');
+});
+
+test('V.1.4.27: a legenda parcial ainda é completada quando é a última fala da pessoa', () => {
+  const t = [fala('Paulo', 'Aí sim.'), fala('Enzo', 'também')];
+  const d = regras.decidirCommit(t, fala('Paulo', 'Aí sim foi corrido hoje.'), 0);
+  assert.deepEqual([d.acao, d.indice], ['substituir', 0]);
+});
+
+test('V.1.4.27: resposta curta da legenda entra na transcrição', () => {
+  const t = [fala('Paulo', 'Tudo bem, graças a Deus. E você?')];
+  assert.equal(regras.decidirCommit(t, fala('Enzo', 'bem'), 0).acao, 'adicionar');
+});
+
+test('V.1.4.27: legenda escondida da tela sem display:none e botão na sidebar', () => {
+  const css = fs.readFileSync(path.join(EXT, 'sidebar.css'), 'utf8');
+  const bloco = css.slice(css.indexOf('html.saleia-legenda-oculta'));
+  assert.match(bloco, /opacity: 0 !important/);
+  assert.doesNotMatch(bloco, /display:\s*none/);
+  const src = fs.readFileSync(path.join(EXT, 'content.js'), 'utf8');
+  assert.match(src, /id="saleia-btn-legenda"/);
+  assert.match(src, /saleiaLegendaOculta !== false/);  // escondida por padrão
+});

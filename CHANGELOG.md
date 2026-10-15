@@ -3,6 +3,48 @@
 
 ---
 
+## ext 1.4.27 — Legenda lida igual ao Tactiq: nome de quem falou, respostas curtas, legenda escondida
+
+> Data: 15/10/2026 | Só extensão (backend segue V.1.4.180, sem deploy) | inclui a 1.4.26
+
+O usuário comparou com o Tactiq (extensão que também lê a legenda do Meet,
+sem gravar áudio): ele separa as pessoas pelo nome, guarda respostas
+curtas e não mostra a legenda na tela. Com o HTML real da área de legendas
+(copiado de uma reunião em 15/10), a conversa de referência do Tactiq foi
+reproduzida: a 1.4.26 gravava **7 de 13 falas, 3 com nome**; a 1.4.27
+grava **13 de 13, na ordem, todas com nome**.
+
+- **Nome do falante**: estrutura real = `div(bloco) > [div(img foto +
+  span nome), div(fala)]`. O nome agora é o texto junto da foto, sem
+  adivinhar "parece nome". A regra antiga (`pareceNomeDeFalante`)
+  recusava nome com mais de 4 palavras — nome completo do Meet costuma ter
+  6+ — e a fala virava "Não identificado". A regra antiga fica como
+  reserva, agora até 8 palavras / 60 caracteres.
+- **Respostas curtas**: dentro da área de legendas o mínimo caiu de 10
+  caracteres / 2 palavras para 2 caracteres ("bem", "sim", "Fácil." eram
+  descartados — 7 de 9 falas do cliente no exemplo). Fora da área (Meet
+  sem ela) o filtro antigo continua.
+- **Ordem**: a junção "legenda parcial → versão completa"
+  (`decidirCommit`) compara só com a ÚLTIMA fala da pessoa; antes, uma
+  fala nova que começava igual a uma antiga ("Aí sim." → "Aí sim foi
+  corrido hoje") substituía a antiga e embaralhava a conversa.
+- **Legenda escondida da tela** por padrão (`sidebar.css`,
+  `html.saleia-legenda-oculta`: opacidade 0 e altura 0, nunca
+  `display:none`, para o Meet continuar escrevendo o texto). Botão na
+  sidebar "Mostrar/Esconder legenda na tela", escolha guardada em
+  `saleiaLegendaOculta`.
+- **CC ligado pela extensão** (1x por página) quando a legenda está
+  desligada — com ela escondida o vendedor nem veria o CC.
+- Testes: `tests/js/test_extensao_transcricao.js` (+4),
+  `tests/js/test_legenda_meet.js` (novo, 2, roda a conversa contra o HTML
+  real anonimizado em `tests/js/fixtures/meet_legenda_20261015.html`;
+  precisa de `jsdom` via `NODE_PATH`, sem ele é pulado).
+- **A validar no Meet real**: legenda some sem deixar faixa vazia, texto
+  continua chegando com ela escondida, CC liga sozinho.
+- Versão: extensão `1.4.26` → `1.4.27`
+
+---
+
 ## V.1.4.180 + ext 1.4.26 — Legenda em tempo real; áudio só na gravação
 
 > Data: 15/10/2026 | Plano `docs/tasks-legenda-tempo-real.md`, tarefas 1.1 e 1.2
