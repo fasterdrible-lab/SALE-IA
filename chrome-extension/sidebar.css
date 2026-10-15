@@ -552,10 +552,12 @@
    Botão na sidebar: "Mostrar legenda na tela". */
 html.saleia-legenda-oculta [role="region"][aria-label*="egenda" i]:not(#saleia-sidebar *),
 html.saleia-legenda-oculta [role="region"][aria-label*="aption" i]:not(#saleia-sidebar *) {
+  /* V.1.4.28: fora da tela com o tamanho normal (antes: altura 0, que pode
+     fazer o Meet achar que não há espaço e não escrever a legenda). */
+  position: fixed !important;
+  left: -10000px !important;
+  top: 0 !important;
+  width: 800px !important;
   opacity: 0 !important;
   pointer-events: none !important;
-  height: 0 !important;
-  min-height: 0 !important;
-  max-height: 0 !important;
-  overflow: hidden !important;
 }

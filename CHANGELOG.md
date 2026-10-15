@@ -3,6 +3,30 @@
 
 ---
 
+## ext 1.4.28 — Fala presa no buffer (painel vazio no teste da 1.4.27)
+
+> Data: 15/10/2026 | Só extensão (backend segue V.1.4.180)
+
+Teste real da 1.4.27 (reunião `yab-pvvs-tav`): nada chegou ao servidor.
+Console do Meet mostrou o mesmo bloco ("Você" + fala) reprocessado várias
+vezes por segundo com **texto idêntico** — o Meet redesenha o bloco. Cada
+redesenho renovava o relógio de 3,5 s de silêncio, a fala nunca saía do
+buffer, a transcrição ficava < 20 caracteres e o envio era pulado (com o
+aviso falso "Ative as legendas").
+
+- O relógio de silêncio só renova quando o texto cresce (palavra nova) ou
+  muda sem estar contido no anterior (Meet cortou o começo).
+- Legenda escondida: fora da tela com tamanho normal (`position: fixed;
+  left: -10000px; width: 800px; opacity: 0`) em vez de altura 0, que
+  pode fazer o Meet não escrever a legenda.
+- Aviso "Ative as legendas" no envio só aparece se nenhuma legenda foi
+  lida ainda.
+- Testes: `tests/js/test_legenda_meet.js` (+2: redesenho com texto igual
+  grava a fala; texto crescendo não é cortado no meio).
+- Versão: extensão `1.4.27` → `1.4.28`
+
+---
+
 ## ext 1.4.27 — Legenda lida igual ao Tactiq: nome de quem falou, respostas curtas, legenda escondida
 
 > Data: 15/10/2026 | Só extensão (backend segue V.1.4.180, sem deploy) | inclui a 1.4.26

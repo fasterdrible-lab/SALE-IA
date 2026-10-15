@@ -1257,9 +1257,17 @@
     var velhoContemNovo = buf.texto.toLowerCase().indexOf(texto.toLowerCase().substring(0, prefLen)) >= 0;
 
     if (mesmaPrefixo || velhoContemNovo) {
-      // Mesma frase evoluindo — mantém a versão mais longa
-      if (texto.length > buf.texto.length) buf.texto = texto;
-      buf.lastSeen = agora;
+      // Mesma frase evoluindo — mantém a versão mais longa. V.1.4.28: o
+      // relógio de silêncio só renova com palavra nova. O Meet redesenha o
+      // bloco várias vezes por segundo com o MESMO texto (console real,
+      // 15/10); renovar a cada redesenho deixava a fala presa para sempre
+      // no buffer — nunca gravada, nunca enviada.
+      if (texto.length > buf.texto.length) {
+        buf.texto = texto;
+        buf.lastSeen = agora;
+      } else if (buf.texto.toLowerCase().indexOf(texto.toLowerCase()) < 0) {
+        buf.lastSeen = agora;  // mudou sem crescer (Meet cortou o começo): ainda falando
+      }
     } else {
       // Nova frase diferente — commita a anterior e inicia nova
       commitarFrase(speaker, buf.texto, 'legenda', buf.curta);
@@ -1571,7 +1579,9 @@
     // GUARDA: só envia se houver transcrição real com pelo menos 20 caracteres
     // Evita chamadas ao backend quando não há conversa no Meet
     if (!transcricaoParcial || transcricaoParcial.trim().length < 20) {
-      exibirAvisoLegenda();
+      // V.1.4.28: com resposta curta já gravada a legenda está ligada — o
+      // aviso "Ative as legendas" só vale se nada foi lido ainda.
+      if (!legendasDetectadas) exibirAvisoLegenda();
       return;
     }
 
