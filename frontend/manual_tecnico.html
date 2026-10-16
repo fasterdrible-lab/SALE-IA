@@ -173,7 +173,7 @@
                                                                      ├─► data/gravacoes/          ── áudio (T02)
                                                                      ├─► Ollama (local)           ── embeddings
                                                                      ├─► faster-whisper (local)   ── áudio → texto
-                                                                     └─► DeepSeek → OpenAI → Anthropic → Gemini → Groq (+ conta Claude)</code></pre>
+                                                                     └─► DeepSeek → OpenAI → Anthropic → Gemini → Groq (conta Claude: desligada)</code></pre>
       </div>
       <div class="grid-2">
         <div class="card">
@@ -223,8 +223,8 @@
         <tr><td>Linguagem / runtime</td><td>Python 3.14.4 (venv), uvicorn 0.52 com 2 workers</td></tr>
         <tr><td>Web / API</td><td>FastAPI 0.111, Pydantic 2, SQLModel 0.0.38 (SQLAlchemy), PyMySQL</td></tr>
         <tr><td>Banco</td><td>MySQL 8.4 (local, só 127.0.0.1); SQLite para métricas e fallback</td></tr>
-        <tr><td>IA (chat)</td><td>DeepSeek <code>deepseek-chat</code>, OpenAI <code>gpt-4o</code>, Anthropic Claude Sonnet, Google Gemini (<code>google-genai</code>), Groq <code>openai/gpt-oss-120b</code> (API compatível com OpenAI), conta Claude pessoal via <code>claude-agent-sdk</code></td></tr>
-        <tr><td>Transcrição</td><td>Legenda do Meet + faster-whisper local (<code>small</code>, CPU); Groq e OpenAI Whisper como opções</td></tr>
+        <tr><td>IA (chat)</td><td>DeepSeek <code>deepseek-chat</code>, OpenAI <code>gpt-4o</code>, Anthropic Claude Sonnet, Google Gemini (<code>google-genai</code>), Groq <code>openai/gpt-oss-120b</code> (API compatível com OpenAI; 1.000 pedidos/dia e 8.000 tokens/min no plano grátis), conta Claude pessoal via <code>claude-agent-sdk</code> (desligada em produção)</td></tr>
+        <tr><td>Transcrição</td><td>Legenda do Meet (única fonte em tempo real desde a V.1.4.180). Groq <code>whisper-large-v3</code>, faster-whisper local e OpenAI Whisper continuam no código, desligados durante a reunião</td></tr>
         <tr><td>Embeddings</td><td>Ollama local (<code>embeddinggemma</code> padrão; <code>nomic-embed-text</code> instalado); OpenAI opcional</td></tr>
         <tr><td>Áudio</td><td>MediaRecorder WebM/Opus na extensão; PyAV (FFmpeg) + NumPy no servidor</td></tr>
         <tr><td>Auth</td><td>PyJWT (HS256), bcrypt</td></tr>
@@ -316,7 +316,7 @@
           <li><code>api/gravacao_painel.py</code> + <code>agent/gravacao_revisao_rules.py</code>. Vendedor vê só as próprias gravações; admin vê todas. Kill-switch <code>GRAVACOES_PAINEL_ENABLED</code> (padrão ligado).</li>
           <li>Lista por reunião (mesma sala com mais de 2h de intervalo = reunião nova) com avisos de silêncio, blocos faltando e partes com erro.</li>
           <li>Player das 2 trilhas num relógio único (alinhadas pelo relógio da extensão), gráfico de volume (dBFS por janela de 2s, cacheado em <code>gravacoes_niveis</code>) e a transcrição da mesma reunião.</li>
-          <li>Trechos de referência (<code>gravacoes_referencias</code>): texto correto × transcrito → WER por trecho e total ponderado. É o gabarito para medir a T03.</li>
+          <li>Trechos de referência (<code>gravacoes_referencias</code>): texto correto × transcrito → WER por trecho e total ponderado. É o gabarito para medir a legenda (tarefa 2.3) e a transcrição pós-reunião (Fase 3) — ver <code>docs/tasks-legenda-tempo-real.md</code>.</li>
         </ul>
       </div>
     </section>
@@ -594,7 +594,7 @@
         <div class="card-title">Gravação, privacidade e auditoria</div>
         <ul>
           <li>Gravação só com login, confirmação de aviso aos participantes a cada reunião e indicador visível; nunca começa sozinha.</li>
-          <li>Retenção de 90 dias aplicada de verdade (job de hora em hora apaga áudio e blocos vencidos).</li>
+          <li>Retenção de 7 dias (<code>GRAVACAO_RETENCAO_DIAS</code>, desde 15/10/2026) aplicada de verdade (job de hora em hora apaga áudio e blocos vencidos).</li>
           <li>Classificação de dados (<code>agent/data_classification_rules.py</code>): PUBLIC, INTERNAL, CONFIDENTIAL, PII, SENSITIVE.</li>
           <li><code>AuditTrailEntry</code> registra quem, quando, ação, campos usados (nunca o conteúdo) e versões da inteligência; <code>AuditoriaFinanceira</code> registra mudanças de orçamento e preço.</li>
         </ul>

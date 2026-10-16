@@ -1818,21 +1818,22 @@
     </details>
 
     <details>
-      <summary>Erro "Chave de API inválida" na barra de status da sidebar</summary>
+      <summary>Erro "Chave de API inválida" ou sugestões vazias na sidebar</summary>
       <div class="faq-body">
-        <p>A chave do provedor de transcrição configurada no servidor expirou ou é inválida — isso é um ajuste de administrador, não algo que se resolve pela extensão.</p>
-        <p style="margin-top:10px">Avise o administrador. Como alternativa rápida, um admin pode trocar o provedor ativo em Dashboard → Configurações → Transcrição de Áudio → <strong>Usar este provedor</strong> no outro card disponível.</p>
+        <p>Algum provedor de IA está sem saldo ou com a chave vencida no servidor — isso é um ajuste de administrador, não algo que se resolve pela extensão.</p>
+        <p style="margin-top:10px">Avise o administrador. Ele vê a causa no card <strong>🤖 Provedores de IA</strong> do Dashboard (sem saldo, chave inválida, limite) e já recebe aviso no Telegram.</p>
       </div>
     </details>
 
     <details>
-      <summary>A captura de áudio inicia mas nada é transcrito</summary>
+      <summary>A transcrição não aparece no Dashboard</summary>
       <div class="faq-body">
         <ul>
-          <li><strong>Chave de API inválida:</strong> erro aparece na barra de status (⚠️) — avise o administrador</li>
-          <li><strong>Microfone incorreto:</strong> clique no ícone de cadeado/câmera na barra de endereço do Chrome e verifique se o microfone selecionado é o correto</li>
-          <li><strong>Áudio muito baixo:</strong> fale mais próximo do microfone</li>
-          <li><strong>Servidor reiniciando:</strong> aguarde alguns segundos e a próxima captura será enviada automaticamente</li>
+          <li><strong>Extensão antiga:</strong> confira no popup se é a <strong>1.4.33</strong>. Depois de instalar, recarregue a aba do Meet (F5) — sem isso a página continua com a versão anterior.</li>
+          <li><strong>Legenda desligada:</strong> o botão CC do Meet precisa estar aceso (a extensão liga sozinho em alguns segundos). Clique em <strong>👁 Mostrar legenda na tela</strong> na sidebar para conferir se o texto aparece.</li>
+          <li><strong>Contador da sidebar:</strong> "📝 N frase(s) capturada(s)" deve subir a cada pausa (ou a cada ~15 s de fala contínua). Se não sobe, a legenda não está chegando.</li>
+          <li><strong>Sessão certa:</strong> no Dashboard, abra a sessão mais recente da reunião. Não apague sessões no meio do teste — a transcrição até ali some do Dashboard.</li>
+          <li><strong>Tudo com o seu nome:</strong> todos estão falando pelo seu computador. Cada pessoa precisa estar no próprio dispositivo para o Meet saber quem fala.</li>
         </ul>
       </div>
     </details>
@@ -1906,7 +1907,7 @@
     <details>
       <summary>A extensão pede permissão de microfone — é seguro?</summary>
       <div class="faq-body">
-        <p>Sim, é esperado e seguro. O SALEIA precisa do microfone para transcrição de áudio em tempo real. O áudio é enviado em fragmentos de ~15 segundos ao servidor SALEIA para transcrição e <strong>não fica armazenado como áudio</strong> — somente o texto gerado é salvo.</p>
+        <p>Sim, é esperado e seguro. O microfone só é usado se você escolher <strong>gravar a reunião</strong> (com a confirmação de que avisou os participantes). Nesse caso o áudio fica guardado no servidor por <strong>7 dias</strong>, visível só para você e o administrador, e depois é apagado. A transcrição não usa o microfone: vem da legenda do Meet.</p>
       </div>
     </details>
 
