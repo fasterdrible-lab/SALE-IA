@@ -83,11 +83,19 @@
   chrome.storage.local.get(['saleiaBackendUrl', 'saleiaAtivo'], function (result) {
     if (result.saleiaBackendUrl) CONFIG.backendUrl = result.saleiaBackendUrl;
     if (result.saleiaAtivo === false) estado.ativo = false;
-    chrome.storage.local.get(['saleiaParticipantes'], function (dadosParticipantes) {
+    chrome.storage.local.get(['saleiaParticipantes', 'saleiaUsuario'], function (dadosParticipantes) {
+      // V.1.4.183 (ext 1.4.33): sem nome cadastrado em "Editar
+      // participantes", as falas do vendedor ("Você" na legenda) levam o
+      // nome de quem está logado na extensão, não "Vendedor".
+      var usuarioLogado = dadosParticipantes.saleiaUsuario;
+      var nomeLogado = usuarioLogado && String(usuarioLogado.nome || '').trim();
+      if (nomeLogado) estado.participantes.vendedor = nomeLogado;
       if (dadosParticipantes.saleiaParticipantes) {
         var saved = dadosParticipantes.saleiaParticipantes;
         // O vendedor é sempre o dono da extensão; vale entre reuniões.
-        estado.participantes.vendedor = saved.vendedor || 'Vendedor';
+        // Nome digitado em "Editar participantes" vale mais que o do login.
+        if (saved.vendedor && saved.vendedor !== 'Vendedor') estado.participantes.vendedor = saved.vendedor;
+        else if (!nomeLogado) estado.participantes.vendedor = 'Vendedor';
         // A10 (V.1.4.20): clientes valem só na reunião em que foram
         // cadastrados. Antes, um "João" salvo em junho rotulava falas de
         // todas as reuniões seguintes.

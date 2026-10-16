@@ -1095,6 +1095,15 @@
           <div class="metric"><div class="metric-val" id="m-media">–</div><div class="metric-lbl">Propensão média</div></div>
           <div class="metric"><div class="metric-val" id="m-baixa">–</div><div class="metric-lbl">Baixa propensão</div></div>
         </div>
+        <!-- V.1.4.183: Provedores de IA (só admin — o endpoint exige perfil admin) -->
+        <div id="dash-provedores" style="display:none;margin-bottom:22px">
+          <h3 style="display:flex;align-items:center;gap:10px">🤖 Provedores de IA
+            <span id="dash-prov-em-uso" style="font-size:.8rem;font-weight:600;padding:3px 10px;border-radius:999px"></span></h3>
+          <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:.85rem" id="dash-prov-tabela"></table>
+          </div>
+          <div id="dash-prov-rodape" style="color:var(--muted);font-size:.75rem;margin-top:6px"></div>
+        </div>
         <h3>Últimas reuniões</h3>
         <div class="reunioes" id="dash-reunioes"><div style="color:var(--muted)">Carregando...</div></div>
       </div>
@@ -3226,7 +3235,95 @@
   }
 
   /* ─── Dashboard ───────────────────────────────────── */
+  /* ─── Provedores de IA (V.1.4.183, api/provedores_status.py) ─────────── */
+  const _PROV_CAUSA = { sem_saldo: 'sem saldo', chave_invalida: 'chave inválida', limite_de_uso: 'limite de uso',
+                        sem_chave: 'sem chave', outra: 'erro' };
+  const _PROV_TAG_BASE = 'font-size:.8rem;font-weight:600;padding:3px 10px;border-radius:999px';
+  let _provTimer = null;
+
+  function _horaServidor(iso) {  // servidor grava em UTC sem fuso
+    if (!iso) return '–';
+    const d = new Date(/Z|[+-]\d\d:?\d\d$/.test(iso) ? iso : iso + 'Z');
+    return isNaN(d) ? '–' : d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function _estadoProvedor(p) {
+    const st = p.status || '';
+    const causa = p.causa ? ' — ' + (_PROV_CAUSA[p.causa] || p.causa) : '';
+    if (st === 'ok') return '<span style="color:#4ade80">● ok</span>';
+    if (st === 'desligado') return '<span style="color:var(--muted)">○ desligado</span>';
+    if (st === 'sem_chave') return '<span style="color:var(--muted)">○ sem chave</span>';
+    if (st.startsWith('cooldown')) return '<span style="color:#f87171">● pausado' + escHtml(causa) + '</span>';
+    if (st.startsWith('degradado')) return '<span style="color:#fbbf24">● falhando (' + (p.falhas_consecutivas || 0) + ')' + escHtml(causa) + '</span>';
+    return escHtml(st);
+  }
+
+  function _saldoProvedor(p) {
+    if (p.nome === 'deepseek') {
+      const s = p.saldo && p.saldo.saldo;
+      if (!s) return '<span style="color:var(--muted)">saldo indisponível' + (p.saldo && p.saldo.erro ? ' (' + escHtml(p.saldo.erro) + ')' : '') + '</span>';
+      const baixo = s.total != null && s.total < (p.saldo_alerta_usd || 2);
+      const fmt = v => (v == null ? '–' : 'US$ ' + Number(v).toFixed(2).replace('.', ','));
+      return '<strong style="color:' + (baixo ? '#f87171' : '#4ade80') + '">' + fmt(s.total) + '</strong>' +
+             '<div style="color:var(--muted);font-size:.75rem">crédito ' + fmt(s.credito_concedido) + ' · pago ' + fmt(s.pago) +
+             (baixo ? ' · <span style="color:#f87171">abaixo de ' + fmt(p.saldo_alerta_usd) + '</span>' : '') + '</div>';
+    }
+    if (p.nome === 'groq') {
+      const l = p.limites;
+      if (!l || l.pedidos_restantes_dia == null) return '<span style="color:var(--muted)">limite aparece após a 1ª chamada</span>';
+      return l.pedidos_restantes_dia + ' de ' + l.pedidos_limite_dia + ' pedidos hoje' +
+             '<div style="color:var(--muted);font-size:.75rem">medido em ' + _horaServidor(l.registrado_em) + '</div>';
+    }
+    return '<span style="color:var(--muted)">sem consulta de saldo</span>';
+  }
+
+  async function carregarProvedoresIA() {
+    const box = document.getElementById('dash-provedores');
+    if (!box) return;
+    try {
+      const r = await fetch(API + '/admin/provedores-ia', { headers: { Authorization: 'Bearer ' + (localStorage.getItem('saleia_token') || '') } });
+      if (r.status === 401 || r.status === 403) { box.style.display = 'none'; return; }
+      if (!r.ok) throw new Error('Erro ' + r.status);
+      const d = await r.json();
+      const emUso = d.em_uso || {};
+      const tag = document.getElementById('dash-prov-em-uso');
+      if (!emUso.provedor) {
+        tag.textContent = 'sem chamadas nos últimos 15 min';
+        tag.style.cssText = _PROV_TAG_BASE + ';background:rgba(255,255,255,.06);color:var(--muted)';
+      } else if (emUso.reserva) {
+        tag.textContent = '⚠️ reserva em uso: ' + emUso.provedor;
+        tag.style.cssText = _PROV_TAG_BASE + ';background:rgba(251,191,36,.15);color:#fbbf24';
+      } else {
+        tag.textContent = 'em uso: ' + emUso.provedor;
+        tag.style.cssText = _PROV_TAG_BASE + ';background:rgba(74,222,128,.12);color:#4ade80';
+      }
+      const linhas = (d.provedores || []).map((p, i) => '<tr style="border-top:1px solid rgba(255,255,255,.06)">' +
+        '<td style="padding:7px 6px"><strong>' + (i + 1) + '. ' + escHtml(p.nome) + '</strong>' +
+          '<div style="color:var(--muted);font-size:.75rem">' + escHtml(p.modelo || '') + '</div></td>' +
+        '<td style="padding:7px 6px">' + _estadoProvedor(p) + '</td>' +
+        '<td style="padding:7px 6px">' + (p.ok_1h || 0) + ' ok · ' + (p.falhas_1h || 0) + ' falhas' +
+          '<div style="color:var(--muted);font-size:.75rem">US$ ' + Number(p.custo_1h_usd || 0).toFixed(2).replace('.', ',') + ' na última hora</div></td>' +
+        '<td style="padding:7px 6px">' + _horaServidor(p.ultimo_sucesso) + '</td>' +
+        '<td style="padding:7px 6px">' + _saldoProvedor(p) + '</td></tr>').join('');
+      document.getElementById('dash-prov-tabela').innerHTML =
+        '<tr style="color:var(--muted);text-align:left"><th style="padding:4px 6px">Provedor (ordem)</th><th style="padding:4px 6px">Estado</th>' +
+        '<th style="padding:4px 6px">Última hora</th><th style="padding:4px 6px">Último sucesso</th><th style="padding:4px 6px">Saldo / limite</th></tr>' + linhas;
+      document.getElementById('dash-prov-rodape').textContent =
+        'Atualizado ' + _horaServidor(d.gerado_em) + ' · estado = último resultado de cada provedor neste servidor · OpenAI, Anthropic e Gemini não informam saldo pela API.';
+      box.style.display = 'block';
+    } catch (e) {
+      box.style.display = 'block';
+      document.getElementById('dash-prov-tabela').innerHTML = '<tr><td style="color:#f87171">Erro ao carregar provedores: ' + escHtml(e.message) + '</td></tr>';
+    }
+  }
+
   async function carregarDashboard() {
+    carregarProvedoresIA();
+    if (_provTimer) clearInterval(_provTimer);
+    _provTimer = setInterval(() => {
+      const pag = document.getElementById('page-dashboard');
+      if (pag && pag.classList.contains('active') && !document.hidden) carregarProvedoresIA();
+    }, 60000);
     await verificarBackend();
     try {
       const r = await fetchJsonWithFallback('/relatorios');

@@ -209,3 +209,10 @@ test('V.1.4.181: content.js encerra ao sair da chamada ou fechar a aba e reabre 
   assert.match(src, /reuniaoAcabou\(window\.location\.pathname, MEETING_ID, botoesFim\)\)\s*\{[\s\S]*?avisarFimDaSessao\(\)/);
   assert.match(src, /sessaoEncerrada = false;[^\n]*\n\s*registrarSessao\(\);/);
 });
+
+test('V.1.4.183 (ext 1.4.33): fala do vendedor leva o nome do login; nome digitado em "Editar participantes" vale mais', () => {
+  const src = fs.readFileSync(path.join(EXT, 'content.js'), 'utf8');
+  assert.match(src, /chrome\.storage\.local\.get\(\['saleiaParticipantes', 'saleiaUsuario'\]/);
+  assert.match(src, /if \(nomeLogado\) estado\.participantes\.vendedor = nomeLogado;/);
+  assert.match(src, /if \(saved\.vendedor && saved\.vendedor !== 'Vendedor'\) estado\.participantes\.vendedor = saved\.vendedor;/);
+});

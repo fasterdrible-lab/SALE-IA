@@ -3,6 +3,42 @@
 
 ---
 
+## V.1.4.183 + ext 1.4.33 — Painel de provedores de IA, avisos de saldo e de reserva, nome do vendedor
+
+> Data: 16/10/2026
+
+Pedido do usuário: ver o estado de cada API de IA (não só o DeepSeek) e
+saber quando a reserva assume. Em 16/10 o DeepSeek rodava só com crédito
+de compensação (saldo pago -US$ 0,01; crédito US$ 7,48 → 5,65 em ~1,5 h).
+
+- **Card "🤖 Provedores de IA"** no Dashboard (só admin;
+  `GET /admin/provedores-ia`, `api/provedores_status.py`, regras em
+  `agent/provedores_status_rules.py`): por provedor, na ordem — estado
+  (ok / falhando / pausado + causa: sem saldo, chave inválida, limite),
+  chamadas ok/falhas e custo na última hora, último sucesso; **saldo do
+  DeepSeek** (`/user/balance`: total, crédito concedido, pago; cache 5 min;
+  vermelho abaixo do limite); **limite diário do Groq** (cabeçalhos
+  `x-ratelimit-*` de cada resposta, gravados em `data/groq_limites.json`);
+  etiqueta **"em uso: X"** ou **"⚠️ reserva em uso: X"** (último sucesso
+  dos últimos 15 min). Atualiza a cada 60 s com a página aberta.
+  OpenAI/Anthropic/Gemini não têm consulta de saldo pela chave de API.
+- **Telegram**: "💰 DeepSeek com saldo baixo" abaixo de
+  `SALDO_DEEPSEEK_ALERTA_USD` (padrão US$ 2), checado a cada ~30 min, no
+  máximo 1 aviso a cada 6 h; "🔁 IA usando reserva: X" quando uma chamada é
+  atendida por quem não é o 1º porque algum anterior falhou ou está em
+  cooldown (desligado/sem chave de propósito não avisa), no máximo 1 por
+  hora. Carimbo em `data/aviso_*.ts` para os 2 workers não avisarem em
+  dobro.
+- **Extensão 1.4.33**: sem nome cadastrado em "Editar participantes", as
+  falas do vendedor ("Você" na legenda) levam o nome de quem está logado
+  na extensão em vez de "Vendedor". Nome digitado continua valendo mais.
+- Testes: `tests/test_provedores_status.py` (11, com respostas reais do
+  DeepSeek e do Groq de 16/10), `tests/js/test_extensao_transcricao.js` (+1).
+  Rodar a suíte com `TELEGRAM_TOKEN=""` — o `.env` local tem token real.
+- Versão: `1.4.182` → `1.4.183`; extensão `1.4.32` → `1.4.33`
+
+---
+
 ## V.1.4.182 — Lista de sessões se atualiza sozinha
 
 > Data: 16/10/2026 | Só Dashboard (`frontend/dashboard.html`, lido do disco a cada acesso)

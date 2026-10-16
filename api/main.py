@@ -303,6 +303,13 @@ async def _loop_metricas() -> None:
                 except Exception as _ge:
                     logger.warning("Erro na manutenção das gravações: %s", _ge)
 
+            if _tick % 30 == 1:  # V.1.4.183: saldo do DeepSeek (aviso no Telegram abaixo do limite)
+                try:
+                    from api.provedores_status import verificar_saldo_e_avisar
+                    await asyncio.to_thread(verificar_saldo_e_avisar)
+                except Exception as _se:
+                    logger.warning("Erro ao verificar saldo do DeepSeek: %s", _se)
+
             if _tick % 60 == 0:  # a cada ~1h — anomalia nao precisa de mais frequencia que isso
                 from api.database import detectar_anomalias_custo
                 anomalias = await asyncio.to_thread(detectar_anomalias_custo)
@@ -839,7 +846,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.182",
+        "versao":              "1.4.183",
         "timestamp":           datetime.now().isoformat(),
         "ia_disponivel":       ia["ia_disponivel"],
         "ia_fora_desde":       ia["ia_fora_desde"],
@@ -880,7 +887,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.182",
+        "versao":          "1.4.183",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -4777,6 +4784,16 @@ from agent.observability_metrics_rules import (
 # campo formal em ai_features.py — nenhum outro lugar do sistema
 # categoriza "feature de recomendação" hoje.
 _FEATURES_RECOMENDACAO = (ai_features.REALTIME_COACH, ai_features.SALES_REASONING_RACIOCINIO)
+
+
+@app.get("/admin/provedores-ia")
+def admin_provedores_ia(authorization: str | None = _Header(default=None)):
+    """V.1.4.183: card "Provedores de IA" do Dashboard — estado de cada
+    provedor, uso na última hora, qual está atendendo (principal ou
+    reserva), saldo do DeepSeek e quanto resta do limite do Groq."""
+    _req_admin(authorization)
+    from api.provedores_status import painel_provedores
+    return painel_provedores()
 
 
 @app.get("/admin/data-quality")

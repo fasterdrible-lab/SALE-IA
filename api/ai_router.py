@@ -332,7 +332,9 @@ def _call_groq(system_prompt: str, user_content: str, api_key: str, model: str, 
 
     base_url = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
     with OpenAI(api_key=api_key, base_url=base_url, timeout=timeout) as client:
-        response = client.chat.completions.create(
+        # V.1.4.183: resposta crua para ler os cabeçalhos x-ratelimit-* (quanto
+        # resta do limite diário) — painel de provedores do Dashboard.
+        raw = client.chat.completions.with_raw_response.create(
             model=model,
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -341,6 +343,12 @@ def _call_groq(system_prompt: str, user_content: str, api_key: str, model: str, 
             temperature=0.3,
             response_format={"type": "json_object"},
         )
+        response = raw.parse()
+    try:
+        from api.provedores_status import registrar_limites_groq
+        registrar_limites_groq(raw.headers)
+    except Exception:
+        pass
     return _extract_json(response.choices[0].message.content), _usage_from_openai_like(response)
 
 
@@ -766,6 +774,14 @@ def chamar_ia(
             })
 
             failed_before = sum(1 for a in attempts[:-1] if a.get("status") == "failed")
+            # V.1.4.183: atendida por reserva porque algum anterior FALHOU
+            # (ou está em cooldown) — desligado/sem chave de propósito não avisa.
+            if any(a.get("status") in ("failed", "cooldown") for a in attempts[:-1]):
+                try:
+                    from api.provedores_status import avisar_reserva_em_uso
+                    avisar_reserva_em_uso(provider.name, attempts)
+                except Exception:
+                    pass
             with _counters_lock:
                 _counters["chamadas_sucesso"] += 1
                 _counters["custo_total_usd"] += custo.cost_usd
