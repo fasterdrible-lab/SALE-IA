@@ -190,3 +190,22 @@ test('V.1.4.29: compara com o bloco inteiro, não só com o resto gravado', () =
   assert.equal(regras.decidirCommit(t, fala('Ana', 'Tá dominado Só isso.'), 1).acao, 'ignorar');
   assert.equal(regras.jaGravada(t, 'Ana', 'Tá dominado Só isso.'), true);
 });
+
+// ── V.1.4.181 (ext 1.4.32): sessão encerrada ao sair da chamada ─────────
+
+test('V.1.4.181: background avisa o servidor que a sessão acabou', async () => {
+  const bg = carregarBackground(resposta(true, 200, { ok: true }));
+  const r = await bg.enviar({ tipo: 'encerrarSessao', meeting_id: 'abc-defg-hij' });
+  const chamada = bg.fetches.find(([u]) => u.endsWith('/encerrar-sessao'));
+  assert.ok(chamada);
+  assert.equal(chamada[1].method, 'POST');
+  assert.deepEqual(JSON.parse(chamada[1].body), { meeting_id: 'abc-defg-hij' });
+  assert.equal(r.ok, true);
+});
+
+test('V.1.4.181: content.js encerra ao sair da chamada ou fechar a aba e reabre ao voltar', () => {
+  const src = fs.readFileSync(path.join(EXT, 'content.js'), 'utf8');
+  assert.match(src, /window\.addEventListener\('pagehide', avisarFimDaSessao\)/);
+  assert.match(src, /reuniaoAcabou\(window\.location\.pathname, MEETING_ID, botoesFim\)\)\s*\{[\s\S]*?avisarFimDaSessao\(\)/);
+  assert.match(src, /sessaoEncerrada = false;[^\n]*\n\s*registrarSessao\(\);/);
+});

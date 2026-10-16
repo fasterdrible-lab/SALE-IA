@@ -328,8 +328,9 @@ def _inicializar_schema():
     except Exception as e:
         logger.warning("Colunas de versionamento não migradas: %s", e)
     try:
-        from agent.sessao_manager import criar_tabela_sessoes, criar_tabela_usuarios, migrar_colunas_usuarios
+        from agent.sessao_manager import criar_tabela_sessoes, criar_tabela_usuarios, migrar_colunas_usuarios, migrar_colunas_sessoes
         criar_tabela_sessoes()
+        migrar_colunas_sessoes()
         criar_tabela_usuarios()
         migrar_colunas_usuarios()
     except Exception as e:
@@ -838,7 +839,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.180",
+        "versao":              "1.4.181",
         "timestamp":           datetime.now().isoformat(),
         "ia_disponivel":       ia["ia_disponivel"],
         "ia_fora_desde":       ia["ia_fora_desde"],
@@ -879,7 +880,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.180",
+        "versao":          "1.4.181",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -2531,6 +2532,16 @@ def iniciar_sessao_endpoint(req: IniciarSessaoRequest):
     except Exception as e:
         logger.error("Erro ao iniciar sessão: %s", e)
         return {"ok": False, "sessao_id": 0}
+
+
+@app.post("/encerrar-sessao")
+def encerrar_sessao_endpoint(req: IniciarSessaoRequest, request: Request):
+    """V.1.4.181: a extensão avisa que o vendedor saiu da chamada (ou fechou
+    a aba) — o Dashboard mostra "Finalizada" na hora, sem esperar 5 min.
+    Sem login, como /iniciar-sessao; limitado por IP."""
+    _rate_limit_por_ip(request, "encerrar-sessao", limite=30, janela_segundos=60)
+    from agent.sessao_manager import encerrar_sessao
+    return {"ok": encerrar_sessao(req.meeting_id)}
 
 
 @app.post("/sessoes/{sessao_id}/exportar-base")

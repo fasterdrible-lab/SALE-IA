@@ -6098,6 +6098,8 @@
   // Sem coluna de status persistida no banco — deriva apenas Ao vivo/Finalizada
   // pela recência de updated_at (não há sinal para "processando"/"erro").
   function _statusSessao(s) {
+    // V.1.4.181: a extensão avisa quando o vendedor sai da chamada.
+    if (s.encerrada_em) return 'finalizada';
     if (!s.updated_at) return 'finalizada';
     const str = s.updated_at.trim().replace(' ', 'T');
     const d = new Date(/Z|[+-]\d\d:?\d\d$/.test(str) ? str : str + 'Z');

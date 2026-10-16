@@ -244,6 +244,20 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     return true;
   }
 
+  // V.1.4.181 (ext 1.4.32): content.js → o vendedor saiu da chamada ou a aba
+  // está fechando. Fica no background porque ele sobrevive ao fechamento da aba.
+  if (msg.tipo === 'encerrarSessao') {
+    if (!msg.meeting_id) { sendResponse({ ok: false }); return true; }
+    fetch(estadoExtensao.backendUrl + '/encerrar-sessao', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Extensao-Versao': chrome.runtime.getManifest().version },
+      body: JSON.stringify({ meeting_id: msg.meeting_id }),
+    })
+      .then(function (res) { sendResponse({ ok: res.ok }); })
+      .catch(function (err) { console.warn('[SALEIA] encerrarSessao:', err.message); sendResponse({ ok: false }); });
+    return true;
+  }
+
   // Content.js → chunk de áudio do microfone via MediaRecorder (rota direta sem offscreen)
   if (msg.tipo === 'whisperChunk') {
     const url = (msg.backendUrl || estadoExtensao.backendUrl) + '/audio-transcricao';

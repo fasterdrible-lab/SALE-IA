@@ -131,7 +131,7 @@ def listar_sessoes(limite: int = 200) -> list:
         with conn.cursor() as cur:
             cur.execute(
                 """SELECT s.id, s.meeting_id, s.disc_identificado, s.num_analises,
-                          s.created_at, s.updated_at,
+                          s.created_at, s.updated_at, s.encerrada_em,
                           LEFT(s.transcricao_acumulada, 300) AS preview,
                           (SELECT cp.nome FROM client_meetings cm
                              JOIN client_profiles cp ON cp.id = cm.client_id
@@ -193,7 +193,7 @@ def salvar_transcricao_bruta(meeting_id: str, transcricao_parcial: str):
                     return
                 nova = acumular_transcricao(atual, aceito)
                 cur.execute(
-                    "UPDATE sessoes SET transcricao_acumulada = %s, updated_at = NOW() WHERE id = %s",
+                    "UPDATE sessoes SET transcricao_acumulada = %s, updated_at = NOW(), encerrada_em = NULL WHERE id = %s",
                     (nova, sessao_id),
                 )
             # Sessão não existe (foi deletada ou nunca criada): não recriar aqui.
@@ -265,6 +265,9 @@ def registrar_sessao(meeting_id: str) -> int:
             cur.execute(_SQL_SESSAO_ATIVA, (meeting_id,))
             row = cur.fetchone()
             if row:
+                # V.1.4.181: voltou para a reunião (ou recarregou a página).
+                cur.execute("UPDATE sessoes SET encerrada_em = NULL, updated_at = updated_at WHERE id = %s", (row[0],))
+                conn.commit()
                 conn.close()
                 return row[0]
             cur.execute(
@@ -428,6 +431,48 @@ def criar_tabela_usuarios():
         logger.info("[Auth] Tabela usuarios criada/verificada.")
     except Exception as e:
         logger.error("[Auth] Erro ao criar tabela usuarios: %s", e)
+
+
+def migrar_colunas_sessoes():
+    """V.1.4.181: `encerrada_em` — o vendedor saiu da chamada. Antes a
+    sessão só deixava de aparecer "Ao vivo" no Dashboard 5 min depois do
+    último envio, e uma aba esquecida aberta seguia "ao vivo"."""
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            try:
+                cur.execute("ALTER TABLE sessoes ADD COLUMN encerrada_em DATETIME NULL DEFAULT NULL")
+                conn.commit()
+            except Exception:
+                conn.rollback()  # coluna já existe
+        conn.close()
+    except Exception as e:
+        logger.error("[Sessões] Erro ao migrar coluna encerrada_em: %s", e)
+
+
+def encerrar_sessao(meeting_id: str) -> bool:
+    """Marca a sessão ativa da reunião como encerrada (vendedor saiu da
+    chamada ou fechou a aba). Não mexe em `updated_at`. Qualquer fala nova
+    ou a extensão abrindo de novo na reunião reabre (encerrada_em = NULL)."""
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(_SQL_SESSAO_ATIVA, (meeting_id,))
+            row = cur.fetchone()
+            if not row:
+                conn.close()
+                return False
+            cur.execute(
+                "UPDATE sessoes SET encerrada_em = NOW(), updated_at = updated_at WHERE id = %s",
+                (row[0],),
+            )
+        conn.commit()
+        conn.close()
+        logger.info("[Sessões] Sessão %s encerrada (meeting_id=%s).", row[0], meeting_id)
+        return True
+    except Exception as e:
+        logger.error("[Sessões] Erro ao encerrar sessão: %s", e)
+        return False
 
 
 def migrar_colunas_usuarios():

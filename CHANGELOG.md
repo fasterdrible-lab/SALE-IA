@@ -3,6 +3,34 @@
 
 ---
 
+## V.1.4.181 + ext 1.4.32 — Sessão "Finalizada" na hora em que o vendedor sai da chamada
+
+> Data: 16/10/2026
+
+O Dashboard derivava "Ao vivo" só pela recência (`updated_at` nos últimos
+5 min). Reunião anterior com a aba esquecida aberta seguia "ao vivo", e
+toda reunião ficava "ao vivo" até 5 min depois do fim.
+
+- Coluna `sessoes.encerrada_em` (migração no startup,
+  `migrar_colunas_sessoes`). `POST /encerrar-sessao {meeting_id}` (sem
+  login, como `/iniciar-sessao`; 30/min por IP) marca a sessão ativa sem
+  mexer em `updated_at`. Fala nova (`salvar_transcricao_bruta`) ou a
+  extensão abrindo de novo na reunião (`registrar_sessao`) reabrem
+  (`encerrada_em = NULL`). `GET /sessoes` devolve `encerrada_em`.
+- Dashboard: `_statusSessao` = "Finalizada" quando `encerrada_em` existe.
+- Extensão 1.4.32: ao sair da chamada (mesma detecção do fim da gravação,
+  `reuniaoAcabou`, checada a cada 5 s) ou ao fechar/recarregar a aba
+  (`pagehide`), avisa o background, que chama `/encerrar-sessao` (o
+  background sobrevive ao fechamento da aba). Voltar para a chamada
+  chama `/iniciar-sessao` de novo.
+- `contar_reunioes_ativas` (trava de deploy) não mudou — segue pela
+  `meeting_memory`.
+- Testes: `tests/test_sessao_encerrada.py` (7),
+  `tests/js/test_extensao_transcricao.js` (+2).
+- Versão: `1.4.180` → `1.4.181`; extensão `1.4.31` → `1.4.32`
+
+---
+
 ## ext 1.4.31 — CC ligado de verdade; sem texto de tela quando a legenda está desligada
 
 > Data: 15/10/2026 | Só extensão (backend segue V.1.4.180)

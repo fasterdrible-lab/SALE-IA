@@ -461,6 +461,28 @@
       try { chrome.runtime.sendMessage({ tipo: 'gravacaoMicrofoneSaiu' }); } catch (e) { /* extensão recarregada */ }
     });
 
+    // V.1.4.181 (ext 1.4.32): saiu da chamada ou fechou a aba → a sessão
+    // vira "Finalizada" no Dashboard na hora (antes: 5 min depois do último
+    // envio; aba esquecida aberta seguia "ao vivo"). Voltar para a chamada
+    // reabre a sessão no servidor (/iniciar-sessao ou fala nova).
+    var sessaoEncerrada = false;
+    function avisarFimDaSessao() {
+      if (sessaoEncerrada || !estado.ativo || !chrome.runtime || !chrome.runtime.id) return;
+      sessaoEncerrada = true;
+      try { chrome.runtime.sendMessage({ tipo: 'encerrarSessao', meeting_id: MEETING_ID }); } catch (e) { /* extensão recarregada */ }
+    }
+    window.addEventListener('pagehide', avisarFimDaSessao);
+    setInterval(function () {
+      var botoesFim = Array.prototype.map.call(document.querySelectorAll('button'), function (b) { return b.textContent; });
+      if (SaleiaGravacao.reuniaoAcabou(window.location.pathname, MEETING_ID, botoesFim)) {
+        if (!sessaoEncerrada) console.log('[SALEIA] saiu da chamada: sessão encerrada no servidor.');
+        avisarFimDaSessao();
+      } else if (sessaoEncerrada) {
+        sessaoEncerrada = false;  // voltou para a chamada ("Participar novamente")
+        registrarSessao();
+      }
+    }, 5000);
+
     // Saiu da reunião ou a chamada acabou (tela "Participar novamente"):
     // encerra as 2 trilhas. Em 12/10/2026 a gravação seguiu aberta depois do fim.
     var fimJaAvisado = false;
