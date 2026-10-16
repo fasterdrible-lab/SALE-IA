@@ -417,6 +417,20 @@ def _inicializar_schema():
         logger.warning("Tabela metricas_historico não criada: %s", e)
 
 
+async def _loop_relatorio_automatico() -> None:
+    """V.1.4.185: a cada ~2 min gera o relatório pós-reunião das reuniões
+    que acabaram (api/relatorio_automatico.py). Laço próprio: cada relatório
+    leva 30-60 s de IA e não pode atrasar métricas e alertas."""
+    from api.relatorio_automatico import processar_pendentes
+    await asyncio.sleep(90)  # depois do startup e da 1ª volta de métricas
+    while True:
+        try:
+            await asyncio.to_thread(processar_pendentes)
+        except Exception as _re:
+            logger.warning("Erro no relatório automático: %s", _re)
+        await asyncio.sleep(120)
+
+
 @app.on_event("startup")
 async def on_startup():
     _configurar_logging()
@@ -427,6 +441,7 @@ async def on_startup():
     with lock_de_schema():
         _inicializar_schema()
     asyncio.create_task(_loop_metricas())
+    asyncio.create_task(_loop_relatorio_automatico())
 
 # ─────────────────────────────────────────────
 # TABELA DE PREÇOS DOS PRODUTOS
@@ -846,7 +861,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.184",
+        "versao":              "1.4.185",
         "timestamp":           datetime.now().isoformat(),
         "ia_disponivel":       ia["ia_disponivel"],
         "ia_fora_desde":       ia["ia_fora_desde"],
@@ -887,7 +902,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.184",
+        "versao":          "1.4.185",
         "timestamp":       datetime.now().isoformat(),
     }
 

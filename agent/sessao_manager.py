@@ -445,9 +445,25 @@ def migrar_colunas_sessoes():
                 conn.commit()
             except Exception:
                 conn.rollback()  # coluna já existe
+            # V.1.4.185: relatório pós-reunião automático (api/relatorio_automatico.py).
+            try:
+                cur.execute("ALTER TABLE sessoes ADD COLUMN relatorio_status VARCHAR(20) NULL DEFAULT NULL")
+                # Só quando a coluna nasce: as sessões que já existiam não geram
+                # relatório sozinhas (testes de 15-16/10 virariam cliente falso).
+                cur.execute("UPDATE sessoes SET relatorio_status = 'anterior', updated_at = updated_at")
+                conn.commit()
+            except Exception:
+                conn.rollback()
+            for sql in ("ALTER TABLE sessoes ADD COLUMN relatorio_em DATETIME NULL DEFAULT NULL",
+                        "ALTER TABLE sessoes ADD COLUMN relatorio_detalhe VARCHAR(200) NULL DEFAULT NULL"):
+                try:
+                    cur.execute(sql)
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
         conn.close()
     except Exception as e:
-        logger.error("[Sessões] Erro ao migrar coluna encerrada_em: %s", e)
+        logger.error("[Sessões] Erro ao migrar colunas de sessoes: %s", e)
 
 
 def encerrar_sessao(meeting_id: str) -> bool:

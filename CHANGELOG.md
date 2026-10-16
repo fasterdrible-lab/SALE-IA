@@ -3,6 +3,68 @@
 
 ---
 
+## ext 1.4.34 — Participante sem foto separado do vendedor + nome do Meet trocado pelo nome real
+
+> Data: 16/10/2026 | Só extensão
+
+Teste real (`fxc-nrmq-equ`): vendedor no computador e "cliente" no
+celular — todas as 38 falas saíram com o nome do vendedor. Causa: quem
+não tem foto de perfil (convidado, conta sem foto) ganha no Meet um
+avatar de **letra**, que não é `<img>`; a busca do bloco subia do texto
+até achar uma foto, passava do bloco do cliente e pegava a foto/nome do
+bloco vizinho (o "Você"). Comparado com o Easy Sub, que já tratava isso.
+
+- Bloco do falante = filho direto da área de legendas (ou do seu único
+  wrapper) — `blocoNaRegiao()`; nome = último texto com cara de nome no
+  cabeçalho do bloco (`nomeDoCabecalho()`, a letra do avatar fica de
+  fora). A busca antiga por foto fica como reserva.
+- Como no Easy Sub: em "Participantes", a lista **"Nomes que apareceram
+  na legenda"** troca o nome que o Meet mostra (ex.: começo do e-mail da
+  conta) pelo nome real. Salvo em `saleiaNomesFalantes`
+  (chrome.storage.local), vale nas próximas reuniões; falas ainda não
+  enviadas já saem com o nome novo.
+- Testes: `tests/js/test_legenda_meet.js` (+2: avatar de letra; troca de
+  nome).
+- Versão: extensão `1.4.33` → `1.4.34`
+
+---
+
+## V.1.4.185 — Relatório pós-reunião automático (destrava cliente, oportunidade e Seller DNA)
+
+> Data: 16/10/2026 | Problemas 1 e 3 da análise de inteligência de 16/10
+
+Desde o reset de 11/10: 33 reuniões (24 com vendedor logado), **0
+relatórios**, 0 clientes, 0 oportunidades, 0 observações de Seller DNA. O
+relatório só era gerado colando a transcrição em Dashboard → Relatórios
+(o fluxo automático antigo era o webhook do Tactiq), e é dentro dele que
+rodam cliente/oportunidade (B7), memórias, playbook, indexação e Seller
+DNA — os dois problemas tinham a mesma causa.
+
+- `api/relatorio_automatico.py` + `agent/relatorio_automatico_rules.py`:
+  laço próprio no startup (`_loop_relatorio_automatico`, a cada ~2 min)
+  acha sessões encerradas há ≥ 2 min (`/encerrar-sessao`, ext ≥ 1.4.32)
+  ou paradas há ≥ 30 min (extensão antiga), reserva no banco (1 worker
+  por sessão; "gerando" travado há 30 min é retomado) e gera o mesmo
+  relatório de `/recapitulacao-manual` (recapitulação, diagnóstico
+  financeiro, DISC) a partir de `meeting_memory.transcript_full` (até 150
+  mil caracteres: começo + fim). Grava em `relatorio` (Dashboard →
+  Reuniões) e roda cliente/oportunidade (dono da reunião = vendedor),
+  memórias, playbook, indexação e Seller DNA — cada etapa isolada.
+- Reunião curta (< 1.500 caracteres ou < 8 falas) é pulada (sem cliente
+  inventado de teste). No máximo 2 por volta.
+- `sessoes`: `relatorio_status` (anterior / gerando / ok / pulado / erro),
+  `relatorio_em`, `relatorio_detalhe`. Na migração, as sessões que já
+  existiam viram `anterior` (uma vez só, quando a coluna nasce) — não
+  geram relatório sozinhas.
+- Kill-switch `RELATORIO_AUTOMATICO_ENABLED` (padrão ligado). Custo: as
+  mesmas 3 chamadas do relatório manual + extrações (centavos no DeepSeek).
+- Limitação: 1 relatório por sessão; reunião retomada depois do relatório
+  não gera outro.
+- Testes: `tests/test_relatorio_automatico.py` (12).
+- Versão: `1.4.184` → `1.4.185`
+
+---
+
 ## V.1.4.184 — Alarme falso de prompt injection ("você agora é")
 
 > Data: 16/10/2026 | Problema 2 da análise de inteligência de 16/10

@@ -218,3 +218,42 @@ test('V.1.4.31: fala lida da área de legendas marca a legenda como funcionando'
   falar(CLIENTE, 'Pode me mandar a proposta?');
   assert.equal(t.legendasDetectadas, true);
 });
+
+test('V.1.4.34: participante sem foto (avatar de letra) não recebe o nome de quem tem foto', { skip: !JSDOM && 'sem jsdom' }, () => {
+  // Teste real de 16/10 (fxc-nrmq-equ): celular como 2º participante, todas
+  // as falas saíram com o nome do vendedor. Sem <img>, a busca subia do bloco
+  // do cliente até a área inteira e pegava a foto/nome do bloco vizinho.
+  const { t, w, passar, regiao, modelo } = montar();
+  const doc = w.document;
+  const comFoto = modelo.cloneNode(true);
+  comFoto.querySelector('.NWpY1d').textContent = 'Você';
+  comFoto.querySelector('.ygicle').textContent = 'Então, me conta como vocês fazem hoje o controle de estoque.';
+  const semFoto = modelo.cloneNode(true);
+  const img = semFoto.querySelector('img');
+  const letra = doc.createElement('div');
+  letra.className = 'avatar-letra';
+  letra.textContent = 'P';
+  img.replaceWith(letra);
+  semFoto.querySelector('.NWpY1d').textContent = 'Pedro Lima';
+  const ref = regiao.querySelector('.IMKgW').previousElementSibling;
+  regiao.insertBefore(comFoto, ref);
+  regiao.insertBefore(semFoto, ref);
+  const fala = semFoto.querySelector('.ygicle');
+  fala.textContent = 'Hoje a gente faz tudo na planilha, é bem manual mesmo.';
+  assert.deepEqual(puro(t.detectarFalantePorEstrutura(fala)), { nome: 'Pedro Lima', eONome: false });
+  t.processarElementoLegenda(comFoto.querySelector('.ygicle'));
+  t.processarElementoLegenda(fala);
+  passar(5000);
+  assert.deepEqual(puro(t.estado.transcricao.map((x) => x.speaker)).sort(), ['Carlos', 'Pedro Lima']);
+});
+
+test('V.1.4.34: nome do Meet trocado pelo nome real (como no Easy Sub)', { skip: !JSDOM && 'sem jsdom' }, () => {
+  // Conta que só mostra o começo do e-mail na legenda → nome escolhido em
+  // "Participantes". Vale para as falas novas.
+  const { t, w, falar } = montar();
+  w.eval('_nomesFalantes = { "fasterdrible": "Pedro" }');
+  falar('fasterdrible', 'Pode me mandar a proposta?');
+  falar('Ana Souza', 'E o prazo de entrega?');
+  assert.deepEqual(puro(t.estado.transcricao.map((x) => x.speaker)), ['Pedro', 'Ana Souza']);
+  assert.deepEqual(puro(w.eval('_nomesVistos')), ['fasterdrible', 'Ana Souza']);
+});

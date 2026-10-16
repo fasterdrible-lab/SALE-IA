@@ -124,8 +124,8 @@
   <div class="hero-title">Dev Manual — SALEIA</div>
   <div class="hero-sub">Referência técnica de arquitetura, tecnologia, segurança e operação. Reflete o código e a produção em 16/10/2026.</div>
   <div class="hero-badges">
-    <span class="badge badge-gold">Backend V.1.4.183</span>
-    <span class="badge badge-gold">Extensão V.1.4.33</span>
+    <span class="badge badge-gold">Backend V.1.4.185</span>
+    <span class="badge badge-gold">Extensão V.1.4.34</span>
     <span class="badge badge-green">FastAPI · Python 3.14</span>
     <span class="badge badge-blue">MySQL 8.4 + SQLite</span>
     <span class="badge badge-orange">Ubuntu 26.04 · Hetzner</span>
@@ -264,7 +264,8 @@
       <div class="card">
         <div class="card-title">Depois da reunião</div>
         <ul>
-          <li><code>POST /recapitulacao-manual</code> / <code>/recapitulacao-completa</code>: recapitulação, DISC, diagnóstico financeiro, propensão detalhada e <code>cliente_identificado</code>.</li>
+          <li><strong>Relatório automático</strong> (V.1.4.185, <code>api/relatorio_automatico.py</code>): laço a cada ~2 min gera o relatório das sessões encerradas há ≥ 2 min ou paradas há ≥ 30 min, uma vez por sessão (<code>sessoes.relatorio_status</code>), a partir de <code>meeting_memory.transcript_full</code>; pula reunião com &lt; 1.500 caracteres ou &lt; 8 falas. Grava em <code>relatorio</code> e roda cliente/oportunidade, memórias, playbook, indexação e Seller DNA.</li>
+          <li><code>POST /recapitulacao-manual</code> / <code>/recapitulacao-completa</code>: o mesmo relatório sob demanda (transcrição colada): recapitulação, DISC, diagnóstico financeiro, propensão detalhada e <code>cliente_identificado</code>.</li>
           <li>A recapitulação cria/vincula cliente e oportunidade automaticamente (<code>auto_opportunity_rules</code>, kill-switch <code>AUTO_OPPORTUNITY_ENABLED</code>).</li>
           <li>Sales Memory, playbooks, skills e follow-ups (WhatsApp/e-mail/LinkedIn) a partir das reuniões.</li>
         </ul>
@@ -276,7 +277,7 @@
       <div class="section-title">Transcrição</div>
       <div class="card">
         <ul>
-          <li><strong>Única fonte: legenda do Meet</strong> (V.1.4.180, plano <code>docs/tasks-legenda-tempo-real.md</code>). Estrutura real (fixture <code>tests/js/fixtures/meet_legenda_20261015.html</code>): <code>[role=region][aria-label=Legendas] &gt; div.nMcdL &gt; [div.adE6rb (img + span.NWpY1d nome), div.ygicle (fala)]</code>. Nome = texto junto da foto; "Você" = vendedor (nome do login ou de "Editar participantes"); sem nome → <strong>"Não identificado"</strong>.</li>
+          <li><strong>Única fonte: legenda do Meet</strong> (V.1.4.180, plano <code>docs/tasks-legenda-tempo-real.md</code>). Estrutura real (fixture <code>tests/js/fixtures/meet_legenda_20261015.html</code>): <code>[role=region][aria-label=Legendas] &gt; div.nMcdL &gt; [div.adE6rb (img + span.NWpY1d nome), div.ygicle (fala)]</code>. Bloco = filho direto da área de legendas (<code>blocoNaRegiao</code>, ext 1.4.34 — quem não tem foto ganha avatar de letra, não <code>&lt;img&gt;</code>, e a busca antiga por foto pegava o bloco vizinho); nome = último texto com cara de nome no cabeçalho do bloco. "Você" = vendedor (nome do login ou de "Editar participantes"); nome do Meet → nome real pelo mapa <code>saleiaNomesFalantes</code> ("Participantes" → "Nomes que apareceram na legenda"); sem nome → <strong>"Não identificado"</strong>.</li>
           <li>Sem a área de legendas a página não é lida (só se o CC estiver ligado e a área não for achada). Respostas curtas valem dentro da área. Fala gravada após 3,5 s parada ou 15 s aberta; relógio só renova com palavra nova (o Meet redesenha o bloco várias vezes por segundo). Cada fala guarda <code>bloco</code> (texto inteiro do bloco) — continuação de bloco já enviado entra só com o resto (<code>transcricao_rules.js::decidirCommit</code>).</li>
           <li><strong>Áudio não é transcrito durante a reunião</strong>: <code>POST /audio-transcricao</code> devolve <code>motivo: tempo_real_desligado</code> com <code>TRANSCRICAO_TEMPO_REAL_ATIVA=false</code> (padrão). Motivo: Whisper local travou a VPS em 14/10 e a cota grátis da Groq (2.000 pedidos/dia; ~8 h de áudio/dia) estourou no mesmo dia. Religar: flag + restart.</li>
           <li>Próximo (plano, Fase 3): transcrição definitiva pós-reunião sobre a gravação (Groq com fila, reserva Whisper local), comparação legenda × gravação e apagar o áudio. T03 do roteiro Audio-First (Whisper incremental em tempo real) foi substituída.</li>
@@ -537,6 +538,7 @@
           <tr><th>Variável</th><th>Padrão</th><th>Produção</th></tr>
           <tr><td><code>GRAVACAO_AUDIO_ENABLED</code></td><td>false</td><td><strong>true</strong></td></tr>
           <tr><td><code>TRANSCRICAO_TEMPO_REAL_ATIVA</code></td><td>false</td><td>padrão (áudio não transcrito na reunião)</td></tr>
+          <tr><td><code>RELATORIO_AUTOMATICO_ENABLED</code></td><td>true</td><td>padrão (relatório pós-reunião automático)</td></tr>
           <tr><td><code>GRAVACOES_PAINEL_ENABLED</code></td><td>true</td><td>padrão</td></tr>
           <tr><td><code>SHADOW_MODE_ENABLED</code></td><td>false</td><td><strong>true</strong></td></tr>
           <tr><td><code>PILOT_MODE</code> (off / pilot_user / 5pct…100pct) + <code>PILOT_USER_IDS</code></td><td>off</td><td>off</td></tr>

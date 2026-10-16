@@ -1,6 +1,54 @@
 # SALEIA - Estado Atual
 
-## 16/10/2026 (leia primeiro)
+## 16/10/2026, noite (leia primeiro)
+
+| Item | Estado |
+|---|---|
+| Produção | **V.1.4.183** (sem mudança desde a tarde) |
+| No GitHub, **aguardando "sim" para deploy** | **V.1.4.184** (alarme falso de prompt injection) + **V.1.4.185** (relatório pós-reunião automático) — suíte completa 2.015 testes OK |
+| Extensão | **1.4.34** no repo (`../chrome-extension. V.1.4.34.zip`) — independente do servidor |
+
+**Análise da parte de inteligência (16/10)** — código do PROMPT MESTRE V2
+quase todo pronto; faltava dado real. Achados e o que foi feito:
+
+1. **0 relatórios pós-reunião desde 11/10** (33 reuniões, 24 com
+   vendedor logado) → 0 clientes, 0 oportunidades, memória/grafo da
+   oportunidade vazios. O relatório só saía colando a transcrição em
+   Dashboard → Relatórios. → **V.1.4.185**: relatório automático ao fim
+   da reunião (detalhe no CHANGELOG).
+2. **530 "violações de política"** = 100% alarme falso ("você agora é").
+   → **V.1.4.184**.
+3. **Seller DNA com 0 observações**: mesma causa do item 1 (a extração só
+   roda dentro do relatório) → resolvido pela V.1.4.185.
+4. Readiness (Fase 25) em 16/10: 3/9 no alvo (event precision,
+   objection classification, critical hallucination). Sem número:
+   transcription WER (falta trecho de referência no painel 🎧),
+   recommendation quality (alvo C4 nunca definido), human escalation.
+5. Tarefas nunca iniciadas do `tasks-prompt-mestre-v2-restante.md`: A8
+   (próxima, combinada com o usuário), A9, B3–B6, C3 (rodar de novo),
+   C4, C5, C6, D7, D10.
+
+**Falante na legenda — em investigação**
+
+- Teste real 16/10 (`fxc-nrmq-equ`, computador + celular): 38/38 falas
+  com o nome do vendedor. Causa encontrada (comparando com o Easy Sub):
+  participante sem foto tem avatar de LETRA (não `<img>`) e a busca pela
+  foto pegava o bloco vizinho → **ext 1.4.34** corrige (bloco = filho da
+  área de legendas) e traz a troca de nome do Meet pelo nome real
+  ("Participantes" → "Nomes que apareceram na legenda").
+- Teste com a 1.4.34 (`ndw-ynae-ost`): transcrição chegando (sessão
+  531), mas ainda 100% com o nome do vendedor e nenhum bloco do 2º
+  participante — o conteúdo era música tocando pelo computador.
+  **Pendente**: HTML real da legenda com 2 participantes (comando no
+  CHANGELOG da 1.4.27) e Console com filtro `content.js`. Hipóteses: o
+  Meet não legendou o celular (mudo / mesma sala), o áudio do celular
+  entrou pelo microfone do computador, ou o bloco do outro participante
+  tem outra estrutura.
+- Usuário relatou que a extensão "travou" (sem análise/transcrição na
+  tela); o servidor recebeu `/tempo-real` normalmente da 1.4.34 — falta o
+  Console para ver se há erro.
+
+## 16/10/2026, tarde
 
 **Onde está cada coisa**
 

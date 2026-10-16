@@ -482,3 +482,21 @@ explícita, uma de cada vez — mesma disciplina de todo o roadmap.
 - **04/10/2026**: extrator de SalesEvent desligado em produção
   (`SALES_EVENT_EXTRACTOR_ENABLED=false`) até a A7b. Religar faz parte
   da A7b.
+- **Análise de 16/10/2026** (pedido do usuário: "o que falta da parte de
+  inteligência"): dados de produção desde o reset de 11/10 — 33 reuniões,
+  **0 relatórios, 0 clientes, 0 oportunidades**, memória/grafo da
+  oportunidade 0, Seller DNA 0 observações, 530 PolicyViolationEvent
+  (todos alarme falso "você agora é"). Readiness: 3/9 no alvo. Ordem
+  combinada: corrigir os problemas e depois **A8**.
+  - **V.1.4.184** (no GitHub, aguardando deploy): detector de prompt
+    injection só conta troca de persona de IA; 1 registro por (reunião,
+    trechos); readiness reavalia os registros antigos.
+  - **V.1.4.185** (no GitHub, aguardando deploy): relatório pós-reunião
+    automático ao fim da reunião → destrava B7 (cliente/oportunidade),
+    memórias, playbook, indexação e Seller DNA (C2 passa a ter dado).
+    Efeito esperado: `client_profiles`/`opportunities`/
+    `opportunity_memories`/`seller_dna_observacoes` deixam de ser 0 nas
+    reuniões novas — conferir em `/admin/data-quality` depois do deploy.
+  - **Próxima: A8** (turnos temporizados por falante) — depende de o nome
+    do falante na legenda estar certo (ext 1.4.34; validação real com 2
+    participantes pendente, ver CURRENT_STATE de 16/10 noite).

@@ -83,7 +83,8 @@
   chrome.storage.local.get(['saleiaBackendUrl', 'saleiaAtivo'], function (result) {
     if (result.saleiaBackendUrl) CONFIG.backendUrl = result.saleiaBackendUrl;
     if (result.saleiaAtivo === false) estado.ativo = false;
-    chrome.storage.local.get(['saleiaParticipantes', 'saleiaUsuario'], function (dadosParticipantes) {
+    chrome.storage.local.get(['saleiaParticipantes', 'saleiaUsuario', 'saleiaNomesFalantes'], function (dadosParticipantes) {
+      _nomesFalantes = dadosParticipantes.saleiaNomesFalantes || {};
       // V.1.4.183 (ext 1.4.33): sem nome cadastrado em "Editar
       // participantes", as falas do vendedor ("Você" na legenda) levam o
       // nome de quem está logado na extensão, não "Vendedor".
@@ -724,6 +725,9 @@
             <button id="saleia-btn-add-cliente" style="background:none;border:1px dashed rgba(212,175,55,0.5);color:#D4AF37;padding:2px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:700">+ Adicionar</button>
           </div>
           <div id="saleia-clientes-lista"></div>
+          <div style="margin:12px 0 4px;color:#888;font-size:12px">Nomes que apareceram na legenda</div>
+          <div style="color:#666;font-size:11px;margin-bottom:6px">Troque o nome que o Meet mostra (ex.: começo do e-mail) pelo nome real. Vale também nas próximas reuniões.</div>
+          <div id="saleia-nomes-legenda"></div>
           <div class="saleia-modal-actions">
             <button id="saleia-btn-salvar-participantes" class="saleia-recap-btn">Salvar</button>
             <button id="saleia-btn-cancelar-participantes" class="saleia-recap-btn">Cancelar</button>
@@ -821,8 +825,21 @@
   // nome de um cliente — a IA tratava fala do vendedor como do cliente.
   var ROTULO_NAO_IDENTIFICADO = 'Não identificado';
 
+  // V.1.4.34 (ext 1.4.34), como no Easy Sub: nome que o Meet mostra na
+  // legenda (ex.: começo do e-mail da conta) → nome escolhido em
+  // "Participantes". Salvo em chrome.storage.local, vale nas próximas reuniões.
+  var _nomesFalantes = {};
+  var _nomesVistos = [];
+
+  function registrarNomeVisto(nome) {
+    var n = String(nome || '').trim();
+    if (!n || /^(você|voce|you)$/i.test(n) || _nomesVistos.indexOf(n) >= 0) return;
+    _nomesVistos.push(n);
+  }
+
   function rotuloParticipante(speaker) {
     var nome = String(speaker || '').trim();
+    if (nome && _nomesFalantes[nome]) nome = _nomesFalantes[nome];
     var normalizado = normalizarNomeParticipante(nome);
     var vendedor = estado.participantes.vendedor || 'Vendedor';
     var clientes = estado.participantes.clientes || ['Cliente'];
@@ -855,6 +872,7 @@
     renderizarClientesModal();
     var btnAdd = document.getElementById('saleia-btn-add-cliente');
     if (btnAdd) btnAdd.onclick = function() { _clientesModal.push(''); renderizarClientesModal(); };
+    renderizarNomesLegenda();
     modal.style.display = 'flex';
   }
 
@@ -879,8 +897,51 @@
         clientes: estado.participantes.clientes,
       },
     });
+    salvarNomesLegenda();
     atualizarResumoParticipantes();
     fecharModalParticipantes();
+  }
+
+  function renderizarNomesLegenda() {
+    var box = document.getElementById('saleia-nomes-legenda');
+    if (!box) return;
+    var nomes = _nomesVistos.slice();
+    Object.keys(_nomesFalantes).forEach(function (n) { if (nomes.indexOf(n) < 0) nomes.push(n); });
+    if (!nomes.length) {
+      box.innerHTML = '<div style="color:#666;font-size:11px">Nenhum outro participante falou ainda.</div>';
+      return;
+    }
+    box.innerHTML = nomes.map(function (n, i) {
+      return '<div style="display:flex;gap:6px;align-items:center;margin-bottom:5px">' +
+        '<span style="flex:1;font-size:11px;color:#bbb;overflow:hidden;text-overflow:ellipsis" title="' + escaparHtml(n) + '">' + escaparHtml(n) + ' →</span>' +
+        '<input data-nome-meet="' + i + '" type="text" placeholder="nome real" value="' + escaparHtml(_nomesFalantes[n] || '') + '" style="flex:1" />' +
+        '</div>';
+    }).join('');
+    box.dataset.nomes = JSON.stringify(nomes);
+  }
+
+  function salvarNomesLegenda() {
+    var box = document.getElementById('saleia-nomes-legenda');
+    if (!box || !box.dataset.nomes) return;
+    var nomes = JSON.parse(box.dataset.nomes);
+    var antes = {};
+    nomes.forEach(function (n) { antes[n] = rotuloParticipante(n); });
+    var novo = Object.assign({}, _nomesFalantes);
+    box.querySelectorAll('input[data-nome-meet]').forEach(function (inp) {
+      var n = nomes[parseInt(inp.getAttribute('data-nome-meet'), 10)];
+      var v = inp.value.trim().slice(0, 80);
+      if (v && v !== n) novo[n] = v; else delete novo[n];
+    });
+    _nomesFalantes = novo;
+    chrome.storage.local.set({ saleiaNomesFalantes: novo });
+    // Falas ainda não enviadas já saem com o nome novo.
+    nomes.forEach(function (n) {
+      var depois = rotuloParticipante(n);
+      if (depois === antes[n]) return;
+      for (var i = estado.ultimoIndexEnviado || 0; i < estado.transcricao.length; i++) {
+        if (estado.transcricao[i].speaker === antes[n]) estado.transcricao[i].speaker = depois;
+      }
+    });
   }
 
   // Seletores de legenda do Google Meet.
@@ -1171,8 +1232,42 @@
     return null;
   }
 
+  // V.1.4.34 (ext 1.4.34): bloco = filho direto da área de legendas (ou do
+  // seu único wrapper). Teste real de 16/10 (fxc-nrmq-equ, celular como 2º
+  // participante): quem não tem foto ganha um avatar de LETRA (não <img>),
+  // a busca por foto subia do bloco dele até a área inteira e pegava a
+  // foto/nome do bloco vizinho — toda fala saía com o nome do vendedor.
+  function blocoNaRegiao(el) {
+    var regiao = regiaoLegendas();
+    if (!regiao || !el || !regiao.contains(el) || el === regiao) return null;
+    var raiz = (regiao.children.length === 1) ? regiao.children[0] : regiao;
+    var atual = el;
+    while (atual.parentElement && atual.parentElement !== raiz && atual.parentElement !== regiao) {
+      atual = atual.parentElement;
+    }
+    return (atual === raiz) ? null : atual;
+  }
+
+  // Nome no cabeçalho do bloco: o último texto com cara de nome (a letra
+  // do avatar, 1 caractere, fica de fora).
+  function nomeDoCabecalho(cabecalho) {
+    var folhas = folhasDeTexto(cabecalho);
+    for (var i = folhas.length - 1; i >= 0; i--) {
+      var t = folhas[i].textContent.trim();
+      if (t.length >= 2 && t.length <= 80 && !/[.,!?;:…"“”()]/.test(t)) return t;
+    }
+    return null;
+  }
+
   // { nome, eONome }: eONome = el é o próprio elemento do nome (ignorar).
   function detectarFalantePorEstrutura(el) {
+    var blocoLegenda = blocoNaRegiao(el);
+    if (blocoLegenda && blocoLegenda !== el && blocoLegenda.children.length >= 2) {
+      var cab = blocoLegenda.firstElementChild;
+      if (cab.contains(el)) return { nome: null, eONome: true };
+      var nomeBloco = nomeDoCabecalho(cab);
+      if (nomeBloco) return { nome: nomeBloco, eONome: false };
+    }
     var bloco = blocoDoFalante(el);
     if (!bloco) return { nome: null, eONome: false };
     // V.1.4.27 (HTML real da legenda, 15/10/2026): cada bloco é
@@ -1297,7 +1392,7 @@
       // A10: as classes acima mudaram no Meet; tenta pela estrutura.
       var falante = detectarFalantePorEstrutura(el);
       if (falante.eONome) return;  // o próprio nome do falante, não é fala
-      if (falante.nome) speaker = falante.nome;
+      if (falante.nome) { speaker = falante.nome; registrarNomeVisto(falante.nome); }
       else avisarFalanteNaoIdentificado(el, texto);
     }
 
