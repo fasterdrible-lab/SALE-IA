@@ -4,8 +4,8 @@
 
 | Item | Estado |
 |---|---|
-| Produção | **V.1.4.183** (sem mudança desde a tarde) |
-| No GitHub, **aguardando "sim" para deploy** | **V.1.4.184** (alarme falso de prompt injection) + **V.1.4.185** (relatório pós-reunião automático) — suíte completa 2.015 testes OK |
+| Produção | **V.1.4.185** (`49f73f2` = VPS HEAD; deploy 16/10 23:22 UTC, sem reunião ativa, `NRestarts=0`) — inclui a V.1.4.184. Suíte 2.015 OK |
+| Conferido no deploy | colunas `relatorio_status/em/detalhe` criadas; 34 sessões existentes = `anterior`; policy_violation bruto 530 → **válido 0** |
 | Extensão | **1.4.34** no repo (`../chrome-extension. V.1.4.34.zip`) — independente do servidor |
 
 **Análise da parte de inteligência (16/10)** — código do PROMPT MESTRE V2
