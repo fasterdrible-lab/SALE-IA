@@ -3,6 +3,25 @@
 
 ---
 
+## V.1.4.182 — Lista de sessões se atualiza sozinha
+
+> Data: 16/10/2026 | Só Dashboard (`frontend/dashboard.html`, lido do disco a cada acesso)
+
+Teste real da 1.4.181: a sessão `mfr-ndxg-pim` foi encerrada no servidor
+(09:58:58), mas a tela seguia "Ao vivo" — a lista só carregava ao abrir a
+página ou em "Atualizar".
+
+- "Sessões ao Vivo" recarrega a cada 15 s enquanto a página está aberta e
+  a aba do navegador visível (`_iniciarAutoSessoes` / `_pararAutoSessoes`;
+  para ao sair da página ou abrir o detalhe de uma sessão).
+- Atualização automática silenciosa: sem "Carregando...", sem apagar a
+  lista numa falha passageira; dados iguais só reaplicam os filtros (o
+  "Ao vivo" também vence pelo tempo).
+- Testes: `tests/test_sessao_encerrada.py` (+1).
+- Versão: `1.4.181` → `1.4.182`
+
+---
+
 ## V.1.4.181 + ext 1.4.32 — Sessão "Finalizada" na hora em que o vendedor sai da chamada
 
 > Data: 16/10/2026

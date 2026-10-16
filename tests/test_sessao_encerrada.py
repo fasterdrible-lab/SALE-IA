@@ -107,5 +107,18 @@ class TestEndpointEncerrarSessao(unittest.TestCase):
         self.assertLess(trecho.index("s.encerrada_em"), trecho.index("diffMin"))
 
 
+
+class TestListaSessoesAtualizaSozinha(unittest.TestCase):
+    def test_v182_lista_se_atualiza_enquanto_a_pagina_esta_aberta(self):
+        html = (Path(__file__).resolve().parent.parent / "frontend" / "dashboard.html").read_text(encoding="utf-8")
+        self.assertIn("if (nome === 'sessoes')       { carregarSessoes(); _iniciarAutoSessoes(); }", html)
+        self.assertIn("if (nome !== 'sessoes') _pararAutoSessoes();", html)
+        trecho = html[html.index("function _iniciarAutoSessoes"):html.index("async function carregarSessoes")]
+        self.assertIn("carregarSessoes(true)", trecho)
+        self.assertIn("15000", trecho)
+        detalhe = html[html.index("async function verSessaoDetalhe"):]
+        self.assertLess(detalhe.index("_pararAutoSessoes()"), detalhe.index("page-sessao-detalhe"))
+
+
 if __name__ == "__main__":
     unittest.main()

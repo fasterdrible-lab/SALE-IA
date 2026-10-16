@@ -2093,11 +2093,12 @@
     if (btn) btn.classList.add('active');
     if (nome !== 'monitor') _pararMonitor();
     if (nome !== 'gravacoes') gravParar();
+    if (nome !== 'sessoes') _pararAutoSessoes();
     if (nome === 'gravacoes')     { fecharGravacao(); carregarGravacoes(); }
     if (nome === 'dashboard')     carregarDashboard();
     if (nome === 'workspace')     carregarWorkspace();
     if (nome === 'reunioes')      carregarReunioes();
-    if (nome === 'sessoes')       carregarSessoes();
+    if (nome === 'sessoes')       { carregarSessoes(); _iniciarAutoSessoes(); }
     if (nome === 'base')          { carregarBase(); initDropzone(); }
     if (nome === 'historico')     carregarHistorico();
     if (nome === 'playbooks')     { carregarPlaybooks(); carregarSkills(); }
@@ -5651,13 +5652,33 @@
   /* ─── Sessões ao Vivo ─────────────────────────────── */
   let _sessoesCache = [];
 
-  async function carregarSessoes() {
+  // V.1.4.182: a lista se atualiza sozinha a cada 15 s enquanto a página
+  // de sessões está aberta (antes só ao abrir a página ou em "Atualizar" —
+  // a reunião encerrada seguia "Ao vivo" na tela).
+  let _sessoesTimer = null;
+  function _iniciarAutoSessoes() {
+    _pararAutoSessoes();
+    _sessoesTimer = setInterval(() => {
+      if (!document.hidden) carregarSessoes(true);
+    }, 15000);
+  }
+  function _pararAutoSessoes() {
+    if (_sessoesTimer) { clearInterval(_sessoesTimer); _sessoesTimer = null; }
+  }
+
+  // silencioso: atualização automática — sem "Carregando...", e só redesenha
+  // se algo mudou (não mexe na rolagem nem nos filtros à toa).
+  async function carregarSessoes(silencioso) {
     const container = document.getElementById('lista-sessoes');
-    container.innerHTML = '<div style="color:var(--muted)">Carregando...</div>';
+    if (!silencioso) container.innerHTML = '<div style="color:var(--muted)">Carregando...</div>';
     try {
       const r = await fetch(API + '/sessoes');
       if (!r.ok) throw new Error('Erro ' + r.status);
       const d = await r.json();
+      if (silencioso && JSON.stringify(d.sessoes || []) === JSON.stringify(_sessoesCache || [])) {
+        filtrarSessoes();  // "Ao vivo" também muda só com o tempo passando
+        return;
+      }
       _sessoesCache = d.sessoes || [];
       if (!_sessoesCache.length) {
         container.innerHTML = '<div style="color:var(--muted)">Nenhuma sessão registrada ainda. Inicie uma reunião com a extensão Chrome ativa.</div>';
@@ -5667,6 +5688,7 @@
       }
       filtrarSessoes();
     } catch (e) {
+      if (silencioso) return;  // falha passageira na atualização automática: mantém a lista
       container.innerHTML = '<div class="erro">Erro ao carregar sessões: ' + escHtml(e.message) + '</div>';
     }
   }
@@ -6250,6 +6272,7 @@
   }
 
   async function verSessaoDetalhe(id) {
+    _pararAutoSessoes();
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
     document.getElementById('page-sessao-detalhe').classList.add('active');
