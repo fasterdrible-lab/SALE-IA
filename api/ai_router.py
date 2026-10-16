@@ -586,6 +586,27 @@ def snapshot_metricas() -> dict:
     return snap
 
 
+_INJECOES_JANELA_S = 6 * 3600
+_injecoes_registradas: dict[tuple, float] = {}
+_injecoes_lock = threading.Lock()
+
+
+def _primeira_vez_injecao(meeting_id: str | None, trechos: list[str]) -> bool:
+    """True se (reunião, trechos) ainda não foi registrado nas últimas 6 h
+    neste worker. Os 2 workers podem registrar 1 vez cada — aceitável."""
+    chave = (meeting_id or "", tuple(sorted(t.lower() for t in trechos)))
+    agora = time.time()
+    with _injecoes_lock:
+        if len(_injecoes_registradas) > 2000:
+            for k in [k for k, t in _injecoes_registradas.items() if agora - t > _INJECOES_JANELA_S]:
+                _injecoes_registradas.pop(k, None)
+        visto = _injecoes_registradas.get(chave)
+        if visto and agora - visto < _INJECOES_JANELA_S:
+            return False
+        _injecoes_registradas[chave] = agora
+        return True
+
+
 def _registrar_evento_uso_ia_melhor_esforco(**kwargs) -> None:
     """Import tardio: api/database.py usa SQLAlchemy/PyMySQL, que nao deve
     virar dependencia de import-time de api/ai_router.py (mantem os testes
@@ -651,14 +672,18 @@ def chamar_ia(
             # sem lastro pra contar nada). Best-effort, nunca pode
             # derrubar a chamada de IA real que esta observando.
             try:
-                from api.database import criar_policy_violation_event
-                criar_policy_violation_event(
-                    tipo="PROMPT_INJECTION",
-                    trechos_detectados=trechos_suspeitos,
-                    meeting_id=meeting_id,
-                    usuario_id=usuario_id,
-                    feature=feature,
-                )
+                # V.1.4.184: 1 registro por (reunião, trechos). A checagem roda
+                # em cada uma das ~11 chamadas do ciclo, sobre a janela
+                # recente da conversa — a mesma frase virava dezenas de linhas.
+                if _primeira_vez_injecao(meeting_id, trechos_suspeitos):
+                    from api.database import criar_policy_violation_event
+                    criar_policy_violation_event(
+                        tipo="PROMPT_INJECTION",
+                        trechos_detectados=trechos_suspeitos,
+                        meeting_id=meeting_id,
+                        usuario_id=usuario_id,
+                        feature=feature,
+                    )
             except Exception as exc_persist:
                 logger.warning("Falha ao persistir PolicyViolationEvent (ignorado): %s", exc_persist)
     except Exception as exc:
@@ -1070,6 +1095,8 @@ def resetar_estado_ia_para_testes() -> None:
     for breaker in _breakers.values():
         breaker.register_success()
     _ia_fora_desde = None
+    with _injecoes_lock:
+        _injecoes_registradas.clear()
     try:
         from api.otimizacao import _cache_respostas, _custo_reuniao_cache
         _cache_respostas.clear()

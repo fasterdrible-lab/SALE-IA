@@ -3,6 +3,32 @@
 
 ---
 
+## V.1.4.184 — Alarme falso de prompt injection ("você agora é")
+
+> Data: 16/10/2026 | Problema 2 da análise de inteligência de 16/10
+
+O critério `policy_violation = 0` da Fase 25 marcava **530**
+PolicyViolationEvent (305 em 7 dias). Todos eram o trecho "você agora é" —
+fala normal de reunião ("você agora é gerente?") — e cada ocorrência
+virava dezenas de linhas, porque o detector roda em cada uma das ~11
+chamadas de IA do ciclo, sobre a janela recente da conversa.
+
+- `agent/prompt_injection_rules.py`: "você agora é", "a partir de agora
+  você…", "you are now" e "from now on you…" só contam seguidos de
+  identidade de IA (assistente, IA, modelo de linguagem, ChatGPT/GPT, bot,
+  robô, DAN, sistema, personagem, "sem restrições/limites/regras/filtros").
+- `api/ai_router.py`: 1 registro por (reunião, trechos) a cada 6 h por
+  worker (`_primeira_vez_injecao`).
+- `api/database.py::contar_policy_violations_validas()` (usada pelo
+  `/admin/readiness`): reavalia os trechos antigos com o detector atual e
+  conta cada (reunião, trechos) 1x — os alarmes falsos gravados deixam de
+  contar sem apagar nada. `contar_policy_violations()` (bruto) não mudou.
+- Testes: `tests/test_prompt_injection_rules.py` (+2),
+  `tests/test_ai_router.py` (+2), `tests/test_policy_violation_event.py` (+1).
+- Versão: `1.4.183` → `1.4.184`
+
+---
+
 ## V.1.4.183 + ext 1.4.33 — Painel de provedores de IA, avisos de saldo e de reserva, nome do vendedor
 
 > Data: 16/10/2026

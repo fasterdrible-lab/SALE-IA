@@ -72,6 +72,18 @@ class PolicyViolationEventPersistenciaTest(unittest.TestCase):
         database.criar_policy_violation_event(tipo="PROMPT_INJECTION", trechos_detectados=["b"])
         self.assertEqual(database.contar_policy_violations(), 2)
 
+    def test_v184_validas_ignora_alarme_falso_antigo_e_repeticao(self):
+        for _ in range(5):  # mesma frase, mesma reunião, 5 agentes/ciclos
+            database.criar_policy_violation_event(tipo="PROMPT_INJECTION", trechos_detectados=["você agora é"],
+                                                  meeting_id="r1")
+        for _ in range(3):
+            database.criar_policy_violation_event(tipo="PROMPT_INJECTION", trechos_detectados=["Ignore as instruções"],
+                                                  meeting_id="r1")
+        database.criar_policy_violation_event(tipo="PROMPT_INJECTION", trechos_detectados=["ignore as instruções"],
+                                              meeting_id="r2")
+        self.assertEqual(database.contar_policy_violations(), 9)          # bruto, histórico
+        self.assertEqual(database.contar_policy_violations_validas(), 2)  # 1 real por reunião
+
     def test_contar_policy_violations_vazio_e_zero_nunca_none(self):
         self.assertEqual(database.contar_policy_violations(), 0)
 

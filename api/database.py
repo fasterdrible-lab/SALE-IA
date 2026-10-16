@@ -3927,6 +3927,31 @@ def contar_policy_violations(
         return session.exec(stmt).one()
 
 
+def contar_policy_violations_validas() -> int:
+    """V.1.4.184: o número do critério `policy_violation` da Fase 25.
+    Reavalia os trechos de PROMPT_INJECTION com o detector ATUAL
+    (`agent/prompt_injection_rules.py`) — os 530 alarmes falsos de "você
+    agora é" gravados até 16/10/2026 deixam de contar sem apagar nada — e
+    conta cada (reunião, trechos) uma vez só (antes cada ciclo × agente
+    gravava uma linha). Outros tipos contam como estão."""
+    from agent.prompt_injection_rules import detectar_tentativas_injection
+    vistos = set()
+    with Session(engine) as session:
+        rows = session.exec(select(
+            PolicyViolationEvent.tipo, PolicyViolationEvent.meeting_id, PolicyViolationEvent.trechos_detectados_json)).all()
+    for tipo, meeting_id, trechos_json in rows:
+        try:
+            trechos = [str(t) for t in json.loads(trechos_json or "[]")]
+        except ValueError:
+            trechos = []
+        if tipo == "PROMPT_INJECTION":
+            trechos = [t for t in trechos if detectar_tentativas_injection(t)]
+            if not trechos:
+                continue
+        vistos.add((tipo, meeting_id or "", tuple(sorted(t.lower() for t in trechos))))
+    return len(vistos)
+
+
 class ReadinessMedicao(SQLModel, table=True):
     """Último resultado de cada medição em lote de um critério da Fase 25
     (Tarefa D1 de docs/tasks-prompt-mestre-v2-restante.md). Golden
@@ -4014,7 +4039,8 @@ def readiness_contagens_ao_vivo(dias: int = 7, agora: Optional[datetime] = None)
       medição achado na V.1.4.141), limitado à janela de `dias`;
     - `e2e`: chamadas de IA com e sem sucesso na janela (proxy
       1 − error_rate, mesmo da medição da V.1.4.136);
-    - `policy_violations`: total histórico (alvo da Fase 25 é 0)."""
+    - `policy_violations`: violações reais, cada (reunião, trechos) 1x,
+      com o detector atual (V.1.4.184; alvo da Fase 25 é 0)."""
     from api import ai_features
 
     agora = agora or datetime.now()
@@ -4062,7 +4088,7 @@ def readiness_contagens_ao_vivo(dias: int = 7, agora: Optional[datetime] = None)
         "janela_dias": dias,
         "audit": {"chamadas": chamadas_motor, "auditadas": audits_motor},
         "e2e": {"total": total_ia, "sucesso": sucesso_ia},
-        "policy_violations": contar_policy_violations(),
+        "policy_violations": contar_policy_violations_validas(),
     }
 
 

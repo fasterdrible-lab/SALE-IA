@@ -88,7 +88,7 @@ def medidas_ao_vivo(contagens: dict) -> dict:
         "policy_violation": {
             "valor": float(contagens.get("policy_violations") or 0),
             "origem": "real", "amostra": None,
-            "detalhe": "Total histórico de PolicyViolationEvent.",
+            "detalhe": "PolicyViolationEvent reais: cada (reunião, trechos) 1x, reavaliados com o detector atual (alarmes falsos antigos não contam).",
         },
     }
 
