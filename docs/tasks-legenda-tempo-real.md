@@ -4,6 +4,22 @@ Criado em 15/10/2026, a partir da avaliação de produção da mesma data.
 Uma tarefa por vez, com aprovação entre elas. Tudo que mexe em produção
 (VPS, banco, `.env`, deploy) precisa de "sim" explícito antes.
 
+## Situação em 16/10/2026
+
+| Tarefa | Estado |
+|---|---|
+| 0.1 IA de volta | feita — DeepSeek voltou com **crédito de compensação** do próprio DeepSeek (não foi recarga); saldo pago US$ 0,00 → recarregar |
+| 0.2 Binlog 3 dias | feita (15/10) |
+| 1.1 32 kbps + retenção | feita (V.1.4.180; retenção 7 dias por decisão do usuário, inclusive as já gravadas) |
+| 1.2 Áudio fora do tempo real | feita (V.1.4.180) |
+| 2.0 Nome pela legenda + legenda escondida | feita (ext 1.4.27–1.4.33); falta validar no Meet real com 2 pessoas |
+| 2.1 Falante pelo microfone | reserva — só se ainda sobrar "Não identificado" com a 1.4.33 |
+| 2.2 Repetições | parcial: legenda parcial/bloco crescendo resolvidos na extensão (1.4.27, 1.4.29); falta medir de novo e limpar `iyz-hvkc-ctt` |
+| 2.3 Medir a legenda (WER) | não feita — depende do usuário no painel 🎧, antes de o áudio vencer (7 dias) |
+| 3.1–3.3 Pós-reunião | não iniciada; decisão de provedor (Groq grátis/pago, Whisper local) em aberto |
+| 4.1 Banco | não iniciada |
+| Fora do plano (pedidos de 16/10) | V.1.4.181 sessão "Finalizada" ao sair da chamada; V.1.4.182 lista de sessões automática; V.1.4.183 card Provedores de IA + avisos de saldo/reserva |
+
 ## Por que mudar
 
 Números de produção (11 a 14/10, 17 reuniões, 8 gravadas):

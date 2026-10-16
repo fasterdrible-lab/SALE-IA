@@ -122,10 +122,10 @@
 
 <div class="hero" style="padding-left:48px">
   <div class="hero-title">Dev Manual — SALEIA</div>
-  <div class="hero-sub">Referência técnica de arquitetura, tecnologia, segurança e operação. Reflete o código e a produção em 13/10/2026.</div>
+  <div class="hero-sub">Referência técnica de arquitetura, tecnologia, segurança e operação. Reflete o código e a produção em 16/10/2026.</div>
   <div class="hero-badges">
-    <span class="badge badge-gold">Backend V.1.4.177</span>
-    <span class="badge badge-gold">Extensão V.1.4.24</span>
+    <span class="badge badge-gold">Backend V.1.4.183</span>
+    <span class="badge badge-gold">Extensão V.1.4.33</span>
     <span class="badge badge-green">FastAPI · Python 3.14</span>
     <span class="badge badge-blue">MySQL 8.4 + SQLite</span>
     <span class="badge badge-orange">Ubuntu 26.04 · Hetzner</span>
@@ -179,8 +179,8 @@
         <div class="card">
           <div class="card-title">Extensão Chrome (Manifest V3)</div>
           <ul>
-            <li>Lê as <strong>legendas do Meet</strong> (só a área de legendas) — fonte principal da transcrição.</li>
-            <li>Captura o áudio da aba (participantes, <code>tabCapture</code> + documento offscreen) e o microfone (content script) para transcrição e para a <a href="#gravacao">gravação</a>.</li>
+            <li>Lê as <strong>legendas do Meet</strong> (só a área de legendas, escondida da tela) — <strong>única fonte da transcrição</strong> desde a V.1.4.180. Liga o CC sozinha; nome do falante = texto junto da foto de cada bloco da legenda.</li>
+            <li>Captura o áudio da aba (participantes, <code>tabCapture</code> + documento offscreen) e o microfone (content script) só para a <a href="#gravacao">gravação</a> (32 kbps). Avisa <code>/encerrar-sessao</code> ao sair da chamada ou fechar a aba.</li>
             <li>Envia o trecho novo para <code>POST /tempo-real</code> a cada <code>intervalo_analise_s</code> (20s, definido pelo servidor).</li>
             <li>Sidebar: próxima melhor ação, alertas, recapitulação viva, propensão de compra, estado da gravação.</li>
             <li>Login JWT pelo popup; sem chave de IA nenhuma.</li>
@@ -276,11 +276,11 @@
       <div class="section-title">Transcrição</div>
       <div class="card">
         <ul>
-          <li><strong>Fonte principal: legenda do Meet</strong>, lida pela extensão só na região de legendas (<code>role=region</code> "Legendas"/"Captions"). Falante pela estrutura da legenda; sem nome confiável vira <strong>"Não identificado"</strong>.</li>
-          <li><strong>Áudio</strong> (aba e microfone) vai para <code>POST /audio-transcricao</code>, roteado por <code>TRANSCRICAO_PROVEDOR</code>: <code>whisper_local</code> (faster-whisper na própria VPS, em produção), <code>groq</code> ou <code>whisper</code> (OpenAI). Roda fora do event loop e grava em <code>transcricoes_audio_recentes</code>.</li>
-          <li>Vocabulário do negócio para o Whisper em <code>TRANSCRICAO_GLOSSARIO</code>; descarte de alucinação típica do Whisper.</li>
-          <li>Legenda e áudio nunca são misturados automaticamente; a deduplicação por similaridade só compara legenda com o texto vindo do áudio.</li>
-          <li>Roteiro <strong>Audio-First</strong> (<code>docs/PROMPT_MESTRE_AUDIO_FIRST.md</code>): T01 (auditoria) e T02 (gravação) feitas; T03 (transcrição incremental com faster-whisper sobre a gravação, segmentos com horário) é a próxima.</li>
+          <li><strong>Única fonte: legenda do Meet</strong> (V.1.4.180, plano <code>docs/tasks-legenda-tempo-real.md</code>). Estrutura real (fixture <code>tests/js/fixtures/meet_legenda_20261015.html</code>): <code>[role=region][aria-label=Legendas] &gt; div.nMcdL &gt; [div.adE6rb (img + span.NWpY1d nome), div.ygicle (fala)]</code>. Nome = texto junto da foto; "Você" = vendedor (nome do login ou de "Editar participantes"); sem nome → <strong>"Não identificado"</strong>.</li>
+          <li>Sem a área de legendas a página não é lida (só se o CC estiver ligado e a área não for achada). Respostas curtas valem dentro da área. Fala gravada após 3,5 s parada ou 15 s aberta; relógio só renova com palavra nova (o Meet redesenha o bloco várias vezes por segundo). Cada fala guarda <code>bloco</code> (texto inteiro do bloco) — continuação de bloco já enviado entra só com o resto (<code>transcricao_rules.js::decidirCommit</code>).</li>
+          <li><strong>Áudio não é transcrito durante a reunião</strong>: <code>POST /audio-transcricao</code> devolve <code>motivo: tempo_real_desligado</code> com <code>TRANSCRICAO_TEMPO_REAL_ATIVA=false</code> (padrão). Motivo: Whisper local travou a VPS em 14/10 e a cota grátis da Groq (2.000 pedidos/dia; ~8 h de áudio/dia) estourou no mesmo dia. Religar: flag + restart.</li>
+          <li>Próximo (plano, Fase 3): transcrição definitiva pós-reunião sobre a gravação (Groq com fila, reserva Whisper local), comparação legenda × gravação e apagar o áudio. T03 do roteiro Audio-First (Whisper incremental em tempo real) foi substituída.</li>
+          <li>Teste da leitura da legenda: <code>NODE_PATH=&lt;pasta com jsdom&gt; node --test tests/js/test_legenda_meet.js</code> (sem jsdom é pulado).</li>
         </ul>
       </div>
     </section>
@@ -288,12 +288,12 @@
     <!-- GRAVAÇÃO -->
     <section class="section" id="gravacao">
       <div class="section-title">Gravação contínua do áudio (T02) e painel Gravações</div>
-      <div class="alert alert-gold">Ligada por <code>GRAVACAO_AUDIO_ENABLED</code> (padrão desligada; ligada em produção para validação). Só com vendedor logado, confirmação "Informei os participantes que a reunião será gravada" a cada reunião e indicador visível na sidebar.</div>
+      <div class="alert alert-gold">Ligada por <code>GRAVACAO_AUDIO_ENABLED</code> (padrão desligada; ligada em produção). Áudio a <code>GRAVACAO_BITRATE</code> (padrão 32000 bps, vindo de <code>/gravacao/config</code>) e retenção <code>GRAVACAO_RETENCAO_DIAS</code> (padrão 7 desde a V.1.4.180). Só com vendedor logado, confirmação "Informei os participantes que a reunião será gravada" a cada reunião e indicador visível na sidebar.</div>
       <div class="grid-2">
         <div class="card">
           <div class="card-title">Extensão</div>
           <ul>
-            <li>Duas trilhas: <code>aba</code> (offscreen, mesmo stream da transcrição) e <code>microfone</code> (content script).</li>
+            <li>Duas trilhas: <code>aba</code> (offscreen) e <code>microfone</code> (content script), com <code>audioBitsPerSecond</code> do servidor.</li>
             <li>MediaRecorder contínuo com blocos de 5s; nova gravação (<code>recording_id</code>) a cada 10 min; pausar encerra, retomar abre outra.</li>
             <li>Fila no IndexedDB do service worker: iniciar → blocos → encerrar, reenvio depois de queda, 401 para e guarda.</li>
             <li>Encerra sozinha quando o áudio acaba, a aba fecha, a página recarrega (microfone) ou a reunião termina (1.4.24).</li>
@@ -306,7 +306,7 @@
             <li>Bloco em disco com escrita atômica e hash no nome: <code>data/gravacoes/&lt;reunião&gt;/&lt;trilha&gt;/&lt;recording&gt;/</code>.</li>
             <li>Único por <code>(recording_id, sequence)</code>: reenvio não duplica, 2 workers não divergem.</li>
             <li>Ao encerrar: lacunas + integridade decodificando o áudio inteiro (PyAV).</li>
-            <li>Manutenção de hora em hora: fecha gravação sem bloco há 30 min e apaga as vencidas (retenção 90 dias).</li>
+            <li>Manutenção de hora em hora: fecha gravação sem bloco há 30 min e apaga as vencidas (retenção 7 dias).</li>
           </ul>
         </div>
       </div>
@@ -329,8 +329,10 @@
         <ul>
           <li>Ordem padrão <code>deepseek → openai → anthropic → gemini → groq</code>, salva em <code>data/ai_provider_order.json</code> (com a lista de provedores conhecidos ao salvar) e editável no painel admin ("Definir como principal" põe o provedor no topo dessa ordem). Provedor sem chave é pulado; arquivo antigo, de antes da Groq, ganha a Groq no fim.</li><li><strong>Groq</strong> (V.1.4.177): mesma <code>GROQ_API_KEY</code> da transcrição; modelo em <code>GROQ_MODEL</code> (padrão <code>openai/gpt-oss-120b</code>, também disponível <code>qwen/qwen3.8-27b</code>). Inativar no painel usa <code>GROQ_LLM_ATIVO</code> e não apaga a chave, para não derrubar a transcrição.</li>
           <li>Circuit breaker por provedor (<code>AI_PROVIDER_FAILURES_TO_OPEN</code>, <code>AI_PROVIDER_COOLDOWN_SECONDS</code>) e timeout (<code>AI_PROVIDER_TIMEOUT_SECONDS</code>).</li>
-          <li>Fallback final para a <strong>conta Claude pessoal</strong> (<code>agent/multiagente/claude_fallback.py</code>, <code>CLAUDE_ACCOUNT_PILOT</code>), com token OAuth criptografado (<code>CLAUDE_TOKEN_ENC_KEY</code>).</li>
+          <li>Fallback final para a <strong>conta Claude pessoal</strong> (<code>agent/multiagente/claude_fallback.py</code>, <code>CLAUDE_ACCOUNT_PILOT</code>) — <strong>desligado em produção desde 15/10/2026</strong> (~US$ 142 estimados só como reserva).</li>
           <li><code>/health</code> mostra <code>ia_disponivel</code>, <code>ia_fora_desde</code> e a causa por provedor; Telegram avisa "IA FORA DO AR" e "IA voltou".</li>
+          <li><strong>Painel de provedores</strong> (V.1.4.183, <code>api/provedores_status.py</code> + <code>agent/provedores_status_rules.py</code>, <code>GET /admin/provedores-ia</code>, card no início do Dashboard): estado (breakers do worker), uso e custo da última hora e último sucesso (<code>ai_usage_events</code>), provedor em uso / reserva, saldo do DeepSeek (<code>/user/balance</code>, cache 5 min) e limite do Groq (cabeçalhos <code>x-ratelimit-*</code> gravados em <code>data/groq_limites.json</code>). OpenAI, Anthropic e Gemini não informam saldo.</li>
+          <li>Telegram: "💰 DeepSeek com saldo baixo" abaixo de <code>SALDO_DEEPSEEK_ALERTA_USD</code> (padrão 2; checado a cada ~30 min no laço de métricas, 1x/6 h) e "🔁 IA usando reserva" (atendida por quem não é o 1º porque um anterior falhou/está em cooldown; 1x/h). Carimbo em <code>data/aviso_*.ts</code> para os 2 workers não avisarem em dobro.</li>
         </ul>
       </div>
       <div class="card">
@@ -467,7 +469,8 @@
         <div class="card-title">Reunião e tempo real</div>
         <div class="tabela"><table>
           <tr><td><span class="tag tag-post">POST</span><code>/tempo-real</code></td><td>Ciclo de análise (login recomendado; sem login a reunião fica anônima)</td></tr>
-          <tr><td><span class="tag tag-post">POST</span><code>/audio-transcricao</code></td><td>Áudio → texto (rate limit 40/min por IP)</td></tr>
+          <tr><td><span class="tag tag-post">POST</span><code>/audio-transcricao</code></td><td>Áudio → texto (rate limit 40/min por IP). Desligado por padrão: devolve <code>tempo_real_desligado</code></td></tr>
+          <tr><td><span class="tag tag-post">POST</span><code>/encerrar-sessao</code></td><td>Vendedor saiu da chamada: marca <code>sessoes.encerrada_em</code> (sem login; 30/min por IP). Fala nova ou <code>/iniciar-sessao</code> reabrem</td></tr>
           <tr><td><span class="tag tag-post">POST</span><code>/iniciar-sessao</code>, <code>/recapitulacao-manual</code>, <code>/recapitulacao-completa</code>, <code>/recapitulacao-viva</code>, <code>/perfil-disc</code>, <code>/diagnostico-financeiro</code></td><td>Análises da reunião</td></tr>
           <tr><td><span class="tag tag-get">GET</span><code>/relatorios</code>, <code>/relatorio</code>, <code>/sessoes</code>, <code>/historico/uso</code></td><td>Histórico e relatórios</td></tr>
           <tr><td><span class="tag tag-post">POST</span><code>/cenario/{meeting_id}/conducao</code>, <code>/generate-visual-scenario</code></td><td>Condução e Visual Cenário <span class="tag tag-auth">AUTH</span></td></tr>
@@ -499,6 +502,7 @@
           <tr><td><code>/admin/usuarios</code> (perfil, plano, status, inativar, reativar, resetar senha, excluir)</td><td>Usuários</td></tr>
           <tr><td><code>/admin/api/*</code>, <code>/ai/provedor/*</code>, <code>/admin/transcricao/*</code>, <code>/admin/embeddings/status</code></td><td>Provedores de IA, transcrição e embeddings</td></tr>
           <tr><td><code>/admin/costs/*</code></td><td>Custos: resumo, por usuário/reunião, projeção, margem, anomalias, orçamento, router, export</td></tr>
+          <tr><td><code>/admin/provedores-ia</code></td><td>Card Provedores de IA: estado, uso, saldo DeepSeek, limite Groq, em uso/reserva</td></tr>
           <tr><td><code>/admin/readiness</code>, <code>/admin/data-quality</code>, <code>/admin/shadow-mode/resumo</code>, <code>/admin/observabilidade/metricas</code>, <code>/admin/claude-account/metricas</code></td><td>Qualidade e prontidão</td></tr>
           <tr><td><code>/monitor/metricas</code>, <code>/monitor/historico</code> <span class="tag tag-auth">AUTH</span></td><td>Aba Monitor</td></tr>
         </table></div>
@@ -516,8 +520,10 @@
           <tr><td><code>JWT_SECRET</code></td><td>Assinatura dos tokens (a API não sobe sem ela)</td></tr>
           <tr><td><code>DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASS</code></td><td>MySQL</td></tr>
           <tr><td><code>DEEPSEEK_API_KEY</code>, <code>OPENAI_API_KEY</code>, <code>ANTHROPIC_API_KEY</code>, <code>GEMINI_API_KEY</code>, <code>GROQ_API_KEY</code> (+ <code>*_MODEL</code>, <code>GROQ_BASE_URL</code>, <code>GROQ_LLM_ATIVO</code>)</td><td>Provedores de IA (a chave da Groq também serve à transcrição)</td></tr>
-          <tr><td><code>CLAUDE_ACCOUNT_PILOT</code>, <code>CLAUDE_TOKEN_ENC_KEY</code></td><td>Conta Claude pessoal (fallback e análise)</td></tr>
-          <tr><td><code>TRANSCRICAO_PROVEDOR</code>, <code>GROQ_API_KEY</code>, <code>WHISPER_LOCAL_MODEL/DEVICE/COMPUTE_TYPE</code>, <code>TRANSCRICAO_GLOSSARIO</code></td><td>Transcrição de áudio</td></tr>
+          <tr><td><code>CLAUDE_ACCOUNT_PILOT</code>, <code>CLAUDE_TOKEN_ENC_KEY</code></td><td>Conta Claude pessoal (fallback e análise) — <code>false</code> em produção desde 15/10</td></tr>
+          <tr><td><code>SALDO_DEEPSEEK_ALERTA_USD</code></td><td>Aviso de saldo baixo do DeepSeek no Telegram (padrão 2)</td></tr>
+          <tr><td><code>GRAVACAO_BITRATE</code>, <code>GRAVACAO_RETENCAO_DIAS</code>, <code>GRAVACAO_BLOCO_S</code>, <code>GRAVACAO_ROTACAO_S</code></td><td>Gravação (32000 bps; 7 dias; blocos de 5 s; rotação 600 s)</td></tr>
+          <tr><td><code>TRANSCRICAO_PROVEDOR</code>, <code>GROQ_API_KEY</code>, <code>WHISPER_LOCAL_MODEL/DEVICE/COMPUTE_TYPE</code>, <code>TRANSCRICAO_GLOSSARIO</code>, <code>TRANSCRICAO_MICROFONE_ATIVA</code></td><td>Transcrição de áudio (só vale com <code>TRANSCRICAO_TEMPO_REAL_ATIVA=true</code>)</td></tr>
           <tr><td><code>EMBEDDING_PROVIDER</code>, <code>OLLAMA_BASE_URL</code>, <code>OLLAMA_EMBEDDING_MODEL</code>, <code>EMBEDDING_FALLBACK_PROVIDER</code></td><td>Embeddings</td></tr>
           <tr><td><code>SMTP_*</code>, <code>EMAIL_FROM</code>, <code>APP_BASE_URL</code></td><td>E-mail de recuperação de senha</td></tr>
           <tr><td><code>TELEGRAM_TOKEN</code>, <code>TELEGRAM_CHAT_ID</code></td><td>Alertas</td></tr>
@@ -529,7 +535,8 @@
         <div class="card-title">Kill-switches</div>
         <div class="tabela"><table>
           <tr><th>Variável</th><th>Padrão</th><th>Produção</th></tr>
-          <tr><td><code>GRAVACAO_AUDIO_ENABLED</code></td><td>false</td><td><strong>true</strong> (validação da T02)</td></tr>
+          <tr><td><code>GRAVACAO_AUDIO_ENABLED</code></td><td>false</td><td><strong>true</strong></td></tr>
+          <tr><td><code>TRANSCRICAO_TEMPO_REAL_ATIVA</code></td><td>false</td><td>padrão (áudio não transcrito na reunião)</td></tr>
           <tr><td><code>GRAVACOES_PAINEL_ENABLED</code></td><td>true</td><td>padrão</td></tr>
           <tr><td><code>SHADOW_MODE_ENABLED</code></td><td>false</td><td><strong>true</strong></td></tr>
           <tr><td><code>PILOT_MODE</code> (off / pilot_user / 5pct…100pct) + <code>PILOT_USER_IDS</code></td><td>off</td><td>off</td></tr>
@@ -627,11 +634,14 @@
 └── data/
     ├── ai_provider_order.json
     ├── metricas.db
-    ├── gravacoes/          <span class="cmt"># áudio da T02 (retenção 90 dias)</span>
+    ├── gravacoes/          <span class="cmt"># áudio da T02 (retenção 7 dias)</span>
+    ├── groq_limites.json   <span class="cmt"># último x-ratelimit do Groq (painel)</span>
+    ├── aviso_*.ts          <span class="cmt"># carimbo dos avisos de saldo/reserva</span>
     ├── base_arquivos/      <span class="cmt"># arquivos originais da Base</span>
     ├── biblioteca_arquivos/
     ├── clientes/  precos/  relatorios/</code></pre>
         <p>Logs: só no journald (JSON, com segredos redigidos) — <code>journalctl -u saleia</code>.</p>
+        <p>MySQL: <code>binlog_expire_logs_seconds = 259200</code> (3 dias, <code>SET PERSIST</code> em 15/10/2026; antes 30 dias e 17 GB de binlog). O backup diário cobre a recuperação.</p>
       </div>
     </section>
 
@@ -740,7 +750,9 @@
         <div class="card-title">Transcrição com texto de tela ou falante errado</div>
         <ul>
           <li>Texto do Meet/Gemini/Tactiq na transcrição: incluir a frase em <code>agent/ruido_interface_rules.py</code> (vale também para extensões antigas).</li>
-          <li>Tudo com o mesmo falante: extensão antiga (antes da 1.4.20) ou legenda do Meet sem nome — reinstalar a extensão.</li>
+          <li>Tudo "Não identificado" ou com texto do painel do Gemini: extensão antes da 1.4.27 — instalar a mais nova.</li>
+          <li>Tudo com o nome do vendedor: o áudio de todos entra pelo mesmo microfone (vídeo tocando, sala com 1 computador). O nome vem da conta que fala no Meet — teste com um 2º participante em outro dispositivo.</li>
+          <li>Painel vazio com a legenda ligada: Console do Meet filtrado por <code>content.js</code> — <code>[SALEIA-LEGENDA] modo de captura</code> e <code>[SALEIA-DBG] … chars= fim=</code> mostram o que foi lido. Para obter o HTML da legenda, baixar <code>outerHTML</code> da região <code>[role=region][aria-label*=egenda]</code>.</li>
         </ul>
       </div>
 

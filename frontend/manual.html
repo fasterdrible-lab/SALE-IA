@@ -238,7 +238,7 @@
 <header>
   <div class="logo">SALE<span>IA</span></div>
   <p class="tagline">Assistente de Vendas com Inteligência Artificial — Manual do Usuário</p>
-  <div class="versao">Versão 1.4.172 · Extensão 1.4.23 · Outubro 2026</div>
+  <div class="versao">Versão 1.4.183 · Extensão 1.4.33 · Outubro 2026</div>
 </header>
 
 <nav class="indice">
@@ -279,7 +279,7 @@
       </div>
       <div class="feature">
         <div class="feature-icon">🎙️</div>
-        <div><h3>Transcrição</h3><p>Lê as legendas do Meet e, opcionalmente, transcreve o áudio dos participantes e o seu microfone via Whisper/Groq</p></div>
+        <div><h3>Transcrição</h3><p>Lê a legenda do Meet — escondida da sua tela — com o nome de quem falou em cada fala, inclusive respostas curtas</p></div>
       </div>
       <div class="feature">
         <div class="feature-icon">🧠</div>
@@ -339,7 +339,7 @@
       </div>
       <div class="feature">
         <div class="feature-icon">🔷</div>
-        <div><h3>Conta Claude (Piloto)</h3><p>Conecte sua própria assinatura Claude Pro/Max como reforço — entra automaticamente se os provedores centrais de IA falharem</p></div>
+        <div><h3>Conta Claude (Piloto)</h3><p>Reforço pessoal com a sua assinatura Claude — <strong>desligado pelo administrador desde 15/10/2026</strong> (custo alto como reserva)</p></div>
       </div>
       <div class="feature">
         <div class="feature-icon">🗂️</div>
@@ -347,7 +347,7 @@
       </div>
       <div class="feature">
         <div class="feature-icon">⏺</div>
-        <div><h3>Gravação da Reunião</h3><p>Grava o áudio da reunião (participantes e seu microfone) com sua confirmação a cada reunião, indicador visível e retenção de 90 dias</p></div>
+        <div><h3>Gravação da Reunião</h3><p>Grava o áudio da reunião (participantes e seu microfone) com sua confirmação a cada reunião, indicador visível e retenção de 7 dias</p></div>
       </div>
       <div class="feature">
         <div class="feature-icon">💼</div>
@@ -359,7 +359,7 @@
       <div class="callout-icon">🤖</div>
       <div class="callout-body">
         <strong>IA com fallback automático</strong>
-        O SALEIA usa DeepSeek como principal. Se houver instabilidade, muda automaticamente para OpenAI GPT-4o → Anthropic Claude → Google Gemini → Groq. Você nunca fica sem suporte de IA.
+        O SALEIA usa DeepSeek como principal. Se houver instabilidade, muda automaticamente para OpenAI GPT-4o → Anthropic Claude → Google Gemini → Groq. O administrador vê no Dashboard qual provedor está atendendo e o saldo do DeepSeek, e recebe aviso no Telegram quando o saldo fica baixo ou uma reserva assume.
       </div>
     </div>
   </section>
@@ -443,7 +443,7 @@
           <div class="step-num"></div>
           <div class="step-body">
             <h3>Confirmar instalação</h3>
-            <p>O ícone SALEIA aparece na barra do Chrome. Clique nele para ver o status de conexão com o servidor. A versão aparece no rodapé do popup — a atual é a <strong>1.4.23</strong>.</p>
+            <p>O ícone SALEIA aparece na barra do Chrome. Clique nele para ver o status de conexão com o servidor. A versão aparece no rodapé do popup — a atual é a <strong>1.4.33</strong>.</p>
           </div>
         </div>
       </div>
@@ -465,7 +465,7 @@
       </p>
       <table>
         <tr><th>Campo</th><th>O que fazer</th></tr>
-        <tr><td>Nome do vendedor</td><td>Seu nome — a IA filtrará suas falas das falas dos clientes</td></tr>
+        <tr><td>Nome do vendedor</td><td>Opcional. Sem preencher, suas falas levam o nome do seu login na extensão (1.4.33)</td></tr>
         <tr><td>Clientes</td><td>Nome(s) do(s) cliente(s). Clique <strong>+ Adicionar</strong> para incluir mais de um</td></tr>
         <tr><td>Botão ✕</td><td>Remove um cliente da lista (mínimo 1 sempre ativo)</td></tr>
         <tr><td>Salvar</td><td>Persiste os nomes — ficam salvos mesmo após fechar e reabrir o Meet</td></tr>
@@ -473,7 +473,7 @@
       <div class="callout callout-tip" style="margin-top:12px">
         <div class="callout-icon">💡</div>
         <div class="callout-body">
-          Quanto mais preciso o nome do cliente, melhor a separação de falas na transcrição. Ex: <em>"João Silva"</em> em vez de <em>"João"</em>.
+          Desde a extensão 1.4.27 o nome de cada participante vem da própria legenda do Meet — não é preciso cadastrar os clientes para separar as falas. O cadastro continua útil para a IA saber quem é cliente.
         </div>
       </div>
     </div>
@@ -482,11 +482,11 @@
       <div class="card-title">🛡️ Permissões solicitadas</div>
       <table style="margin-top:8px">
         <tr><th>Permissão</th><th>Para que serve</th></tr>
-        <tr><td>Microfone</td><td>Transcrever e (se você escolher) gravar a sua voz</td></tr>
-        <tr><td>Captura da aba</td><td>Transcrever e (se você escolher) gravar o áudio dos participantes. Só começa quando você clica no botão do popup</td></tr>
+        <tr><td>Microfone</td><td>Gravar a sua voz, só se você escolher gravar a reunião</td></tr>
+        <tr><td>Captura da aba</td><td>Gravar o áudio dos participantes, só se você escolher gravar a reunião (começa pelo popup)</td></tr>
         <tr><td>Storage</td><td>Salvar configurações, participantes e token de login localmente</td></tr>
         <tr><td>meet.google.com</td><td>Injetar o painel lateral na página do Meet</td></tr>
-        <tr><td>api.saleia.app.br</td><td>Enviar chunks de áudio e receber análises da IA</td></tr>
+        <tr><td>api.saleia.app.br</td><td>Enviar a transcrição (e a gravação, se ligada) e receber as análises da IA</td></tr>
       </table>
     </div>
 
@@ -503,7 +503,7 @@
       <div class="callout callout-tip" style="margin-top:12px">
         <div class="callout-icon">💡</div>
         <div class="callout-body">
-          Desligar a API <strong>não encerra a reunião</strong> — é diferente de clicar em "Parar captura". A sessão continua existindo; a extensão só fica temporariamente muda. O estado escolhido persiste mesmo se você fechar o popup ou o Chrome reiniciar a extensão.
+          Desligar a API <strong>não encerra a reunião</strong> — é diferente de sair da chamada. A sessão continua existindo; a extensão só fica temporariamente muda. O estado escolhido persiste mesmo se você fechar o popup ou o Chrome reiniciar a extensão.
         </div>
       </div>
     </div>
@@ -515,14 +515,14 @@
       </p>
       <table>
         <tr><th>Sem login</th><td>As sugestões em tempo real funcionam, mas a reunião <strong>não fica no seu histórico</strong>: sem vendedor, sem cliente/oportunidade automáticos e sem gravação</td></tr>
-        <tr><td><strong>Com login</strong></td><td>A reunião fica no seu nome, você pode gravar e, se os 4 provedores centrais de IA falharem, o coach tenta sua <strong>Conta Claude (Piloto)</strong> — ver seção <a href="#conta-claude">Conta Claude</a></td></tr>
+        <tr><td><strong>Com login</strong></td><td>A reunião fica no seu nome, suas falas levam o seu nome e você pode gravar</td></tr>
         <tr><td>Renovação</td><td>O login dura 72h e é renovado sozinho enquanto você usa a extensão — quem usa ao menos a cada 3 dias não precisa entrar de novo</td></tr>
         <tr><td>Aviso 🔒 na sidebar</td><td>"Sua sessão expirou" ou "Você não está conectado": clique no ícone SALEIA e entre de novo. A análise da reunião continua funcionando enquanto isso</td></tr>
       </table>
       <div class="callout callout-tip" style="margin-top:12px">
         <div class="callout-icon">💡</div>
         <div class="callout-body">
-          Para o reforço da Conta Claude funcionar, além de entrar na extensão você precisa conectar sua Conta Claude no Dashboard uma vez — os dois passos são independentes.
+          Sem login a análise funciona, mas suas falas aparecem como "Vendedor" e a reunião não fica no seu histórico.
         </div>
       </div>
     </div>
@@ -549,14 +549,14 @@
         <div class="step-num"></div>
         <div class="step-body">
           <h3>Ative as legendas do Meet</h3>
-          <p>Clique em <strong>CC (Ativar legendas)</strong> na barra do Meet, em português. A legenda é a principal fonte da transcrição — sem ela, a IA só recebe o que vier do áudio.</p>
+          <p>A extensão liga a legenda (<strong>CC</strong>) sozinha poucos segundos depois de você entrar e a <strong>esconde da tela</strong> — ela continua sendo lida. Se quiser vê-la, use o botão <strong>👁 Mostrar legenda na tela</strong> na sidebar. A legenda precisa estar em <strong>português</strong> (Configurações de legenda do Meet). É a única fonte da transcrição: sem ela, a IA não recebe nada.</p>
         </div>
       </div>
       <div class="step">
         <div class="step-num"></div>
         <div class="step-body">
           <h3>Configure os participantes</h3>
-          <p>Clique em <strong>Participantes</strong> na sidebar. Informe seu nome (vendedor) e o(s) nome(s) do(s) cliente(s). Se houver dois decisores, clique <strong>+ Adicionar</strong> e informe o segundo. Clique <strong>Salvar</strong>. Os nomes ficam salvos para aquela sala do Meet.</p>
+          <p>Opcional: o nome de cada pessoa já vem da legenda do Meet, e o seu vem do login. Use <strong>Participantes</strong> na sidebar para dizer à IA quem é cliente (com <strong>+ Adicionar</strong> para mais de um decisor) e <strong>Salvar</strong>. Os clientes ficam salvos para aquela sala do Meet.</p>
         </div>
       </div>
       <div class="step">
@@ -569,10 +569,8 @@
       <div class="step">
         <div class="step-num"></div>
         <div class="step-body">
-          <h3>Inicie a captura de áudio (opcional)</h3>
-          <p><strong>Áudio dos participantes:</strong> com a aba do Meet aberta, clique no ícone SALEIA → <strong>Iniciar captura de áudio</strong> (o Chrome só permite iniciar por ali).</p>
-          <p style="margin-top:6px"><strong>Seu microfone:</strong> na sidebar, clique em <strong>🎤 Capturar áudio (Whisper)</strong> e permita o microfone.</p>
-          <p style="margin-top:6px">Trechos de ~15 segundos são enviados para transcrição. A captura só transcreve — para guardar o áudio, use a <a href="#gravacao">Gravação</a>.</p>
+          <h3>Grave a reunião (opcional)</h3>
+          <p>Para guardar o áudio, use a <a href="#gravacao">Gravação</a> pelo popup. A transcrição não depende dela: desde 15/10/2026 o áudio não é transcrito durante a reunião — o texto vem só da legenda.</p>
         </div>
       </div>
       <div class="step">
@@ -587,7 +585,7 @@
         <div class="step-num"></div>
         <div class="step-body">
           <h3>Encerre e consulte o relatório</h3>
-          <p>Clique em <strong>Parar captura</strong> na sidebar (e em <strong>Encerrar gravação</strong>, se estiver gravando). O relatório completo fica disponível no Dashboard com score final, perfil DISC, diagnóstico financeiro e próximos passos. Ao gerar a recapitulação, o SALEIA identifica o cliente pelo que foi dito e cria ou atualiza o cliente e a oportunidade automaticamente.</p>
+          <p>Saia da chamada normalmente (botão vermelho) ou feche a aba. A sessão passa a <strong>Finalizada</strong> no Dashboard em segundos e a gravação, se houver, se encerra sozinha. O relatório completo fica disponível no Dashboard com score final, perfil DISC, diagnóstico financeiro e próximos passos. Ao gerar a recapitulação, o SALEIA identifica o cliente pelo que foi dito e cria ou atualiza o cliente e a oportunidade automaticamente.</p>
         </div>
       </div>
     </div>
@@ -595,56 +593,58 @@
 
   <!-- ── 5. TRANSCRIÇÃO ── -->
   <section id="transcricao">
-    <h2><span class="section-num">5</span> Transcrição de Áudio</h2>
-    <p class="section-desc">A transcrição que a IA analisa vem de três fontes, todas automáticas depois de ligadas.</p>
+    <h2><span class="section-num">5</span> Transcrição <span class="badge badge-green">ext 1.4.33</span></h2>
+    <p class="section-desc">Desde 15/10/2026 a transcrição vem só da legenda do Google Meet — o mesmo caminho do Tactiq. O áudio não é mais transcrito durante a reunião.</p>
 
     <div class="card">
-      <div class="card-title">📝 De onde vem o texto</div>
+      <div class="card-title">📝 Como funciona</div>
       <table style="margin-top:8px">
-        <tr><th>Fonte</th><th>Como ligar</th><th>Observação</th></tr>
-        <tr><td>Legendas do Meet</td><td>Botão CC do Meet</td><td>Principal fonte. A extensão lê só a área de legendas — avisos, botões e nomes da tela ficam de fora</td></tr>
-        <tr><td>Áudio dos participantes</td><td>Popup → Iniciar captura de áudio</td><td>Transcrito por Whisper/Groq em trechos de 15s</td></tr>
-        <tr><td>Seu microfone</td><td>Sidebar → 🎤 Capturar áudio</td><td>Transcrito por Whisper/Groq</td></tr>
+        <tr><th>O quê</th><th>Como</th></tr>
+        <tr><td>Fonte do texto</td><td>Legenda do Meet, lida pela extensão. A extensão liga o CC sozinha e esconde a legenda da tela (botão <strong>👁 Mostrar legenda na tela</strong> na sidebar para ver)</td></tr>
+        <tr><td>Quem falou</td><td>O nome que o Meet mostra em cada bloco da legenda (nome completo da conta Google da pessoa). As suas falas levam o nome do seu login na extensão</td></tr>
+        <tr><td>Respostas curtas</td><td>"Sim", "bem", "caro", "fechado" entram na transcrição</td></tr>
+        <tr><td>Fala longa sem pausa</td><td>Enviada aos pedaços, a cada ~15 segundos, sem repetir o que já foi enviado</td></tr>
+        <tr><td>Envio para a IA</td><td>A cada ~20 segundos, só o que é novo</td></tr>
       </table>
     </div>
 
     <div class="card">
       <div class="card-title">🧹 Limpeza automática</div>
       <ul style="padding-left:18px;color:var(--muted);font-size:.92rem">
-        <li>Falas repetidas pelo reenvio da legenda são descartadas; repetições reais do cliente (ex.: a mesma objeção duas vezes) são mantidas.</li>
-        <li>Avisos do Meet/Gemini, nomes de dispositivos e outros textos de tela são removidos antes de chegar à IA.</li>
-        <li>Quando a extensão não consegue saber quem falou, a fala aparece como <strong>"Não identificado"</strong> — nunca é atribuída a um cliente por palpite.</li>
+        <li>Só o texto de dentro da área de legenda é lido — botões, avisos e painéis do Meet/Gemini ficam de fora. Com a legenda desligada, nada da página é lido.</li>
+        <li>A legenda que o Meet ainda está escrevendo vira uma fala só; o mesmo bloco que continua crescendo entra apenas com o pedaço novo.</li>
+        <li>Quando não dá para saber quem falou, a fala aparece como <strong>"Não identificado"</strong> — nunca é atribuída a um cliente por palpite.</li>
         <li>A mesma sala do Meet usada de novo depois de 6h parada vira uma reunião nova no histórico.</li>
       </ul>
-    </div>
-
-    <div class="callout callout-tip">
-      <div class="callout-icon">💡</div>
-      <div class="callout-body">
-        <strong>Configuração é feita pelo administrador</strong>
-        O provedor de transcrição (qual serviço converte áudio em texto) é escolhido uma única vez em Dashboard → Configurações → Transcrição de Áudio, por um administrador. Se você não é admin, não precisa se preocupar com isso.
-      </div>
     </div>
 
     <div class="callout callout-warn">
       <div class="callout-icon">⚠️</div>
       <div class="callout-body">
-        <strong>Erro na barra de status da sidebar</strong>
-        Se aparecer um erro de transcrição durante a reunião, avise o administrador — normalmente é uma chave de acesso vencida do lado do servidor, não algo que você resolve pela extensão.
+        <strong>Quem fala precisa estar no próprio dispositivo</strong>
+        O nome vem de qual conta está falando no Meet. Se várias pessoas falam pelo mesmo computador (ou um vídeo toca pelo seu microfone), tudo aparece com o nome de quem está conectado. Para testar, entre com o celular como segundo participante.
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <strong>Recapitulação = reunião inteira</strong>
+        A recapitulação da sidebar resume tudo o que foi dito naquela sala do Meet. Para testar algo novo do zero, abra uma reunião nova (meet.new).
       </div>
     </div>
   </section>
 
   <!-- ── 5.1 GRAVAÇÃO ── -->
   <section id="gravacao">
-    <h2><span class="section-num">5.1</span> Gravação da Reunião <span class="badge badge-green">V.1.4.174</span></h2>
-    <p class="section-desc">Guarda o áudio da reunião no servidor, em duas trilhas separadas: o áudio dos participantes (aba do Meet) e o seu microfone. Nunca começa sozinha.</p>
+    <h2><span class="section-num">5.1</span> Gravação da Reunião <span class="badge badge-green">V.1.4.180</span></h2>
+    <p class="section-desc">Guarda o áudio da reunião no servidor, em duas trilhas separadas: o áudio dos participantes (aba do Meet) e o seu microfone. Nunca começa sozinha. Serve para ouvir e conferir — a transcrição vem da legenda.</p>
 
     <div class="callout callout-warn">
       <div class="callout-icon">⚠️</div>
       <div class="callout-body">
-        <strong>Em validação</strong>
-        A gravação precisa estar ativada pelo administrador e exige a extensão 1.4.23 e login. Se o popup mostrar "Gravação de áudio desativada no servidor", ela ainda não está liberada para uso.
+        <strong>Requisitos</strong>
+        A gravação precisa estar ativada pelo administrador e exige login e a extensão 1.4.26 ou mais nova (áudio em 32 kbps, ~4x menor). Se o popup mostrar "Gravação de áudio desativada no servidor", ela não está liberada.
       </div>
     </div>
 
@@ -694,7 +694,7 @@
       <div class="card-title">🔒 Privacidade</div>
       <ul style="padding-left:18px;color:var(--muted);font-size:.92rem">
         <li>Só você (e o administrador) acessa o áudio das suas reuniões.</li>
-        <li>As gravações são apagadas automaticamente depois de <strong>90 dias</strong>.</li>
+        <li>As gravações são apagadas automaticamente depois de <strong>7 dias</strong> (desde 15/10/2026). Salve trechos de referência antes disso se precisar medir a transcrição.</li>
         <li>A cada 10 minutos a gravação é dividida em partes, para que uma falha não comprometa a reunião inteira.</li>
         <li>A gravação se encerra sozinha quando você sai da reunião ou fecha a aba do Meet (extensão 1.4.24).</li>
       </ul>
@@ -726,12 +726,12 @@
       </div>
 
       <div class="card">
-        <div class="card-title">🎙️ Status de Transcrição</div>
+        <div class="card-title">📝 Status da Transcrição</div>
         <div style="margin-top:6px;font-size:.88rem;display:flex;flex-direction:column;gap:6px">
-          <div>🎙️ <strong>gravando...</strong> — áudio sendo capturado para transcrição</div>
+          <div>📝 <strong>N frase(s) capturada(s)</strong> — falas lidas da legenda (sobe a cada pausa ou a cada ~15 s)</div>
+          <div>👁 <strong>Mostrar / Esconder legenda na tela</strong> — a legenda é lida nos dois casos</div>
+          <div>⚠️ <strong>Ative as legendas no Meet</strong> — nenhuma legenda lida ainda: confira o CC</div>
           <div>● <strong>Gravando a reunião</strong> — gravação ativa (ver <a href="#gravacao">Gravação</a>)</div>
-          <div>✅ <strong>Transcrito:</strong> — chunk processado com sucesso</div>
-          <div>⚠️ <strong>Erro: ...</strong> — problema (chave inválida, servidor, etc.)</div>
         </div>
       </div>
 
@@ -1429,7 +1429,7 @@
     <div class="grid-2">
       <div class="card">
         <div class="card-title">📊 Início</div>
-        <p style="color:var(--muted);font-size:.92rem">Visão geral: custo do período, score médio, reuniões recentes e gráfico de distribuição de propensão.</p>
+        <p style="color:var(--muted);font-size:.92rem">Visão geral: versão em produção, reuniões recentes e propensão. Para admin, o card <strong>🤖 Provedores de IA</strong>: estado de cada provedor, chamadas e custo da última hora, saldo do DeepSeek, quanto resta do limite diário do Groq e qual está atendendo ("em uso" ou "⚠️ reserva em uso").</p>
       </div>
       <div class="card">
         <div class="card-title">📋 Reuniões</div>
@@ -1445,7 +1445,7 @@
       </div>
       <div class="card" style="border-top:3px solid var(--gold)">
         <div class="card-title">🔴 Sessões ao Vivo <span class="badge badge-green">V.1.4.40</span></div>
-        <p style="color:var(--muted);font-size:.92rem">Reuniões capturadas em tempo real pela extensão. Busque por cliente, empresa, link do Meet (aceita o código ou a URL completa), data ou horário; filtre por status (Ao vivo/Finalizada) e ordene por recência, cliente ou status.</p>
+        <p style="color:var(--muted);font-size:.92rem">Reuniões capturadas em tempo real pela extensão. Busque por cliente, empresa, link do Meet (aceita o código ou a URL completa), data ou horário; filtre por status (Ao vivo/Finalizada) e ordene por recência, cliente ou status. A lista se atualiza sozinha a cada 15 segundos; a reunião vira <strong>Finalizada</strong> assim que o vendedor sai da chamada ou fecha a aba (extensão 1.4.32+). <strong>Cuidado ao apagar</strong>: a lixeira apaga a sessão de verdade — confira o código da reunião antes.</p>
       </div>
       <div class="card">
         <div class="card-title">🎬 Cenário do Cliente</div>
@@ -1532,6 +1532,7 @@
 
     <div class="card">
       <div class="card-title">🎙️ Transcrição de Áudio</div>
+      <p style="color:var(--muted);font-size:.88rem;margin-bottom:10px">Desde a V.1.4.180 o áudio não é transcrito durante a reunião (<code>TRANSCRICAO_TEMPO_REAL_ATIVA=false</code> no servidor) — a transcrição vem da legenda do Meet. Este card só vale se a transcrição de áudio for religada.</p>
       <table style="margin-top:8px">
         <tr><th>Elemento</th><th>Descrição</th></tr>
         <tr><td>Card Whisper</td><td>Usa a chave da OpenAI já configurada — sem configuração extra</td></tr>
@@ -1563,6 +1564,14 @@
   <section id="conta-claude">
     <h2><span class="section-num">15</span> Conta Claude <span style="font-size:.75rem;font-weight:400;color:var(--muted);margin-left:4px">(piloto)</span></h2>
     <p class="section-desc">Conecte sua própria assinatura Claude (Pro ou Max) como reforço pessoal — entra automaticamente quando os 5 provedores centrais de IA (DeepSeek/OpenAI/Anthropic/Gemini/Groq) ficam indisponíveis ao mesmo tempo.</p>
+
+    <div class="callout callout-warn">
+      <div class="callout-icon">⏸️</div>
+      <div class="callout-body">
+        <strong>Desligada desde 15/10/2026</strong>
+        O administrador desligou a Conta Claude como reserva (<code>CLAUDE_ACCOUNT_PILOT=false</code>): o custo estimado foi de ~US$ 142 desde 03/09, só como reserva. As instruções abaixo valem se ela for religada.
+      </div>
+    </div>
 
     <div class="callout callout-purple">
       <div class="callout-icon">🔷</div>
@@ -1735,8 +1744,8 @@
       <div class="step">
         <div class="step-num"></div>
         <div class="step-body">
-          <h3>Peça ao administrador para ativar o Groq na transcrição</h3>
-          <p>O provedor Groq costuma ser gratuito e mais preciso em português que a alternativa padrão. Isso é configurado uma vez pelo administrador em Dashboard → Configurações.</p>
+          <h3>Deixe a legenda do Meet em português</h3>
+          <p>A transcrição vem da legenda. Em Configurações do Meet → Legendas, escolha <strong>Português</strong> — com o idioma errado o Meet transcreve mal e a IA analisa um texto ruim.</p>
         </div>
       </div>
       <div class="step">
@@ -1918,7 +1927,7 @@
     <details>
       <summary>Aparece "Serviço de IA indisponível" durante a reunião</summary>
       <div class="faq-body">
-        <p>Todos os provedores de IA (DeepSeek, OpenAI, Anthropic, Gemini, Groq) estão com instabilidade simultânea — situação muito rara. O SALEIA tentará novamente automaticamente no próximo ciclo. Se persistir, verifique sua conexão com a internet e o status em <code>https://api.saleia.app.br/health</code>. Se você tiver conectado sua <a href="#conta-claude">Conta Claude</a> e feito login na extensão, o fallback pessoal entra automaticamente nessa situação.</p>
+        <p>Todos os provedores de IA (DeepSeek, OpenAI, Anthropic, Gemini, Groq) estão com instabilidade simultânea — situação muito rara. O SALEIA tentará novamente automaticamente no próximo ciclo. Se persistir, verifique sua conexão com a internet e o status em <code>https://api.saleia.app.br/health</code>. O administrador recebe aviso no Telegram quando isso acontece e vê a causa (sem saldo, chave inválida, limite) no card Provedores de IA do Dashboard.</p>
       </div>
     </details>
 

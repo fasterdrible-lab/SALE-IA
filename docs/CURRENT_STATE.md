@@ -1,14 +1,85 @@
 # SALEIA - Estado Atual
 
-## 13/10/2026 (leia primeiro)
+## 16/10/2026 (leia primeiro)
 
 **Onde está cada coisa**
 
 | Item | Versão | Estado |
 |---|---|---|
-| Backend em produção | V.1.4.178 (`9db7d57` = VPS HEAD) | deploy 14/10 16:18 UTC por bundle, depois de ~1h20 esperando reunião terminar; `NRestarts=0`, journal limpo, `/health` = 1.4.178, `/dashboard` 200 |
+| Backend em produção | **V.1.4.183** (`bb7ba1d` = VPS HEAD) | deploy 16/10 14:02 UTC por bundle, sem reunião ativa; `NRestarts=0`, `/health` = 1.4.183; suíte local 1.986 OK |
+| Extensão | **V.1.4.33** (`chrome-extension.zip` + `../chrome-extension. V.1.4.33.zip`) | **reinstalar em todos os vendedores** — em 16/10 os vendedores reais ainda usavam a 1.4.25 (100% "Não identificado" e texto do painel do Gemini na transcrição) |
+| Transcrição | legenda do Meet (única fonte) | áudio NÃO é transcrito na reunião (`TRANSCRICAO_TEMPO_REAL_ATIVA=false`, padrão) |
+| Gravação | ligada; 32 kbps (ext ≥ 1.4.26); retenção 7 dias | gravações antigas encurtadas para 7 dias em 15/10 |
+| IA | DeepSeek atendendo; reservas OpenAI → Anthropic → Gemini → Groq | **DeepSeek só com crédito de compensação** (US$ 5,62 em 16/10 14:03 UTC; saldo pago US$ 0,00) — recarregar; OpenAI/Anthropic/Gemini estavam sem crédito/chave em 14/10 |
+| Plano em andamento | `docs/tasks-legenda-tempo-real.md` | Fases 0, 1 e 2.0 feitas; próximas 2.2, 2.3, Fase 3 |
+
+**O que mudou em 15–16/10** (detalhe no CHANGELOG)
+
+- Avaliação de produção (15/10): legenda cobre 88% do que o áudio
+  transcrevia; transcrever áudio na reunião travou a VPS (14/10) e
+  estourou a Groq (2.000 pedidos/dia). Decisão: legenda em tempo real,
+  áudio só na gravação. Plano em `docs/tasks-legenda-tempo-real.md`.
+- **V.1.4.180** (15/10): transcrição de áudio em tempo real desligada;
+  gravação a 32 kbps; retenção padrão 7 dias.
+- **Ext 1.4.27 → 1.4.31** (15/10): legenda lida igual ao Tactiq — nome
+  do falante pelo HTML real da legenda (regra antiga recusava nome com
+  mais de 4 palavras), respostas curtas, legenda escondida da tela, CC
+  ligado sozinho; correções achadas em teste real: fala presa no buffer
+  (Meet redesenha o bloco), repetição em escada no monólogo, fala
+  contínua sem pausa (grava a cada 15 s), texto de botão quando o CC está
+  desligado. Teste com o HTML real: `tests/js/test_legenda_meet.js`.
+- **V.1.4.181 + ext 1.4.32** (16/10): sessão "Finalizada" na hora em que
+  o vendedor sai da chamada (`sessoes.encerrada_em`, `/encerrar-sessao`).
+- **V.1.4.182** (16/10): lista "Sessões ao Vivo" se atualiza a cada 15 s.
+- **V.1.4.183 + ext 1.4.33** (16/10): card "Provedores de IA" (saldo do
+  DeepSeek, limite do Groq, em uso/reserva), Telegram de saldo baixo
+  (< US$ 2) e de reserva em uso; falas do vendedor com o nome do login.
+
+**Mudanças só na VPS (sem código), 15/10**
+
+- MySQL `binlog_expire_logs_seconds = 259200` (3 dias, `SET PERSIST`):
+  `/var/lib/mysql` 17 GB → 4,7 GB.
+- `.env`: `CLAUDE_ACCOUNT_PILOT=false` (conta Claude fora da reserva;
+  ~US$ 142 estimados desde 03/09), `GRAVACAO_RETENCAO_DIAS=7` (backups
+  `.env.bak_claude_off_*`, `.env.bak_retencao7_*`).
+- `gravacoes_audio.apagar_em` das 143 gravações existentes encurtado para
+  `iniciada_em + 7 dias` (1ª apagada em 18/10).
+
+**Atenção**
+
+- 15/10 19:30 UTC: a sessão **504** (`qgh-cgpy-uhj`, reunião REAL de
+  outro vendedor, ~30 mil caracteres) foi apagada pelo Dashboard durante
+  testes. A transcrição completa segue em `meeting_memory` (52 mil
+  caracteres) — recriar a sessão se o usuário pedir.
+- Testes do usuário com vídeo tocando pelo microfone: tudo sai com o nome
+  dele (o Meet atribui ao dono do microfone). Testar falante com 2º
+  participante em outro dispositivo.
+- Rodar a suíte com `DB_HOST="" TELEGRAM_TOKEN=""` (o `.env` local aponta
+  para o MySQL de produção e tem token real do Telegram).
+
+**Pendências, por prioridade**
+
+1. **Recarregar o DeepSeek** (só crédito de compensação).
+2. **Instalar a extensão 1.4.33 em todos os vendedores** e validar no Meet
+   real com 2 pessoas: nome de cada falante, legenda escondida sem faixa
+   vazia, CC ligado sozinho, sessão "Finalizada" ao sair.
+3. Plano `tasks-legenda-tempo-real.md`: 2.2 (resto de repetição + limpar
+   `iyz-hvkc-ctt`), 2.3 (trechos de referência no painel 🎧 antes de o
+   áudio vencer em 7 dias), Fase 3 (transcrição definitiva pós-reunião,
+   comparar e apagar), 4.1 (parar de regravar a transcrição inteira).
+4. Segurança da VPS (`docs/SECURITY_MODEL.md`): trocar a senha root (passou
+   pelo chat de novo em 15–16/10), ufw, chave SSH, PAT do GitHub, backup
+   externo.
+
+## 13/10/2026
+
+**Onde está cada coisa**
+
+| Item | Versão | Estado |
+|---|---|---|
+| Backend em produção | V.1.4.179 (`5f3902a` = VPS HEAD) | deploy 14/10 18:04 UTC por bundle, sem reunião ativa; `NRestarts=0`, journal limpo, `/health` = 1.4.179, `/dashboard` 200 |
 | Transcrição de áudio | Groq (`whisper-large-v3`) | desde 14/10 (era `whisper_local`, travou a API) |
-| Backend local | V.1.4.179 + ext 1.4.25 (sem commit) | Groq transcreve só o áudio do cliente; aguarda "sim" para deploy + reinstalar a extensão |
+| Extensão | V.1.4.25 (`chrome-extension.zip`) | Groq só no áudio do cliente; **reinstalar nos vendedores** (vale também para o teste da T02) |
 | Extensão | V.1.4.24 no repo | vendedores ainda em versão antiga — reinstalar |
 | Infra na VPS | backup diário (`7149330`) | instalado e conferido |
 
