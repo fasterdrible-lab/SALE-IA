@@ -108,7 +108,7 @@ nova), depois extratores novos.
 - **Teste**: rodar contra `expected_events` do Golden Dataset (Fase 20)
   → primeiro número real de `event_precision`.
 
-### A8 — Turnos temporizados por falante [extensão + backend] [FEITA no código — 17/10/2026, V.1.4.187 + ext 1.4.37; validar em reunião real]
+### A8 — Turnos temporizados por falante [extensão + backend] [CONCLUÍDA — 17/10/2026, V.1.4.187 + ext 1.4.37; validada pelo usuário em reunião real, indicador ao vivo aprovado]
 - Pré-requisito de Conversation Metrics/Seller Coaching (talk ratio,
   perguntas, monólogos). Depende de A1.
 - **Teste**: transcrição conhecida → métricas batendo o cálculo manual.

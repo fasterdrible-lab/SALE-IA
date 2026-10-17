@@ -38,6 +38,10 @@ registrava o tempo de cada fala. Seller Coaching mostrava "Talk Ratio" e
 - Testes: `tests/test_turnos.py` (conversa conhecida × conta manual),
   `tests/js/test_quem_e_quem.js` (+2), `tests/js/test_legenda_meet.js` (+1).
 - Versão: `1.4.186` → `1.4.187`; extensão `1.4.36` → `1.4.37`.
+- **Em produção 17/10/2026 16:42 UTC** (`62ed034`). **Validada pelo usuário
+  em reunião real**: o indicador ao vivo fica — "não atrapalha; é relevante
+  para o vendedor entender se está falando demais e deixando o cliente
+  falar".
 
 ---
 
