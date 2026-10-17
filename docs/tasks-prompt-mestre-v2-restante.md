@@ -209,6 +209,15 @@ Pedido original da C8:
 ### C3 — Avaliar o Shadow Mode (Tarefa 6.2) [RODADA — 08/10/2026: Piloto NÃO pode começar; erro 61% (billing), quality sem medição; remedir com saldo + extensão 1.4.20]
 - Relatório agreement/latency/errors/cost por origem, com o contexto
   completo. Define se o Piloto pode começar.
+- **2ª rodada 17/10/2026** (`/tmp/c3_20261017.json` na VPS, dados pós-reset
+  de 11/10): 1.575 comparações (1.191 comparáveis), 39 reuniões, agreement
+  91,8%, latência p95 6,6 s, error_rate 24,4% — **todo erro em 12-14/10**
+  (IA fora por saldo/cota); **0% desde 15/10**. Custo do caminho Shadow
+  US$ 11,30 (53% do tempo real). Piloto: **NÃO** — falta `quality`
+  (C4) e a amostra é quase toda de reuniões de TESTE do usuário (música,
+  "testando"), não de venda real; agreement aqui não mede valor.
+  `recommended_framework` sem vocabulário fechado ("SPIN" em ~40 grafias).
+  Próximo: C4 usando reuniões reais (ex.: as do Paulo) como referência.
 ### C4 — Definir o alvo de recommendation quality e a métrica de qualidade
 - O prompt deixa o alvo "a definir". Decidir o número e se `quality`
   do Shadow Mode usa LLM-judge (custo real por comparação).
