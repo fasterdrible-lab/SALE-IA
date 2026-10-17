@@ -115,10 +115,49 @@
     }).join(' · ');
   }
 
+  // A8 (ext 1.4.37): papel de quem falou, pelo nome que está na transcrição.
+  // Mesma regra de agent/turnos_rules.py::papel_do_falante: papel informado
+  // vale; sem nenhum cliente marcado, quem não é vendedor conta como cliente
+  // (inferido); "Não identificado" fica de fora.
+  function papelDoFalante(lista, falante) {
+    var n = normalizar(falante);
+    if (!n || n === normalizar(NAO_IDENTIFICADO)) return { papel: '', inferido: false };
+    if (n === 'cliente') return { papel: 'cliente', inferido: false };  // áudio da aba
+    var temCliente = false, achado = null;
+    (lista || []).forEach(function (p) {
+      if (p.papel === 'cliente') temCliente = true;
+      if (normalizar(p.nome) === n) achado = p;
+    });
+    if (achado && (achado.papel === 'vendedor' || achado.papel === 'cliente')) return { papel: achado.papel, inferido: false };
+    if (achado && achado.papel === 'outro') return { papel: '', inferido: false };
+    return temCliente ? { papel: '', inferido: false } : { papel: 'cliente', inferido: true };
+  }
+
+  // % do tempo de fala (legenda) de vendedor × cliente. transcricao:
+  // [{speaker, inicio, fim}] em ms; falas sem tempo ficam de fora.
+  function proporcaoFala(transcricao, lista) {
+    var seg = { vendedor: 0, cliente: 0 }, inferido = false;
+    (transcricao || []).forEach(function (f) {
+      if (!f.inicio || !f.fim || f.fim < f.inicio) return;
+      var p = papelDoFalante(lista, f.speaker);
+      if (!p.papel) return;
+      seg[p.papel] += (f.fim - f.inicio) / 1000;
+      if (p.inferido) inferido = true;
+    });
+    var total = seg.vendedor + seg.cliente;
+    return {
+      vendedor_s: seg.vendedor, cliente_s: seg.cliente, total_s: total,
+      pct_vendedor: total > 0 ? Math.round(100 * seg.vendedor / total) : null,
+      pct_cliente: total > 0 ? 100 - Math.round(100 * seg.vendedor / total) : null,
+      inferido: inferido,
+    };
+  }
+
   var api = {
     VOCE: VOCE, NAO_IDENTIFICADO: NAO_IDENTIFICADO, PAPEIS: PAPEIS,
     normalizar: normalizar, ehVoce: ehVoce, rotular: rotular, nomeDePessoa: nomeDePessoa,
     listaParaServidor: listaParaServidor, definir: definir, resumo: resumo,
+    papelDoFalante: papelDoFalante, proporcaoFala: proporcaoFala,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   raiz.SaleiaQuemEQuem = api;

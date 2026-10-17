@@ -476,6 +476,9 @@ class TempoRealRequest(BaseModel):
     transcricao_nova: Optional[str] = None  # delta: only new entries since last send
     # V.1.4.186 (ext 1.4.35): "quem é quem" — [{nome_meet, nome, papel}].
     participantes: Optional[list] = None
+    # A8 (V.1.4.187 / ext 1.4.37): falas novas com tempo —
+    # [{falante, inicio_ms, fim_ms, texto}].
+    turnos_novos: Optional[list] = None
 
 
 class TactiqWebhookRequest(BaseModel):
@@ -863,7 +866,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.186",
+        "versao":              "1.4.187",
         "timestamp":           datetime.now().isoformat(),
         "ia_disponivel":       ia["ia_disponivel"],
         "ia_fora_desde":       ia["ia_fora_desde"],
@@ -904,7 +907,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.186",
+        "versao":          "1.4.187",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -998,6 +1001,15 @@ async def analisar_tempo_real(req: TempoRealRequest, authorization: str | None =
             salvar_participantes(req.meeting_id or "default", para_json(participantes))
         except Exception as _e:
             logger.warning("[Sessões] Não foi possível salvar participantes: %s", _e)
+
+    from agent.turnos_rules import normalizar_turnos
+    turnos = normalizar_turnos(req.turnos_novos)
+    if turnos:
+        try:
+            from api.database import registrar_turnos
+            registrar_turnos(req.meeting_id or "default", turnos)
+        except Exception as _e:
+            logger.warning("[Turnos] Não foi possível salvar falas temporizadas: %s", _e)
 
     from api.processador_tempo_real import processar_fragmento_tempo_real
 
@@ -2524,6 +2536,13 @@ def buscar_sessao_endpoint(sessao_id: int, authorization: str | None = Header(de
         if not s:
             raise HTTPException(status_code=404, detail="Sessão não encontrada")
         _verificar_dono_ou_admin(payload, (obter_meeting_memory(s.get("meeting_id")) or {}).get("usuario_id"))
+        # A8 (V.1.4.187): % de fala, perguntas, monólogos desta sessão.
+        try:
+            from api.metricas_conversa import metricas_da_sessao
+            s["metricas_conversa"] = metricas_da_sessao(s)
+        except Exception as _e:
+            logger.warning("[MetricasConversa] sessão %s: %s", sessao_id, _e)
+            s["metricas_conversa"] = {"disponivel": False, "motivo": "Erro ao calcular as métricas."}
         return s
     except HTTPException:
         raise
@@ -5068,7 +5087,14 @@ def seller_coaching_endpoint(
     _verificar_dono_ou_admin(payload, seller_id)
     try:
         from agent.seller_coaching_rules import montar_seller_coaching
-        return montar_seller_coaching(seller_id)
+        # A8 (V.1.4.187): Talk Ratio / Question Quality das falas temporizadas.
+        conversa = None
+        try:
+            from api.metricas_conversa import metricas_do_vendedor
+            conversa = metricas_do_vendedor(seller_id)
+        except Exception as _e:
+            logger.warning("[SellerCoaching] métricas da conversa de %s: %s", seller_id, _e)
+        return montar_seller_coaching(seller_id, conversa)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

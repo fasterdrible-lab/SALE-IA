@@ -140,6 +140,26 @@ class TranscricaoAudioRecente(SQLModel, table=True):
     criado_em: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, index=True, nullable=False))
 
 
+class TurnoFala(SQLModel, table=True):
+    """A8 (V.1.4.187): uma fala com o tempo em que apareceu na legenda do
+    Meet (ext 1.4.37). Base das métricas da conversa (% de fala,
+    perguntas, monólogos) — `agent/turnos_rules.py`. O papel (vendedor/
+    cliente) não é gravado aqui: vem do "quem é quem" da sessão na hora do
+    cálculo, então preencher depois também vale. Unicidade
+    (meeting_id, falante, inicio_ms): o reenvio do mesmo delta não duplica."""
+
+    __tablename__ = "turnos_fala"
+    __table_args__ = (UniqueConstraint("meeting_id", "falante", "inicio_ms", name="uq_turno_fala"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    meeting_id: str = Field(sa_column=Column(String(200), index=True, nullable=False))
+    falante: str = Field(sa_column=Column(String(120), nullable=False))
+    inicio_ms: int = Field(sa_column=Column(BigInteger, nullable=False))
+    fim_ms: int = Field(sa_column=Column(BigInteger, nullable=False))
+    texto: str = Field(default="", sa_column=Column(Text, nullable=False))
+    criado_em: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, index=True, nullable=False))
+
+
 class GravacaoAudio(SQLModel, table=True):
     """Uma gravação contínua de uma trilha (T02, `agent/gravacao_rules.py`).
     A reunião tem várias: uma por trilha a cada rotação/pausa."""
@@ -927,6 +947,48 @@ def corpos_de_audio_recentes(meeting_id: str, minutos: int = 15) -> set:
     except Exception as e:
         logger.warning("[MeetingMemory] sem corpos de áudio para %s: %s", meeting_id, e)
         return set()
+
+
+def registrar_turnos(meeting_id: str, turnos: list) -> int:
+    """A8: grava as falas temporizadas (já normalizadas por
+    `agent.turnos_rules.normalizar_turnos`). Repetida = ignorada (chave
+    única). Retorna quantas entraram. Melhor esforço por fala."""
+    if not meeting_id or meeting_id == "default" or not turnos:
+        return 0
+    from sqlalchemy.exc import IntegrityError
+
+    novos = 0
+    with Session(engine) as session:
+        existentes = set(session.exec(
+            select(TurnoFala.falante, TurnoFala.inicio_ms).where(
+                TurnoFala.meeting_id == meeting_id,
+                TurnoFala.inicio_ms >= min(t["inicio_ms"] for t in turnos),
+            )
+        ).all())
+        for t in turnos:
+            if (t["falante"], t["inicio_ms"]) in existentes:
+                continue
+            try:
+                session.add(TurnoFala(meeting_id=meeting_id, falante=t["falante"], inicio_ms=t["inicio_ms"],
+                                      fim_ms=t["fim_ms"], texto=t.get("texto") or ""))
+                session.commit()
+                novos += 1
+            except IntegrityError:  # outro worker gravou a mesma fala
+                session.rollback()
+            existentes.add((t["falante"], t["inicio_ms"]))
+    return novos
+
+
+def listar_turnos(meeting_id: str, desde: Optional[datetime] = None) -> list:
+    """Falas temporizadas da reunião (ordem de início). `desde`: só as
+    gravadas a partir desse momento (sala fixa do Meet: o mesmo código em
+    reuniões diferentes)."""
+    with Session(engine) as session:
+        q = select(TurnoFala).where(TurnoFala.meeting_id == meeting_id)
+        if desde is not None:
+            q = q.where(TurnoFala.criado_em >= desde)
+        linhas = session.exec(q.order_by(TurnoFala.inicio_ms)).all()
+        return [{"falante": t.falante, "inicio_ms": t.inicio_ms, "fim_ms": t.fim_ms, "texto": t.texto} for t in linhas]
 
 
 def salvar_meeting_memory(meeting_id: str, **campos) -> dict:

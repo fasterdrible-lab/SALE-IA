@@ -587,7 +587,8 @@ def buscar_sessao(sessao_id: int) -> dict:
         with conn.cursor() as cur:
             cur.execute(
                 """SELECT id, meeting_id, transcricao_acumulada, ultima_analise,
-                          disc_identificado, num_analises, created_at, updated_at
+                          disc_identificado, num_analises, created_at, updated_at,
+                          participantes_json
                    FROM sessoes WHERE id = %s""",
                 (sessao_id,),
             )

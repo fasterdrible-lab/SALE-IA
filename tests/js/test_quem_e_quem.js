@@ -61,6 +61,29 @@ test('nomeDePessoa: recusa texto de ícone, o próprio vendedor e o código da r
   assert.equal(Q.nomeDePessoa('Reenquadrar'), null);  // botão do próprio quadro (teste real 16/10)
 });
 
+test('A8: papel de quem falou — informado vale; sem cliente marcado, o outro é cliente (inferido)', () => {
+  const lista = [{ nome_meet: 'Você', nome: 'Pedro', papel: 'vendedor' }, { nome_meet: 'x', nome: 'Ana', papel: 'cliente' }];
+  assert.deepEqual(Q.papelDoFalante(lista, 'pedro'), { papel: 'vendedor', inferido: false });
+  assert.deepEqual(Q.papelDoFalante(lista, 'Ana'), { papel: 'cliente', inferido: false });
+  assert.deepEqual(Q.papelDoFalante(lista, 'Zé'), { papel: '', inferido: false });
+  assert.deepEqual(Q.papelDoFalante(lista.slice(0, 1), 'motomec 17 GB'), { papel: 'cliente', inferido: true });
+  assert.deepEqual(Q.papelDoFalante(lista, 'Não identificado'), { papel: '', inferido: false });
+});
+
+test('A8: % de fala ao vivo — conta à mão (vendedor 30 s, cliente 10 s; sem tempo e não identificado fora)', () => {
+  const lista = [{ nome_meet: 'Você', nome: 'Pedro', papel: 'vendedor' }, { nome_meet: 'x', nome: 'Ana', papel: 'cliente' }];
+  const t = [
+    { speaker: 'Pedro', inicio: 1000, fim: 21000 },
+    { speaker: 'Ana', inicio: 21000, fim: 31000 },
+    { speaker: 'Pedro', inicio: 31000, fim: 41000 },
+    { speaker: 'Não identificado', inicio: 41000, fim: 99000 },
+    { speaker: 'Ana', text: 'sem tempo (áudio)' },
+  ];
+  assert.deepEqual(Q.proporcaoFala(t, lista),
+    { vendedor_s: 30, cliente_s: 10, total_s: 40, pct_vendedor: 75, pct_cliente: 25, inferido: false });
+  assert.equal(Q.proporcaoFala([], lista).pct_vendedor, null);
+});
+
 test('resumo da sidebar', () => {
   const mapa = { fasterdrible: { nome: 'André', papel: 'cliente' } };
   assert.equal(Q.resumo(mapa, ['fasterdrible', 'Ana'], 'Pedro'), 'Pedro (vendedor) · André (cliente) · Ana');

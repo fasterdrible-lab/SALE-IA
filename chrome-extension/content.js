@@ -116,6 +116,7 @@
     // V.1.4.186 (ext 1.4.35): quem está na chamada, antes de falar.
     setInterval(function () {
       try { lerPessoasDaChamada(); } catch (e) { /* DOM do Meet mudou — fica só a legenda */ }
+      try { atualizarProporcaoFala(); } catch (e) { /* indicador é só visual */ }
     }, 5000);
 
     // Botão de captura de áudio (Whisper) — MediaRecorder direto no content.js
@@ -646,6 +647,7 @@
         <div id="saleia-status"><span class="saleia-dot"></span> Conectando...</div>
         <button id="saleia-btn-participantes" class="saleia-discreto-btn" type="button">👥 Quem é quem</button>
         <div id="saleia-participantes-resumo" class="saleia-participantes-resumo"></div>
+        <div id="saleia-fala-proporcao" title="Tempo de fala pela legenda do Meet" style="display:none;font-size:.78rem;margin:4px 0 2px;color:#bbb"></div>
 
         <div id="saleia-alerta" class="saleia-secao saleia-alerta-box" style="display:none">
           <div class="saleia-secao-titulo">⚠️ ALERTA URGENTE</div>
@@ -869,7 +871,24 @@
     el.textContent = QeQ.resumo(estado.quemEQuem, _nomesVistos, estado.vendedorPadrao);
   }
 
-  var ESTILO_CAMPO = 'background:#1A1A1A;color:#F0F0F0;border:1px solid rgba(212,175,55,0.25);border-radius:7px;padding:6px 8px;font-size:12px;outline:none';
+  // A8 (ext 1.4.37): "🗣️ Você 68% · Cliente 32%" ao vivo. Aparece com
+  // ≥ 20 s de fala; fica laranja com o vendedor > 65% depois de 2 min.
+  var PROPORCAO_MIN_S = 20;
+  var VENDEDOR_ALERTA_PCT = 65;
+  var VENDEDOR_ALERTA_MIN_S = 120;
+  function atualizarProporcaoFala() {
+    var el = document.getElementById('saleia-fala-proporcao');
+    if (!el) return;
+    var p = QeQ.proporcaoFala(estado.transcricao, listaQuemEQuem());
+    if (p.total_s < PROPORCAO_MIN_S || p.pct_vendedor === null) { el.style.display = 'none'; return; }
+    var alerta = p.pct_vendedor > VENDEDOR_ALERTA_PCT && p.total_s >= VENDEDOR_ALERTA_MIN_S;
+    el.textContent = '🗣️ Você ' + p.pct_vendedor + '% · Cliente ' + p.pct_cliente + '%' +
+      (alerta ? ' — deixe o cliente falar' : '');
+    el.style.color = alerta ? '#ffb347' : '#bbb';
+    el.style.display = 'block';
+  }
+
+  var ESTILO_CAMPO ='background:#1A1A1A;color:#F0F0F0;border:1px solid rgba(212,175,55,0.25);border-radius:7px;padding:6px 8px;font-size:12px;outline:none';
 
   function renderizarQuemEQuem() {
     var box = document.getElementById('saleia-quem-lista');
@@ -977,7 +996,10 @@
   // deixava a varredura regravar legendas antigas.
   // fonte: 'audio' quando o texto veio do Whisper (microfone ou aba).
   // curtaOk (V.1.4.27): fala da área de legendas — resposta curta vale.
-  function commitarFrase(speaker, texto, fonte, curtaOk) {
+  // inicio/fim (A8, V.1.4.187 / ext 1.4.37): ms em que a fala apareceu e
+  // parou de crescer na legenda — turnos temporizados para as métricas da
+  // conversa (% de fala, monólogos). Fala do áudio (Whisper) vem sem tempo.
+  function commitarFrase(speaker, texto, fonte, curtaOk, inicio, fim) {
     if (!texto || texto.trim().length < (curtaOk ? 2 : 10)) return;
     if (eRuidoUI(texto.trim())) return;
     speaker = rotuloParticipante(speaker);
@@ -988,12 +1010,24 @@
     // V.1.4.29: bloco = texto inteiro da legenda; text = só o que ainda não
     // tinha sido gravado (continuação de um bloco já enviado).
     if (decisao.acao === 'substituir') {
-      estado.transcricao[decisao.indice].text = decisao.texto || t;
-      estado.transcricao[decisao.indice].bloco = decisao.bloco || t;
+      var antiga = estado.transcricao[decisao.indice];
+      antiga.text = decisao.texto || t;
+      antiga.bloco = decisao.bloco || t;
+      if (fim && antiga.fim) antiga.fim = Math.max(antiga.fim, fim);
       return;
     }
     if (decisao.texto) nova.text = decisao.texto;
     nova.bloco = decisao.bloco || t;
+    if (inicio && fim) {
+      // Continuação de bloco já gravado começa onde a parte anterior acabou
+      // (sem contar o mesmo tempo 2 vezes).
+      var fimAnterior = 0;
+      for (var k = estado.transcricao.length - 1; k >= 0 && k >= estado.transcricao.length - 20; k--) {
+        if (estado.transcricao[k].speaker === speaker) { fimAnterior = estado.transcricao[k].fim || 0; break; }
+      }
+      nova.inicio = Math.min(Math.max(inicio, fimAnterior), fim);
+      nova.fim = fim;
+    }
     estado.transcricao.push(nova);
     // V.1.4.31: "legenda funcionando" = fala lida da área de legendas (ou do
     // áudio), nunca texto da página.
@@ -1019,7 +1053,7 @@
     Object.keys(captionBuffer).forEach(function (speaker) {
       var buf = captionBuffer[speaker];
       if (bufferPronto(buf, agora)) {
-        commitarFrase(speaker, buf.texto, 'legenda', buf.curta);
+        commitarFrase(speaker, buf.texto, 'legenda', buf.curta, buf.inicio, buf.lastSeen);
         delete captionBuffer[speaker];
       }
     });
@@ -1429,7 +1463,7 @@
       }
     } else {
       // Nova frase diferente — commita a anterior e inicia nova
-      commitarFrase(speaker, buf.texto, 'legenda', buf.curta);
+      commitarFrase(speaker, buf.texto, 'legenda', buf.curta, buf.inicio, buf.lastSeen);
       captionBuffer[speaker] = { texto: texto, lastSeen: agora, inicio: agora, curta: naLegenda };
     }
   }
@@ -1560,6 +1594,13 @@
   function montarTranscricaoDelta() {
     const novos = estado.transcricao.slice(estado.ultimoIndexEnviado);
     return novos.map(function (item) { return item.speaker + ': ' + item.text; }).join('\n');
+  }
+
+  // A8 (ext 1.4.37): as mesmas falas novas, com o tempo de cada uma.
+  function montarTurnosDelta() {
+    return estado.transcricao.slice(estado.ultimoIndexEnviado)
+      .filter(function (item) { return item.inicio && item.fim; })
+      .map(function (item) { return { falante: item.speaker, inicio_ms: item.inicio, fim_ms: item.fim, texto: item.text }; });
   }
 
   function montarHistorico() {
@@ -1758,6 +1799,7 @@
       mapa_financeiro: estado.mapaFinanceiro,
       meeting_id: MEETING_ID,
       participantes: listaQuemEQuem(true),  // V.1.4.186: quem é quem
+      turnos_novos: montarTurnosDelta(),    // A8 (V.1.4.187): falas com tempo
     };
 
     const url = CONFIG.backendUrl + '/tempo-real';

@@ -108,10 +108,16 @@ nova), depois extratores novos.
 - **Teste**: rodar contra `expected_events` do Golden Dataset (Fase 20)
   → primeiro número real de `event_precision`.
 
-### A8 — Turnos temporizados por falante [extensão + backend]
+### A8 — Turnos temporizados por falante [extensão + backend] [FEITA no código — 17/10/2026, V.1.4.187 + ext 1.4.37; validar em reunião real]
 - Pré-requisito de Conversation Metrics/Seller Coaching (talk ratio,
   perguntas, monólogos). Depende de A1.
 - **Teste**: transcrição conhecida → métricas batendo o cálculo manual.
+- **Feito**: extensão grava início/fim de cada fala da legenda e manda em
+  `turnos_novos`; tabela `turnos_fala`; `agent/turnos_rules.py` (papel
+  pelo "quem é quem"); card "🗣️ Conversa" na sessão; Seller Coaching com
+  Talk Ratio e Question Quality reais (30 dias); indicador ao vivo na
+  sidebar (pedido do usuário, em avaliação). `tests/test_turnos.py` bate a
+  conta manual. Tempo vem da legenda (aproximado).
 
 ### A9 — Challenger Engine [decisão de produto]
 - Está no diagrama da seção 3, mas nenhuma fase o detalha. Decidir:

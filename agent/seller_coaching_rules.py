@@ -50,18 +50,17 @@ SELLER_COACHING_CAMPOS = (
 TALK_RATIO_NAO_DISPONIVEL = {
     "disponivel": False,
     "motivo": (
-        "Talk Ratio exige turnos com speaker/start/end (agent/"
-        "conversation_metrics_rules.py, Fase 11.1) — nada no sistema "
-        "captura transcrição estruturada por turno hoje."
+        "Nenhuma reunião sua nos últimos 30 dias com falas temporizadas "
+        "(turnos com tempo existem desde a extensão 1.4.37 / V.1.4.187, A8)."
     ),
 }
 
 QUESTION_QUALITY_NAO_DISPONIVEL = {
     "disponivel": False,
     "motivo": (
-        "Question Quality (perguntas abertas/fechadas do vendedor) usa o "
-        "mesmo motor e a mesma exigência de turnos estruturados de Talk "
-        "Ratio — sem captura por turno, não há dado."
+        "Question Quality (perguntas abertas/fechadas do vendedor) vem das "
+        "mesmas falas temporizadas de Talk Ratio — nenhuma pergunta sua "
+        "registrada nos últimos 30 dias."
     ),
 }
 
@@ -106,9 +105,9 @@ NEGOTIATION_NAO_DISPONIVEL = {
 NEXT_STEP_DISCIPLINE_NAO_DISPONIVEL = {
     "disponivel": False,
     "motivo": (
-        "Next Step Discipline usa o mesmo motor e a mesma exigência de "
-        "turnos estruturados de Talk Ratio (agent/conversation_metrics_"
-        "rules.py) — sem captura por turno, não há dado."
+        "Next Step Discipline exige saber se um próximo passo foi "
+        "proposto em cada reunião (classificação de conteúdo, não só "
+        "tempo de fala) — ainda não existe."
     ),
 }
 
@@ -134,14 +133,36 @@ SELLER_COACHING_GAPS = {
 }
 
 
-def montar_seller_coaching(seller_id: str) -> dict:
+def montar_seller_coaching(seller_id: str, conversa: dict | None = None) -> dict:
     """Monta o payload de Seller Coaching pra um vendedor. Nunca acessa
-    banco ou chama IA — hoje é puramente a documentação dos 8 gaps, já
-    que nenhuma engine de origem tem dado real pra alimentar (ver
-    docstring do módulo). `seller_id` é ecoado no payload por
-    consistência com os outros 2 blocos da Fase 22, não usado em nenhum
-    cálculo ainda."""
-    return {
+    banco ou chama IA. `conversa` (A8, V.1.4.187) = agregado de
+    `agent.turnos_rules.agregar_vendedor` das reuniões recentes — quando
+    tem dado, Talk Ratio e Question Quality saem do gap; o resto continua
+    gap explícito (ver docstring do módulo)."""
+    resultado = {
         "seller_id": seller_id,
         **{campo: dict(SELLER_COACHING_GAPS[campo]) for campo in SELLER_COACHING_CAMPOS},
     }
+    c = conversa or {}
+    if c.get("seller_talk_ratio") is not None:
+        resultado["talk_ratio"] = {
+            "disponivel": True,
+            "seller_talk_ratio": c["seller_talk_ratio"],
+            "tempo_vendedor_s": c.get("tempo_vendedor_s"),
+            "tempo_cliente_s": c.get("tempo_cliente_s"),
+            "monologues": c.get("monologues"),
+            "reunioes": c.get("reunioes"),
+            "dias": c.get("dias"),
+            "papeis_inferidos": bool(c.get("papeis_inferidos")),
+        }
+    if c.get("questions_total"):
+        resultado["question_quality"] = {
+            "disponivel": True,
+            "questions_total": c["questions_total"],
+            "open_questions": c.get("open_questions"),
+            "closed_questions": c.get("closed_questions"),
+            "open_question_rate": c.get("open_question_rate"),
+            "reunioes": c.get("reunioes"),
+            "dias": c.get("dias"),
+        }
+    return resultado

@@ -66,7 +66,7 @@ function montar() {
     relogio += 4000;
     Object.keys(t.captionBuffer).forEach((s) => {
       const buf = t.captionBuffer[s];
-      if (relogio - buf.lastSeen > 3500) { t.commitarFrase(s, buf.texto, 'legenda', buf.curta); delete t.captionBuffer[s]; }
+      if (relogio - buf.lastSeen > 3500) { t.commitarFrase(s, buf.texto, 'legenda', buf.curta, buf.inicio, buf.lastSeen); delete t.captionBuffer[s]; }
     });
     return b;
   }
@@ -76,7 +76,7 @@ function montar() {
       relogio += 500;
       Object.keys(t.captionBuffer).forEach((s) => {
         const buf = t.captionBuffer[s];
-        if (t.bufferPronto(buf, relogio)) { t.commitarFrase(s, buf.texto, 'legenda', buf.curta); delete t.captionBuffer[s]; }
+        if (t.bufferPronto(buf, relogio)) { t.commitarFrase(s, buf.texto, 'legenda', buf.curta, buf.inicio, buf.lastSeen); delete t.captionBuffer[s]; }
       });
     }
   }
@@ -324,4 +324,28 @@ test('V.1.4.186: área de legendas com classe "caption"/"a4cQT" — cada fala co
     ['PAULO', 'teste teste testando para ver se esse negócio funciona'],
     ['JOSE', 'Manga chupa essa manga chupa essa manga.'],
   ]);
+});
+
+test('A8 (ext 1.4.37): cada fala guarda início/fim; continuação de bloco já enviado começa onde a anterior acabou', { skip: !JSDOM && 'sem jsdom' }, () => {
+  const { t, passar, regiao, modelo, w } = montar();
+  const b = modelo.cloneNode(true);
+  b.querySelector('.NWpY1d').textContent = 'Você';
+  const txt = b.querySelector('.ygicle');
+  regiao.insertBefore(b, regiao.querySelector('.IMKgW').previousElementSibling);
+  const t0 = w.Date.now();
+  txt.textContent = 'olha'; t.processarElementoLegenda(txt);
+  passar(5000);  // pausa: "olha" gravada
+  const primeira = t.estado.transcricao[0];
+  assert.equal(primeira.inicio, t0);
+  assert.equal(primeira.fim, t0);
+  t.estado.ultimoIndexEnviado = 1;  // enviada
+  passar(1000);
+  txt.textContent = 'olha nos meus olhos'; t.processarElementoLegenda(txt);
+  passar(2000);
+  txt.textContent = 'olha nos meus olhos esqueçam que passou'; t.processarElementoLegenda(txt);
+  passar(5000);
+  const segunda = t.estado.transcricao[1];
+  assert.equal(segunda.text, 'nos meus olhos esqueçam que passou');
+  assert.ok(segunda.inicio >= primeira.fim, 'sem tempo contado 2 vezes');
+  assert.ok(segunda.fim > segunda.inicio);
 });

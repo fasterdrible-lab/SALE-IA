@@ -4897,10 +4897,35 @@
     }
   }
 
+  /* A8 (V.1.4.187): Talk Ratio / Question Quality com dado das falas temporizadas. */
+  function minSeg(s) {
+    const t = Math.round(Number(s) || 0);
+    return Math.floor(t / 60) + 'min ' + String(t % 60).padStart(2, '0') + 's';
+  }
+  function talkRatioCard(d) {
+    if (!d || !d.disponivel) return oppGapCard('🗣️ Talk Ratio', d);
+    const pv = Math.round(d.seller_talk_ratio * 100);
+    return `<div class="info-card">
+      <h3>🗣️ Talk Ratio</h3>
+      <div style="font-size:1.4rem;font-weight:700;color:${pv > 65 ? '#fbbf24' : 'var(--text)'}">Você ${pv}% · Cliente ${100 - pv}%</div>
+      <div style="font-size:.82rem;color:var(--muted);margin-top:4px">Vendedor ${minSeg(d.tempo_vendedor_s)} · Cliente ${minSeg(d.tempo_cliente_s)} · ${d.monologues || 0} monólogo(s) ≥ 90 s · ${d.reunioes} reunião(ões) em ${d.dias} dias</div>
+      ${d.papeis_inferidos ? '<div style="font-size:.75rem;color:var(--muted);margin-top:4px">Em parte das reuniões o cliente foi deduzido (sem "Quem é quem").</div>' : ''}
+    </div>`;
+  }
+  function questionQualityCard(d) {
+    if (!d || !d.disponivel) return oppGapCard('❓ Question Quality', d);
+    const pa = d.open_question_rate != null ? Math.round(d.open_question_rate * 100) : null;
+    return `<div class="info-card">
+      <h3>❓ Question Quality</h3>
+      <div style="font-size:1.4rem;font-weight:700">${d.questions_total} pergunta(s) · ${pa != null ? pa + '% abertas' : '—'}</div>
+      <div style="font-size:.82rem;color:var(--muted);margin-top:4px">${d.open_questions} abertas · ${d.closed_questions} fechadas · ${d.reunioes} reunião(ões) em ${d.dias} dias</div>
+    </div>`;
+  }
+
   function renderSellerCoaching(d) {
     let html = `<div class="grid-2">
-      ${oppGapCard('🗣️ Talk Ratio', d.talk_ratio)}
-      ${oppGapCard('❓ Question Quality', d.question_quality)}
+      ${talkRatioCard(d.talk_ratio)}
+      ${questionQualityCard(d.question_quality)}
     </div>`;
     html += `<div class="grid-2">
       ${oppGapCard('🧭 SPIN Coverage', d.spin_coverage)}
@@ -6443,6 +6468,28 @@
           </div>
         </div>`).join('')}
       </div>`;
+    }
+
+    const mc = s.metricas_conversa;
+    if (mc) {
+      if (mc.disponivel) {
+        const pv = Math.round(mc.seller_talk_ratio * 100);
+        html += `<div class="info-card" style="margin-bottom:16px">
+          <h3>🗣️ Conversa</h3>
+          <div style="font-size:1.3rem;font-weight:700;color:${pv > 65 ? '#fbbf24' : 'var(--text)'}">Vendedor ${pv}% · Cliente ${100 - pv}%</div>
+          <div style="font-size:.82rem;color:var(--muted);margin-top:4px">
+            Vendedor ${minSeg(mc.tempo_vendedor_s)} · Cliente ${minSeg(mc.tempo_cliente_s)} ·
+            ${mc.questions_total} pergunta(s) do vendedor (${mc.open_questions} abertas, ${mc.closed_questions} fechadas) ·
+            ${mc.monologues} monólogo(s) ≥ 90 s · ${mc.interruptions} interrupção(ões)
+          </div>
+          <div style="font-size:.75rem;color:var(--muted);margin-top:4px">Tempo pela legenda do Meet (aproximado).${mc.papeis_inferidos ? ' Cliente deduzido: "Quem é quem" não marcou ninguém como cliente.' : ''}</div>
+        </div>`;
+      } else {
+        html += `<div class="info-card" style="margin-bottom:16px;opacity:.75">
+          <h3 style="color:var(--muted)">🗣️ Conversa</h3>
+          <div style="font-size:.85rem;color:var(--muted)">⏳ ${escHtml(mc.motivo || 'Sem falas com tempo nesta sessão.')}</div>
+        </div>`;
+      }
     }
 
     const transcricao = juntarFalasSeguidas(s.transcricao_acumulada || '');

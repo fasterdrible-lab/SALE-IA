@@ -3,6 +3,44 @@
 
 ---
 
+## V.1.4.187 + ext 1.4.37 — A8: turnos temporizados por falante (% de fala, perguntas, monólogos)
+
+> Data: 17/10/2026 | Tarefa A8 de `docs/tasks-prompt-mestre-v2-restante.md`
+
+A fórmula das métricas da conversa existia desde a Fase 11.1
+(`agent/conversation_metrics_rules.py`) mas nunca teve dado: ninguém
+registrava o tempo de cada fala. Seller Coaching mostrava "Talk Ratio" e
+"Question Quality" como indisponíveis desde que foi criado.
+
+- Extensão: cada fala guarda `inicio`/`fim` (ms em que apareceu e parou de
+  crescer na legenda); continuação de bloco já enviado começa onde a parte
+  anterior acabou (sem contar tempo 2x). `/tempo-real` leva
+  `turnos_novos` [{falante, inicio_ms, fim_ms, texto}].
+- **Indicador ao vivo na sidebar** (pedido do usuário, para avaliar se
+  ajuda): "🗣️ Você 68% · Cliente 32%" com ≥ 20 s de fala; laranja +
+  "deixe o cliente falar" com o vendedor > 65% depois de 2 min.
+  `proporcaoFala()`/`papelDoFalante()` em `quem_e_quem_rules.js`.
+- Servidor: tabela `turnos_fala` (único por reunião+falante+início — reenvio
+  não duplica), `agent/turnos_rules.py` (limpeza, papel pelo "quem é quem":
+  informado vale; sem cliente marcado o outro é cliente "inferido"; "Não
+  identificado"/"outro" fora), `api/metricas_conversa.py`.
+- Perguntas: cada frase terminada em "?" das falas do vendedor (a regra da
+  Fase 11.1 olhava só o começo da fala inteira — "Bom dia. Como vocês
+  fazem?" virava pergunta fechada).
+- Dashboard → Sessão: card "🗣️ Conversa" (% de fala, tempo, perguntas
+  abertas/fechadas, monólogos ≥ 90 s, interrupções). `GET /sessoes/{id}`
+  traz `metricas_conversa` (só falas desta sessão — sala fixa reusa código).
+- Seller Coaching: Talk Ratio (ponderado pelo tempo) e Question Quality com
+  número, reuniões do vendedor nos últimos 30 dias. Next Step Discipline
+  segue gap (precisa classificar conteúdo).
+- Limitação: tempo da legenda, não do áudio (~1 s de atraso; interrupção
+  aproximada).
+- Testes: `tests/test_turnos.py` (conversa conhecida × conta manual),
+  `tests/js/test_quem_e_quem.js` (+2), `tests/js/test_legenda_meet.js` (+1).
+- Versão: `1.4.186` → `1.4.187`; extensão `1.4.36` → `1.4.37`.
+
+---
+
 ## ext 1.4.36 — Cada fala com o nome do próprio bloco da legenda (a causa do "tudo ANDRE" / "tudo PAULO")
 
 > Data: 16/10/2026 | Teste real da 1.4.35 (`fpo-vjpg-rrx`)
