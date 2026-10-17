@@ -197,6 +197,9 @@ def _limitar_contexto_ia(texto: str) -> str:
     # passava por limpeza nenhuma (só o salvo no banco passava). Limpa e
     # compacta antes do corte de 6.000 chars, para sobrar mais conversa real.
     texto = _limpar_transcricao((texto or "").strip()) or ""
+    # V.1.4.186: fala partida em pedaços da mesma pessoa vira uma linha só.
+    from agent.transcript_dedup_rules import juntar_falas_seguidas
+    texto = juntar_falas_seguidas(texto)
     if len(texto) <= _MAX_CONTEXT_CHARS:
         return texto
     return texto[-_MAX_CONTEXT_CHARS:]
@@ -490,6 +493,7 @@ async def analyzeRealtimeMeeting(
     meeting_id: str = "default",
     transcricao_nova: str = "",
     usuario_id: str | None = None,
+    participantes: list | None = None,
 ) -> dict:
     from api.database import (
         obter_meeting_memory,
@@ -587,10 +591,15 @@ async def analyzeRealtimeMeeting(
     except Exception as _ce:
         logger.debug("[Clientes] Nao foi possivel buscar contexto do cliente: %s", _ce)
 
+    # V.1.4.186: "quem é quem" informado pelo vendedor vai antes da conversa
+    # (depois do corte de 6.000 chars, para nunca ser cortado).
+    from agent.participantes_rules import cabecalho_participantes
+    cabecalho_quem = cabecalho_participantes(participantes or [])
+
     try:
         from agent.multiagente.orquestrador import analisar_fragmento_multi
         resultado = await analisar_fragmento_multi(
-            transcricao_parcial=_limitar_contexto_ia(transcricao_parcial),
+            transcricao_parcial=cabecalho_quem + _limitar_contexto_ia(transcricao_parcial),
             historico=_limitar_contexto_ia(historico or "Inicio da conversa"),
             perfil_disc_atual=perfil_disc_atual or "Ainda nao identificado",
             mapa_financeiro=cache["mapa_financeiro"] if cache["mapa_financeiro"] else None,

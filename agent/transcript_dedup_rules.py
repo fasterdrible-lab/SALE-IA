@@ -285,6 +285,34 @@ def compactar_transcricao(texto: str, janela: int = JANELA_PARCIAL_PADRAO) -> st
     return "\n".join(mantidas)
 
 
+ROTULOS_SEM_JUNCAO = {"não identificado", "nao identificado", "participante"}
+
+
+def juntar_falas_seguidas(texto: str) -> str:
+    """V.1.4.186: falas seguidas da mesma pessoa viram uma linha só, como o
+    Meet mostra num bloco. A extensão grava a fala em pedaços (pausa de
+    3,5 s, ou a cada 15 s) e manda a continuação de um bloco já enviado
+    como linha nova (1.4.29) — a conversa ficava partida ("Fulano: olha" /
+    "Fulano: nos meus olhos…"). Só para leitura (painel, IA, relatório): o
+    texto guardado não muda, a deduplicação continua linha a linha.
+    "Não identificado" nunca é juntado (podem ser pessoas diferentes).
+    Linha sem rótulo fica como está. Função pura."""
+    saida: list[list[str]] = []  # [rotulo_original, rotulo_normalizado, corpo]
+    for linha in _linhas(texto):
+        m = _ROTULO_RE.match(linha)
+        if not m:
+            saida.append(["", "", linha])
+            continue
+        rotulo, corpo = m.group(1).strip(), m.group(2).strip()
+        chave = rotulo.lower()
+        if (saida and saida[-1][1] == chave and chave and chave not in ROTULOS_SEM_JUNCAO
+                and corpo):
+            saida[-1][2] = (saida[-1][2] + " " + corpo).strip()
+        else:
+            saida.append([rotulo, chave, corpo])
+    return "\n".join(f"{r}: {c}" if r else c for r, _, c in saida)
+
+
 def deduplicar_fragmento(
     base: str,
     fragmento: str,

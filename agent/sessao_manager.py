@@ -455,7 +455,9 @@ def migrar_colunas_sessoes():
             except Exception:
                 conn.rollback()
             for sql in ("ALTER TABLE sessoes ADD COLUMN relatorio_em DATETIME NULL DEFAULT NULL",
-                        "ALTER TABLE sessoes ADD COLUMN relatorio_detalhe VARCHAR(200) NULL DEFAULT NULL"):
+                        "ALTER TABLE sessoes ADD COLUMN relatorio_detalhe VARCHAR(200) NULL DEFAULT NULL",
+                        # V.1.4.186: "quem é quem" (agent/participantes_rules.py).
+                        "ALTER TABLE sessoes ADD COLUMN participantes_json TEXT NULL"):
                 try:
                     cur.execute(sql)
                     conn.commit()
@@ -464,6 +466,47 @@ def migrar_colunas_sessoes():
         conn.close()
     except Exception as e:
         logger.error("[Sessões] Erro ao migrar colunas de sessoes: %s", e)
+
+
+def salvar_participantes(meeting_id: str, participantes_json: str) -> bool:
+    """V.1.4.186: guarda o "quem é quem" na sessão ativa (só se mudou).
+    Não mexe em `updated_at` nem reabre sessão encerrada."""
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(
+                """UPDATE sessoes SET participantes_json = %s, updated_at = updated_at
+                   WHERE id = (SELECT id FROM (SELECT id FROM sessoes WHERE meeting_id = %s
+                               AND updated_at >= NOW() - INTERVAL 6 HOUR
+                               ORDER BY updated_at DESC LIMIT 1) AS ativa)
+                     AND NOT (participantes_json <=> %s)""",
+                (participantes_json, meeting_id, participantes_json),
+            )
+            mudou = cur.rowcount > 0
+        conn.commit()
+        conn.close()
+        return mudou
+    except Exception as e:
+        logger.error("[Sessões] Erro ao salvar participantes: %s", e)
+        return False
+
+
+def obter_participantes(meeting_id: str) -> str:
+    """JSON do "quem é quem" da sessão mais recente da reunião ('' se não há)."""
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT participantes_json FROM sessoes WHERE meeting_id = %s
+                   ORDER BY updated_at DESC LIMIT 1""",
+                (meeting_id,),
+            )
+            row = cur.fetchone()
+        conn.close()
+        return (row[0] or "") if row else ""
+    except Exception as e:
+        logger.debug("[Sessões] sem participantes para %s: %s", meeting_id, e)
+        return ""
 
 
 def encerrar_sessao(meeting_id: str) -> bool:

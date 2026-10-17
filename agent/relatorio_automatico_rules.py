@@ -60,8 +60,10 @@ def vale_gerar(transcricao: str | None) -> tuple[bool, str]:
 def transcricao_para_relatorio(transcricao: str, limite: int = LIMITE_CARACTERES,
                                inicio: int = INICIO_PRESERVADO) -> str:
     """Até `limite` caracteres: preserva o começo (abertura, apresentação do
-    cliente) e o fim (proposta, objeções finais, próximos passos)."""
-    texto = (transcricao or "").strip()
+    cliente) e o fim (proposta, objeções finais, próximos passos). Falas
+    seguidas da mesma pessoa viram uma linha só (V.1.4.186)."""
+    from agent.transcript_dedup_rules import juntar_falas_seguidas
+    texto = juntar_falas_seguidas((transcricao or "").strip())
     if len(texto) <= limite:
         return texto
     fim = limite - inicio

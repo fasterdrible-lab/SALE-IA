@@ -458,23 +458,22 @@
     </div>
 
     <div class="card">
-      <div class="card-title">👥 Configurar Participantes (multi-clientes)</div>
+      <div class="card-title">👥 Quem é quem (a cada reunião)</div>
       <p style="color:var(--muted);font-size:.92rem;margin-bottom:12px">
-        Na sidebar do Meet, clique em <strong>Participantes</strong> para identificar quem está na reunião.
-        É possível cadastrar <strong>múltiplos clientes</strong> — útil quando há mais de um decisor na chamada.
+        A legenda do Meet não mostra e-mail, só o nome da conta Google de quem fala (às vezes o começo do e-mail).
+        No começo de cada reunião, diga à SALEIA quem é cada pessoa: a IA passa a saber quem está vendendo e quem é o cliente.
+        A tela abre sozinha quando a primeira outra pessoa entra ou fala; depois, use o botão <strong>👥 Quem é quem</strong> na sidebar (extensão 1.4.35).
       </p>
       <table>
         <tr><th>Campo</th><th>O que fazer</th></tr>
-        <tr><td>Nome do vendedor</td><td>Opcional. Sem preencher, suas falas levam o nome do seu login na extensão (1.4.33)</td></tr>
-        <tr><td>Clientes</td><td>Nome(s) do(s) cliente(s). Clique <strong>+ Adicionar</strong> para incluir mais de um</td></tr>
-        <tr><td>Botão ✕</td><td>Remove um cliente da lista (mínimo 1 sempre ativo)</td></tr>
-        <tr><td>Nomes que apareceram na legenda</td><td>Lista quem já falou na reunião com o nome que o Meet mostra. Digite ao lado o nome real (ex.: a conta aparece como o começo do e-mail). Fica salvo para as próximas reuniões (extensão 1.4.34)</td></tr>
-        <tr><td>Salvar</td><td>Persiste os nomes — ficam salvos mesmo após fechar e reabrir o Meet</td></tr>
+        <tr><td>No Meet: Você (este computador)</td><td>É você. Já vem com o nome do seu login e o papel <strong>Vendedor</strong>; troque se quiser</td></tr>
+        <tr><td>No Meet: &lt;nome da conta&gt;</td><td>Cada pessoa da chamada, mesmo antes de falar. Digite o nome real e escolha o papel: <strong>Vendedor</strong>, <strong>Cliente</strong> ou <strong>Outro</strong></td></tr>
+        <tr><td>Salvar</td><td>As falas passam a sair com o nome real, e a IA recebe quem é quem. Vale só para esta reunião (um F5 mantém); a próxima reunião começa em branco</td></tr>
       </table>
       <div class="callout callout-tip" style="margin-top:12px">
         <div class="callout-icon">💡</div>
         <div class="callout-body">
-          Desde a extensão 1.4.27 o nome de cada participante vem da própria legenda do Meet — não é preciso cadastrar os clientes para separar as falas. O cadastro continua útil para a IA saber quem é cliente.
+          Sem preencher, as falas continuam separadas pelo nome do Meet e a IA deduz pela conversa quem é o cliente. Preenchido, ela não precisa adivinhar.
         </div>
       </div>
     </div>

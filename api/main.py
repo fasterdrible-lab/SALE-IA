@@ -474,6 +474,8 @@ class TempoRealRequest(BaseModel):
     mapa_financeiro: Optional[dict] = None
     meeting_id: Optional[str] = "default"
     transcricao_nova: Optional[str] = None  # delta: only new entries since last send
+    # V.1.4.186 (ext 1.4.35): "quem é quem" — [{nome_meet, nome, papel}].
+    participantes: Optional[list] = None
 
 
 class TactiqWebhookRequest(BaseModel):
@@ -861,7 +863,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.185",
+        "versao":              "1.4.186",
         "timestamp":           datetime.now().isoformat(),
         "ia_disponivel":       ia["ia_disponivel"],
         "ia_fora_desde":       ia["ia_fora_desde"],
@@ -902,7 +904,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.185",
+        "versao":          "1.4.186",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -988,6 +990,15 @@ async def analisar_tempo_real(req: TempoRealRequest, authorization: str | None =
         except Exception as _e:
             logger.warning("[Sessões] Não foi possível salvar transcrição bruta: %s", _e)
 
+    from agent.participantes_rules import normalizar_participantes, para_json
+    participantes = normalizar_participantes(req.participantes)
+    if participantes:
+        try:
+            from agent.sessao_manager import salvar_participantes
+            salvar_participantes(req.meeting_id or "default", para_json(participantes))
+        except Exception as _e:
+            logger.warning("[Sessões] Não foi possível salvar participantes: %s", _e)
+
     from api.processador_tempo_real import processar_fragmento_tempo_real
 
     resultado = None
@@ -1000,6 +1011,7 @@ async def analisar_tempo_real(req: TempoRealRequest, authorization: str | None =
             meeting_id=req.meeting_id or "default",
             transcricao_nova=req.transcricao_nova or "",
             usuario_id=usuario_id,
+            participantes=participantes,
         )
     except Exception as e:
         logger.error("Erro ao processar fragmento tempo real: %s", e)

@@ -6445,7 +6445,7 @@
       </div>`;
     }
 
-    const transcricao = s.transcricao_acumulada || '';
+    const transcricao = juntarFalasSeguidas(s.transcricao_acumulada || '');
     html += `<div class="info-card" style="margin-bottom:16px">
       <h3>📝 Transcrição Acumulada</h3>
       <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
@@ -6467,6 +6467,25 @@
 
     document.getElementById('sd-conteudo').innerHTML = html;
     window._sessaoTranscricao = transcricao;
+  }
+
+  /* V.1.4.186: falas seguidas da mesma pessoa numa linha só, como o Meet
+     mostra (a extensão grava a fala em pedaços). Mesma regra de
+     agent/transcript_dedup_rules.py::juntar_falas_seguidas. */
+  function juntarFalasSeguidas(texto) {
+    const saida = [];
+    String(texto || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean).forEach(linha => {
+      const m = linha.match(/^([^:\n]{1,60}):\s*(.*)$/);
+      if (!m) { saida.push({ r: '', k: '', c: linha }); return; }
+      const r = m[1].trim(), c = m[2].trim(), k = r.toLowerCase();
+      const ult = saida[saida.length - 1];
+      if (ult && ult.k === k && k && !['não identificado', 'nao identificado', 'participante'].includes(k) && c) {
+        ult.c = (ult.c + ' ' + c).trim();
+      } else {
+        saida.push({ r, k, c });
+      }
+    });
+    return saida.map(x => x.r ? x.r + ': ' + x.c : x.c).join('\n');
   }
 
   /* ─── Analisar reunião com a conta Claude do usuário (piloto) ─── */

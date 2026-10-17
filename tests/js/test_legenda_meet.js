@@ -15,6 +15,7 @@ try { ({ JSDOM } = require('jsdom')); } catch (e) { /* sem jsdom: pula */ }
 const EXT = path.join(__dirname, '..', '..', 'chrome-extension');
 const src = fs.readFileSync(path.join(EXT, 'content.js'), 'utf8').split('\r\n').join('\n');
 const regras = fs.readFileSync(path.join(EXT, 'transcricao_rules.js'), 'utf8');
+const quemRegras = fs.readFileSync(path.join(EXT, 'quem_e_quem_rules.js'), 'utf8');
 const html = fs.readFileSync(path.join(__dirname, 'fixtures', 'meet_legenda_20261015.html'), 'utf8');
 
 // Objetos criados dentro do jsdom são de outro realm: deepEqual estrito recusa.
@@ -38,9 +39,10 @@ function montar() {
   const dom = new JSDOM('<body>' + html + '</body>', { runScripts: 'outside-only' });
   const w = dom.window;
   w.eval(regras);
-  w.eval('var estado = { participantes: { vendedor: "Carlos", clientes: ["Cliente"] }, transcricao: [], ultimoIndexEnviado: 0 };' +
-    'function ocultarAvisoLegenda(){}; var console = { log(){}, warn(){} };' + codigo +
-    ';window.__t = { processarElementoLegenda, commitarFrase, captionBuffer, estado, detectarFalantePorEstrutura, bufferPronto, get legendasDetectadas() { return legendasDetectadas; } };');
+  w.eval(quemRegras);
+  w.eval('var estado = { vendedorPadrao: "Carlos", quemEQuem: {}, quemEQuemPerguntado: true, transcricao: [], ultimoIndexEnviado: 0 };' +
+    'function ocultarAvisoLegenda(){}; function atualizarResumoParticipantes(){}; var console = { log(){}, warn(){} };' + codigo +
+    ';window.__t = { processarElementoLegenda, commitarFrase, captionBuffer, estado, detectarFalantePorEstrutura, bufferPronto, lerPessoasDaChamada, listaQuemEQuem, get legendasDetectadas() { return legendasDetectadas; } };');
   let relogio = 100000;
   w.Date.now = () => relogio;
   const regiao = w.document.querySelector('[role="region"]');
@@ -247,13 +249,79 @@ test('V.1.4.34: participante sem foto (avatar de letra) não recebe o nome de qu
   assert.deepEqual(puro(t.estado.transcricao.map((x) => x.speaker)).sort(), ['Carlos', 'Pedro Lima']);
 });
 
-test('V.1.4.34: nome do Meet trocado pelo nome real (como no Easy Sub)', { skip: !JSDOM && 'sem jsdom' }, () => {
-  // Conta que só mostra o começo do e-mail na legenda → nome escolhido em
-  // "Participantes". Vale para as falas novas.
+test('V.1.4.186: "quem é quem" — nome do Meet vira o nome real; "Você" vira o vendedor informado', { skip: !JSDOM && 'sem jsdom' }, () => {
+  // Conta que só mostra o começo do e-mail na legenda ("fasterdrible").
   const { t, w, falar } = montar();
-  w.eval('_nomesFalantes = { "fasterdrible": "Pedro" }');
+  w.eval('estado.quemEQuem = { "fasterdrible": { nome: "André", papel: "cliente" }, "Você": { nome: "Pedro", papel: "vendedor" } }');
   falar('fasterdrible', 'Pode me mandar a proposta?');
+  falar('Você', 'Mando hoje ainda.');
   falar('Ana Souza', 'E o prazo de entrega?');
-  assert.deepEqual(puro(t.estado.transcricao.map((x) => x.speaker)), ['Pedro', 'Ana Souza']);
+  assert.deepEqual(puro(t.estado.transcricao.map((x) => x.speaker)), ['André', 'Pedro', 'Ana Souza']);
   assert.deepEqual(puro(w.eval('_nomesVistos')), ['fasterdrible', 'Ana Souza']);
+  assert.deepEqual(puro(t.listaQuemEQuem()), [
+    { nome_meet: 'Você', nome: 'Pedro', papel: 'vendedor' },
+    { nome_meet: 'fasterdrible', nome: 'André', papel: 'cliente' },
+    { nome_meet: 'Ana Souza', nome: 'Ana Souza', papel: '' },
+  ]);
+});
+
+test('V.1.4.186: sem "quem é quem", "Você" sai com o nome do login e os outros com o nome do Meet', { skip: !JSDOM && 'sem jsdom' }, () => {
+  const { t, falar } = montar();
+  falar('Você', 'Bom dia, tudo bem?');
+  falar('fasterdrible', 'Tudo ótimo.');
+  assert.deepEqual(puro(t.estado.transcricao.map((x) => x.speaker)), ['Carlos', 'fasterdrible']);
+});
+
+test('V.1.4.186: pessoas da chamada lidas dos quadros do Meet antes de falarem (sem o próprio vendedor)', { skip: !JSDOM && 'sem jsdom' }, () => {
+  const { t, w } = montar();
+  const doc = w.document;
+  const quadro = (id, nome, extra) => {
+    const d = doc.createElement('div');
+    d.setAttribute('data-participant-id', id);
+    d.innerHTML = '<span class="notranslate">' + nome + '</span><i>more_vert</i>' + (extra || '');
+    return d;
+  };
+  const proprio = doc.createElement('div');
+  proprio.setAttribute('data-self-name', 'Pedro Henrique');
+  doc.body.append(proprio, quadro('a', 'Pedro Henrique'), quadro('b', 'fasterdrible'), quadro('c', 'Maria Clara (Você)'),
+    quadro('d', 'fasterdrible'));
+  const icone = doc.createElement('div');
+  icone.setAttribute('data-participant-id', 'e');
+  icone.innerHTML = '<i>mic_off</i>';
+  doc.body.append(icone);
+  t.lerPessoasDaChamada();
+  assert.deepEqual(puro(w.eval('_nomesVistos')), ['fasterdrible']);
+});
+
+test('V.1.4.186: o próprio quadro (com "Reenquadrar") fica fora da lista; texto de botão não é nome', { skip: !JSDOM && 'sem jsdom' }, () => {
+  // Teste real 16/10 (fpo-vjpg-rrx): sem data-self-name, a lista mostrou a
+  // própria conta ("fasterdrible") e o botão "Reenquadrar".
+  const { t, w } = montar();
+  const doc = w.document;
+  const proprio = doc.createElement('div');
+  proprio.setAttribute('data-participant-id', 'eu');
+  proprio.innerHTML = '<div><button aria-label="Reenquadrar"><span>Reenquadrar</span></button></div><span class="notranslate">fasterdrible</span>';
+  const outro = doc.createElement('div');
+  outro.setAttribute('data-participant-id', 'ele');
+  outro.innerHTML = '<div role="button"><span>Fixar</span></div><span class="notranslate">motomec 17 GB</span>';
+  doc.body.append(proprio, outro);
+  t.lerPessoasDaChamada();
+  assert.deepEqual(puro(w.eval('_nomesVistos')), ['motomec 17 GB']);
+  // Só quem falou ou foi preenchido vai ao servidor.
+  assert.deepEqual(puro(t.listaQuemEQuem(true).map((p) => p.nome_meet)), ['Você']);
+});
+
+test('V.1.4.186: área de legendas com classe "caption"/"a4cQT" — cada fala com o nome do PRÓPRIO bloco, e o nome não vira fala', { skip: !JSDOM && 'sem jsdom' }, () => {
+  // Testes reais de 16/10: a busca antiga por classe pegava o 1º nome da
+  // área inteira — tudo "ANDRE" (ele falou primeiro) e depois tudo "PAULO"
+  // + a linha "PAULO: motomec 17 GB".
+  const { t, w, falar, regiao } = montar();
+  regiao.classList.add('a4cQT');
+  w.eval('estado.quemEQuem = { "Você": { nome: "PAULO", papel: "vendedor" }, "motomec 17 GB": { nome: "JOSE", papel: "cliente" } }');
+  falar('Você', 'teste teste testando para ver se esse negócio funciona');
+  falar('motomec 17 GB', 'Manga chupa essa manga chupa essa manga.');
+  assert.deepEqual(puro(t.estado.transcricao.map((x) => [x.speaker, x.text])), [
+    ['PAULO', 'teste teste testando para ver se esse negócio funciona'],
+    ['JOSE', 'Manga chupa essa manga chupa essa manga.'],
+  ]);
 });

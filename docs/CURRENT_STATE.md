@@ -6,7 +6,21 @@
 |---|---|
 | Produção | **V.1.4.185** (`49f73f2` = VPS HEAD; deploy 16/10 23:22 UTC, sem reunião ativa, `NRestarts=0`) — inclui a V.1.4.184. Suíte 2.015 OK |
 | Conferido no deploy | colunas `relatorio_status/em/detalhe` criadas; 34 sessões existentes = `anterior`; policy_violation bruto 530 → **válido 0** |
-| Extensão | **1.4.34** no repo (`../chrome-extension. V.1.4.34.zip`) — independente do servidor |
+| Extensão | **1.4.36** no repo (`../chrome-extension. V.1.4.36.zip`) — aguarda reinstalação; corrige "toda fala com o nome de quem falou primeiro" (causa real do "tudo ANDRE"/"tudo PAULO"); precisa da V.1.4.186 no servidor para a IA usar o "quem é quem" |
+| V.1.4.186 | **"Quem é quem" por reunião** + prompts sem vendedor fixo ("Paulo Henrique") + falas seguidas da mesma pessoa juntadas — suíte 2.030 OK; deploy autorizado pelo usuário (detalhe no CHANGELOG) |
+
+**Falante na legenda — 1.4.34 funcionou para o 2º participante (revisão 16/10 noite)**
+
+- Releitura do banco: em `tsv-mczn-usf` e `ndw-ynae-ost` as falas "ANDRE"
+  são do **outro participante** (conta FastDribbler, nome do Meet), não do
+  vendedor. A extensão rodava na conta phpos35 (Pedro), cujo usuário no
+  SALEIA se chama "ANDRE LUIZ DA SILVA" — por isso parecia o vendedor. O
+  "Você" levava "Paulo" (fixo em "Editar participantes").
+- Nenhuma fala do lado da extensão (Pedro) nessas 2 reuniões: não
+  confirmado se ele falou. Validar com 2 pessoas falando, salas
+  diferentes, ext 1.4.35.
+- Pedido do usuário → V.1.4.186 + ext 1.4.35: nada fixo; "quem é quem"
+  (nome real + papel) preenchido em cada reunião e enviado à IA.
 
 **Análise da parte de inteligência (16/10)** — código do PROMPT MESTRE V2
 quase todo pronto; faltava dado real. Achados e o que foi feito:
@@ -28,7 +42,7 @@ quase todo pronto; faltava dado real. Achados e o que foi feito:
    (próxima, combinada com o usuário), A9, B3–B6, C3 (rodar de novo),
    C4, C5, C6, D7, D10.
 
-**Falante na legenda — em investigação**
+**Falante na legenda — histórico da investigação (antes da revisão acima)**
 
 - Teste real 16/10 (`fxc-nrmq-equ`, computador + celular): 38/38 falas
   com o nome do vendedor. Causa encontrada (comparando com o Easy Sub):

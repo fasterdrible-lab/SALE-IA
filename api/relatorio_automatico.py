@@ -137,6 +137,17 @@ def _candidatas() -> list[tuple]:
         conn.close()
 
 
+def _cabecalho_quem_e_quem(meeting_id: str) -> str:
+    """V.1.4.186: "quem é quem" que o vendedor informou na extensão."""
+    try:
+        from agent.participantes_rules import cabecalho_participantes, de_json
+        from agent.sessao_manager import obter_participantes
+        return cabecalho_participantes(de_json(obter_participantes(meeting_id)))
+    except Exception as exc:
+        logger.debug("[RelatorioAutomatico] sem quem é quem para %s: %s", meeting_id, exc)
+        return ""
+
+
 def processar_pendentes(max_por_vez: int = 2, agora: datetime | None = None) -> list[dict]:
     """Uma volta da fila. Retorna o que aconteceu com cada sessão tocada."""
     if not habilitado():
@@ -166,8 +177,8 @@ def processar_pendentes(max_por_vez: int = 2, agora: datetime | None = None) -> 
                     inicio = None
                 titulo = titulo_da_reuniao(meeting_id, inicio)
                 resultado = gerar_relatorio(
-                    transcricao_para_relatorio(transcricao), titulo, meeting_id, memoria.get("usuario_id"),
-                    data=inicio_iso,
+                    _cabecalho_quem_e_quem(meeting_id) + transcricao_para_relatorio(transcricao),
+                    titulo, meeting_id, memoria.get("usuario_id"), data=inicio_iso,
                 )
                 detalhe = "etapas: " + ", ".join(resultado.get("_etapas_ok") or [])
                 _marcar(sessao_id, STATUS_OK, detalhe)

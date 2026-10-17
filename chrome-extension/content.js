@@ -74,40 +74,33 @@
     backendOnline: true,
     ultimoIndexEnviado: 0,  // tracks last committed entry sent to DB
     envioEmAndamento: 0,    // timestamp do /tempo-real em voo (0 = livre) — Tarefa A1
-    participantes: {
-      vendedor: 'Vendedor',
-      clientes: ['Cliente'],
-    },
+    // V.1.4.186 (ext 1.4.35): "Quem é quem" desta reunião
+    // (quem_e_quem_rules.js). vendedorPadrao = nome do login, só para o
+    // "Você" enquanto o vendedor não preencher.
+    vendedorPadrao: 'Vendedor',
+    quemEQuem: {},
+    quemEQuemPerguntado: false,
   };
 
   chrome.storage.local.get(['saleiaBackendUrl', 'saleiaAtivo'], function (result) {
     if (result.saleiaBackendUrl) CONFIG.backendUrl = result.saleiaBackendUrl;
     if (result.saleiaAtivo === false) estado.ativo = false;
-    chrome.storage.local.get(['saleiaParticipantes', 'saleiaUsuario', 'saleiaNomesFalantes'], function (dadosParticipantes) {
-      _nomesFalantes = dadosParticipantes.saleiaNomesFalantes || {};
-      // V.1.4.183 (ext 1.4.33): sem nome cadastrado em "Editar
-      // participantes", as falas do vendedor ("Você" na legenda) levam o
-      // nome de quem está logado na extensão, não "Vendedor".
-      var usuarioLogado = dadosParticipantes.saleiaUsuario;
+    chrome.storage.local.get(['saleiaUsuario', 'saleiaQuemEQuem'], function (dados) {
+      // Sem "Quem é quem" preenchido, o "Você" leva o nome de quem está
+      // logado na extensão (V.1.4.183).
+      var usuarioLogado = dados.saleiaUsuario;
       var nomeLogado = usuarioLogado && String(usuarioLogado.nome || '').trim();
-      if (nomeLogado) estado.participantes.vendedor = nomeLogado;
-      if (dadosParticipantes.saleiaParticipantes) {
-        var saved = dadosParticipantes.saleiaParticipantes;
-        // O vendedor é sempre o dono da extensão; vale entre reuniões.
-        // Nome digitado em "Editar participantes" vale mais que o do login.
-        if (saved.vendedor && saved.vendedor !== 'Vendedor') estado.participantes.vendedor = saved.vendedor;
-        else if (!nomeLogado) estado.participantes.vendedor = 'Vendedor';
-        // A10 (V.1.4.20): clientes valem só na reunião em que foram
-        // cadastrados. Antes, um "João" salvo em junho rotulava falas de
-        // todas as reuniões seguintes.
-        if (saved.meetingId === MEETING_ID) {
-          if (Array.isArray(saved.clientes) && saved.clientes.length) {
-            estado.participantes.clientes = saved.clientes;
-          } else if (saved.cliente) {
-            estado.participantes.clientes = [saved.cliente];
-          }
-        }
+      if (nomeLogado) estado.vendedorPadrao = nomeLogado;
+      // V.1.4.186 (ext 1.4.35): "Quem é quem" vale só na reunião em que foi
+      // preenchido (F5 na mesma reunião mantém). Os nomes fixos de antes
+      // (vendedor salvo em "Editar participantes" e o mapa de nomes da
+      // 1.4.34, que valiam em todas as reuniões) são apagados.
+      var salvo = dados.saleiaQuemEQuem;
+      if (salvo && salvo.meetingId === MEETING_ID) {
+        estado.quemEQuem = salvo.mapa || {};
+        estado.quemEQuemPerguntado = !!salvo.perguntado;
       }
+      chrome.storage.local.remove(['saleiaParticipantes', 'saleiaNomesFalantes']);
       iniciar();
     });
   });
@@ -120,6 +113,10 @@
     iniciarContadorRegressivo();
     iniciarEnvioPeriodico();
     registrarSessao();
+    // V.1.4.186 (ext 1.4.35): quem está na chamada, antes de falar.
+    setInterval(function () {
+      try { lerPessoasDaChamada(); } catch (e) { /* DOM do Meet mudou — fica só a legenda */ }
+    }, 5000);
 
     // Botão de captura de áudio (Whisper) — MediaRecorder direto no content.js
     // O prompt de microfone aparece na barra da aba do Meet (contexto visível)
@@ -647,7 +644,7 @@
       </div>
       <div id="saleia-body">
         <div id="saleia-status"><span class="saleia-dot"></span> Conectando...</div>
-        <button id="saleia-btn-participantes" class="saleia-discreto-btn" type="button">Editar participantes</button>
+        <button id="saleia-btn-participantes" class="saleia-discreto-btn" type="button">👥 Quem é quem</button>
         <div id="saleia-participantes-resumo" class="saleia-participantes-resumo"></div>
 
         <div id="saleia-alerta" class="saleia-secao saleia-alerta-box" style="display:none">
@@ -717,17 +714,9 @@
       </div>
       <div id="saleia-participantes-modal" class="saleia-modal" style="display:none">
         <div class="saleia-modal-card">
-          <div class="saleia-modal-title">Participantes</div>
-          <label>Nome do vendedor</label>
-          <input id="saleia-input-vendedor" type="text" placeholder="Vendedor" />
-          <div style="display:flex;align-items:center;justify-content:space-between;margin:10px 0 5px">
-            <label style="margin:0;color:#888;font-size:12px">Clientes</label>
-            <button id="saleia-btn-add-cliente" style="background:none;border:1px dashed rgba(212,175,55,0.5);color:#D4AF37;padding:2px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:700">+ Adicionar</button>
-          </div>
-          <div id="saleia-clientes-lista"></div>
-          <div style="margin:12px 0 4px;color:#888;font-size:12px">Nomes que apareceram na legenda</div>
-          <div style="color:#666;font-size:11px;margin-bottom:6px">Troque o nome que o Meet mostra (ex.: começo do e-mail) pelo nome real. Vale também nas próximas reuniões.</div>
-          <div id="saleia-nomes-legenda"></div>
+          <div class="saleia-modal-title">Quem é quem nesta reunião</div>
+          <div style="color:#888;font-size:11px;margin-bottom:8px">Para cada nome que o Meet mostra (às vezes o começo do e-mail), diga o nome real e o papel. A IA usa isso para saber quem vende e quem compra. Vale só para esta reunião.</div>
+          <div id="saleia-quem-lista"></div>
           <div class="saleia-modal-actions">
             <button id="saleia-btn-salvar-participantes" class="saleia-recap-btn">Salvar</button>
             <button id="saleia-btn-cancelar-participantes" class="saleia-recap-btn">Cancelar</button>
@@ -790,89 +779,126 @@
       .toLowerCase();
   }
 
-  var _clientesModal = [''];
-
-  function renderizarClientesModal() {
-    var container = document.getElementById('saleia-clientes-lista');
-    if (!container) return;
-    container.innerHTML = _clientesModal.map(function(nome, idx) {
-      return '<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">' +
-        '<input type="text" placeholder="Cliente' + (_clientesModal.length > 1 ? ' ' + (idx + 1) : '') + '" ' +
-        'value="' + nome.replace(/"/g, '&quot;') + '" ' +
-        'data-ci="' + idx + '" ' +
-        'style="width:100%;background:#1A1A1A;color:#F0F0F0;border:1px solid rgba(212,175,55,0.25);border-radius:7px;padding:7px 10px;font-size:12px;outline:none;flex:1" />' +
-        (_clientesModal.length > 1
-          ? '<button data-ri="' + idx + '" style="background:none;border:1px solid rgba(239,68,68,.3);color:#EF4444;border-radius:6px;width:28px;height:28px;cursor:pointer;flex-shrink:0;font-size:13px;line-height:1">✕</button>'
-          : '') +
-        '</div>';
-    }).join('');
-
-    container.onclick = function(e) {
-      var ri = e.target.getAttribute('data-ri');
-      if (ri !== null && _clientesModal.length > 1) {
-        _clientesModal.splice(parseInt(ri, 10), 1);
-        renderizarClientesModal();
-      }
-    };
-
-    container.oninput = function(e) {
-      var ci = e.target.getAttribute('data-ci');
-      if (ci !== null) _clientesModal[parseInt(ci, 10)] = e.target.value;
-    };
-  }
-
   // A10 (V.1.4.20): fala cujo falante a legenda não revelou. Nunca vira o
   // nome de um cliente — a IA tratava fala do vendedor como do cliente.
   var ROTULO_NAO_IDENTIFICADO = 'Não identificado';
 
-  // V.1.4.34 (ext 1.4.34), como no Easy Sub: nome que o Meet mostra na
-  // legenda (ex.: começo do e-mail da conta) → nome escolhido em
-  // "Participantes". Salvo em chrome.storage.local, vale nas próximas reuniões.
-  var _nomesFalantes = {};
+  // ── V.1.4.186 (ext 1.4.35): "Quem é quem" ──────────────────────────
+  // Nomes do Meet conhecidos nesta reunião: quem falou na legenda + quem
+  // está no quadro/painel de pessoas (antes de falar). Cada um ganha, no
+  // modal, nome real + papel; o mapa vai ao servidor em todo /tempo-real.
+  var QeQ = window.SaleiaQuemEQuem;
   var _nomesVistos = [];
+  var _nomesFalaram = [];  // vistos na legenda (não só no quadro)
 
-  function registrarNomeVisto(nome) {
+  function registrarNomeVisto(nome, falou) {
     var n = String(nome || '').trim();
-    if (!n || /^(você|voce|you)$/i.test(n) || _nomesVistos.indexOf(n) >= 0) return;
+    if (!n || QeQ.ehVoce(n) || n === ROTULO_NAO_IDENTIFICADO) return;
+    if (falou && _nomesFalaram.indexOf(n) < 0) _nomesFalaram.push(n);
+    if (_nomesVistos.indexOf(n) >= 0) return;
     _nomesVistos.push(n);
+    atualizarResumoParticipantes();
+    perguntarQuemEQuemUmaVez();
+  }
+
+  // Pessoas da chamada pelo DOM do Meet: cada quadro/linha de pessoa tem
+  // data-participant-id; o nome é o 1º texto com cara de nome dentro dele.
+  // O próprio vendedor fica de fora — ele é o "Você": data-self-name, ou o
+  // quadro com o botão "Reenquadrar" (só existe no próprio quadro; teste
+  // real de 16/10: o nome da própria conta e "Reenquadrar" entravam na lista).
+  var QUADRO_PROPRIO_RE = /reenquadr|reframe/i;
+  var _pessoasLogadas = '';
+  function lerPessoasDaChamada() {
+    var proprio = '';
+    var elProprio = document.querySelector('[data-self-name]');
+    if (elProprio) proprio = String(elProprio.getAttribute('data-self-name') || '').trim();
+    var achados = [];
+    document.querySelectorAll('[data-participant-id], [data-requested-participant-id]').forEach(function (bloco) {
+      if (bloco.closest('#saleia-sidebar')) return;
+      if (QUADRO_PROPRIO_RE.test(bloco.textContent || '')) return;
+      var rotulos = bloco.querySelectorAll('[aria-label]');
+      for (var r = 0; r < rotulos.length; r++) {
+        if (QUADRO_PROPRIO_RE.test(rotulos[r].getAttribute('aria-label') || '')) return;
+      }
+      var folhas = bloco.querySelectorAll('.notranslate, span, div');
+      for (var i = 0; i < folhas.length; i++) {
+        var f = folhas[i];
+        if (f.children.length) continue;
+        if (f.closest('button, [role="button"]')) continue;  // texto de botão não é nome
+        var nome = QeQ.nomeDePessoa(f.textContent);
+        if (!nome) continue;
+        if (nome !== proprio && achados.indexOf(nome) < 0) achados.push(nome);
+        break;
+      }
+    });
+    var log = achados.join(' | ');
+    if (log !== _pessoasLogadas) {
+      _pessoasLogadas = log;
+      console.log('[SALEIA-PESSOAS] na chamada: ' + (log || '(nenhum nome lido)') + (proprio ? ' — você: ' + proprio : ''));
+    }
+    achados.forEach(registrarNomeVisto);
   }
 
   function rotuloParticipante(speaker) {
-    var nome = String(speaker || '').trim();
-    if (nome && _nomesFalantes[nome]) nome = _nomesFalantes[nome];
-    var normalizado = normalizarNomeParticipante(nome);
-    var vendedor = estado.participantes.vendedor || 'Vendedor';
-    var clientes = estado.participantes.clientes || ['Cliente'];
-    var primeiroCliente = clientes[0] || 'Cliente';
+    return QeQ.rotular(estado.quemEQuem, speaker, estado.vendedorPadrao);
+  }
 
-    if (!normalizado || normalizado === 'participante' || normalizado === normalizarNomeParticipante(ROTULO_NAO_IDENTIFICADO)) {
-      return ROTULO_NAO_IDENTIFICADO;
-    }
-    // "Cliente" só vem do áudio da aba (Whisper), que é sempre o outro lado.
-    if (normalizado === 'cliente') return primeiroCliente;
-    if (normalizado === 'voce' || normalizado === 'you' || normalizado === 'vendedor' || normalizado === normalizarNomeParticipante(vendedor)) return vendedor;
-    for (var i = 0; i < clientes.length; i++) {
-      if (clientes[i] && normalizado === normalizarNomeParticipante(clientes[i])) return clientes[i];
-    }
-    return nome;
+  // paraServidor: só quem falou ou foi preenchido — um nome lido do quadro
+  // por engano (ex.: a própria conta) não chega à IA como pessoa.
+  function listaQuemEQuem(paraServidor) {
+    return QeQ.listaParaServidor(estado.quemEQuem, paraServidor ? _nomesFalaram : _nomesVistos, estado.vendedorPadrao);
+  }
+
+  function salvarQuemEQuemNoNavegador() {
+    chrome.storage.local.set({
+      saleiaQuemEQuem: { meetingId: MEETING_ID, mapa: estado.quemEQuem, perguntado: estado.quemEQuemPerguntado },
+    });
+  }
+
+  // Abre o modal sozinho 1 vez por reunião, quando aparece a 1ª outra pessoa.
+  function perguntarQuemEQuemUmaVez() {
+    if (estado.quemEQuemPerguntado || !_nomesVistos.length) return;
+    estado.quemEQuemPerguntado = true;
+    salvarQuemEQuemNoNavegador();
+    abrirModalParticipantes();
   }
 
   function atualizarResumoParticipantes() {
     var el = document.getElementById('saleia-participantes-resumo');
     if (!el) return;
-    var clientes = estado.participantes.clientes || ['Cliente'];
-    el.textContent = (estado.participantes.vendedor || 'Vendedor') + ' -> ' + clientes.join(', ');
+    el.textContent = QeQ.resumo(estado.quemEQuem, _nomesVistos, estado.vendedorPadrao);
+  }
+
+  var ESTILO_CAMPO = 'background:#1A1A1A;color:#F0F0F0;border:1px solid rgba(212,175,55,0.25);border-radius:7px;padding:6px 8px;font-size:12px;outline:none';
+
+  function renderizarQuemEQuem() {
+    var box = document.getElementById('saleia-quem-lista');
+    if (!box) return;
+    var lista = listaQuemEQuem();
+    box.innerHTML = lista.map(function (p, i) {
+      var e = estado.quemEQuem[p.nome_meet] || {};
+      var papel = e.papel || (p.nome_meet === QeQ.VOCE ? 'vendedor' : '');
+      var rotuloMeet = p.nome_meet === QeQ.VOCE ? 'Você (este computador)' : p.nome_meet;
+      var opcoes = [['', 'papel…'], ['vendedor', 'Vendedor'], ['cliente', 'Cliente'], ['outro', 'Outro']].map(function (o) {
+        return '<option value="' + o[0] + '"' + (o[0] === papel ? ' selected' : '') + '>' + o[1] + '</option>';
+      }).join('');
+      return '<div style="margin-bottom:8px">' +
+        '<div style="font-size:11px;color:#bbb;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis" title="' + escaparHtml(p.nome_meet) + '">No Meet: <b>' + escaparHtml(rotuloMeet) + '</b></div>' +
+        '<div style="display:flex;gap:6px">' +
+        '<input data-qeq-nome="' + i + '" type="text" placeholder="nome real" value="' + escaparHtml(e.nome || (p.nome_meet === QeQ.VOCE ? estado.vendedorPadrao : '')) + '" style="flex:1;min-width:0;' + ESTILO_CAMPO + '" />' +
+        '<select data-qeq-papel="' + i + '" style="' + ESTILO_CAMPO + '">' + opcoes + '</select>' +
+        '</div></div>';
+    }).join('') + (lista.length < 2
+      ? '<div style="color:#666;font-size:11px">Os outros participantes aparecem aqui quando entram na chamada ou falam. Dá para abrir de novo em "👥 Quem é quem".</div>'
+      : '');
+    box.dataset.nomes = JSON.stringify(lista.map(function (p) { return p.nome_meet; }));
   }
 
   function abrirModalParticipantes() {
     var modal = document.getElementById('saleia-participantes-modal');
     if (!modal) return;
-    document.getElementById('saleia-input-vendedor').value = estado.participantes.vendedor || '';
-    _clientesModal = (estado.participantes.clientes || ['Cliente']).slice();
-    renderizarClientesModal();
-    var btnAdd = document.getElementById('saleia-btn-add-cliente');
-    if (btnAdd) btnAdd.onclick = function() { _clientesModal.push(''); renderizarClientesModal(); };
-    renderizarNomesLegenda();
+    lerPessoasDaChamada();
+    renderizarQuemEQuem();
     modal.style.display = 'flex';
   }
 
@@ -882,58 +908,20 @@
   }
 
   function salvarParticipantes() {
-    var inputs = document.querySelectorAll('#saleia-clientes-lista input[data-ci]');
-    var clientes = [];
-    inputs.forEach(function(inp) { var v = inp.value.trim(); if (v) clientes.push(v); });
-    if (!clientes.length) clientes = ['Cliente'];
-    estado.participantes = {
-      vendedor: document.getElementById('saleia-input-vendedor').value.trim() || 'Vendedor',
-      clientes: clientes,
-    };
-    chrome.storage.local.set({
-      saleiaParticipantes: {
-        meetingId: MEETING_ID,
-        vendedor: estado.participantes.vendedor,
-        clientes: estado.participantes.clientes,
-      },
-    });
-    salvarNomesLegenda();
-    atualizarResumoParticipantes();
-    fecharModalParticipantes();
-  }
-
-  function renderizarNomesLegenda() {
-    var box = document.getElementById('saleia-nomes-legenda');
-    if (!box) return;
-    var nomes = _nomesVistos.slice();
-    Object.keys(_nomesFalantes).forEach(function (n) { if (nomes.indexOf(n) < 0) nomes.push(n); });
-    if (!nomes.length) {
-      box.innerHTML = '<div style="color:#666;font-size:11px">Nenhum outro participante falou ainda.</div>';
-      return;
-    }
-    box.innerHTML = nomes.map(function (n, i) {
-      return '<div style="display:flex;gap:6px;align-items:center;margin-bottom:5px">' +
-        '<span style="flex:1;font-size:11px;color:#bbb;overflow:hidden;text-overflow:ellipsis" title="' + escaparHtml(n) + '">' + escaparHtml(n) + ' →</span>' +
-        '<input data-nome-meet="' + i + '" type="text" placeholder="nome real" value="' + escaparHtml(_nomesFalantes[n] || '') + '" style="flex:1" />' +
-        '</div>';
-    }).join('');
-    box.dataset.nomes = JSON.stringify(nomes);
-  }
-
-  function salvarNomesLegenda() {
-    var box = document.getElementById('saleia-nomes-legenda');
-    if (!box || !box.dataset.nomes) return;
+    var box = document.getElementById('saleia-quem-lista');
+    if (!box || !box.dataset.nomes) { fecharModalParticipantes(); return; }
     var nomes = JSON.parse(box.dataset.nomes);
     var antes = {};
     nomes.forEach(function (n) { antes[n] = rotuloParticipante(n); });
-    var novo = Object.assign({}, _nomesFalantes);
-    box.querySelectorAll('input[data-nome-meet]').forEach(function (inp) {
-      var n = nomes[parseInt(inp.getAttribute('data-nome-meet'), 10)];
-      var v = inp.value.trim().slice(0, 80);
-      if (v && v !== n) novo[n] = v; else delete novo[n];
+    var mapa = estado.quemEQuem;
+    nomes.forEach(function (n, i) {
+      var inp = box.querySelector('[data-qeq-nome="' + i + '"]');
+      var sel = box.querySelector('[data-qeq-papel="' + i + '"]');
+      mapa = QeQ.definir(mapa, n, inp ? inp.value : '', sel ? sel.value : '');
     });
-    _nomesFalantes = novo;
-    chrome.storage.local.set({ saleiaNomesFalantes: novo });
+    estado.quemEQuem = mapa;
+    estado.quemEQuemPerguntado = true;
+    salvarQuemEQuemNoNavegador();
     // Falas ainda não enviadas já saem com o nome novo.
     nomes.forEach(function (n) {
       var depois = rotuloParticipante(n);
@@ -942,6 +930,8 @@
         if (estado.transcricao[i].speaker === antes[n]) estado.transcricao[i].speaker = depois;
       }
     });
+    atualizarResumoParticipantes();
+    fecharModalParticipantes();
   }
 
   // Seletores de legenda do Google Meet.
@@ -1378,23 +1368,29 @@
       console.log('[SALEIA-DBG] tag=' + el.tagName + ' class="' + (el.className||'') + '" chars=' + texto.length + ' fim="…' + texto.slice(-60) + '"');
     }
 
-    // Detectar speaker
+    // Detectar speaker. V.1.4.186 (ext 1.4.35): a estrutura do bloco vem
+    // PRIMEIRO. A busca antiga por classe ("a4cQT"/"caption") achava a área
+    // de legendas inteira e pegava o 1º nome dela — toda fala saía com o
+    // nome de quem falou primeiro na tela, e o nome do outro virava fala
+    // (testes reais de 16/10: tudo "ANDRE"; depois tudo "PAULO" + a linha
+    // "motomec 17 GB"). Ela fica só para o Meet sem a área de legendas.
     var speaker = 'Participante';
-    var speakerEl = el.closest('[class*="a4cQT"]') || el.closest('[class*="caption"]');
-    if (speakerEl) {
-      var nomeEl = speakerEl.querySelector('[class*="zs7s8d"]') ||
-                   speakerEl.querySelector('[class*="NWpY1"]') ||
-                   speakerEl.querySelector('strong') ||
-                   speakerEl.querySelector('b');
-      if (nomeEl && nomeEl.textContent.trim()) speaker = nomeEl.textContent.trim();
+    var falante = detectarFalantePorEstrutura(el);
+    if (falante.eONome) return;  // o próprio nome do falante, não é fala
+    if (falante.nome) {
+      speaker = falante.nome;
+      registrarNomeVisto(falante.nome, true);
+    } else if (!naLegenda) {
+      var speakerEl = el.closest('[class*="a4cQT"]') || el.closest('[class*="caption"]');
+      if (speakerEl) {
+        var nomeEl = speakerEl.querySelector('[class*="zs7s8d"]') ||
+                     speakerEl.querySelector('[class*="NWpY1"]') ||
+                     speakerEl.querySelector('strong') ||
+                     speakerEl.querySelector('b');
+        if (nomeEl && nomeEl.textContent.trim()) speaker = nomeEl.textContent.trim();
+      }
     }
-    if (speaker === 'Participante') {
-      // A10: as classes acima mudaram no Meet; tenta pela estrutura.
-      var falante = detectarFalantePorEstrutura(el);
-      if (falante.eONome) return;  // o próprio nome do falante, não é fala
-      if (falante.nome) { speaker = falante.nome; registrarNomeVisto(falante.nome); }
-      else avisarFalanteNaoIdentificado(el, texto);
-    }
+    if (speaker === 'Participante') avisarFalanteNaoIdentificado(el, texto);
 
     // Remove o nome do speaker do início do texto se estiver concatenado (ex: "VocêQue nos ajudou")
     if (speaker !== 'Participante' && texto.toLowerCase().startsWith(speaker.toLowerCase())) {
@@ -1761,6 +1757,7 @@
       perfil_disc_atual: estado.perfilDiscAtual,
       mapa_financeiro: estado.mapaFinanceiro,
       meeting_id: MEETING_ID,
+      participantes: listaQuemEQuem(true),  // V.1.4.186: quem é quem
     };
 
     const url = CONFIG.backendUrl + '/tempo-real';

@@ -3,6 +3,81 @@
 
 ---
 
+## ext 1.4.36 — Cada fala com o nome do próprio bloco da legenda (a causa do "tudo ANDRE" / "tudo PAULO")
+
+> Data: 16/10/2026 | Teste real da 1.4.35 (`fpo-vjpg-rrx`)
+
+Teste: "Você" (PAULO) e "motomec 17 GB" (JOSE) falando; no banco tudo
+"PAULO", inclusive a linha "PAULO: motomec 17 GB". Causa: antes da
+detecção pela estrutura do bloco (1.4.27/1.4.34) ainda rodava a busca
+antiga por classe (`[class*="a4cQT"]`/`[class*="caption"]`), que no Meet
+atual acha a ÁREA de legendas inteira e pega o 1º nome dela — toda fala
+saía com o nome de quem falou primeiro na tela, e o nome do outro, sem
+passar pelo "isto é o nome", virava fala. Explica também o teste anterior
+(tudo "ANDRE": ele falou primeiro).
+
+- Estrutura do bloco primeiro; a busca por classe só sem a área de legendas.
+- Lista "Quem é quem": o próprio quadro (com o botão "Reenquadrar") e
+  texto de botão ficam fora — no teste apareciam a própria conta
+  ("fasterdrible") e "Reenquadrar". Ao servidor só vai quem falou ou foi
+  preenchido.
+- Testes: `tests/js/test_legenda_meet.js` (+2, reproduzem o teste real).
+- Versão: extensão `1.4.35` → `1.4.36`.
+
+---
+
+## V.1.4.186 + ext 1.4.35 — "Quem é quem" por reunião (nome real + papel de cada participante)
+
+> Data: 16/10/2026 | Pedido do usuário após o teste da 1.4.34
+
+Teste real 1.4.34 (`tsv-mczn-usf`, `ndw-ynae-ost`): o 2º participante
+saiu com o nome do Meet ("ANDRE") — a separação de falantes funcionou —,
+mas o "Você" levava um nome fixo de vendedor ("Paulo", salvo em "Editar
+participantes" e válido em todas as reuniões) e a IA não sabia quem vende
+e quem compra. Pedido: nada fixo; em cada reunião o vendedor diz quem é
+quem, como no Easy Sub, e a IA usa isso. A legenda do Meet não mostra
+e-mail, só o nome de exibição da conta (o começo do e-mail quando a conta
+não tem nome) — é esse nome que se liga à pessoa.
+
+- Extensão: botão **"👥 Quem é quem"** (substitui "Editar participantes").
+  Lista "Você (este computador)" + cada pessoa da chamada — lida dos
+  quadros do Meet (`[data-participant-id]`, sem o próprio vendedor
+  `data-self-name`/"(Você)") antes de falar, e de quem aparece na legenda.
+  Cada linha: nome real + papel (Vendedor/Cliente/Outro). Abre sozinho 1x
+  por reunião quando aparece a 1ª outra pessoa. Vale só para aquela
+  reunião (`saleiaQuemEQuem` com `meetingId`); os nomes fixos antigos
+  (`saleiaParticipantes`, `saleiaNomesFalantes` da 1.4.34) são apagados.
+  "Você" sem preencher = nome do login. Console: `[SALEIA-PESSOAS]`.
+  Regras puras em `chrome-extension/quem_e_quem_rules.js`.
+- `/tempo-real` aceita `participantes` ([{nome_meet, nome, papel}]),
+  normaliza (`agent/participantes_rules.py`), guarda em
+  `sessoes.participantes_json` (coluna nova, só quando muda) e põe o
+  cabeçalho "QUEM É QUEM NESTA REUNIÃO" antes da conversa enviada aos
+  agentes (depois do corte de 6.000 chars). Sem papel de cliente/outro
+  informado, nada muda (a IA deduz pela conversa, como antes).
+- Relatório pós-reunião automático recebe o mesmo cabeçalho.
+- **Prompts sem vendedor fixo** (teste real 16/10: a pergunta sugerida
+  chamava o VENDEDOR pelo nome — "Andre, parece que estamos só testando…"):
+  os 6 prompts de tempo real (`multiagente_coach/closer/disc/finance/
+  bigfive.txt`, `agente_tempo_real.txt`) diziam "Paulo Henrique é sempre o
+  vendedor". Agora: vendedor/cliente = o que o bloco "QUEM É QUEM" marca;
+  sem ele, pelo contexto; toda fala sugerida é dita pelo vendedor PARA o
+  cliente, pelo nome do cliente. O cabeçalho repete isso com o nome do(s)
+  cliente(s). `reasoning_engine_version` muda sozinha (hash dos prompts).
+- **Fala partida juntada** (teste real 16/10: "ANDRE…: olha" / "ANDRE…:
+  nos meus olhos…" era 1 bloco no Meet): `juntar_falas_seguidas()` em
+  `agent/transcript_dedup_rules.py` — falas seguidas da mesma pessoa numa
+  linha só no texto da IA (`_limitar_contexto_ia`), no relatório
+  (`transcricao_para_relatorio`) e na "Transcrição Acumulada" do
+  Dashboard (mesma regra em JS, inclui o Copiar). O texto guardado não
+  muda; "Não identificado" nunca é juntado.
+- Testes: `tests/test_participantes.py` (11), `tests/js/test_quem_e_quem.js`
+  (8), `tests/js/test_legenda_meet.js` (+3, substitui o da 1.4.34),
+  `tests/js/test_extensao_transcricao.js` (ajustados).
+- Versão: `1.4.185` → `1.4.186`; extensão `1.4.34` → `1.4.35`.
+
+---
+
 ## ext 1.4.34 — Participante sem foto separado do vendedor + nome do Meet trocado pelo nome real
 
 > Data: 16/10/2026 | Só extensão

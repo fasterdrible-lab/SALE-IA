@@ -57,7 +57,7 @@ test('legenda ainda na tela já gravada igual não é regravada pela varredura',
 
 test('scripts de regras carregam antes do content.js no manifest', () => {
   const m = JSON.parse(fs.readFileSync(path.join(EXT, 'manifest.json'), 'utf8'));
-  assert.deepEqual(m.content_scripts[0].js, ['transcricao_rules.js', 'gravacao_rules.js', 'content.js']);
+  assert.deepEqual(m.content_scripts[0].js, ['transcricao_rules.js', 'gravacao_rules.js', 'quem_e_quem_rules.js', 'content.js']);
 });
 
 test('todos os scripts da extensão têm sintaxe válida', () => {
@@ -210,9 +210,11 @@ test('V.1.4.181: content.js encerra ao sair da chamada ou fechar a aba e reabre 
   assert.match(src, /sessaoEncerrada = false;[^\n]*\n\s*registrarSessao\(\);/);
 });
 
-test('V.1.4.183 (ext 1.4.33): fala do vendedor leva o nome do login; nome digitado em "Editar participantes" vale mais', () => {
+test('V.1.4.186 (ext 1.4.35): "Você" leva o nome do login; "quem é quem" só da própria reunião; nomes fixos antigos apagados', () => {
   const src = fs.readFileSync(path.join(EXT, 'content.js'), 'utf8');
-  assert.match(src, /chrome\.storage\.local\.get\(\['saleiaParticipantes', 'saleiaUsuario'/);
-  assert.match(src, /if \(nomeLogado\) estado\.participantes\.vendedor = nomeLogado;/);
-  assert.match(src, /if \(saved\.vendedor && saved\.vendedor !== 'Vendedor'\) estado\.participantes\.vendedor = saved\.vendedor;/);
+  assert.match(src, /chrome\.storage\.local\.get\(\['saleiaUsuario', 'saleiaQuemEQuem'\]/);
+  assert.match(src, /if \(nomeLogado\) estado\.vendedorPadrao = nomeLogado;/);
+  assert.match(src, /if \(salvo && salvo\.meetingId === MEETING_ID\)/);
+  assert.match(src, /chrome\.storage\.local\.remove\(\['saleiaParticipantes', 'saleiaNomesFalantes'\]\)/);
+  assert.match(src, /participantes: listaQuemEQuem\(true\)/);
 });
