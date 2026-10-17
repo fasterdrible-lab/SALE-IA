@@ -7,7 +7,7 @@
 | Produção | **V.1.4.185** (`49f73f2` = VPS HEAD; deploy 16/10 23:22 UTC, sem reunião ativa, `NRestarts=0`) — inclui a V.1.4.184. Suíte 2.015 OK |
 | Conferido no deploy | colunas `relatorio_status/em/detalhe` criadas; 34 sessões existentes = `anterior`; policy_violation bruto 530 → **válido 0** |
 | Extensão | **1.4.36** no repo (`../chrome-extension. V.1.4.36.zip`) — aguarda reinstalação; corrige "toda fala com o nome de quem falou primeiro" (causa real do "tudo ANDRE"/"tudo PAULO"); precisa da V.1.4.186 no servidor para a IA usar o "quem é quem" |
-| V.1.4.186 | **"Quem é quem" por reunião** + prompts sem vendedor fixo ("Paulo Henrique") + falas seguidas da mesma pessoa juntadas — suíte 2.030 OK; deploy autorizado pelo usuário (detalhe no CHANGELOG) |
+| V.1.4.186 | **"Quem é quem" por reunião** + prompts sem vendedor fixo ("Paulo Henrique") + falas seguidas da mesma pessoa juntadas — suíte 2.030 OK; **EM PRODUÇÃO 17/10 11:55 UTC** (`01fc627` = VPS HEAD, `NRestarts=0`, coluna `sessoes.participantes_json` criada; script `deploy_186.py` no scratchpad b29697ba). Detalhe no CHANGELOG |
 
 **Falante na legenda — 1.4.34 funcionou para o 2º participante (revisão 16/10 noite)**
 
