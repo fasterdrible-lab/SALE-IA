@@ -3,6 +3,24 @@
 
 ---
 
+## Ferramentas (sem versão) — Aprendizado com as reuniões do Paulo + C3 2ª rodada
+
+> Data: 17-18/10/2026 | Sem mudança no servidor nem na extensão
+
+- **C3** rodada de novo na VPS (só leitura): erro 0% desde 15/10; Piloto
+  ainda não (falta `quality` e reunião real).
+- **Reuniões do Paulo** (vendedor de referência): 1.178 documentos do
+  Google Drive, 985 com transcrição. Scripts novos em
+  `scripts/aprendizado_paulo/` (leitura dos .docx do Gemini e do formato
+  antigo "Transcript", métricas por reunião, jornada por cliente,
+  pseudônimos estáveis, extração com DeepSeek com citação literal
+  verificada, trecho real da conversa, regras da auditoria externa T1-T6,
+  teste de regressão). Dados e casos com citações de clientes ficam fora
+  do git, em `C:\SALEIA_dados\paulo\`. Tudo em
+  `docs/APRENDIZADO_REUNIOES_PAULO.md`.
+
+---
+
 ## V.1.4.187 + ext 1.4.37 — A8: turnos temporizados por falante (% de fala, perguntas, monólogos)
 
 > Data: 17/10/2026 | Tarefa A8 de `docs/tasks-prompt-mestre-v2-restante.md`

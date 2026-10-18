@@ -1,6 +1,14 @@
 # SALEIA - Estado Atual
 
-## 16/10/2026, noite (leia primeiro)
+## 17-18/10/2026 (leia primeiro)
+
+| Item | Estado |
+|---|---|
+| Produção | **V.1.4.187** (`62ed034` = VPS HEAD) + extensão 1.4.37 — validadas pelo usuário em reunião real |
+| C3 (Shadow Mode) | 2ª rodada 17/10: erro 0% desde 15/10, latência p95 6,6 s; **Piloto ainda não** (falta `quality`/C4 e reunião real — amostra era de testes). Detalhe em `docs/tasks-prompt-mestre-v2-restante.md` |
+| **Aprendizado com as reuniões do Paulo** | **Documento: `docs/APRENDIZADO_REUNIOES_PAULO.md`**. 1.178 docs do Drive (985 com transcrição), dados só em `C:\SALEIA_dados\paulo\` (fora do git). Etapa 1 feita; Etapa 2 em piloto (10 reuniões, DeepSeek Flash, v4 com o plano da auditoria externa, teste de regressão 16/19). Pendências: lista de quem comprou, revisão humana da amostra, recarga do DeepSeek, documentos do Drive fora do download |
+
+## 16/10/2026, noite
 
 | Item | Estado |
 |---|---|

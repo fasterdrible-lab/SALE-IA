@@ -221,6 +221,10 @@ Pedido original da C8:
 ### C4 — Definir o alvo de recommendation quality e a métrica de qualidade
 - O prompt deixa o alvo "a definir". Decidir o número e se `quality`
   do Shadow Mode usa LLM-judge (custo real por comparação).
+- **17-18/10/2026**: caminho escolhido = usar as reuniões reais do Paulo
+  (vendedor de referência, 985 com transcrição) como gabarito. Em
+  andamento: `docs/APRENDIZADO_REUNIOES_PAULO.md` (Etapa 1 feita, Etapa 2
+  em piloto; falta a lista de quem comprou e a revisão humana).
 ### C5 — Retroalimentar insights no raciocínio
 - Hoje só `historical_patterns` filtrado por estágio chega ao motor.
   Incluir estratégias com efetividade comprovada (B2) quando houver
