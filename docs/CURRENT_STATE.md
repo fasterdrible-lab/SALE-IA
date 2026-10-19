@@ -6,7 +6,7 @@
 |---|---|
 | Produção | **V.1.4.187** (`62ed034` = VPS HEAD) + extensão 1.4.37 — validadas pelo usuário em reunião real |
 | C3 (Shadow Mode) | 2ª rodada 17/10: erro 0% desde 15/10, latência p95 6,6 s; **Piloto ainda não** (falta `quality`/C4 e reunião real — amostra era de testes). Detalhe em `docs/tasks-prompt-mestre-v2-restante.md` |
-| **Aprendizado com as reuniões do Paulo** | **Documento: `docs/APRENDIZADO_REUNIOES_PAULO.md`**. 1.178 docs do Drive (985 com transcrição), dados só em `C:\SALEIA_dados\paulo\` (fora do git). Etapa 1 feita; Etapa 2 em piloto (10 reuniões, DeepSeek Flash, v4 com o plano da auditoria externa, teste de regressão 16/19). Pendências: lista de quem comprou, revisão humana da amostra, recarga do DeepSeek, documentos do Drive fora do download |
+| **Aprendizado com as reuniões do Paulo** | **Documento: `docs/APRENDIZADO_REUNIOES_PAULO.md`**. 1.178 docs do Drive (985 com transcrição), dados só em `C:\SALEIA_dados\paulo\` (fora do git). Etapa 1 feita; Etapa 2 em piloto (10 reuniões, DeepSeek Flash, v4 com o plano da auditoria externa, teste de regressão 16/19). **18/10: lista provisória de compradores por sinais** (`sinais_venda.py`, sem IA): com o 4º zip do Drive (1.250 reuniões até 16/08/2026), 158 clientes PAGOU + 168 FECHOU_VERBAL de 941; nada depois de 16/08 — conferir. 1ª comparação vendeu × não vendeu: nas vendas o Paulo chega à oferta e usa 12x/bônus/sinal/"sincero sim ou não" antes do sim. **Combinado 18/10: usuário recarrega o DeepSeek → rodar a Etapa 2 nas 1.049 (~US$ 18)**. Pendências: lista de quem comprou, revisão humana da amostra, recarga do DeepSeek, documentos do Drive fora do download |
 
 ## 16/10/2026, noite
 

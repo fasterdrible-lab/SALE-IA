@@ -18,6 +18,19 @@
   teste de regressão). Dados e casos com citações de clientes ficam fora
   do git, em `C:\SALEIA_dados\paulo\`. Tudo em
   `docs/APRENDIZADO_REUNIOES_PAULO.md`.
+- **Sinais de venda** (`scripts/aprendizado_paulo/sinais_venda.py`, 18/10):
+  lista provisória de quem comprou, lida do resumo do Gemini e da
+  transcrição, com a frase que prova. Com o 4º zip do Drive (74 reuniões
+  novas, 23/07–16/08/2026; total 1.250 reuniões, 941 clientes): PAGOU 158,
+  FECHOU_VERBAL 168, COMPROMISSO 40, VAI_PENSAR 134, NAO_FECHOU 18,
+  SEM_SINAL 423. Nomes dos casos de sucesso do Paulo em arquivo local
+  (`casos_de_sucesso.txt`, fora do git). Substitui o `fechou_pelo_resumo` da Etapa 1. Precisão
+  ainda não medida (falta a lista oficial).
+- **Vendeu × não vendeu** (`comparar_vendeu.py`, provisório): nas vendas o
+  Paulo chega à oferta (80% × 56-66%) e a monta com 12x sem juros (80% ×
+  48%), bônus, sinal e "sincero sim ou não" — antes do sim. Ritmo de
+  perguntas e momento do preço iguais nos grupos. Detalhe em
+  `docs/APRENDIZADO_REUNIOES_PAULO.md`.
 
 ---
 

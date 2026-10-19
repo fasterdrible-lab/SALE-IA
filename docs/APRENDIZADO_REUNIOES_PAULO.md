@@ -32,6 +32,14 @@ trata objeções, apresenta preço e fecha — e usar isso como referência:
 pasta Downloads do usuário). Total real: **1.178 documentos** (.docx) + 70
 chats .txt (quase vazios, não usados). Período: mai/2025 a jul/2026.
 
+**4º zip em 18/10** (`drive-download-20261018T194416Z-1-001.zip`): 74 .docx
+novos (nenhum repetido), 23/07 a 16/08/2026 — Paulo fala em 66, 65 com
+transcrição. Com ele: **1.250 reuniões, 1.049 com transcrição, 941
+clientes** (tabela abaixo ainda com os números do 1º lote). Backup dos
+resultados anteriores em `C:\SALEIA_dados\paulo\backup_20261018_pre_zip4\`.
+**Nada depois de 16/08/2026** — conferir se o Paulo parou de usar as
+anotações do Gemini ou se falta exportar.
+
 | | Quantidade |
 |---|---|
 | Com transcrição completa (falas com o nome de quem fala) | **985** |
@@ -94,6 +102,84 @@ clientes que "fecharam" × não — fala 63,9% × 61,9%, perguntas do cliente
 24 × 17, duração 90 × 80 min. Diferença pequena nas métricas estruturais:
 o diferencial do Paulo parece estar **no que ele diz**, não em quanto fala.
 Parte das 85 perguntas ainda é retórica (só a IA separa bem).
+
+## Sinais de venda — lista provisória de quem comprou (18/10, sem IA)
+
+`sinais_venda.py` lê o resumo do Gemini **e** a transcrição de cada reunião
+e dá um nível, sempre com a frase que prova. Substitui o
+`fechou_pelo_resumo` da Etapa 1, que contava como venda frases como
+"bônus para quem decidir fechar na reunião" (de 72 reuniões que ela marcava
+e a regra nova não, a amostra lida não tinha nenhuma venda clara).
+
+| Nível | O que prova | Clientes (de 941, com o 4º zip) |
+|---|---|---|
+| PAGOU | comprovante/pagamento confirmado ("chegou aqui… agora de forma oficial, seja bem-vindo"; "enviou o comprovante") | **158** |
+| FECHOU_VERBAL | ritual de fechamento do Paulo sem prova de pagamento ("seja muito bem-vindo, que Deus abençoe esse projeto, parabéns por essa decisão") | 168 |
+| COMPROMISSO | combinou pagar (entrada, link, comprovante pedido no fim) | 40 |
+| VAI_PENSAR | adiou ("não vou fechar agora", conversar com a esposa/sócio, recusou o sinal) | 134 |
+| NAO_FECHOU | recusa explícita | 18 |
+| SEM_SINAL | nada encontrado | 423 |
+
+O que aprendemos ao montar as regras (cada uma veio de um falso positivo
+visto na amostra):
+- O ritual do Paulo acontece no fim (≥ 60% da reunião). Antes disso as
+  mesmas palavras são pitch ou história de outro cliente ("o [cliente]
+  falou: pode mandar o Pix") — ignoradas. Os nomes dos casos de sucesso
+  que o Paulo conta ficam em `C:\SALEIA_dados\paulo\casos_de_sucesso.txt`
+  (fora do git).
+- "Agora de forma oficial" só vira PAGOU se a fala ou as 4 anteriores têm
+  dinheiro **chegando** (chegou, caiu, comprovante, aprovado, recebi).
+  "Pix"/"pagamento" sozinhos aparecem na proposta.
+- O Paulo **adianta** as boas-vindas antes do pagamento ("posso te adiantar
+  um seja muito bem-vindo?") — coluna `antecipado` (82 reuniões). Sim
+  verbal, não venda.
+- Pré-fechamento condicional ("se você entender que somos a empresa ideal,
+  seja bem-vindo… posso contar com o sincero sim ou não?") não conta.
+- "Não vou fechar **agora**" é adiamento (VAI_PENSAR), não recusa.
+
+Precisão **não medida**: na leitura de amostras (~20 por nível), PAGOU
+saiu quase todo certo; FECHOU_VERBAL tem casos fracos (só o "posso
+adiantar…?"). NAO_FECHOU é o nível menos confiável (frases hipotéticas).
+A lista oficial mede de verdade.
+
+Saídas (em `C:\SALEIA_dados\paulo\`, fora do git — têm nomes reais):
+`sinais_venda_clientes.csv` (1 linha por cliente, com `nomes_reais` e a
+coluna vazia `lista_oficial_comprou` para o cruzamento),
+`sinais_venda_reunioes.csv`, `resumo_sinais_venda.json`.
+
+## Quando vende × quando não vende — 1ª comparação (18/10, provisória, sem IA)
+
+`comparar_vendeu.py`: 1ª reunião com transcrição (≥ 30 min) de cada cliente,
+grupos pelos sinais acima — **vendeu** (PAGOU/FECHOU_VERBAL, 276),
+**adiou/recusou** (VAI_PENSAR/NAO_FECHOU, 135), **sem sinal** (212).
+(Percentuais abaixo da rodada anterior; a final difere em ≤ 1 ponto.)
+Saída: `comparar_vendeu.json`.
+
+| | vendeu | adiou/recusou | sem sinal |
+|---|---|---|---|
+| Chegou a apresentar a oferta (investimento/entrada/12x) | **80%** | 66% | 56% |
+| Momento da oferta (% da reunião) | 66% | 68% | 68% |
+| Perguntas do Paulo por hora | 61 | 62 | 61 |
+| Paulo fala (% palavras) | 63% | 60% | 56% |
+| *Entre as que chegaram à oferta:* parcelamento 12x sem juros | **80%** | 48% | 49% |
+| … oferece bônus | **56%** | 41% | 36% |
+| … pede sinal | **26%** | 15% | 13% |
+| … "posso contar com o sincero sim ou não?" | **19%** | 5% | 10% |
+| Cliente fala de dinheiro curto | 24% | 15% | 12% |
+
+- **Sem diferença**: ritmo de perguntas (o "mais perguntas" das vendas era
+  só reunião mais longa) e momento do preço (~2/3 da reunião sempre).
+- **Diferença**: nas vendas o Paulo chega à oferta e a monta com 12x sem
+  juros + bônus + sinal + pedido de sim/não sincero. Conferido que isso vem
+  **antes** do sim (201 vendas com o momento do sim localizado: 12x antes
+  em 68%, só depois em 13%; bônus 54% × 7%) — não é o link de pagamento.
+- "Dinheiro curto" aparece **mais** nas vendas: a objeção surge quando o
+  preço é discutido a sério, e o Paulo a contorna com o parcelamento.
+- Cuidados: grupos pelos sinais (não pela lista oficial); associação, não
+  causa — o Paulo pode oferecer 12x/bônus só quando sente o cliente pronto
+  (causa invertida); "sem sinal" mistura quem pagou depois. Próximo passo
+  com IA (Etapa 2 nas 1.049): o **conteúdo** de como ele monta a oferta e
+  trata "dinheiro curto", que regra de texto não pega.
 
 ## Etapa 2 — extração com IA (piloto)
 
@@ -166,9 +252,21 @@ de US$ 2).
 
 ## Pendências (em ordem)
 
+> **Combinado com o usuário em 18/10/2026**: ele vai **recarregar o
+> DeepSeek**; com o saldo, rodar a **Etapa 2 (v4, Flash) nas 1.049 reuniões
+> com transcrição** (~US$ 18; conferir saldo antes e manter folga acima do
+> alerta de US$ 2, pois a conta é a mesma da produção). Foco da análise:
+> como o Paulo **monta a oferta** (12x, bônus, sinal, "sincero sim ou não")
+> e como trata **"dinheiro curto"** — o que a 1ª comparação apontou e regra
+> de texto não alcança. Até lá, nada a fazer nesta frente.
+
 1. **Lista de quem comprou** (nome + se comprou + data; telefone/e-mail
    ajuda) — o usuário vai pedir ao responsável. Sem ela não dá para
-   comparar o que o Paulo faz quando vende × quando não vende.
+   comparar o que o Paulo faz quando vende × quando não vende. Enquanto
+   não chega: lista provisória por sinais (seção acima, 158 PAGOU + 168
+   FECHOU_VERBAL); quando chegar, cruzar e medir o acerto dos sinais.
+   Usuário fazendo levantamento completo no Drive (18/10) — rodar Etapa 1
+   e `sinais_venda.py` de novo com os documentos novos.
 2. **Revisão humana** da amostra `piloto/REVISAR_amostra_v4.csv` (coluna
    "CORRETO?" S/N/parcial) — critério para rodar todas: ≥ 90%.
 3. **Recarregar o DeepSeek** (US$ 15-20) antes de rodar as 985.
