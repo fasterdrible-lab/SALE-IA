@@ -1,4 +1,4 @@
-# /etc/systemd/system/saleia.service — versão em produção (VPS 37.27.214.33).
+# /etc/systemd/system/saleia.service — versão em produção (VPS 200.141.20.162).
 # Instalar com deploy/systemd/instalar.sh (não editar só na VPS).
 #
 # D12 (V.1.4.163): o reinício diário saiu do RuntimeMaxSec=86400, cujo

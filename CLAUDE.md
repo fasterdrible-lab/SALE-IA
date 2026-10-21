@@ -14,7 +14,7 @@ Nenhuma tarefa nova começa sem confirmação explícita do usuário, uma de cad
 - Backend: FastAPI + Python 3.14, porta 8000
 - Frontend: HTML/JS vanilla (login.html, dashboard.html, cenario.html, manual.html, visual-scenario.html)
 - Banco: MySQL local na VPS (`127.0.0.1`, ~2ms)
-- VPS: `37.27.214.33` (Hetzner CPX32, Helsinki) — serviço `saleia.service` (systemd)
+- VPS: `200.141.20.162` (Ubuntu 26.04, 2 vCPU / 8 GB, desde 21/10/2026) — serviço `saleia.service` (systemd). A antiga `37.27.214.33` (Hetzner CPX32) ficou parada e desabilitada como rollback (voltar o registro A no Cloudflare + `systemctl enable --now saleia` lá)
 - Domínio: `api.saleia.app.br`
 - Repo: `https://github.com/fasterdrible-lab/SALE-IA.git` branch `main`
 - Versão atual: **V.1.4.187** no código (17/10; A8 — tempo de cada fala: % de fala/perguntas/monólogos no card "🗣️ Conversa", Seller Coaching e indicador ao vivo na sidebar, ext 1.4.37) · **V.1.4.186** em produção (16/10; "quem é quem" por reunião — nome real + papel de cada participante vai para a IA; falas seguidas da mesma pessoa numa linha só; ext 1.4.36 corrige "toda fala com o nome de quem falou primeiro" · V.1.4.185: relatório pós-reunião automático; alarme falso de prompt injection corrigido na 1.4.184; card Provedores de IA + avisos de saldo do DeepSeek e de reserva no Telegram; lista de sessões se atualiza sozinha; sessão "Finalizada" na hora em que o vendedor sai da chamada · 15/10: transcrição de áudio em tempo real desligada — IA usa a legenda do Meet, áudio só na gravação a 32 kbps com 7 dias de retenção; plano em `docs/tasks-legenda-tempo-real.md`) · anterior V.1.4.179 (Groq transcreve só o áudio do cliente, ext 1.4.25, 14/10; sem fala duplicada legenda × áudio desde a 1.4.178; Groq como 5º provedor de IA desde a 1.4.177; transcrição de áudio em produção pela Groq desde 14/10; Dev Manual só para admin desde a 1.4.176; painel 🎧 Gravações desde a 1.4.174; gravação ligada na VPS para a validação da T02) · extensão **V.1.4.34** no repo (`chrome-extension.zip`, aguarda reinstalação; bloco do falante = filho da área de legendas + troca de nome do Meet; nome do falante pela legenda, respostas curtas, legenda escondida — ver CHANGELOG) · teste da legenda com HTML real: `NODE_PATH=<jsdom> node --test tests/js/test_legenda_meet.js` · testes da extensão: `node --test tests/js/test_extensao_transcricao.js` e `node --test tests/js/test_gravacao_extensao.js` (arquivo a arquivo — diretório falha no Windows) · extensão Chrome **V.1.4.21** no repo (`chrome-extension/manifest.json`, versionada separadamente; vendedores ainda na 1.4.15 em 08/10, falta reinstalar)
@@ -37,11 +37,10 @@ Regras de deploy (atualizado 04/10/2026):
 - **Nunca reiniciar com `reunioes_ativas > 0`** (`GET /health`, público;
   mandar `User-Agent`, senão o Cloudflare devolve 403). Reuniões reais
   duram horas: retentar a cada ~3 min.
-- **Acesso SSH**: a chave `saleia_vps` é recusada; acesso por senha
-  root via Python + `paramiko` (senha só em variável de ambiente, nunca
-  em argv/arquivo). Rodar com `PYTHONIOENCODING=utf-8`.
-- **`git pull origin main` na VPS está quebrado** (PAT do remote de
-  `/opt/saleia` recusado). Até trocar o PAT, usar bundle:
+- **Acesso SSH**: por chave, `ssh -i ~/.ssh/saleia_vps root@200.141.20.162`
+  (sem senha; a mesma chave também entra na VPS antiga).
+- **`git pull origin main` na VPS não funciona** (remote sem credencial).
+  Usar bundle:
   `git bundle create x.bundle <HEAD da VPS>..main` → SFTP para `/tmp` →
   `git pull --ff-only /tmp/x.bundle main`. Gerar o bundle a partir do
   HEAD **real** da VPS (`git log -1` lá), não do último deploy lembrado.
