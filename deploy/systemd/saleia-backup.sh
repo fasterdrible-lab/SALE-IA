@@ -85,5 +85,12 @@ else
 fi
 
 echo "uso total do backup: $(du -sh "$RAIZ" | cut -f1); disco livre: $(df -h / | awk 'NR==2{print $4}')"
+
+# ── 3. Cópia para fora da VPS (B2) ───────────────────────────────────────
+# Só se o remote estiver configurado; a falha já avisa no Telegram lá dentro.
+if [ -f /root/.config/rclone/rclone.conf ]; then
+    bash "$APP/deploy/systemd/saleia-backup-externo.sh" || FALHAS=$((FALHAS + 1))
+fi
+
 [ "$FALHAS" -eq 0 ] || exit 1
 exit 0

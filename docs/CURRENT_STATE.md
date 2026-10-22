@@ -1,6 +1,21 @@
 # SALEIA - Estado Atual
 
-## 17-18/10/2026 (leia primeiro)
+## 21/10/2026 — migração de VPS (leia primeiro)
+
+| Item | Estado |
+|---|---|
+| VPS de produção | **`200.141.20.162`** (Ubuntu 26.04.1, **2 vCPU** / 7,7 GB / 96 GB). Cutover 21/10: antiga parada 18:24:30 UTC, nova no ar 18:26 UTC, DNS (Cloudflare, proxy ligado) trocado ~18:40 UTC |
+| Migrado | MySQL `saleia` (dump final após a parada: 47 tabelas, contagens iguais), `data/` (1,5 GB), `.env`, nginx `saleia`, `/etc/letsencrypt`, Ollama (`embeddinggemma`, `nomic-embed-text`), `binlog_expire_logs_seconds=259200`, units de `deploy/systemd/` |
+| Código | `cc47d5d` = VPS HEAD = GitHub (até `ce4ee0f` só docs/scripts após o `62ed034`; deploy segue por bundle) |
+| Acesso | só chave `saleia_vps` (`/etc/ssh/sshd_config.d/00-saleia.conf`: senha desligada, root `prohibit-password`); ufw: só 22/80/443; MySQL e Ollama só em 127.0.0.1 |
+| VPS antiga `37.27.214.33` | **desligada** (Hetzner, ainda cobrando), `saleia` e timers desabilitados; dados até 18:24 UTC intactos (rollback: Power on + registro A de volta + `systemctl enable --now saleia`). Senha root passou pelo chat em 21/10 |
+| Não conferido na antiga | arquivos soltos em `/opt/saleia` fora do git/`data/`, diff das units/overrides do systemd e do Ollama, `nginx.conf`, swap, logrotate, `atq` |
+
+**Pendências da migração**: backup externo (o diário fica no mesmo
+disco); decidir `/root/backups` antigos (1,9 GB) antes de apagar a
+antiga; acompanhar CPU na 1ª reunião longa (metade dos núcleos).
+
+## 17-18/10/2026
 
 | Item | Estado |
 |---|---|

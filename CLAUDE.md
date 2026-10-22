@@ -38,7 +38,8 @@ Regras de deploy (atualizado 04/10/2026):
   mandar `User-Agent`, senão o Cloudflare devolve 403). Reuniões reais
   duram horas: retentar a cada ~3 min.
 - **Acesso SSH**: por chave, `ssh -i ~/.ssh/saleia_vps root@200.141.20.162`
-  (sem senha; a mesma chave também entra na VPS antiga).
+  (login por senha desligado na VPS nova; a mesma chave também entra na
+  VPS antiga).
 - **`git pull origin main` na VPS não funciona** (remote sem credencial).
   Usar bundle:
   `git bundle create x.bundle <HEAD da VPS>..main` → SFTP para `/tmp` →

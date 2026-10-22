@@ -22,13 +22,41 @@ permissão só do root (`700`, dumps `600`). Falha → mensagem no Telegram
 O `.env` **não** entra no backup (segredos). Guarde uma cópia dele fora
 da VPS por conta própria (gerenciador de senhas).
 
-## Limite importante
+## Cópia fora da VPS — Backblaze B2 (desde 21/10/2026)
 
-O backup fica **no mesmo disco da VPS**. Protege contra erro de
-aplicação, apagamento e reset por engano; **não** protege contra perda
-da VPS. Falta definir um destino externo (ex.: Hetzner Storage Box,
-S3/Backblaze, Google Drive via rclone) para copiar
-`/root/backups/saleia/` depois do backup diário.
+No fim do backup diário, `deploy/systemd/saleia-backup-externo.sh` envia
+para o bucket B2 **`SALEIA`** (privado, criptografado SSE-B2, conta
+`fasterdrible`), via rclone (remote `b2saleia`,
+`/root/.config/rclone/rclone.conf`, `600`):
+
+| O quê | Onde no bucket | Como |
+|---|---|---|
+| cada dump novo do MySQL | `mysql/saleia_AAAAMMDD_HHMM.sql.gz` | lista local dos enviados (`/root/backups/saleia/b2_estado/mysql_enviados`) |
+| `data/` **sem `gravacoes/`** | `data/<mesmo caminho>` | só o que mudou desde o último envio bom (marcador `b2_estado/data_marcador`); 1º envio = tudo |
+
+As gravações (990 MB, ~38 mil pedaços, retenção de 7 dias) ficam só nos
+snapshots locais: `SALEIA_B2_GRAVACOES=1` no ambiente do serviço as inclui.
+Arquivo apagado entre a listagem e o envio não conta como falha.
+
+- Arquivo reenviado com o mesmo nome vira nova versão; a regra de
+  lifecycle do bucket apaga versões antigas/escondidas após **30 dias**.
+  Os dumps no B2 não são apagados pelo script (cerca de 50 MB/dia).
+- A chave deve ser **Write Only** e restrita ao bucket: a VPS envia, mas
+  não lê nem apaga — quem invadir a VPS não destrói o backup externo.
+- Falha → Telegram ("backup externo (B2) falhou") e o `saleia-backup`
+  termina com erro. Sem `rclone.conf`, a etapa é pulada.
+- Reenviar `data/` inteiro: `rm /root/backups/saleia/b2_estado/data_marcador`.
+
+**Restaurar do B2** (VPS perdida): na conta Backblaze, criar uma chave
+**Read Only** do bucket `SALEIA` (a da VPS não lê), configurar o rclone
+na máquina nova e baixar:
+
+```bash
+rclone copy b2saleia:SALEIA/mysql/<dump>.sql.gz /root/restauro/
+rclone copy b2saleia:SALEIA/data /opt/saleia/data
+```
+
+Depois seguir "Restaurar" abaixo. O `.env` não está no B2 (segredos).
 
 ## Conferir
 
