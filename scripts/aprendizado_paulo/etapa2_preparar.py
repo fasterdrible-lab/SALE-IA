@@ -3,16 +3,20 @@ fecharam pelo resumo do Gemini, metade não; vários tipos) e troca nomes,
 e-mails, telefones e documentos por códigos antes de qualquer envio à IA.
 
 Saída: piloto/selecao.csv, piloto/textos/<id>.txt (pseudonimizado), piloto/estimativa.json
+
+Com "todas" (21/10/2026): todas as reuniões com transcrição, sem sorteio,
+em completo/ (ids C0001…), sem tocar no piloto.
 """
 import csv, json, random, re, sys, unicodedata
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
 D = Path(r"C:\SALEIA_dados\paulo")
-P = D / "piloto"
+TODAS = len(sys.argv) > 1 and sys.argv[1] == "todas"
+P = D / ("completo" if TODAS else "piloto")
 (P / "textos").mkdir(parents=True, exist_ok=True)
 VENDEDOR = "paulo henrique pagoti de oliveira silva"
-N = int(sys.argv[1]) if len(sys.argv) > 1 else 50
+N = 0 if TODAS else int(sys.argv[1]) if len(sys.argv) > 1 else 50
 
 
 def norm(t):
@@ -68,17 +72,20 @@ def pseudonimizar(texto, nomes_reuniao):
 
 reunioes = [json.loads(l) for l in open(D / "reunioes.jsonl", encoding="utf-8")]
 jornada = {r["cliente"]: r for r in csv.DictReader(open(D / "clientes_jornada.csv", encoding="utf-8-sig"), delimiter=";")}
-cand = [r for r in reunioes if r["tem_transcricao"] and r["duracao_s"] and 1800 <= r["duracao_s"] <= 7200
-        and jornada.get(r["cliente"], {}).get("reunioes") in ("1", "2", "3", "4", "5")]
-random.seed(20261017)
-fechou = [r for r in cand if jornada[r["cliente"]]["fechou_provisorio"] == "True"]
-nao = [r for r in cand if jornada[r["cliente"]]["fechou_provisorio"] != "True"]
-escolha = random.sample(fechou, min(N // 2, len(fechou))) + random.sample(nao, min(N - N // 2, len(nao)))
+if TODAS:
+    escolha = [r for r in reunioes if r["tem_transcricao"]]
+else:
+    cand = [r for r in reunioes if r["tem_transcricao"] and r["duracao_s"] and 1800 <= r["duracao_s"] <= 7200
+            and jornada.get(r["cliente"], {}).get("reunioes") in ("1", "2", "3", "4", "5")]
+    random.seed(20261017)
+    fechou = [r for r in cand if jornada[r["cliente"]]["fechou_provisorio"] == "True"]
+    nao = [r for r in cand if jornada[r["cliente"]]["fechou_provisorio"] != "True"]
+    escolha = random.sample(fechou, min(N // 2, len(fechou))) + random.sample(nao, min(N - N // 2, len(nao)))
 escolha.sort(key=lambda r: r["data"])
 
 linhas, chars = [], 0
 for i, r in enumerate(escolha, 1):
-    rid = f"R{i:03d}"
+    rid = f"C{i:04d}" if TODAS else f"R{i:03d}"
     nomes = {f: ("VENDEDOR" if norm(f) == VENDEDOR else mapa.get(norm(f), "PESSOA_X")) for f in r["falantes"]}
     corpo = "\n".join(f"{nomes.get(f['falante'], 'PESSOA_X')}: {f['texto']}" for f in r["falas"] if not f["texto"].rstrip().endswith("- Transcrição"))
     corpo = pseudonimizar(corpo, {k: v for k, v in nomes.items() if v != "VENDEDOR"})
@@ -86,7 +93,8 @@ for i, r in enumerate(escolha, 1):
     (P / "textos" / f"{rid}.txt").write_text(corpo, encoding="utf-8")
     chars += len(corpo)
     linhas.append({"id": rid, "cliente": r["cliente"], "arquivo": r["arquivo"], "data": r["data"], "tipo": r["tipo"],
-                   "duracao_min": round(r["duracao_s"] / 60), "fechou_provisorio": jornada[r["cliente"]]["fechou_provisorio"],
+                   "duracao_min": round((r["duracao_s"] or 0) / 60),
+                   "fechou_provisorio": jornada.get(r["cliente"], {}).get("fechou_provisorio", ""),
                    "chars": len(corpo)})
 with open(P / "selecao.csv", "w", encoding="utf-8-sig", newline="") as f:
     w = csv.DictWriter(f, list(linhas[0].keys()), delimiter=";")

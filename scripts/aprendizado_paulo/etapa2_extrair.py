@@ -5,21 +5,56 @@ descarta o item cuja citação não for encontrada (mesma disciplina do
 SALEIA: nunca fabricar evidência). Saídas em piloto/extracoes/<id>.json e
 piloto/revisao.csv (uma linha por item, para revisão humana).
 
-Uso: python -I etapa2_extrair.py <qtd ou ids separados por vírgula> [modelo]
+Uso: python -I etapa2_extrair.py <qtd, "todas" ou ids separados por vírgula> [modelo] [lote]
+lote: pasta em C:\\SALEIA_dados\\paulo (padrão "piloto"; "completo" = todas
+as reuniões, ver etapa2_preparar.py todas).
+
+Travas (21/10/2026 — a conta do DeepSeek é a mesma da produção): para de
+enviar se o saldo cair abaixo de SALDO_MINIMO_USD ou no horário de pico do
+DeepSeek (preço dobrado). Rodar de novo retoma: reunião já extraída é pulada.
 """
-import csv, json, re, sys, time, unicodedata
+import csv, json, re, sys, threading, time, unicodedata
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(Path(__file__).parent))
-from deepseek_util import chat_json  # noqa: E402
+from deepseek_util import chat_json, saldo  # noqa: E402
 
-P = Path(r"C:\SALEIA_dados\paulo\piloto")
+LOTE = sys.argv[3] if len(sys.argv) > 3 else "piloto"
+P = Path(r"C:\SALEIA_dados\paulo") / LOTE
 MODELO = sys.argv[2] if len(sys.argv) > 2 else "deepseek-v4-pro"
 EXTR = P / f"extracoes_{MODELO}"
 EXTR.mkdir(exist_ok=True)
+
+SALDO_MINIMO_USD = 8.0
+_trava = threading.Lock()
+_saldo_cache = {"valor": None, "em": 0.0}
+_parado = {"motivo": None}
+
+
+def em_pico(agora=None):
+    """Pico do DeepSeek: 01-04 e 06-10 UTC em dias úteis (preço dobrado)."""
+    agora = agora or datetime.now(timezone.utc)
+    return agora.weekday() < 5 and (1 <= agora.hour < 4 or 6 <= agora.hour < 10)
+
+
+def pode_enviar():
+    with _trava:
+        if _parado["motivo"]:
+            return False
+        if em_pico():
+            _parado["motivo"] = "horário de pico do DeepSeek"
+            return False
+        if time.time() - _saldo_cache["em"] > 30:
+            info = saldo()["balance_infos"][0]
+            _saldo_cache.update(valor=float(info["total_balance"]), em=time.time())
+        if _saldo_cache["valor"] < SALDO_MINIMO_USD:
+            _parado["motivo"] = f"saldo US$ {_saldo_cache['valor']:.2f} abaixo de US$ {SALDO_MINIMO_USD:.2f}"
+            return False
+        return True
 
 SISTEMA = """Você analisa a transcrição de uma reunião de vendas consultivas em português.
 VENDEDOR é o vendedor de referência da empresa. PESSOA_xxxx são clientes (nomes trocados por código).
@@ -188,6 +223,8 @@ def processar(rid):
     destino = EXTR / f"{rid}.json"
     if destino.exists():
         return rid, json.loads(destino.read_text(encoding="utf-8"))
+    if not pode_enviar():
+        return rid, None
     texto = (P / "textos" / f"{rid}.txt").read_text(encoding="utf-8")
     t0 = time.time()
     bruto, uso = chat_json(SISTEMA, "TRANSCRIÇÃO:\n" + texto, modelo=MODELO, max_tokens=32000)
@@ -276,11 +313,22 @@ def planilha_revisao(resultados):
 
 def main():
     arg = sys.argv[1]
-    todos = sorted(p.stem for p in (P / "textos").glob("R*.txt"))
-    ids = arg.split(",") if "," in arg or arg.startswith("R") else todos[:int(arg)]
+    todos = sorted(p.stem for p in (P / "textos").glob("*.txt"))
+    ids = (todos if arg == "todas" else arg.split(",") if "," in arg or arg[0] in "RC" else todos[:int(arg)])
     resultados = {}
+    falhas = []
+
+    def seguro(rid):
+        try:
+            return processar(rid)
+        except Exception as e:  # uma reunião ruim não derruba o lote; rodar de novo tenta outra vez
+            falhas.append(f"{rid}: {e}")
+            return rid, None
+
     with ThreadPoolExecutor(max_workers=5) as ex:
-        for rid, out in ex.map(processar, ids):
+        for rid, out in ex.map(seguro, ids):
+            if out is None:
+                continue
             resultados[rid] = out
             u = out["uso"]
             print(f"{rid}: {out['segundos']}s, entrada {u.get('prompt_tokens')} saída {u.get('completion_tokens')} "
@@ -294,7 +342,13 @@ def main():
     print(f"\nTOTAL {len(resultados)} reuniões | tokens entrada {tin} saída {tout} | "
           f"custo fora de pico ~US$ {tin / 1e6 * preco[0] + tout / 1e6 * preco[1]:.2f} | "
           f"citações verificadas {ok}, descartadas {desc} ({100 * desc / max(1, ok + desc):.1f}%)")
-    print("linhas na planilha de revisão:", planilha_revisao(resultados))
+    faltam = len(ids) - len(resultados)
+    if _parado["motivo"] or faltam:
+        print(f"PARADO: {_parado['motivo'] or 'falhas'} — {faltam} de {len(ids)} reuniões sem extração; rodar de novo retoma")
+    for f in falhas:
+        print("FALHA", f)
+    if resultados:
+        print("linhas na planilha de revisão:", planilha_revisao(resultados))
 
 
 main()

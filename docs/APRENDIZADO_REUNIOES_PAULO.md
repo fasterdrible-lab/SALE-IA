@@ -1,7 +1,8 @@
 # Aprendizado com as reuniões do Paulo (vendedor de referência)
 
-> Iniciado em 17/10/2026. Estado em 18/10/2026: Etapa 1 concluída, Etapa 2
-> em piloto (10 reuniões, v4). Scripts em `scripts/aprendizado_paulo/`.
+> Iniciado em 17/10/2026. Estado em 22/10/2026: Etapa 1 concluída, Etapa 2
+> (v4, Flash) rodada em **733 de 1.049** reuniões — parou na trava de saldo;
+> faltam 316 (~US$ 5,20). Scripts em `scripts/aprendizado_paulo/`.
 > **Os dados NÃO ficam no repositório** (ver Privacidade).
 
 ## Objetivo
@@ -244,18 +245,37 @@ Primeiro padrão observado: em 7 das 10 reuniões o Paulo não termina sem
 um horário combinado ("me dá sua palavra", "vou colocar 5 horas").
 Nenhuma das 10 fechou **durante** a reunião (pagamento vem depois).
 
+## Etapa 2 completa — 1ª rodada (21-22/10/2026)
+
+Usuário recarregou o DeepSeek (US$ 19,99). `etapa2_preparar.py todas`
+pseudonimizou as 1.049 reuniões com transcrição em
+`C:\SALEIA_dados\paulo\completo\` (ids `C0001`…, por data; 0 e-mails e 0
+"Pagoti" restantes). `etapa2_extrair.py todas deepseek-flash completo`:
+
+| | |
+|---|---|
+| Extraídas | **733** de 1.049 (`completo/extracoes_deepseek-flash/`) |
+| Custo real | **US$ 12,05** (saldo 19,99 → 7,94) ≈ US$ 0,016/reunião |
+| Citações descartadas pelo validador | 7,9% (37.592 ok, 3.237 fora) — a maioria o modelo "limpando" a fala ("cara", "uhum"); poucas paráfrases reais |
+| Planilha | `completo/revisao_deepseek-flash.csv`, 22.461 itens |
+| Falha | C0381 (JSON quebrado na resposta 3×) — entra na próxima rodada |
+| Parada | trava de saldo US$ 8 (conta da produção) |
+
+Travas novas no extrator: para abaixo de US$ 8 de saldo e no pico do
+DeepSeek (01-04 e 06-10 UTC, dias úteis); rodar de novo retoma pulando o
+que já foi extraído. Log: `completo/log_lote1.txt`.
+
 ## Custos
 
-Piloto inteiro (v1-v4 + diagnóstico): ~US$ 1,30. Saldo DeepSeek em 18/10:
-US$ 3,16 (crédito de compensação; mesma conta da produção — alerta abaixo
-de US$ 2).
+Piloto inteiro (v1-v4 + diagnóstico): ~US$ 1,30. Etapa 2 completa, 1ª
+rodada: US$ 12,05 (733 reuniões). Mesma conta da produção — alerta abaixo
+de US$ 2, trava do lote em US$ 8.
 
 ## Pendências (em ordem)
 
-> **Combinado com o usuário em 18/10/2026**: ele vai **recarregar o
-> DeepSeek**; com o saldo, rodar a **Etapa 2 (v4, Flash) nas 1.049 reuniões
-> com transcrição** (~US$ 18; conferir saldo antes e manter folga acima do
-> alerta de US$ 2, pois a conta é a mesma da produção). Foco da análise:
+> **22/10/2026**: 733 de 1.049 extraídas. Para fechar: recarregar ~US$ 6-8
+> no DeepSeek e rodar de novo o mesmo comando (retoma as 316 restantes).
+> Combinado em 18/10 (Etapa 2 nas 1.049, v4, Flash). Foco da análise:
 > como o Paulo **monta a oferta** (12x, bônus, sinal, "sincero sim ou não")
 > e como trata **"dinheiro curto"** — o que a 1ª comparação apontou e regra
 > de texto não alcança. Até lá, nada a fazer nesta frente.
@@ -285,6 +305,9 @@ python -I scripts/aprendizado_paulo/etapa1_paulo.py C:\SALEIA_dados\paulo <zip1>
 python -I scripts/aprendizado_paulo/etapa2_preparar.py 50
 python -I scripts/aprendizado_paulo/etapa2_extrair.py 10 deepseek-flash
 python -I scripts/aprendizado_paulo/regressao_auditoria.py
+# Etapa 2 em todas as reuniões (pasta completo/, retoma de onde parou)
+python -I scripts/aprendizado_paulo/etapa2_preparar.py todas
+python -I scripts/aprendizado_paulo/etapa2_extrair.py todas deepseek-flash completo
 ```
 
 Os scripts usam caminhos fixos em `C:\SALEIA_dados\paulo\` (dados) e o
