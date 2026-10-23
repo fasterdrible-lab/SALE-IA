@@ -21,10 +21,19 @@
   dias, 12x sem juros, boleto) — condição de pagamento supera 24,7% das
   objeções de dinheiro, as outras técnicas ≤ 12%. Bônus/sinal não se
   confirmam; garantia aparece mais quando não vende.
-- **Rascunho de fonte para a Biblioteca** (11 itens: regras, perguntas,
-  roteiros e um anti-padrão, com exemplos reais pseudonimizados), fora do
-  git em `C:\SALEIA_dados\paulo\biblioteca\`. Aguarda revisão do usuário
-  antes de subir como `PLAYBOOK` e aprovar item a item. Detalhe em
+- **Extrações × etapas do método** (`etapas_reuniao.py`, sem IA):
+  diagnóstico → apresentação → fechamento (antes/depois do investimento)
+  marcados pela fala do vendedor e conferidos numa amostra de 10; cada
+  item extraído cai numa etapa pela citação. Diagnóstico e apresentação
+  iguais em venda e não venda (a apresentação retoma 70% das dores do
+  cliente × 50% de placebo); o que separa é chegar ao investimento (74% ×
+  41% × 35%) e o combinado do "sincero sim ou não" no começo da
+  apresentação (31% × 17% × 12%). "Preciso falar com outra pessoa" depois
+  do preço quase nunca é superada na call.
+- **Fonte para a Biblioteca** (12 itens com a etapa de cada um, validados
+  pelo usuário em 23/10), fora do git em `C:\SALEIA_dados\paulo\biblioteca\`,
+  enviada como `PLAYBOOK` e compilada em produção; itens nascem DRAFT e só
+  entram na sugestão ao vivo depois de aprovados no Dashboard. Detalhe em
   `docs/APRENDIZADO_REUNIOES_PAULO.md`.
 
 ---

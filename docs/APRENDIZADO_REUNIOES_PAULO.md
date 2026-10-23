@@ -337,6 +337,75 @@ fechamento (que define o grupo "vendeu"), então não são prova de causa.
 Os grupos vêm de sinais, não da lista oficial. A taxa por técnica não
 depende dos grupos, mas a técnica é rótulo da IA (não revisado).
 
+## Extrações × etapas do método (23/10/2026, provisório, sem IA)
+
+Método da empresa (definido pelo usuário): **1. Diagnóstico** (entender o
+cenário, perguntas que fazem o lead enxergar necessidade e urgência,
+"fechar todas as portas" antes da solução) → **2. Apresentação** (conectar
+o projeto ao que o próprio cliente trouxe) → **3. Fechamento** (amarração
+antes do investimento + quebra de objeção depois: "vou pensar", "preciso
+falar com outra pessoa").
+
+`etapas_reuniao.py` marca as etapas em cada transcrição pela fala do
+vendedor e localiza cada item extraído pela citação. Saídas (fora do git):
+`etapas_reunioes.csv`, `etapas_amostra.txt`, `etapas_analise.json`,
+`etapas_exemplos_fechamento.csv` (203 objeções não financeiras depois do
+preço, superadas/parciais).
+
+| Corte | Marcador | Cobertura |
+|---|---|---|
+| Fim do diagnóstico | 1ª recapitulação / "vou compartilhar a tela" depois de 15% | 898 de 1.049 (mediana 41% da reunião) — **10/10 certos na amostra** |
+| Investimento | 1ª oferta com valor ou condição (12x, sem juros, "entrada de R$") | 505 (mediana 77%) |
+| Fechamento antes do investimento | última amarração na reta final antes do preço ("se eu conseguir encaixar, a gente avança") | 79 |
+| Combinado do "sincero sim ou não" | amarração no começo da apresentação ("no final quero contar com o sincero sim ou não") | medido à parte |
+
+A 1ª versão errava dois cortes (corrigidos e conferidos de novo na
+amostra): tomava o combinado do sim ou não por fechamento, e "o
+investimento é baseado no retorno" / "10 vezes a mais" por oferta.
+
+**Etapa 1 — Diagnóstico**
+- Mistura de perguntas **igual** em venda e não venda (1ª reunião de cada
+  cliente): ~50% situação, ~18% problema, **~10% implicação**, ~22%
+  necessidade de solução; resposta do cliente atende em 67%. A IA guardou
+  até 12 perguntas por reunião, então é amostra das perguntas.
+- "Fechar as portas" (pergunta do vendedor no diagnóstico × a objeção que
+  ela deveria evitar depois, 505 reuniões com diagnóstico e preço):
+
+  | Porta | Perguntou | Objeção depois | Não perguntou | Objeção depois |
+  |---|---|---|---|---|
+  | Decisor (esposa, sócio, "decide sozinho?") | 102 | 29% | 403 | 18% |
+  | Investimento / orçamento | 246 | 85% | 259 | 74% |
+  | Urgência ("por que agora?", "o que acontece se nada mudar?") | 50 | **12%** | 455 | 20% |
+
+  Decisor e investimento: quem perguntou teve **mais** objeção. Provável
+  causa invertida — o vendedor pergunta quando o cliente já deu sinal
+  (cita esposa, fala de dinheiro). A regra de texto vê se perguntou, não
+  se a porta **fechou** (cliente responde "a decisão é minha"). Urgência
+  vai na direção esperada, mas com só 50 reuniões. **Ainda não dá para
+  afirmar** que fechar portas reduz objeção; precisa olhar a resposta do
+  cliente.
+
+**Etapa 2 — Apresentação (conexão com o diagnóstico)**
+- Das dores/objetivos que o cliente disse no diagnóstico, o vendedor
+  retoma depois **70%** (mediana) × **50%** do placebo (dores de outra
+  reunião contra a mesma apresentação): **+20 pontos de personalização
+  real**. Margem parecida nos grupos (vendeu 80 × 62,5; adiou 67 × 50;
+  sem sinal 57 × 43) — o Paulo personaliza sempre; não é o que separa.
+
+**Etapa 3 — Fechamento**
+- Chegou ao investimento: vendeu **74%** × adiou 41% × sem sinal 35%.
+- **Combinado do "sincero sim ou não" no começo da apresentação**, entre
+  as que chegaram ao preço: vendeu **31%** × adiou 17% × sem sinal 12%.
+- Amarração logo antes do preço: 16% × 21% × 13% — **não separa**.
+- Objeções de risco ("e se não der resultado?") e confiança aparecem
+  mais no diagnóstico e na apresentação; as de dinheiro, depois do preço.
+- Depois do preço, "preciso falar com outra pessoa" (75) e "agora não /
+  vou pensar" (66) **quase nunca são superadas na call**: envolver o
+  decisor 0 de 31 superadas (10 não); urgência 3 de 19 (7 não). A única
+  que resolve "agora não" com alguma frequência é condição de pagamento
+  (3 de 9, nenhuma não superada). Risco depois do preço respondido com
+  garantia: 1 de 49.
+
 ## Custos
 
 Piloto inteiro (v1-v4 + diagnóstico): ~US$ 1,30. Etapa 2 completa, 1ª
@@ -349,7 +418,9 @@ por padrão (`SALDO_MINIMO_USD`).
 > **23/10/2026**: Etapa 2 concluída (1.049 de 1.049) e 1ª leitura dos
 > padrões feita (seção acima). **Rascunho da fonte para a Biblioteca
 > pronto**: `C:\SALEIA_dados\paulo\biblioteca\paulo_oferta_e_dinheiro_curto.md`
-> (11 itens, um por `##`, com exemplos reais pseudonimizados — fora do
+> (11 itens validados pelo usuário em 23/10 + 1 novo das etapas, o
+> combinado do "sincero sim ou não", aguardando validação; cada item com
+> a linha `Etapa:`; um por `##`, exemplos reais pseudonimizados — fora do
 > git). Fluxo: usuário revisa → Dashboard → Biblioteca → enviar como
 > `PLAYBOOK` → extrair → compilar (IA, 11 seções) → aprovar item a item
 > (só `APPROVED` entra na sugestão ao vivo). Precisa de

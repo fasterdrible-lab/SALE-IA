@@ -12,7 +12,13 @@ igual em venda e não venda; o que separa é **chegar ao preço** (77% ×
 à restrição real do cliente (entrada no limite do cartão, recorrente/30
 dias, 12x sem juros, boleto) — condição de pagamento supera 24,7% das
 objeções de dinheiro, as demais técnicas ≤ 12%. Bônus/sinal não se
-confirmam; garantia aparece mais quando não vende. O conhecimento
+confirmam; garantia aparece mais quando não vende. **Por etapa do método**
+(`etapas_reuniao.py`, 23/10): diagnóstico com a mesma mistura de
+perguntas em venda e não venda; apresentação retoma 70% das dores do
+cliente (placebo 50%), igual nos grupos; o que separa no fechamento é
+chegar ao investimento e o combinado do "sincero sim ou não" no começo da
+apresentação (31% × 17% × 12%); "preciso falar com outra pessoa" depois
+do preço quase nunca é superada na call. O conhecimento
 **ainda não está no produto**. Próximo: itens da Biblioteca "pendentes"
 com exemplos revisados, lista real de compradores — detalhe em
 `docs/APRENDIZADO_REUNIOES_PAULO.md`.
