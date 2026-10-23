@@ -1,5 +1,18 @@
 # SALEIA - Estado Atual
 
+## 23/10/2026 (noite) — C4: 1ª medição real da qualidade da recomendação
+
+200 objeções reais das reuniões do Paulo, sugestão da SALEIA gerada pelo
+código de produção e comparada por IA juíza com o que o Paulo fez:
+**"mesma estratégia ou melhor" nas objeções que ele superou = coach
+(sidebar) 40%, motor (Piloto) 27%**. As duas investigam onde ele resolve;
+o coach inventa condição comercial em 10,5%; o motor fica fora de
+contexto em 43%. **Piloto (C6) não deve começar** — o motor é pior que o
+coach atual. `/admin/readiness` com `recommendation_quality` = 0,27 real.
+**Alvo a decidir pelo usuário.** Detalhe na C4 de
+`docs/tasks-prompt-mestre-v2-restante.md`. Biblioteca: fonte id 2 com 48
+itens DRAFT aguardando aprovação.
+
 ## 23/10/2026 — Aprendizado com as reuniões do Paulo: Etapa 2 concluída
 
 Extração com IA (DeepSeek Flash, v4) feita nas **1.049 de 1.049**

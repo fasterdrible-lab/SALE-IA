@@ -225,6 +225,42 @@ Pedido original da C8:
   (vendedor de referência, 985 com transcrição) como gabarito. Em
   andamento: `docs/APRENDIZADO_REUNIOES_PAULO.md` (Etapa 1 feita, Etapa 2
   em piloto; falta a lista de quem comprou e a revisão humana).
+- **1ª MEDIÇÃO REAL — 23/10/2026** (métrica definida; **alvo ainda a
+  decidir pelo usuário**). 200 objeções reais das reuniões do Paulo
+  (100 superadas, 50 parciais, 50 não superadas; 179 reuniões), conversa
+  cortada antes da resposta dele. Sugestão gerada na VPS pelo código da
+  produção — **coach** (`analisar_coach`, o que a sidebar mostra, com o
+  mesmo RAG do orquestrador) e **motor** (`raciocinar_async`, o do
+  Piloto, entrada do Golden Dataset) — sem passar pelo orquestrador (não
+  grava RecommendationEvent). IA juíza (DeepSeek Flash) compara com a
+  resposta real e o desfecho. Custo total ~US$ 1,55.
+
+  | | coach (sidebar) | motor (Piloto) |
+  |---|---|---|
+  | **Mesma estratégia ou melhor, nas superadas** (métrica C4) | **40%** | **27%** |
+  | … dinheiro / outras | 44 / 36% | 26 / 28% |
+  | Endereçou a objeção (sim / parcial / não) | 42 / 42 / 15% | 38 / 40 / 22% |
+  | Pior que o vendedor (todas) | 57% | 66% |
+  | Repete a estratégia que falhou (não superadas) | 14% | 8% |
+  | Risco: promessa/dado inventado | **10,5%** | 3,5% |
+  | Risco: fora de contexto | 18,5% | **43%** |
+  | Técnica sugerida = pergunta de aprofundamento | 50% | 72% |
+
+  Leitura (conferida em 12 julgamentos lidos à mão — a juíza é justa e
+  específica): as duas sugerem **investigar mais** onde o Paulo
+  **resolve** (condição de pagamento concreta, prova, remarcar); o coach
+  inventa condição que não existe ("mensalidade de R$ 1.000", "garantia
+  em contrato") por não conhecer a política comercial; o motor volta à
+  descoberta com o cliente pronto para fechar. **O motor é pior que o
+  coach atual → C6 (Piloto) não deve começar.** Registrado em
+  `/admin/readiness` (`recommendation_quality` = 0,27, motor; coach 0,40
+  no detalhe). Scripts: `scripts/aprendizado_paulo/c4_montar_momentos.py`,
+  `scripts/c4_paulo_sugestoes.py` (VPS), `scripts/aprendizado_paulo/c4_julgar.py`;
+  dados em `C:\SALEIA_dados\paulo\c4\` (fora do git). Cuidados: a juíza
+  sabe o que o Paulo fez (tende a favorecer o caminho dele — mas achou
+  a sugestão melhor que ele em 70-76% das não superadas); itens da
+  Biblioteca do Paulo aprovados depois desta data entram no contexto do
+  coach e saem das mesmas reuniões (medir com reuniões separadas).
 ### C5 — Retroalimentar insights no raciocínio
 - Hoje só `historical_patterns` filtrado por estágio chega ao motor.
   Incluir estratégias com efetividade comprovada (B2) quando houver

@@ -3,6 +3,26 @@
 
 ---
 
+## Ferramentas (sem versão) — C4: 1ª medição real da qualidade da recomendação
+
+> Data: 23/10/2026 | Sem mudança no servidor nem na extensão (script de medição na VPS)
+
+- **Métrica definida**: "mesma estratégia ou melhor que o vendedor de
+  referência, nas objeções que ele superou", por IA juíza, sobre 200
+  momentos reais das reuniões do Paulo (`c4_montar_momentos.py`).
+- `scripts/c4_paulo_sugestoes.py`: gera a sugestão pelo código de produção
+  (coach da sidebar com o mesmo RAG; motor do Piloto como no Golden
+  Dataset) sem passar pelo orquestrador — não grava RecommendationEvent;
+  chamadas marcadas `c4_paulo:<id>`. `c4_julgar.py`: juíza DeepSeek Flash
+  com travas de pico e saldo (800 tokens deixava 46% das respostas vazias;
+  subiu para 8.000).
+- Resultado: coach 40%, motor 27%; coach inventa condição comercial em
+  10,5%, motor fora de contexto em 43%. Piloto não deve começar.
+  `recommendation_quality` = 0,27 (real) no `/admin/readiness`; alvo a
+  decidir. Custo ~US$ 1,55.
+
+---
+
 ## Ferramentas (sem versão) — Reuniões do Paulo: Etapa 2 concluída + padrões das vendas
 
 > Data: 22-23/10/2026 | Sem mudança no servidor nem na extensão
