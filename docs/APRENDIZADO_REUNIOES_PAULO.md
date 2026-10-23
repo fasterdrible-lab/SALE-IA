@@ -406,10 +406,31 @@ investimento é baseado no retorno" / "10 vezes a mais" por oferta.
   (3 de 9, nenhuma não superada). Risco depois do preço respondido com
   garantia: 1 de 49.
 
+## Gabarito da C4 — qualidade da recomendação (23/10/2026)
+
+As reuniões do Paulo viraram o gabarito da Tarefa C4: 200 objeções reais
+(100 superadas, 50 parciais, 50 não superadas), conversa cortada antes da
+resposta dele, sugestão gerada pelo código de produção e comparada por IA
+juíza. **Mesma estratégia ou melhor, nas superadas: coach (sidebar) 40%,
+motor (Piloto) 27%.** As duas investigam onde o Paulo resolve com
+condição concreta; o coach inventa condição comercial (10,5%); o motor
+volta à descoberta com o cliente pronto (43% fora de contexto). Detalhe,
+tabela e cuidados na C4 de `docs/tasks-prompt-mestre-v2-restante.md`.
+
+Liga com o resto deste documento: os padrões achados aqui (ajustar o
+pagamento à restrição real, amarração, combinado do sim ou não) são
+exatamente o que falta nas sugestões. Próximo passo proposto: aprovar os
+itens da Biblioteca (já entram no contexto do coach), dar ao coach as
+condições comerciais reais e remedir **com reuniões que não geraram os
+itens** (senão a nota infla). Alvo da métrica: decisão do usuário
+(sugestão: ≥ 60% e ≤ 2% de condição inventada antes do Piloto).
+
 ## Custos
 
 Piloto inteiro (v1-v4 + diagnóstico): ~US$ 1,30. Etapa 2 completa, 1ª
 rodada: US$ 12,05 (733 reuniões); 2ª + 3ª: ~US$ 5,50 (316 reuniões).
+Biblioteca (compilação de 13 seções): ~US$ 0,003. C4 (1.000 chamadas de
+geração na VPS + 400 da juíza): ~US$ 1,55.
 Mesma conta da produção — alerta abaixo de US$ 2, trava do lote em US$ 8
 por padrão (`SALDO_MINIMO_USD`).
 
