@@ -421,10 +421,17 @@ por padrão (`SALDO_MINIMO_USD`).
 > (11 itens validados pelo usuário em 23/10 + 1 novo das etapas, o
 > combinado do "sincero sim ou não", aguardando validação; cada item com
 > a linha `Etapa:`; um por `##`, exemplos reais pseudonimizados — fora do
-> git). Fluxo: usuário revisa → Dashboard → Biblioteca → enviar como
-> `PLAYBOOK` → extrair → compilar (IA, 11 seções) → aprovar item a item
-> (só `APPROVED` entra na sugestão ao vivo). Precisa de
-> `KNOWLEDGE_COMPILER_ENABLED=true` na VPS.
+> git). **Em produção desde 23/10**: fonte **id 2** ("Paulo — oferta,
+> dinheiro curto e fechamento", `PLAYBOOK`), enviada pela VPS com os
+> mesmos passos do Dashboard; 13 seções compiladas (~US$ 0,003) em **48
+> itens DRAFT** (ids 1-48: 10 regras, 10 roteiros, 10 casos, 8 objeções,
+> 8 perguntas, 2 anti-padrões — a IA quebrou cada seção em partes). Falta
+> o usuário aprovar no Dashboard → Biblioteca (só `APPROVED` entra na
+> sugestão ao vivo). Pontos de revisão: pares quase iguais (47/48, 29/30,
+> 43/46), #3 (a "evidência" virou caso — rejeitar), #39 (título diz
+> "antes de encerrar o diagnóstico"; o certo é "antes de encerrar a
+> reunião"), #41 ("se é de confiança, use garantia" — os dados não
+> mostram garantia resolvendo confiança: 2 de 19 depois do preço).
 
 1. **Lista de quem comprou** (nome + se comprou + data; telefone/e-mail
    ajuda) — o usuário vai pedir ao responsável. Sem ela não dá para
