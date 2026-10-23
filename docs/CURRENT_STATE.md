@@ -1,5 +1,22 @@
 # SALEIA - Estado Atual
 
+## 23/10/2026 — Aprendizado com as reuniões do Paulo: Etapa 2 concluída
+
+Extração com IA (DeepSeek Flash, v4) feita nas **1.049 de 1.049**
+reuniões em 3 rodadas (21-23/10, ~US$ 17 no total; saldo após: US$ 7,19).
+31.251 itens com citação verificada em
+`C:\SALEIA_dados\paulo\completo\revisao_deepseek-flash.csv` (fora do git).
+**Padrões (provisórios, `padroes_vendeu.py`, sem IA)**: a descoberta é
+igual em venda e não venda; o que separa é **chegar ao preço** (77% ×
+~50%) e **resolver "dinheiro curto" com estrutura de pagamento** ajustada
+à restrição real do cliente (entrada no limite do cartão, recorrente/30
+dias, 12x sem juros, boleto) — condição de pagamento supera 24,7% das
+objeções de dinheiro, as demais técnicas ≤ 12%. Bônus/sinal não se
+confirmam; garantia aparece mais quando não vende. O conhecimento
+**ainda não está no produto**. Próximo: itens da Biblioteca "pendentes"
+com exemplos revisados, lista real de compradores — detalhe em
+`docs/APRENDIZADO_REUNIOES_PAULO.md`.
+
 ## 21/10/2026 — migração de VPS (leia primeiro)
 
 | Item | Estado |

@@ -1,8 +1,8 @@
 # Aprendizado com as reuniões do Paulo (vendedor de referência)
 
-> Iniciado em 17/10/2026. Estado em 22/10/2026: Etapa 1 concluída, Etapa 2
-> (v4, Flash) rodada em **733 de 1.049** reuniões — parou na trava de saldo;
-> faltam 316 (~US$ 5,20). Scripts em `scripts/aprendizado_paulo/`.
+> Iniciado em 17/10/2026. Estado em 23/10/2026: Etapa 1 concluída, **Etapa 2
+> (v4, Flash) concluída nas 1.049 reuniões** (3 rodadas, ~US$ 17). Próximo:
+> achar os padrões das vendas. Scripts em `scripts/aprendizado_paulo/`.
 > **Os dados NÃO ficam no repositório** (ver Privacidade).
 
 ## Objetivo
@@ -265,20 +265,95 @@ Travas novas no extrator: para abaixo de US$ 8 de saldo e no pico do
 DeepSeek (01-04 e 06-10 UTC, dias úteis); rodar de novo retoma pulando o
 que já foi extraído. Log: `completo/log_lote1.txt`.
 
+### 2ª e 3ª rodadas (22-23/10/2026) — Etapa 2 concluída
+
+| Rodada | Trava de saldo | Reuniões | Log |
+|---|---|---|---|
+| 2ª (22/10) | US$ 3 | 733 → 1.020 (parou com saldo US$ 2,90) | `completo/log_lote2.txt` |
+| 3ª (23/10, 12:35 UTC, após recarga) | US$ 5 | 1.020 → **1.049** (C0381 incluída; 0 falhas) | `completo/log_lote3.txt` |
+
+Total das 1.049: 51.941 citações verificadas, 5.763 descartadas (10,0%);
+custo estimado fora de pico ~US$ 16,81 (3ª rodada: saldo 7,68 → 7,19).
+Planilha `completo/revisao_deepseek-flash.csv` com **31.251 itens**.
+
+## Padrões das vendas sobre a Etapa 2 (23/10/2026, provisório, sem IA)
+
+`padroes_vendeu.py` lê as 1.049 extrações e cruza com os grupos de
+`sinais_venda.py` (não a lista oficial). Saídas (fora do git):
+`padroes_vendeu.json` e `padroes_vendeu_exemplos.csv` (741 objeções de
+dinheiro superadas/parciais com a resposta do Paulo, superadas primeiro).
+
+**Por cliente** (1ª reunião extraída ≥ 30 min; vendeu 321, adiou/recusou
+142, sem sinal 263):
+
+| | vendeu | adiou/recusou | sem sinal |
+|---|---|---|---|
+| Apresentou o preço | **77%** | 52% | 47% |
+| *Se apresentou:* 12x / sem juros | **78%** | 62% | 59% |
+| … entrada | **68%** | 53% | 49% |
+| … Pix / cartão recorrente / restante em 30 dias | **39 / 34 / 35%** | 32 / 28 / 27% | 28 / 25 / 26% |
+| … bônus / sinal / desconto | 14 / 12 / 21% | 14 / 12 / 20% | 11 / 5 / 16% |
+| … garantia | 22% | **30%** | 21% |
+| Teve objeção de dinheiro | 78% | 66% | 70% |
+| ↳ superada / não superada | **20% / 8%** | 4% / 25% | 4% / 17% |
+| Fechamento: pedido direto / urgência | 79 / 61% | 62 / 52% | 54 / 36% |
+| Dores, objeções, perguntas de descoberta (medianas) | 5 / 3 / 10 | 5 / 3 / 10 | 5 / 3 / 10 |
+| Resposta do cliente atende à pergunta | 65% | 65% | 65% |
+
+**Objeções de dinheiro em todas as reuniões — técnica × desfecho**
+(desfecho só com fala do cliente depois, validador da v4):
+
+| Técnica do Paulo | n | Superada, entre as com reação clara |
+|---|---|---|
+| **condição de pagamento** | 495 | **24,7%** |
+| outra | 146 | 11,7% |
+| garantia | 46 | 9,1% (e a maior taxa de "não superada": 15 de 44) |
+| reformular valor | 184 | 8,2% |
+| prova social, comparação de custo, isolar, aprofundar, empatia | 24-55 cada | 2-8% |
+
+**O que isso diz (associação, não causa):**
+- **A descoberta não separa venda de não venda**: mesmas dores,
+  perguntas e qualidade de resposta nos três grupos. A diferença está
+  **na oferta**.
+- **Chegar ao preço** é o maior separador (77% × ~50%).
+- **"Dinheiro curto" se resolve com estrutura de pagamento, não com
+  argumento.** Lendo as 136 superadas, o Paulo **ajusta a oferta à
+  restrição real do cliente**: entrada que cabe no limite do cartão,
+  restante no recorrente ou em 30 dias, fechar no dia em que o cartão
+  vira, boleto quando a empresa só paga boleto, entrada mínima + 12x sem
+  juros. Desconto aparece pouco e no fim, perto do piso.
+- **Amarração antes de ceder**: "se a gente chegar nesses 18 em 12x, a
+  gente starta?" e teste de capacidade antes do preço ("você consegue
+  honrar R$ 1.500 por um, dois meses?").
+- **Bônus e sinal não se confirmam** como diferencial: a 1ª comparação
+  (regex em toda a fala do Paulo) via 56% × 41% de bônus; nas condições
+  que a IA extraiu da oferta, a diferença some. Bônus provavelmente
+  aparece no pitch, não como condição.
+- **Garantia vem mais quando não vende** e é a resposta que menos supera
+  objeção de dinheiro. Provável sinal de que a objeção era de confiança.
+
+**Cuidados**: "superada" e "pedido direto" se misturam com o próprio
+fechamento (que define o grupo "vendeu"), então não são prova de causa.
+Os grupos vêm de sinais, não da lista oficial. A taxa por técnica não
+depende dos grupos, mas a técnica é rótulo da IA (não revisado).
+
 ## Custos
 
 Piloto inteiro (v1-v4 + diagnóstico): ~US$ 1,30. Etapa 2 completa, 1ª
-rodada: US$ 12,05 (733 reuniões). Mesma conta da produção — alerta abaixo
-de US$ 2, trava do lote em US$ 8.
+rodada: US$ 12,05 (733 reuniões); 2ª + 3ª: ~US$ 5,50 (316 reuniões).
+Mesma conta da produção — alerta abaixo de US$ 2, trava do lote em US$ 8
+por padrão (`SALDO_MINIMO_USD`).
 
 ## Pendências (em ordem)
 
-> **22/10/2026**: 733 de 1.049 extraídas. Para fechar: recarregar ~US$ 6-8
-> no DeepSeek e rodar de novo o mesmo comando (retoma as 316 restantes).
-> Combinado em 18/10 (Etapa 2 nas 1.049, v4, Flash). Foco da análise:
-> como o Paulo **monta a oferta** (12x, bônus, sinal, "sincero sim ou não")
-> e como trata **"dinheiro curto"** — o que a 1ª comparação apontou e regra
-> de texto não alcança. Até lá, nada a fazer nesta frente.
+> **23/10/2026**: Etapa 2 concluída (1.049 de 1.049) e 1ª leitura dos
+> padrões feita (seção acima). **Rascunho da fonte para a Biblioteca
+> pronto**: `C:\SALEIA_dados\paulo\biblioteca\paulo_oferta_e_dinheiro_curto.md`
+> (11 itens, um por `##`, com exemplos reais pseudonimizados — fora do
+> git). Fluxo: usuário revisa → Dashboard → Biblioteca → enviar como
+> `PLAYBOOK` → extrair → compilar (IA, 11 seções) → aprovar item a item
+> (só `APPROVED` entra na sugestão ao vivo). Precisa de
+> `KNOWLEDGE_COMPILER_ENABLED=true` na VPS.
 
 1. **Lista de quem comprou** (nome + se comprou + data; telefone/e-mail
    ajuda) — o usuário vai pedir ao responsável. Sem ela não dá para
@@ -289,10 +364,11 @@ de US$ 2, trava do lote em US$ 8.
    e `sinais_venda.py` de novo com os documentos novos.
 2. **Revisão humana** da amostra `piloto/REVISAR_amostra_v4.csv` (coluna
    "CORRETO?" S/N/parcial) — critério para rodar todas: ≥ 90%.
-3. **Recarregar o DeepSeek** (US$ 15-20) antes de rodar as 985.
+3. ~~Recarregar o DeepSeek~~ — feito (21/10 e 23/10).
 4. **Documentos fora do download** — Takeout ou conector do Drive.
-5. Depois: rodar as 985 (Flash), cruzar com a lista de compradores,
-   achar os padrões que distinguem vendas, transformar em itens da
+5. ~~Rodar todas (Flash)~~ — feito 23/10 (1.049); ~~padrões com a lista
+   provisória~~ — feito 23/10. Falta: refazer com a lista oficial
+   (`python -I scripts/aprendizado_paulo/padroes_vendeu.py`), transformar em itens da
    Biblioteca "pendentes" para aprovação, usar na sugestão ao vivo e
    como gabarito da C4.
 

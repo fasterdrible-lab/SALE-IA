@@ -17,6 +17,7 @@ import csv, json, re, sys, threading, time, unicodedata
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+from os import environ
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -29,7 +30,7 @@ MODELO = sys.argv[2] if len(sys.argv) > 2 else "deepseek-v4-pro"
 EXTR = P / f"extracoes_{MODELO}"
 EXTR.mkdir(exist_ok=True)
 
-SALDO_MINIMO_USD = 8.0
+SALDO_MINIMO_USD = float(environ.get("SALDO_MINIMO_USD", "8"))
 _trava = threading.Lock()
 _saldo_cache = {"valor": None, "em": 0.0}
 _parado = {"motivo": None}

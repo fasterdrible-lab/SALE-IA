@@ -3,6 +3,32 @@
 
 ---
 
+## Ferramentas (sem versão) — Reuniões do Paulo: Etapa 2 concluída + padrões das vendas
+
+> Data: 22-23/10/2026 | Sem mudança no servidor nem na extensão
+
+- **Etapa 2 concluída nas 1.049 reuniões** (DeepSeek Flash, v4): 2ª rodada
+  em 22/10 (733 → 1.020) e 3ª em 23/10 após recarga (→ 1.049, 0 falhas,
+  C0381 incluída). Total ~US$ 17; 51.941 citações verificadas, 10%
+  descartadas; planilha de revisão com 31.251 itens (fora do git).
+  `etapa2_extrair.py`: trava de saldo configurável por
+  `SALDO_MINIMO_USD` (padrão continua US$ 8; a conta é a da produção).
+- **Padrões das vendas** (`scripts/aprendizado_paulo/padroes_vendeu.py`,
+  sem IA, provisório — grupos pelos sinais, não pela lista oficial):
+  descoberta igual em venda e não venda; o que separa é chegar ao preço
+  (77% × ~50%) e resolver "dinheiro curto" ajustando a estrutura do
+  pagamento à restrição real (entrada no limite do cartão, recorrente/30
+  dias, 12x sem juros, boleto) — condição de pagamento supera 24,7% das
+  objeções de dinheiro, as outras técnicas ≤ 12%. Bônus/sinal não se
+  confirmam; garantia aparece mais quando não vende.
+- **Rascunho de fonte para a Biblioteca** (11 itens: regras, perguntas,
+  roteiros e um anti-padrão, com exemplos reais pseudonimizados), fora do
+  git em `C:\SALEIA_dados\paulo\biblioteca\`. Aguarda revisão do usuário
+  antes de subir como `PLAYBOOK` e aprovar item a item. Detalhe em
+  `docs/APRENDIZADO_REUNIOES_PAULO.md`.
+
+---
+
 ## Ferramentas (sem versão) — Aprendizado com as reuniões do Paulo + C3 2ª rodada
 
 > Data: 17-18/10/2026 | Sem mudança no servidor nem na extensão
