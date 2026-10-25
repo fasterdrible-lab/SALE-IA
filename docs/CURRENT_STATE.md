@@ -1,6 +1,19 @@
 # SALEIA - Estado Atual
 
-## 25/10/2026 — URGENTE: legenda do Meet não é lida desde 21/10
+## 25/10/2026 (17:40 UTC) — CORREÇÃO: a legenda do Meet é lida; causa era o botão "API desligada"
+
+Teste real do usuário (sessão 567, `pea-uiwd-odp`, ext 1.4.37): no 1º
+teste nada chegou ao servidor e o popup mostrava **"API desligada"**;
+ligado o botão + F5, chegaram `/iniciar-sessao` e 3 `/tempo-real`, 207
+caracteres e 4 análises. **A hipótese "o Google mudou a legenda do Meet"
+(abaixo) estava errada.** Para 21-23/10 a explicação mais provável é o
+mesmo botão desligado depois de a sessão abrir (o `/iniciar-sessao` sai
+no carregamento da página; desligar depois bloqueia só o `/tempo-real`).
+O botão desliga tudo em silêncio — candidato a aviso visível na barra
+lateral. A repetição de 19-20/10 (teto de 2 milhões) segue sem
+explicação/trava.
+
+## 25/10/2026 — (superado acima) legenda do Meet não é lida desde 21/10
 
 - **Desde 21/10 (entre 02:17 e 13:02 UTC, antes da troca de VPS) nenhum
   `/tempo-real` chega ao servidor.** Sessões 556-566 (21-23/10, reuniões
