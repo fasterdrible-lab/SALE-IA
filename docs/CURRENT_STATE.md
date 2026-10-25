@@ -1,5 +1,21 @@
 # SALEIA - Estado Atual
 
+## 25/10/2026 (noite) — Passo 8: D7 agendado; A9/D10 decididos; B6 adiada
+
+- **D7 (teste de carga)**: ferramenta em `scripts/loadtest/` (instância
+  isolada na porta 8010, banco `saleia_loadtest`, IA falsa na 8099 com o
+  atraso real do DeepSeek, trava que para se uma reunião real começar,
+  desmonta tudo no fim). 2 testes mínimos (2 reuniões, 1 min) OK na VPS:
+  limpeza conferida, produção intacta; 11,8 chamadas de IA por reunião
+  por minuto (produção 14,2); `/tempo-real` com mediana 13 s já com 2
+  reuniões. **Rodada completa agendada**: timer transitório
+  `saleia-d7-carga` em **26/10 04:00 UTC** (10/50/100 reuniões × 5 min);
+  relatório em `/root/loadtest/d7_20261026_0400.json` (+ `.log` e avisos
+  do app).
+- **A9** fora de escopo por enquanto; **D10** não mover
+  (`agent/*_rules.py` é a camada de domínio); **B6** adiada até haver
+  oportunidades com resultado.
+
 ## 25/10/2026 (noite) — V.1.4.190: trava contra a transcrição repetida (EM PRODUÇÃO)
 
 Deploy `dd4e257` por bundle com `reunioes_ativas: 0`, `NRestarts=0`,
