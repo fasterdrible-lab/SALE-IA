@@ -1,5 +1,30 @@
 # SALEIA - Estado Atual
 
+## 25/10/2026 — URGENTE: legenda do Meet não é lida desde 21/10
+
+- **Desde 21/10 (entre 02:17 e 13:02 UTC, antes da troca de VPS) nenhum
+  `/tempo-real` chega ao servidor.** Sessões 556-566 (21-23/10, reuniões
+  de até 2h30): 0 caracteres de transcrição, 0 análises, relatório
+  "pulado"; nginx da VPS nova sem nenhum `/tempo-real`, mas com
+  `/iniciar-sessao`, `/encerrar-sessao` e gravação de áudio normais
+  (~4.000 blocos em 23/10). Vendedores sem sugestão nessas reuniões.
+- Causa provável: a extensão (1.4.37) não lê a legenda — `enviarParaBackend`
+  só envia com ≥ 20 caracteres lidos; o botão "API ativa" estava ligado
+  (o `/iniciar-sessao`, que também depende dele, chegou). Hipótese: o
+  Google mudou o HTML da legenda do Meet. **Falta o HTML real da legenda
+  atual + Console (F12, filtro `SALEIA`) numa reunião** para corrigir
+  (`tests/js/test_legenda_meet.js` tem o padrão de fixture).
+- **19-20/10, antes de parar**: sessões 548-550 e 553 (reuniões reais do
+  Paulo) com a transcrição repetindo falas antigas até o teto de 2
+  milhões de caracteres (até 800 análises numa reunião de 3 h);
+  relatórios com erro (`DataError`/`HTTPException`). Provavelmente a
+  mesma mudança do Meet começando.
+- Por isso não há objeções (B4) depois de 19/10.
+- OpenTelemetry: envio desligado em 25/10 ~11:25 UTC
+  (`OTEL_EXPORTER_OTLP_ENDPOINT` comentado no `.env`, backup
+  `.env.bak_otel_off_20261025_112500`) até chegar token novo do Grafana.
+- Visto de passagem: `/biblioteca/fontes/3/compilar` deu 504 em 25/10.
+
 ## 25/10/2026 — B3: pipeline analítico (V.1.4.189, EM PRODUÇÃO)
 
 Sales Science passa a ser pré-calculada de hora em hora por um timer
