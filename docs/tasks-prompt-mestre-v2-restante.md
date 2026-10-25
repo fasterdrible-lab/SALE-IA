@@ -610,6 +610,13 @@ explícita, uma de cada vez — mesma disciplina de todo o roadmap.
   (Sales Science + analyzer + engine) e 39 OK (SalesEvidence + E2E).
   Restante do passo 7: **B5** (depende de P2/P3 — oportunidades com
   resultado), **C5**, e **C6** bloqueado pela C4.
+- **25/10/2026 — B3 + passo 8**: B3 em produção (V.1.4.189, latência
+  igual com o job). Passo 8: D7 com ferramenta pronta e 1ª rodada
+  agendada (26/10 04:00 UTC); A9 fora de escopo, D10 não mover, B6 adiada.
+  Fora da fila, no mesmo dia: V.1.4.190 (trava contra transcrição
+  repetida) e diagnóstico de 21-23/10 (botão "API desligada"). Próximo:
+  ler o relatório do D7; candidatas fora da fila: aviso de "API
+  desligada" na extensão e transcrição pós-reunião das gravações.
 - **24/10/2026 — B5 + C5 (V.1.4.188, local, junto com a B4)**: pedido do
   usuário "faça o passo 7". Código do passo 7 fechado; os dois só mostram
   número com volume real (vendedores com ≥ 10 fechadas; estratégias com

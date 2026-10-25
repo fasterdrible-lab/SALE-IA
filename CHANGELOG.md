@@ -3,6 +3,42 @@
 
 ---
 
+## Operação e ferramentas (sem versão) — 25/10/2026
+
+> Data: 25/10/2026 | Sem mudança na extensão; servidor só em `requirements.txt`, `.env` e banco (detalhes abaixo)
+
+- **Transcrição parada em 21-23/10, diagnosticada**: nenhum `/tempo-real`
+  chegou ao servidor em 7 reuniões (sessões 556-566, 0 caracteres). Teste
+  real do usuário em 25/10: o popup da extensão estava em **"API
+  desligada"**; ligado + F5, a legenda chegou normalmente (sessão 567, 3
+  `/tempo-real`, 4 análises). A hipótese inicial ("o Google mudou a
+  legenda do Meet") estava errada. Nenhuma das 7 reuniões tinha gravação
+  de áudio — perdidas.
+- **Retenção das gravações estendida**: 340 linhas de `gravacoes_audio`
+  de 19-23/10 (5 reuniões) com `apagar_em = iniciada_em + 30 dias`
+  (18-22/11), para recuperar a transcrição pela gravação. Backup
+  `/root/backups/saleia/manual/gravacoes_audio_pre_retencao30_20261025_171101.sql`.
+- **OpenTelemetry**: o instrumentador do FastAPI nunca foi instalado na
+  VPS nova (21/10) — nenhum trace desde então. Instalado
+  `opentelemetry-instrumentation-fastapi==0.66b1` e pacotes OTel no
+  `requirements.txt` (`a5e4899`). O Grafana recusa o envio (`401`,
+  credencial `OTEL_EXPORTER_OTLP_HEADERS` malformada); envio desligado
+  (`OTEL_EXPORTER_OTLP_ENDPOINT` comentado, backup
+  `.env.bak_otel_off_20261025_112500`) até chegar token novo.
+- **D7 — ferramenta de teste de carga** (`scripts/loadtest/`):
+  `fake_ai.py` (API do DeepSeek falsa com o atraso real de produção, p50
+  2,1 s / p99 8,9 s), `gerar_carga.py` (10/50/100 reuniões como a
+  extensão, mede latência, erros, timeouts, CPU, RAM, MySQL, fila e
+  tokens; para se uma reunião real começar), `rodar.sh` (instância isolada
+  na porta 8010 com banco `saleia_loadtest`, sem chave real nem canal
+  externo; desmonta tudo no fim). 2 testes mínimos OK na VPS. Rodada
+  completa agendada: 26/10 04:00 UTC (timer `saleia-d7-carga`).
+- **Decisões do passo 8**: A9 (Challenger Engine) fora de escopo por
+  enquanto; D10 não mover para `domain/` (`agent/*_rules.py` cumpre o
+  papel); B6 adiada até haver oportunidades com resultado.
+
+---
+
 ## V.1.4.190 — Trava contra a transcrição repetida (reuniões de 19-20/10)
 
 > Data: 25/10/2026 | Backend, sem mudança na extensão | **Em produção** (`dd4e257`, sem reunião ativa, `NRestarts=0`)
