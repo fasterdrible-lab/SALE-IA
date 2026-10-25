@@ -4855,14 +4855,58 @@
     </div>`;
     html += ssInsightCard('Por dia da semana', d.seasonality.weekday);
 
+    html += `<h3>🛡️ Objection Trends</h3>`;
+    html += ssObjectionTrends(d.objection_trends || {});
+
+    html += `<h3>🏆 Seller Benchmark</h3>`;
+    html += ssSellerBenchmark(d.seller_benchmark || {});
+
     html += `<h3>⏳ Ainda não disponível</h3>`;
-    html += `<div class="grid-2">
-      ${oppGapCard('🏆 Seller Benchmark', d.seller_benchmark)}
-      ${oppGapCard('📈 Best Strategies / Recommendation Effectiveness', d.strategy_effectiveness)}
-    </div>`;
-    html += oppGapCard('🛡️ Objection Trends', d.objection_trends);
+    html += oppGapCard('📈 Best Strategies / Recommendation Effectiveness', d.strategy_effectiveness);
 
     return html;
+  }
+
+  /* B5: conversão real por vendedor (só ganhas/perdidas) e tier por terço
+     do ranking; confundimento = vantagem top × low que não se mantém
+     dentro do produto/faixa de ticket. */
+  function ssSellerBenchmark(sb) {
+    const vend = sb.vendedores || [];
+    let tabela = '';
+    if (vend.length) {
+      tabela = `<div class="info-card"><h3>Conversão por vendedor</h3>
+        <div style="display:flex;flex-direction:column;gap:6px">` + vend.map(function (v) {
+          const taxa = v.taxa_conversao != null ? Math.round(v.taxa_conversao * 100) + '%' : '—';
+          return `<div style="display:flex;justify-content:space-between;font-size:.85rem"><span>${escHtml(v.seller_id)}${v.tier ? ' · <b>' + escHtml(v.tier) + '</b>' : ''}</span><span style="color:var(--muted)">${taxa} · ${escHtml(v.won)}/${escHtml(v.total)}</span></div>`;
+        }).join('') + '</div></div>';
+    }
+    const lado = sb.disponivel
+      ? ssInsightCard('Confundimento (produto / ticket)', sb.confundimentos)
+      : oppGapCard('Benchmark', sb);
+    let html = tabela ? `<div class="grid-2">${tabela}${lado}</div>` : lado;
+    if (sb.disponivel) html += ssInsightCard('Conversão por tier', sb.insights);
+    return html;
+  }
+
+  /* B4: objeções classificadas nas reuniões reais (1 por reunião e
+     categoria), distribuição + tendência entre a 1ª e a 2ª metade das
+     semanas. Sem 2 semanas de dado, mostra só a distribuição. */
+  function ssObjectionTrends(ot) {
+    const dist = ot.distribuicao || {};
+    const cats = Object.keys(dist);
+    let distHtml = '';
+    if (cats.length) {
+      distHtml = `<div class="info-card"><h3>Objeções por categoria</h3>
+        <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px">${escHtml(ot.total_objecoes)} objeção(ões) · semanas ${escHtml((ot.periodos || []).join(', '))}</div>
+        <div style="display:flex;flex-direction:column;gap:6px">` + cats.map(function (c) {
+          const pct = ot.total_objecoes ? Math.round(dist[c] * 100 / ot.total_objecoes) : 0;
+          return `<div style="display:flex;justify-content:space-between;font-size:.85rem"><span>${escHtml(c)}</span><span style="color:var(--muted)">${escHtml(dist[c])} · ${pct}%</span></div>`;
+        }).join('') + '</div></div>';
+    }
+    const tendencia = ot.disponivel
+      ? ssInsightCard('Tendência', ot.insights)
+      : oppGapCard('Tendência', ot);
+    return distHtml ? `<div class="grid-2">${distHtml}${tendencia}</div>` : tendencia;
   }
 
   /* ─── Seller Coaching (Fase 22 / bloco 4, fecha a Fase 22) ───

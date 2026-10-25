@@ -149,13 +149,32 @@ nova), depois extratores novos.
 - **Teste**: o ciclo de `/tempo-real` não muda de latência com o job
   rodando.
 
-### B4 — Objection Trends com dado real [depende de A2/A3]
+### B4 — Objection Trends com dado real [CONCLUÍDA no código — 24/10/2026, V.1.4.188; deploy pendente]
 - Alimentar `objection_trend_analyzer.py` com as objeções classificadas
   persistidas.
+- Feito: `GET /sales-science/insights` lê as SalesEvidence
+  `OBJECTION:<categoria>` (A2) de todas as reuniões
+  (`listar_sales_evidences(type_prefix=...)`), conta **1 por (reunião,
+  categoria)** e usa a **semana ISO** da 1ª aparição como período
+  (`montar_objection_trends` em `agent/sales_science_insights_rules.py`).
+  Sem objeção → gap; 1 semana só → distribuição por categoria sem
+  tendência; 2+ semanas → `calcular_tendencias` (1ª × 2ª metade das
+  semanas, Wilson, amostra mínima por metade) e só as categorias
+  significativas viram insight. Dashboard → Sales Science: card
+  "Objeções por categoria" + "Tendência". Zero IA nova.
+- Ressalvas: não separa reunião de teste de reunião de venda; a
+  categoria vem do classificador do ciclo (D3, 100% no Golden Dataset,
+  não conferido em reunião real).
 
-### B5 — Seller Benchmark com `seller_tier` real [depende de P2/P3]
+### B5 — Seller Benchmark com `seller_tier` real [CONCLUÍDA no código — 24/10/2026, V.1.4.188; deploy pendente; sem dado até haver P2/P3]
 - Definir o tier por taxa real de conversão por vendedor (amostra
   mínima) e ligar `benchmark_controlado()`.
+- Feito: `montar_seller_benchmark` — vendedor com ≥ 10 oportunidades
+  fechadas entra no ranking; com ≥ 3 assim, top/median/low por terço;
+  `benchmark_controlado()` top × low controlando `product` e faixa de
+  ticket (terços do `estimated_value`). Tier vem da própria conversão
+  (top > low é por construção); o valor está no confundimento. Detalhe
+  no CHANGELOG.
 
 ### B6 — Persistir experimentos e analisar resultado [Fase 14]
 - Tabela de experimentos + atribuição pilot/control + análise via
@@ -261,10 +280,19 @@ Pedido original da C8:
   a sugestão melhor que ele em 70-76% das não superadas); itens da
   Biblioteca do Paulo aprovados depois desta data entram no contexto do
   coach e saem das mesmas reuniões (medir com reuniões separadas).
-### C5 — Retroalimentar insights no raciocínio
+### C5 — Retroalimentar insights no raciocínio [CONCLUÍDA no código — 24/10/2026, V.1.4.188; deploy pendente; sem efeito até haver amostra]
 - Hoje só `historical_patterns` filtrado por estágio chega ao motor.
   Incluir estratégias com efetividade comprovada (B2) quando houver
   amostra suficiente, sempre como associação, nunca como causa.
+- Feito: `recommendation_quality_run.py --real` grava
+  `data/efetividade_estrategias.json`; o motor lê esse retrato em
+  `historical_patterns` (até 5 estratégias com amostra de avanço
+  suficiente, avanço e desfecho separados, aviso "nunca causa"). Sem
+  estratégia elegível o campo fica igual ao de antes. Kill-switch
+  `ESTRATEGIAS_EFETIVAS_NO_MOTOR_ENABLED`. O script não registra mais o
+  `recommendation_quality` no readiness por padrão (protege o número da
+  C4; `--registrar-readiness`). Ressalvas: uso por embeddings (C8) e
+  `strategy` em texto livre.
 ### C6 — Piloto com 1 vendedor (Tarefa 6.3 / Fase 24) [decisão, depende de C3]
 
 ---
@@ -555,3 +583,15 @@ explícita, uma de cada vez — mesma disciplina de todo o roadmap.
   - **Próxima: A8** (turnos temporizados por falante) — depende de o nome
     do falante na legenda estar certo (ext 1.4.34; validação real com 2
     participantes pendente, ver CURRENT_STATE de 16/10 noite).
+- **24/10/2026 — B4 (V.1.4.188, local)**: próxima do passo 7 da ordem
+  depois de C1/C3 (C4 medida, alvo com o usuário). Objection Trends com
+  dado real a partir das SalesEvidence `OBJECTION:*`. Testes: 52 OK
+  (Sales Science + analyzer + engine) e 39 OK (SalesEvidence + E2E).
+  Restante do passo 7: **B5** (depende de P2/P3 — oportunidades com
+  resultado), **C5**, e **C6** bloqueado pela C4.
+- **24/10/2026 — B5 + C5 (V.1.4.188, local, junto com a B4)**: pedido do
+  usuário "faça o passo 7". Código do passo 7 fechado; os dois só mostram
+  número com volume real (vendedores com ≥ 10 fechadas; estratégias com
+  amostra de avanço). 157 testes OK. **C6 (Piloto) não feita**: depende do
+  alvo da C4 (decisão do usuário) e a C4 mostrou o motor (27%) abaixo do
+  coach (40%). Próximo passo da ordem: 8 (B3, B6, D7; A9/D10 são decisões).

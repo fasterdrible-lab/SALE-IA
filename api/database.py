@@ -3105,13 +3105,19 @@ def listar_sales_evidences(
     meeting_id: Optional[str] = None,
     type: Optional[str] = None,
     limit: int = 200,
+    type_prefix: Optional[str] = None,
 ) -> List[dict]:
+    """`type_prefix` (B4): filtra por família de evidência, ex.
+    `"OBJECTION:"` traz todas as objeções classificadas de todas as
+    reuniões (usado por `GET /sales-science/insights`)."""
     with Session(engine) as session:
         stmt = select(SalesEvidence)
         if meeting_id:
             stmt = stmt.where(SalesEvidence.meeting_id == meeting_id)
         if type:
             stmt = stmt.where(SalesEvidence.type == type)
+        if type_prefix:
+            stmt = stmt.where(SalesEvidence.type.startswith(type_prefix))
         stmt = stmt.order_by(SalesEvidence.timestamp.asc()).limit(limit)
         rows = session.exec(stmt).all()
         return [_sales_evidence_to_dict(r) for r in rows]

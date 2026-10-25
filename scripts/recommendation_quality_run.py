@@ -23,10 +23,14 @@ provedor já usado pelo RAG/Sales Memory, nunca uma API paga.
 `--dry-run` (padrão) só mostra quantos eventos existem, sem classificar
 nada.
 
+`--real` também grava `data/efetividade_estrategias.json`, o retrato que
+o motor do Piloto/Shadow lê em `historical_patterns` (C5).
+
 Uso:
     python -m scripts.recommendation_quality_run               # dry-run
     python -m scripts.recommendation_quality_run --real         # roda de verdade (grátis, mas real)
     python -m scripts.recommendation_quality_run --real --out relatorio.json
+    python -m scripts.recommendation_quality_run --real --registrar-readiness  # substitui o número da C4 no painel
 """
 from __future__ import annotations
 
@@ -48,7 +52,7 @@ def _dry_run() -> None:
     print("[DRY-RUN] Nenhuma classificação foi feita.")
 
 
-async def _real_run(out_path: str | None) -> None:
+async def _real_run(out_path: str | None, registrar_readiness: bool = False) -> None:
     from agent.recommendation_effectiveness_rules import (
         calcular_efetividade_por_estrategia,
         resumir_uso_geral,
@@ -107,17 +111,31 @@ async def _real_run(out_path: str | None) -> None:
         for erro in erros:
             print(f"  - {erro}")
 
-    # Tarefa D1: registra recommendation_quality para GET /admin/readiness.
+    # C5: retrato da efetividade por estratégia lido pelo motor
+    # (agent/historical_pattern_rules.py).
     try:
-        from api.database import registrar_readiness_medicao
-        registrar_readiness_medicao(
-            "recommendation_quality", resumo_geral["taxa_uso_real"], origem="real",
-            fonte="scripts/recommendation_quality_run.py", amostra=resumo_geral["total"],
-            detalhe={"por_estado": resumo_geral["por_estado"]},
-        )
-        print("recommendation_quality registrado no painel de prontidão (/admin/readiness).")
+        from agent.historical_pattern_rules import salvar_snapshot_efetividade
+        caminho = salvar_snapshot_efetividade(efetividade_por_estrategia, len(eventos_classificados))
+        print(f"Retrato da efetividade por estratégia salvo em {caminho} (C5).")
     except Exception as e:
-        print(f"Aviso: não foi possível registrar no painel de prontidão: {type(e).__name__}: {e}")
+        print(f"Aviso: não foi possível salvar o retrato da efetividade: {type(e).__name__}: {e}")
+
+    # Tarefa D1: desde a C4 (23/10/2026) o recommendation_quality do painel
+    # é a métrica da C4 (IA juíza sobre as reuniões do Paulo); a taxa de uso
+    # por embeddings daqui não é confiável (C8) e só substitui com a flag.
+    if not registrar_readiness:
+        print("recommendation_quality NÃO registrado no /admin/readiness (use --registrar-readiness).")
+    else:
+        try:
+            from api.database import registrar_readiness_medicao
+            registrar_readiness_medicao(
+                "recommendation_quality", resumo_geral["taxa_uso_real"], origem="real",
+                fonte="scripts/recommendation_quality_run.py", amostra=resumo_geral["total"],
+                detalhe={"por_estado": resumo_geral["por_estado"]},
+            )
+            print("recommendation_quality registrado no painel de prontidão (/admin/readiness).")
+        except Exception as e:
+            print(f"Aviso: não foi possível registrar no painel de prontidão: {type(e).__name__}: {e}")
 
     if out_path:
         relatorio = {**saida_console, "eventos_classificados": eventos_classificados, "erros": erros}
@@ -130,13 +148,15 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--real", action="store_true", help="Roda de verdade (embeddings locais, grátis, mas real). Sem esta flag, só dry-run.")
     parser.add_argument("--out", default=None, help="Caminho pra salvar o relatório JSON (opcional).")
+    parser.add_argument("--registrar-readiness", action="store_true",
+                        help="Substitui o recommendation_quality do /admin/readiness (hoje é o da C4) pela taxa de uso daqui.")
     args = parser.parse_args()
 
     if not args.real:
         _dry_run()
         return
 
-    asyncio.run(_real_run(args.out))
+    asyncio.run(_real_run(args.out, args.registrar_readiness))
 
 
 if __name__ == "__main__":

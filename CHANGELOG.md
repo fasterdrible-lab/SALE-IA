@@ -3,6 +3,81 @@
 
 ---
 
+## V.1.4.188 — Passo 7: B4 (Objection Trends), B5 (Seller Benchmark), C5 (estratégias no motor)
+
+> Data: 24/10/2026 | Backend + Dashboard + script, sem mudança na extensão | Local, deploy pendente
+
+### B5 — Seller Benchmark com `seller_tier` real
+
+- `montar_seller_benchmark` (`agent/sales_science_insights_rules.py`):
+  conversão por vendedor (só ganhas/perdidas); com ≥ 10 fechadas o
+  vendedor entra no ranking e, com ≥ 3 vendedores assim, vira
+  top/median/low por terço. Liga `benchmark_controlado()` (Fase 12.1),
+  que nunca rodava: checa se a vantagem top × low se mantém dentro do
+  produto e da faixa de ticket (terços do `estimated_value`).
+- O tier sai da própria conversão, então "top converte mais" é por
+  construção; o que informa é o card de confundimento.
+- Abaixo do mínimo: `disponivel: false` com a tabela de vendedores.
+  Dashboard → Sales Science: "Conversão por vendedor", "Confundimento" e
+  "Conversão por tier" (vendedor aparece pelo id).
+
+### C5 — Estratégias com efetividade medida no motor
+
+- `scripts/recommendation_quality_run.py --real` grava
+  `data/efetividade_estrategias.json` (efetividade por estratégia da
+  Fase 10.3 + B2, escrita atômica). O motor (Piloto/Shadow) lê esse
+  retrato em `historical_patterns` (`agent/historical_pattern_rules.py`,
+  cache por mtime): só estratégias com amostra de avanço suficiente, até
+  5, com taxa de avanço e de desfecho separadas e o aviso "associação,
+  nunca causa". Sem estratégia elegível, `historical_patterns` fica
+  idêntico ao de antes. Kill-switch `ESTRATEGIAS_EFETIVAS_NO_MOTOR_ENABLED`.
+- **Mudança no script**: deixa de registrar `recommendation_quality` no
+  `/admin/readiness` por padrão — sobrescreveria o 0,27 da C4 com a taxa
+  de uso por embeddings, que a C8 mostrou não ser confiável. Só com
+  `--registrar-readiness`.
+- Ressalvas: o "uso" de cada recomendação vem da classificação por
+  embeddings (C8: erra 16/49); `strategy` é texto livre (~40 grafias de
+  "SPIN" na C3), o que divide a amostra. Hoje nenhuma estratégia deve
+  passar do mínimo — o efeito real é zero até haver volume. O motor não
+  é o que o vendedor vê (o Piloto segue desligado).
+
+### B4 — Objection Trends com dado real
+
+- **Sales Science → Objection Trends** deixa de ser gap: `GET
+  /sales-science/insights` lê as SalesEvidence `OBJECTION:<categoria>`
+  que o ciclo de tempo real já grava desde a A2 (V.1.4.148) e alimenta
+  `objection_trend_analyzer.calcular_tendencias()` (Fase 13), que nunca
+  tinha sido chamado em produção.
+- Contagem: **1 objeção por (reunião, categoria)** — a mesma objeção
+  volta com citações diferentes a cada ciclo; contar citação inflaria as
+  reuniões longas. Período = semana ISO da 1ª aparição (por mês não
+  haveria 2 períodos desde o reset de 11/10).
+- Resposta de `objection_trends`: sem objeção → gap; 1 semana →
+  `disponivel: false` com `distribuicao`/`total_objecoes`/`periodos`;
+  2+ semanas → `disponivel: true` com `insights` (só categorias
+  significativas: Wilson sem sobreposição e amostra mínima nas duas
+  metades), `total_inicio`/`total_fim`.
+- `api/database.py`: `listar_sales_evidences(type_prefix=...)`.
+- Dashboard → Sales Science: seção "🛡️ Objection Trends" com objeções
+  por categoria (n e %) e card de tendência.
+- Zero IA nova.
+
+### Testes
+
+- B4: 52 OK (`test_sales_science_insights_rules`,
+  `test_sales_science_endpoint`, `test_objection_trend_analyzer`,
+  `test_sales_science_engine`) + 39 OK (`test_sales_evidence*`,
+  `test_e2e_cenarios_venda`).
+- B5 + C5: 157 OK (os de Sales Science, `test_seller_benchmark_rules`,
+  `test_historical_pattern_rules`, `test_orquestrador_piloto`,
+  `test_orquestrador_shadow_mode`, `test_sales_reasoning_engine`,
+  `test_recommendation_effectiveness_rules`, writers de memória/grafo).
+- Suíte completa não rodada.
+- Deploy: só código de servidor + `frontend/` — restart do `saleia` com
+  `reunioes_ativas: 0`.
+
+---
+
 ## Ferramentas (sem versão) — C4: 1ª medição real da qualidade da recomendação
 
 > Data: 23/10/2026 | Sem mudança no servidor nem na extensão (script de medição na VPS)

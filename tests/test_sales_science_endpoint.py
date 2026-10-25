@@ -106,6 +106,24 @@ class SalesScienceEndpointTest(unittest.TestCase):
         self.assertEqual(len(insights_stage), 1)
         self.assertEqual(insights_stage[0]["sample"], 60)
 
+    def test_objection_trends_le_sales_evidence_objection(self):
+        from datetime import datetime
+        db = self._database
+        db.criar_sales_evidence(meeting_id="m1", type="OBJECTION:PRICE", quote="tá caro",
+                                timestamp=datetime(2026, 10, 13, 15, 0))
+        db.criar_sales_evidence(meeting_id="m2", type="OBJECTION:TRUST", quote="não conheço vocês",
+                                timestamp=datetime(2026, 10, 20, 15, 0))
+        db.criar_sales_evidence(meeting_id="m2", type="ROOT_CAUSE:budget", quote="tá caro",
+                                timestamp=datetime(2026, 10, 20, 15, 0))
+
+        r = self.client.get("/sales-science/insights", headers=self.admin_headers)
+        self.assertEqual(r.status_code, 200)
+        ot = r.json()["objection_trends"]
+        self.assertTrue(ot["disponivel"])
+        self.assertEqual(ot["total_objecoes"], 2)
+        self.assertEqual(ot["distribuicao"], {"PRICE": 1, "TRUST": 1})
+        self.assertEqual(ot["periodos"], ["2026-W42", "2026-W43"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -866,7 +866,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.187",
+        "versao":              "1.4.188",
         "timestamp":           datetime.now().isoformat(),
         "ia_disponivel":       ia["ia_disponivel"],
         "ia_fora_desde":       ia["ia_fora_desde"],
@@ -907,7 +907,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.187",
+        "versao":          "1.4.188",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -5054,17 +5054,19 @@ def sales_science_insights_endpoint(authorization: str | None = _Header(default=
     `product`/`competitor`, `close_date`/`created_at`) — reaproveita os
     motores já prontos desde as Fases 8/9/13, consolidados sob
     `agent/sales_science_engine.py::montar_insight()`. Seller
-    Benchmark, Strategy Effectiveness e Objection Trends vêm como gap
-    explícito — não é questão de volume, nenhuma função no sistema
-    gera o dado bruto que essas engines exigem ainda. Admin-only —
+    Benchmark e Strategy Effectiveness vêm como gap explícito — não é
+    questão de volume, nenhuma função no sistema gera o dado bruto que
+    essas engines exigem ainda. Objection Trends (B4) usa as
+    SalesEvidence `OBJECTION:*` de todas as reuniões. Admin-only —
     visão agregada de todas as oportunidades, não filtrada por
     vendedor (diferente de `GET /opportunities`)."""
     _req_admin(authorization)
     try:
-        from api.database import listar_opportunities
+        from api.database import listar_opportunities, listar_sales_evidences
         from agent.sales_science_insights_rules import montar_sales_science_insights
         opportunities = listar_opportunities(limit=5000)
-        return montar_sales_science_insights(opportunities)
+        objecoes = listar_sales_evidences(type_prefix="OBJECTION:", limit=50000)
+        return montar_sales_science_insights(opportunities, objecoes)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

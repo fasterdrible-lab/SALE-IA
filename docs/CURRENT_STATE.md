@@ -1,5 +1,28 @@
 # SALEIA - Estado Atual
 
+## 24/10/2026 — Passo 7: B4, B5 e C5 (V.1.4.188, local)
+
+- **B4**: Sales Science → Objection Trends usa as objeções classificadas
+  que o tempo real já grava (SalesEvidence `OBJECTION:*`): 1 por reunião
+  e categoria, por semana; tendência só quando significativa.
+- **B5**: Seller Benchmark com tier real (top/median/low pela conversão;
+  ≥ 10 fechadas por vendedor, ≥ 3 vendedores) e checagem de
+  confundimento por produto/ticket.
+- **C5**: o motor (Piloto/Shadow) recebe as estratégias com efetividade
+  medida, do retrato `data/efetividade_estrategias.json` gravado por
+  `scripts/recommendation_quality_run.py --real`. Esse script não
+  sobrescreve mais o `recommendation_quality` da C4 no readiness (só com
+  `--registrar-readiness`).
+- B5 e C5 só mostram número com volume real; zero IA nova.
+- **C6 (Piloto) não feita**: depende do alvo da C4 (decisão do usuário).
+
+**Produção segue em V.1.4.187** — falta commit, push e deploy (restart
+com `reunioes_ativas: 0`). Depois do deploy, rodar
+`recommendation_quality_run --real` na VPS para gerar o 1º retrato da C5.
+Próximo da ordem: passo 8 (B3, B6, D7; A9/D10 decisões).
+`docs/TASKS.md` continua desatualizado — a fila é
+`docs/tasks-prompt-mestre-v2-restante.md`.
+
 ## 23/10/2026 (noite) — C4: 1ª medição real da qualidade da recomendação
 
 200 objeções reais das reuniões do Paulo, sugestão da SALEIA gerada pelo
