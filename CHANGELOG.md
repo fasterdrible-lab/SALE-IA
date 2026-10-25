@@ -5,7 +5,7 @@
 
 ## V.1.4.188 — Passo 7: B4 (Objection Trends), B5 (Seller Benchmark), C5 (estratégias no motor)
 
-> Data: 24/10/2026 | Backend + Dashboard + script, sem mudança na extensão | Local, deploy pendente
+> Data: 24/10/2026 | Backend + Dashboard + script, sem mudança na extensão | **Em produção** (`d5a5335`, deploy por bundle sem reunião ativa, `NRestarts=0`)
 
 ### B5 — Seller Benchmark com `seller_tier` real
 

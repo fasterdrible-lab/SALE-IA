@@ -16,9 +16,25 @@
 - B5 e C5 só mostram número com volume real; zero IA nova.
 - **C6 (Piloto) não feita**: depende do alvo da C4 (decisão do usuário).
 
-**Produção segue em V.1.4.187** — falta commit, push e deploy (restart
-com `reunioes_ativas: 0`). Depois do deploy, rodar
-`recommendation_quality_run --real` na VPS para gerar o 1º retrato da C5.
+**EM PRODUÇÃO 24/10 ~00:43 UTC (25/10)**: `d5a5335` = VPS HEAD = GitHub,
+deploy por bundle com `reunioes_ativas: 0`, `NRestarts=0`, `/health` =
+1.4.188 online com IA, `/dashboard` 200, journal sem erro.
+
+Números reais logo após o deploy:
+- Objection Trends: 287 citações `OBJECTION:*` de 17 reuniões (12-19/10,
+  inclui testes do usuário) → 85 objeções (1 por reunião e categoria),
+  semanas W42 e W43, **nenhuma tendência significativa** (amostra
+  pequena). BUDGET/PRICE/TIMING/TRUST/VALUE com 12 cada: o classificador
+  aponta essas 5 em quase toda reunião. Nenhuma objeção gravada depois de
+  19/10 — conferir se o ciclo segue gravando.
+- Seller Benchmark: 1 oportunidade, 0 fechadas → indisponível.
+- C5: `recommendation_quality_run --real` rodado na VPS (1.000
+  RecommendationEvent, embeddings locais, custo zero): 11 estratégias,
+  **0 com amostra de avanço** (nenhum evento com resultado da
+  oportunidade ainda) → o motor recebe o mesmo de antes. Retrato em
+  `/opt/saleia/data/efetividade_estrategias.json`, relatório em
+  `/tmp/c5_20261024.json`. Readiness intacto (C4 = 0,27).
+
 Próximo da ordem: passo 8 (B3, B6, D7; A9/D10 decisões).
 `docs/TASKS.md` continua desatualizado — a fila é
 `docs/tasks-prompt-mestre-v2-restante.md`.

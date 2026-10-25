@@ -149,7 +149,7 @@ nova), depois extratores novos.
 - **Teste**: o ciclo de `/tempo-real` não muda de latência com o job
   rodando.
 
-### B4 — Objection Trends com dado real [CONCLUÍDA no código — 24/10/2026, V.1.4.188; deploy pendente]
+### B4 — Objection Trends com dado real [CONCLUÍDA no código — 24/10/2026, V.1.4.188; em produção 24/10]
 - Alimentar `objection_trend_analyzer.py` com as objeções classificadas
   persistidas.
 - Feito: `GET /sales-science/insights` lê as SalesEvidence
@@ -166,7 +166,7 @@ nova), depois extratores novos.
   categoria vem do classificador do ciclo (D3, 100% no Golden Dataset,
   não conferido em reunião real).
 
-### B5 — Seller Benchmark com `seller_tier` real [CONCLUÍDA no código — 24/10/2026, V.1.4.188; deploy pendente; sem dado até haver P2/P3]
+### B5 — Seller Benchmark com `seller_tier` real [CONCLUÍDA no código — 24/10/2026, V.1.4.188; em produção 24/10; sem dado até haver P2/P3]
 - Definir o tier por taxa real de conversão por vendedor (amostra
   mínima) e ligar `benchmark_controlado()`.
 - Feito: `montar_seller_benchmark` — vendedor com ≥ 10 oportunidades
@@ -280,7 +280,7 @@ Pedido original da C8:
   a sugestão melhor que ele em 70-76% das não superadas); itens da
   Biblioteca do Paulo aprovados depois desta data entram no contexto do
   coach e saem das mesmas reuniões (medir com reuniões separadas).
-### C5 — Retroalimentar insights no raciocínio [CONCLUÍDA no código — 24/10/2026, V.1.4.188; deploy pendente; sem efeito até haver amostra]
+### C5 — Retroalimentar insights no raciocínio [CONCLUÍDA no código — 24/10/2026, V.1.4.188; em produção 24/10; sem efeito até haver amostra]
 - Hoje só `historical_patterns` filtrado por estágio chega ao motor.
   Incluir estratégias com efetividade comprovada (B2) quando houver
   amostra suficiente, sempre como associação, nunca como causa.
