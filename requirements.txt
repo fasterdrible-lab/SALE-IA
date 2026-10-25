@@ -70,6 +70,14 @@ fpdf2>=2.7.0
 # quando OBSERVABILITY_ENABLED=false (padrão, NoOpObservabilityProvider).
 langfuse>=4.0.0
 
+# OpenTelemetry → Grafana Cloud Tempo (api/main.py::_configurar_opentelemetry,
+# só liga com OTEL_EXPORTER_OTLP_ENDPOINT no .env). O SDK/exporter já vinham
+# pelo langfuse, mas o instrumentador do FastAPI não — faltou na VPS nova
+# (21/10/2026) e os traces pararam. Versões casadas: 1.45.x ↔ 0.66b1.
+opentelemetry-sdk>=1.45.1
+opentelemetry-exporter-otlp-proto-http>=1.45.1
+opentelemetry-instrumentation-fastapi>=0.66b1
+
 # ─── Golden Sales Dataset (Fase 20) ─────────────────────────────
 # Já era dependência transitiva (evals/), mas usado diretamente por
 # tests/test_golden_sales_dataset.py para validar o YAML do dataset —

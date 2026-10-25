@@ -19,10 +19,18 @@ sem reunião ativa) e o Dashboard lê o retrato
   p95 10 ms / máx 16 ms; com o job rodando em sequência (40 voltas, mesmos
   limites do timer) p50 7 ms / p95 11 ms / máx 17 ms — sem diferença.
   `/tempo-real` não medido direto (precisa de reunião e chama IA).
-- Visto de passagem: rodando fora do serviço, o `api.main` avisa
-  "OpenTelemetry não configurado: No module named
-  'opentelemetry.instrumentation'" no venv da VPS — conferir se os traces
-  do Grafana seguem chegando desde a migração de 21/10.
+- **OpenTelemetry (25/10, ~10:42 UTC)**: o serviço registrava em todo
+  início "OpenTelemetry não configurado: No module named
+  'opentelemetry.instrumentation'" — o instrumentador do FastAPI nunca foi
+  instalado na VPS nova (não estava no `requirements.txt`; SDK e exporter
+  vinham pelo langfuse). Nenhum trace foi enviado desde 21/10. Instalado
+  `opentelemetry-instrumentation-fastapi==0.66b1` (só pacotes novos) +
+  restart sem reunião ativa (`NRestarts=0`, `/health` ok) + pacotes no
+  `requirements.txt`. **Agora o envio falha com `401 Unauthorized`**: a
+  credencial `OTEL_EXPORTER_OTLP_HEADERS` do `.env` é "Basic" mas não
+  decodifica como base64 (malformada). Precisa de token novo do Grafana
+  Cloud (OTLP). Até lá o serviço loga 1 ERROR de export a cada ~30 s (não
+  afeta reunião, dashboard nem alertas).
 
 Próximo do passo 8: B6, D7.
 
