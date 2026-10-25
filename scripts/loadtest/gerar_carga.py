@@ -128,18 +128,25 @@ def _mem_usada_mb():
     return (info["MemTotal"] - info["MemAvailable"]) // 1024
 
 
+# cgroup da unidade criada por rodar.sh: soma o processo principal e os
+# workers (spawn do uvicorn, cuja linha de comando não tem a porta).
+CGROUP_APP = "/sys/fs/cgroup/system.slice/saleia-lt-app.service"
+
+
 def _rss_instancia_mb():
-    total = 0
-    for pid in filter(str.isdigit, os.listdir("/proc")):
-        try:
-            with open(f"/proc/{pid}/cmdline", "rb") as f:
-                cmd = f.read().replace(b"\0", b" ")
-            if b"8010" in cmd and (b"uvicorn" in cmd or b"multiprocessing" in cmd or b"api.main" in cmd):
-                with open(f"/proc/{pid}/status") as f:
-                    total += next(int(l.split()[1]) for l in f if l.startswith("VmRSS"))
-        except (OSError, StopIteration, ValueError):
-            pass
-    return total // 1024
+    try:
+        with open(f"{CGROUP_APP}/memory.current") as f:
+            return int(f.read()) // (1024 * 1024)
+    except (OSError, ValueError):
+        return 0
+
+
+def _cpu_instancia_us():
+    try:
+        with open(f"{CGROUP_APP}/cpu.stat") as f:
+            return next(int(l.split()[1]) for l in f if l.startswith("usage_usec"))
+    except (OSError, StopIteration, ValueError):
+        return 0
 
 
 def _mysql_status(conn):
@@ -150,13 +157,20 @@ def _mysql_status(conn):
 
 async def amostrar(cli: httpx.AsyncClient, conn, parar: asyncio.Event, amostras: list, motivo: dict):
     ocioso0, total0 = _cpu()
+    app0, t0 = _cpu_instancia_us(), time.time()
+    nucleos = os.cpu_count() or 1
     ultimo_prod = 0.0
     while not parar.is_set():
         await asyncio.sleep(2)
         ocioso1, total1 = _cpu()
         cpu = 100 * (1 - (ocioso1 - ocioso0) / max(1, total1 - total0))
         ocioso0, total0 = ocioso1, total1
-        a = {"t": time.time(), "cpu": round(cpu, 1), "mem_mb": _mem_usada_mb(), "rss_mb": _rss_instancia_mb()}
+        app1, t1 = _cpu_instancia_us(), time.time()
+        # % da máquina inteira (2 núcleos = 100%), comparável a "cpu"
+        cpu_app = 100 * (app1 - app0) / 1e6 / max(1e-6, t1 - t0) / nucleos
+        app0, t0 = app1, t1
+        a = {"t": time.time(), "cpu": round(cpu, 1), "cpu_app": round(cpu_app, 1),
+             "mem_mb": _mem_usada_mb(), "rss_mb": _rss_instancia_mb()}
         try:
             a["mysql"] = _mysql_status(conn)
         except Exception as e:  # noqa: BLE001 — amostra é melhor esforço
@@ -193,7 +207,9 @@ def resumir(nivel: int, res: list, amostras: list, ia0: dict, ia1: dict, duracao
         "latencia_s": {"p50": pct(lat, .5), "p95": pct(lat, .95), "p99": pct(lat, .99), "max": max(lat) if lat else None,
                        "media": round(statistics.mean(lat), 3) if lat else None},
         "cpu_pct": {"media": round(statistics.mean(a["cpu"] for a in amostras), 1) if amostras else None,
-                    "max": max((a["cpu"] for a in amostras), default=None)},
+                    "max": max((a["cpu"] for a in amostras), default=None),
+                    "instancia_media": round(statistics.mean(a.get("cpu_app", 0) for a in amostras), 1) if amostras else None,
+                    "instancia_max": max((a.get("cpu_app", 0) for a in amostras), default=None)},
         "mem_usada_mb_max": max((a["mem_mb"] for a in amostras), default=None),
         "rss_instancia_mb_max": max((a["rss_mb"] for a in amostras), default=None),
         "mysql": {"threads_conectadas_max": max((a.get("mysql", {}).get("Threads_connected", 0) for a in amostras), default=None),
