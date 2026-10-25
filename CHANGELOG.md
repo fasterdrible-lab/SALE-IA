@@ -5,7 +5,7 @@
 
 ## V.1.4.189 — B3: pipeline analítico assíncrono (Sales Science pré-calculada)
 
-> Data: 25/10/2026 | Backend + Dashboard + unit do systemd, sem mudança na extensão | Local, deploy pendente
+> Data: 25/10/2026 | Backend + Dashboard + unit do systemd, sem mudança na extensão | **Em produção** (`03fbe77`; timer instalado)
 
 - `agent/sales_science_pipeline.py` + `scripts/sales_science_pipeline.py`:
   monta o payload inteiro de Sales Science (Win/Loss, Seasonality,
@@ -27,8 +27,9 @@
   fuso, endpoint não consulta o banco com retrato) + Sales Science: 30 OK;
   endpoint isolado do retrato real. Suíte completa não rodada.
 - Teste da tarefa ("latência do `/tempo-real` não muda com o job
-  rodando"): garantido por desenho (outro processo, só sem reunião ativa,
-  prioridade mínima); medição na VPS depois do deploy.
+  rodando"): medido na VPS no `/health` (mesmos workers e banco; o
+  `/tempo-real` exige reunião e IA) — sem job p50 7 ms / p95 10 ms, com o
+  job em sequência p50 7 ms / p95 11 ms. 1ª volta: 0,05 s de cálculo.
 
 ---
 

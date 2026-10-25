@@ -1,14 +1,30 @@
 # SALEIA - Estado Atual
 
-## 25/10/2026 — B3: pipeline analítico (V.1.4.189, local)
+## 25/10/2026 — B3: pipeline analítico (V.1.4.189, EM PRODUÇÃO)
 
 Sales Science passa a ser pré-calculada de hora em hora por um timer
 próprio (`saleia-sales-science`, fora do uvicorn, prioridade mínima, só
 sem reunião ativa) e o Dashboard lê o retrato
-(`data/sales_science_snapshot.json`). **Produção em V.1.4.188** — falta
-commit, deploy, instalar as 2 units novas (só elas: o `instalar.sh`
-inteiro também regrava `saleia.service`) e medir a latência com o job
-rodando. Próximo do passo 8: B6, D7.
+(`data/sales_science_snapshot.json`).
+
+- Deploy 25/10 ~02:05 UTC: `03fbe77` = VPS HEAD, bundle com
+  `reunioes_ativas: 0`, `NRestarts=0`, `/health` 1.4.189 online com IA,
+  `/dashboard` 200, journal sem erro.
+- Instaladas **só** as 2 units novas (o `instalar.sh` inteiro também
+  regrava `saleia.service`, e a unit da VPS não foi comparada com a do
+  repo desde a migração). Timer ativo, minuto 17 de cada hora.
+- 1ª volta: 0,05 s de cálculo (1 oportunidade, 287 citações de objeção).
+  O endpoint serve o retrato (`pre_calculado` preenchido).
+- **Teste da tarefa** (`/health`, 150 pedidos cada): sem job p50 7 ms /
+  p95 10 ms / máx 16 ms; com o job rodando em sequência (40 voltas, mesmos
+  limites do timer) p50 7 ms / p95 11 ms / máx 17 ms — sem diferença.
+  `/tempo-real` não medido direto (precisa de reunião e chama IA).
+- Visto de passagem: rodando fora do serviço, o `api.main` avisa
+  "OpenTelemetry não configurado: No module named
+  'opentelemetry.instrumentation'" no venv da VPS — conferir se os traces
+  do Grafana seguem chegando desde a migração de 21/10.
+
+Próximo do passo 8: B6, D7.
 
 ## 24/10/2026 — Passo 7: B4, B5 e C5 (V.1.4.188, local)
 
