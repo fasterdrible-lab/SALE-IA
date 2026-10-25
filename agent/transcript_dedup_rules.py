@@ -35,8 +35,11 @@ LIMIAR_SIMILARIDADE_PADRAO = 0.85
 MIN_CHARS_CORPO_PADRAO = 20
 # Auditoria T01 (11/10/2026): cópia exata só é artefato de captura quando
 # está colada (varredura da legenda); mais longe é o cliente repetindo uma
-# objeção (P7) e tem de ficar.
-JANELA_ARTEFATO_PADRAO = 6
+# objeção (P7) e tem de ficar. V.1.4.190 (reuniões reais de 19-20/10, que
+# bateram 2 milhões de caracteres): a legenda reenviava a fala 7-9 linhas
+# depois (metade das cópias), além das 6 — janela vai a 15. A objeção
+# repetida da P7 vem 30+ linhas depois e continua ficando.
+JANELA_ARTEFATO_PADRAO = 15
 # Reenvio do delta (retry): o bloco reenviado aparece no fim da base, com
 # no máximo esta folga de linhas que chegaram depois (P9).
 FOLGA_REENVIO_PADRAO = 5
@@ -53,6 +56,15 @@ MIN_LINHAS_BLOCO = 2
 JANELA_COBERTURA_PADRAO = 60
 LIMIAR_COBERTURA_PADRAO = 0.7
 MIN_PALAVRAS_COBERTURA = 4
+# V.1.4.190: rajada de reenvio — o envio traz falas longas já gravadas
+# (cópia exata, em qualquer ponto das últimas JANELA_BLOCO_PADRAO linhas)
+# fora de ordem, misturadas com respostas curtas repetidas ("beleza" 335
+# vezes numa reunião). Com pelo menos MIN_LONGAS_RAJADA delas e
+# LIMIAR_RAJADA das falas longas do envio, o envio é reenvio: sai toda
+# linha (curta também) que já está gravada. Um cliente repetindo uma
+# objeção é uma linha só e não forma rajada (P7).
+MIN_LONGAS_RAJADA = 2
+LIMIAR_RAJADA = 0.5
 
 _ROTULO_RE = re.compile(r"^([^:\n]{1,60}):\s*(.*)$")
 _NAO_PALAVRA_RE = re.compile(r"[^\w\s]", re.UNICODE)
@@ -285,6 +297,54 @@ def compactar_transcricao(texto: str, janela: int = JANELA_PARCIAL_PADRAO) -> st
     return "\n".join(mantidas)
 
 
+def _contem_versao(maior: str, menor: str) -> bool:
+    """`menor` é versão antiga/parcial de `maior`: começo (ou começo
+    reescrito, P10) ou trecho dele — o Meet também corta o começo do bloco."""
+    if len(menor) < MIN_CHARS_CORPO_PADRAO or len(maior) <= len(menor):
+        return False
+    return _versao_antiga_da_mesma_frase(menor, maior) or menor in maior
+
+
+def substituir_versoes_parciais(base: str, aceito: str, janela: int = JANELA_ARTEFATO_PADRAO) -> tuple:
+    """V.1.4.190: a legenda de um monólogo cresce e cada versão maior chega
+    num envio seguinte (reuniões reais de 19-20/10: 441 de 587 falas longas
+    eram versões parciais, linhas de até 3.500 caracteres).
+    `compactar_transcricao` só olha dentro do envio; aqui é entre o texto
+    gravado e o envio:
+
+    - fala nova que contém uma das `janela` últimas falas gravadas do mesmo
+      falante → a gravada sai de `base` (fica a versão completa);
+    - fala nova contida numa delas → sai do envio.
+
+    Retorna `(base, aceito)`. Nada se perde: a versão que fica contém a
+    que sai. Só mexe nas últimas `janela` falas de `base`. Função pura."""
+    novas = _linhas(aceito)
+    if not novas or not base:
+        return base, aceito
+    linhas_base = base.split("\n")
+    # índices (em linhas_base) das últimas `janela` falas não vazias
+    indices = [i for i, l in enumerate(linhas_base) if l.strip()][-janela:]
+    removidas: set = set()
+    mantidas = []
+    for nova in novas:
+        rot, corpo = _rotulo(nova), corpo_normalizado(nova)
+        contida = False
+        for i in indices:
+            if i in removidas or _rotulo(linhas_base[i]) != rot:
+                continue
+            antiga = corpo_normalizado(linhas_base[i])
+            if _contem_versao(antiga, corpo) or (antiga == corpo and len(corpo) >= MIN_CHARS_CORPO_PADRAO):
+                contida = True
+                break
+            if _contem_versao(corpo, antiga):
+                removidas.add(i)
+        if not contida:
+            mantidas.append(nova)
+    if removidas:
+        base = "\n".join(l for i, l in enumerate(linhas_base) if i not in removidas).rstrip()
+    return base, "\n".join(mantidas)
+
+
 ROTULOS_SEM_JUNCAO = {"não identificado", "nao identificado", "participante"}
 
 
@@ -313,6 +373,15 @@ def juntar_falas_seguidas(texto: str) -> str:
     return "\n".join(f"{r}: {c}" if r else c for r, _, c in saida)
 
 
+def eh_rajada_de_reenvio(linhas: list, historico: list, min_chars: int = MIN_CHARS_CORPO_PADRAO) -> bool:
+    """O envio é, na maior parte, fala longa já gravada (ver
+    `MIN_LONGAS_RAJADA`/`LIMIAR_RAJADA`)?"""
+    gravadas = {l.strip() for l in historico}
+    longas = [l for l in linhas if len(corpo_normalizado(l)) >= min_chars]
+    repetidas = sum(1 for l in longas if l.strip() in gravadas)
+    return repetidas >= MIN_LONGAS_RAJADA and repetidas >= LIMIAR_RAJADA * len(longas)
+
+
 def deduplicar_fragmento(
     base: str,
     fragmento: str,
@@ -331,8 +400,15 @@ def deduplicar_fragmento(
     recentes = historico[-janela_exata:]
     linhas = _linhas(fragmento)
     descartadas = linhas_reenviadas(recentes, linhas)
+    linhas = linhas[descartadas:]
+    # V.1.4.190: rajada de reenvio — tira tudo que já está gravado.
+    if eh_rajada_de_reenvio(linhas, historico, min_chars):
+        gravadas = {l.strip() for l in historico}
+        restantes = [l for l in linhas if l.strip() not in gravadas]
+        descartadas += len(linhas) - len(restantes)
+        linhas = restantes
     mantidas = []
-    i = descartadas
+    i = 0
     while i < len(linhas):
         bloco = tamanho_bloco_reenviado(linhas, i, historico)
         if bloco:

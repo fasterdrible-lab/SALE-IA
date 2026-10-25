@@ -297,5 +297,79 @@ class LimparTranscricaoProcessadorTest(unittest.TestCase):
         self.assertEqual(_limitar_contexto_ia(texto), "João: Ó, Ricardo, tá vendo o seu painel aqui do lado?")
 
 
+def _meio(n):
+    return [f"Cliente: fala intermediária número {i} bem diferente das outras" for i in range(n)]
+
+
+class RepeticaoDe19_10Test(unittest.TestCase):
+    """V.1.4.190 — padrão real das reuniões de 19-20/10 (teto de 2 milhões)."""
+
+    FALA = "Paulo: desenvolveu um agente que cria vídeos fotos e ajuda vocês com os anúncios também"
+
+    def test_copia_exata_8_linhas_depois_sai(self):
+        # metade das cópias reais vinha 7-9 linhas depois (antes só ≤ 6 saía)
+        self.assertTrue(eh_duplicata(self.FALA, [self.FALA] + _meio(8)))
+
+    def test_objecao_repetida_30_linhas_depois_continua(self):
+        self.assertFalse(eh_duplicata(self.FALA, [self.FALA] + _meio(30)))
+
+    def test_rajada_de_reenvio_tira_tambem_as_curtas(self):
+        antigas = ["Paulo: Não a gente não é fornecedor a gente tem lembra lá o ecossistema",
+                   self.FALA, "Reilon: a maioria"]
+        base = "\n".join(antigas + _meio(40))
+        envio = "\n".join(["Reilon: a maioria", antigas[0], "Reilon: a maioria", self.FALA,
+                           "Reilon: e o preço disso tudo como fica no fim das contas"])
+        filtrado, descartadas = deduplicar_fragmento(base, envio)
+        self.assertEqual(filtrado, "Reilon: e o preço disso tudo como fica no fim das contas")
+        self.assertEqual(descartadas, 4)
+
+    def test_uma_objecao_repetida_nao_e_rajada(self):
+        objecao = "Cliente: Mas olha, sinceramente, eu acho que está caro para o momento."
+        base = "\n".join([objecao, "Cliente: Sim."] + _meio(30))
+        envio = objecao + "\nCliente: Sim.\nCliente: e o prazo de entrega de vocês como funciona"
+        filtrado, _ = deduplicar_fragmento(base, envio)
+        self.assertEqual(filtrado.splitlines(), envio.splitlines())
+
+
+class SubstituirVersoesParciaisTest(unittest.TestCase):
+    def setUp(self):
+        from agent.transcript_dedup_rules import substituir_versoes_parciais
+        self.f = substituir_versoes_parciais
+
+    def test_versao_maior_troca_a_parcial_ja_gravada(self):
+        base = "Cliente: Bom dia.\nPaulo: É exatamente isso que você falou na verdade"
+        nova = "Paulo: É exatamente isso que você falou na verdade, o que que acontece Ruben?"
+        b, a = self.f(base, nova)
+        self.assertEqual(b, "Cliente: Bom dia.")
+        self.assertEqual(a, nova)
+
+    def test_versao_menor_que_chega_depois_e_descartada(self):
+        base = "Paulo: É exatamente isso que você falou na verdade, o que que acontece Ruben?"
+        b, a = self.f(base, "Paulo: É exatamente isso que você falou na verdade")
+        self.assertEqual((b, a), (base, ""))
+
+    def test_meet_cortou_o_comeco_e_contida(self):
+        base = "Paulo: Tem toda uma estrutura de destaque para vocês se posicionarem no mercado"
+        b, a = self.f(base, "Paulo: estrutura de destaque para vocês se posicionarem")
+        self.assertEqual(a, "")
+
+    def test_outro_falante_nunca_e_substituido(self):
+        base = "Cliente: É exatamente isso que você falou na verdade"
+        nova = "Paulo: É exatamente isso que você falou na verdade, o que que acontece?"
+        self.assertEqual(self.f(base, nova), (base, nova))
+
+    def test_resposta_curta_repetida_fica(self):
+        base = "Cliente: Sim.\nPaulo: e aí, faz sentido para vocês esse modelo de trabalho?"
+        self.assertEqual(self.f(base, "Cliente: Sim."), (base, "Cliente: Sim."))
+
+    def test_parcial_fora_da_janela_fica(self):
+        parcial = "Paulo: É exatamente isso que você falou na verdade"
+        base = "\n".join([parcial] + _meio(20))
+        nova = parcial + ", o que que acontece Ruben?"
+        b, a = self.f(base, nova)
+        self.assertIn(parcial, b.splitlines())
+        self.assertEqual(a, nova)
+
+
 if __name__ == "__main__":
     unittest.main()

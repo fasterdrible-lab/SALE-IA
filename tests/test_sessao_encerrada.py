@@ -80,7 +80,7 @@ class TestSessaoEncerrada(unittest.TestCase):
 
     def test_fala_nova_reabre(self):
         conn, p = self._com((42, "", 0))
-        with p, patch.object(sm, "_limpar_e_deduplicar", return_value="Vendedor: voltei"):
+        with p, patch.object(sm, "_limpar_e_deduplicar", return_value=("", "Vendedor: voltei")):
             sm.salvar_transcricao_bruta("abc-defg-hij", "Vendedor: voltei")
         upd = [s for s, _ in conn.sqls if s.startswith("UPDATE")]
         self.assertTrue(upd and "encerrada_em = NULL" in upd[-1])

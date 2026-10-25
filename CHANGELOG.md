@@ -3,6 +3,45 @@
 
 ---
 
+## V.1.4.190 — Trava contra a transcrição repetida (reuniões de 19-20/10)
+
+> Data: 25/10/2026 | Backend, sem mudança na extensão | Local, deploy pendente
+
+- **Problema**: 4 reuniões reais (sessões 548-550 e 553, Paulo, 19-20/10)
+  bateram o teto de 2 milhões de caracteres em `sessoes` (até 5,7 milhões
+  em `meeting_memory`); relatórios com erro. Medido: só 31-44% das falas
+  longas eram únicas; a cópia exata voltava 7-9 linhas depois (a trava só
+  pegava ≤ 6; a regra "parecida" fica desligada sem áudio no servidor);
+  respostas curtas repetidas centenas de vezes ("beleza" 335x); e o
+  monólogo crescendo era gravado a cada versão (441 de 587 falas longas
+  restantes eram versões parciais, linhas de até 3.500 caracteres).
+- `agent/transcript_dedup_rules.py`, 3 regras (valem para `sessoes` e
+  `meeting_memory`):
+  1. `JANELA_ARTEFATO_PADRAO` 6 → **15**: cópia exata de fala longa até 15
+     linhas depois sai. A objeção repetida 30+ linhas depois fica (P7).
+  2. **Rajada de reenvio** (`eh_rajada_de_reenvio`): envio com ≥ 2 falas
+     longas já gravadas e ≥ 50% das longas dele → sai toda linha já
+     gravada, curtas também. Uma objeção repetida não forma rajada.
+  3. **Versões parciais entre envios** (`substituir_versoes_parciais`):
+     fala nova que contém uma das 15 últimas do mesmo falante substitui a
+     gravada; fala nova contida numa delas sai. Só falas ≥ 20 caracteres,
+     nunca entre falantes diferentes. `api/database.py` e
+     `agent/sessao_manager.py` aplicam depois de `deduplicar_fragmento`
+     (os dois já regravam o texto inteiro).
+- **Simulação na VPS** (transcrições reais reenviadas em pedaços de 8
+  linhas, produção × nova): 548 → 17% do tamanho atual, 549 → 19%, 550 →
+  24%, 553 → 13%; 12 reuniões normais 74-99% (uma com linhas crescendo,
+  35%). Conteúdo: 0-2 palavras distintas a menos nas normais; 8-16 nas
+  repetidas (a maioria pedaço de palavra cortada pela legenda, algumas
+  reais).
+- Testes novos em `tests/test_transcript_dedup_rules.py` (padrão real de
+  19/10, P7 preservada, rajada, substituição, resposta curta, outro
+  falante, fora da janela); `test_sessao_encerrada` ajustado ao novo
+  retorno de `_limpar_e_deduplicar`.
+- Não mexe no que já está gravado (as 4 sessões seguem como estão).
+
+---
+
 ## V.1.4.189 — B3: pipeline analítico assíncrono (Sales Science pré-calculada)
 
 > Data: 25/10/2026 | Backend + Dashboard + unit do systemd, sem mudança na extensão | **Em produção** (`03fbe77`; timer instalado)

@@ -1,5 +1,16 @@
 # SALEIA - Estado Atual
 
+## 25/10/2026 (noite) — V.1.4.190: trava contra a transcrição repetida (local)
+
+As reuniões de 19-20/10 que bateram 2 milhões de caracteres tinham 3
+padrões: cópia exata 7-9 linhas depois, rajadas de reenvio (com respostas
+curtas repetidas centenas de vezes) e o monólogo gravado a cada versão
+crescendo. 3 regras novas em `agent/transcript_dedup_rules.py` (detalhe
+no CHANGELOG). Simulado na VPS com as transcrições reais: as 4 reuniões
+caem para 13-24% do tamanho, reuniões normais quase não mudam, perda de
+conteúdo pequena. **Produção em V.1.4.189** — falta deploy. As sessões já
+gravadas não são reprocessadas.
+
 ## 25/10/2026 (17:40 UTC) — CORREÇÃO: a legenda do Meet é lida; causa era o botão "API desligada"
 
 Teste real do usuário (sessão 567, `pea-uiwd-odp`, ext 1.4.37): no 1º

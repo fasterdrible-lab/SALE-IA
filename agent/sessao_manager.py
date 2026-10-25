@@ -160,11 +160,14 @@ def listar_sessoes(limite: int = 200) -> list:
         return []
 
 
-def _limpar_e_deduplicar(meeting_id: str, atual: str, parcial: str) -> str:
+def _limpar_e_deduplicar(meeting_id: str, atual: str, parcial: str) -> tuple:
     """Mesmas regras da MeetingMemory (auditoria T01, P2): sem texto de
     tela, sem legenda parcial, sem reenvio do mesmo delta e sem a segunda
-    cópia da fala que veio do áudio."""
-    from agent.transcript_dedup_rules import compactar_transcricao, deduplicar_fragmento
+    cópia da fala que veio do áudio. Retorna `(atual, aceito)`: desde a
+    V.1.4.190 a versão parcial já gravada da mesma fala sai de `atual`."""
+    from agent.transcript_dedup_rules import (
+        compactar_transcricao, deduplicar_fragmento, substituir_versoes_parciais,
+    )
 
     corpos_audio: set = set()
     try:
@@ -174,7 +177,7 @@ def _limpar_e_deduplicar(meeting_id: str, atual: str, parcial: str) -> str:
         logger.debug("[Sessões] sem corpos de áudio: %s", e)
     limpo = compactar_transcricao(parcial or "")
     aceito, _ = deduplicar_fragmento(atual or "", limpo, corpos_audio=corpos_audio)
-    return aceito
+    return substituir_versoes_parciais(atual or "", aceito)
 
 
 def salvar_transcricao_bruta(meeting_id: str, transcricao_parcial: str):
@@ -187,11 +190,11 @@ def salvar_transcricao_bruta(meeting_id: str, transcricao_parcial: str):
             row = cur.fetchone()
             if row:
                 sessao_id, atual, _num = row
-                aceito = _limpar_e_deduplicar(meeting_id, atual, transcricao_parcial)
-                if not aceito:
+                atual_limpo, aceito = _limpar_e_deduplicar(meeting_id, atual, transcricao_parcial)
+                if not aceito and atual_limpo == (atual or ""):
                     conn.close()
                     return
-                nova = acumular_transcricao(atual, aceito)
+                nova = acumular_transcricao(atual_limpo, aceito) if aceito else atual_limpo
                 cur.execute(
                     "UPDATE sessoes SET transcricao_acumulada = %s, updated_at = NOW(), encerrada_em = NULL WHERE id = %s",
                     (nova, sessao_id),

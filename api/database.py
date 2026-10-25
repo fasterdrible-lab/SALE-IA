@@ -1052,7 +1052,7 @@ def registrar_transcricao_meeting(
 
     from sqlalchemy import update
     from sqlalchemy.exc import IntegrityError
-    from agent.transcript_dedup_rules import deduplicar_fragmento
+    from agent.transcript_dedup_rules import deduplicar_fragmento, substituir_versoes_parciais
 
     fragmento = (fragmento or "").strip()
     tamanho_sql = func.coalesce(func.length(MeetingMemory.transcript_full), 0)
@@ -1076,6 +1076,8 @@ def registrar_transcricao_meeting(
                 )
                 if descartadas:
                     logger.info("[MeetingMemory] %s linha(s) duplicada(s) descartada(s) meeting=%s", descartadas, meeting_id)
+                # V.1.4.190: versão parcial da mesma fala (legenda crescendo).
+                base, aceito = substituir_versoes_parciais(base, aceito)
             novo_full = aceito if substituir else _append_transcript(base, aceito)
             novo_buffer = _merge_transcript_buffer("" if (substituir or not row) else row.transcript_buffer, aceito)
             agora = datetime.now()
