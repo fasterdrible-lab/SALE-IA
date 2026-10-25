@@ -1,5 +1,15 @@
 # SALEIA - Estado Atual
 
+## 25/10/2026 — B3: pipeline analítico (V.1.4.189, local)
+
+Sales Science passa a ser pré-calculada de hora em hora por um timer
+próprio (`saleia-sales-science`, fora do uvicorn, prioridade mínima, só
+sem reunião ativa) e o Dashboard lê o retrato
+(`data/sales_science_snapshot.json`). **Produção em V.1.4.188** — falta
+commit, deploy, instalar as 2 units novas (só elas: o `instalar.sh`
+inteiro também regrava `saleia.service`) e medir a latência com o job
+rodando. Próximo do passo 8: B6, D7.
+
 ## 24/10/2026 — Passo 7: B4, B5 e C5 (V.1.4.188, local)
 
 - **B4**: Sales Science → Objection Trends usa as objeções classificadas

@@ -142,12 +142,18 @@ nova), depois extratores novos.
 - **Efeito**: `taxa_avanco`/`taxa_desfecho_positivo` (Fase 10.3) deixam
   de ser `None`. Fecha o elo "resultado é registrado" do Learning Loop.
 
-### B3 — Pipeline analítico assíncrono (seção 31) [infra]
+### B3 — Pipeline analítico assíncrono (seção 31) [CONCLUÍDA no código — 25/10/2026, V.1.4.189; deploy pendente]
 - Job agendado fora do hot path (respeitando
   `pode_executar_analise_pesada()`, Fase 9.1) que monta o dataset
   analítico e pré-calcula Win/Loss/Seasonality/Drivers/Trends.
 - **Teste**: o ciclo de `/tempo-real` não muda de latência com o job
   rodando.
+- Feito: `agent/sales_science_pipeline.py` + timer
+  `saleia-sales-science` (de hora em hora, processo próprio, Nice 19,
+  CPUQuota 50%, só com 0 reuniões ativas) grava
+  `data/sales_science_snapshot.json`; `GET /sales-science/insights` serve
+  o retrato (< 26 h) sem tocar no banco, senão calcula na hora. Detalhe
+  no CHANGELOG.
 
 ### B4 — Objection Trends com dado real [CONCLUÍDA no código — 24/10/2026, V.1.4.188; em produção 24/10]
 - Alimentar `objection_trend_analyzer.py` com as objeções classificadas

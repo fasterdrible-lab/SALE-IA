@@ -866,7 +866,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.188",
+        "versao":              "1.4.189",
         "timestamp":           datetime.now().isoformat(),
         "ia_disponivel":       ia["ia_disponivel"],
         "ia_fora_desde":       ia["ia_fora_desde"],
@@ -907,7 +907,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.188",
+        "versao":          "1.4.189",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -5059,14 +5059,23 @@ def sales_science_insights_endpoint(authorization: str | None = _Header(default=
     essas engines exigem ainda. Objection Trends (B4) usa as
     SalesEvidence `OBJECTION:*` de todas as reuniões. Admin-only —
     visão agregada de todas as oportunidades, não filtrada por
-    vendedor (diferente de `GET /opportunities`)."""
+    vendedor (diferente de `GET /opportunities`).
+
+    B3: serve o retrato do pipeline analítico (`agent/sales_science_
+    pipeline.py`, timer de hora em hora fora do uvicorn) quando há um
+    recente; `pre_calculado` diz de quando é (`None` = calculado agora)."""
     _req_admin(authorization)
     try:
+        from agent.sales_science_pipeline import ler_snapshot_valido
+        snapshot = ler_snapshot_valido()
+        if snapshot:
+            return {**snapshot["payload"], "pre_calculado": {"gerado_em": snapshot["gerado_em"]}}
+
         from api.database import listar_opportunities, listar_sales_evidences
         from agent.sales_science_insights_rules import montar_sales_science_insights
         opportunities = listar_opportunities(limit=5000)
         objecoes = listar_sales_evidences(type_prefix="OBJECTION:", limit=50000)
-        return montar_sales_science_insights(opportunities, objecoes)
+        return {**montar_sales_science_insights(opportunities, objecoes), "pre_calculado": None}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -1,0 +1,11 @@
+# /etc/systemd/system/saleia-sales-science.timer — B3 (V.1.4.189).
+# De hora em hora (minuto 17, longe do backup das 05:30 e do restart das 06:00 UTC).
+[Unit]
+Description=SALEIA - agenda o pipeline analitico Sales Science
+
+[Timer]
+OnCalendar=*-*-* *:17:00 UTC
+Persistent=false
+
+[Install]
+WantedBy=timers.target

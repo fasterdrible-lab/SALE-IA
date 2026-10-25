@@ -4834,9 +4834,14 @@
   }
 
   function renderSalesScience(d) {
-    let html = `<div class="metrics" style="margin-bottom:20px">
+    // B3: pipeline analítico de hora em hora (fora do tempo real).
+    const pre = d.pre_calculado && d.pre_calculado.gerado_em
+      ? 'Pré-calculado em ' + new Date(d.pre_calculado.gerado_em).toLocaleString('pt-BR')
+      : 'Calculado agora';
+    let html = `<div class="metrics" style="margin-bottom:8px">
       <div class="metric"><div class="metric-val">${escHtml(d.amostra_total)}</div><div class="metric-lbl">Oportunidades na amostra</div></div>
-    </div>`;
+    </div>
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:20px">${escHtml(pre)}</div>`;
 
     html += `<h3 style="margin-top:0">📊 Win/Loss</h3>`;
     html += `<div class="grid-2">

@@ -3,6 +3,35 @@
 
 ---
 
+## V.1.4.189 — B3: pipeline analítico assíncrono (Sales Science pré-calculada)
+
+> Data: 25/10/2026 | Backend + Dashboard + unit do systemd, sem mudança na extensão | Local, deploy pendente
+
+- `agent/sales_science_pipeline.py` + `scripts/sales_science_pipeline.py`:
+  monta o payload inteiro de Sales Science (Win/Loss, Seasonality,
+  Conversion Drivers, Objection Trends, Seller Benchmark) e grava em
+  `data/sales_science_snapshot.json` (escrita atômica, data em UTC).
+  Só roda com `pode_executar_analise_pesada()` (Fase 9.1: 0 reuniões
+  ativas); com reunião, pula e tenta na próxima volta. Sem IA.
+- Fora do hot path: processo próprio, timer
+  `deploy/systemd/saleia-sales-science.timer` de hora em hora (minuto 17
+  UTC), `Nice=19`, `IOSchedulingClass=idle`, `CPUQuota=50%`. Nunca roda
+  dentro dos workers do uvicorn. `instalar.sh` passa a instalar as 2
+  units.
+- `GET /sales-science/insights` serve o retrato quando ele tem menos de
+  26 h (sem consultar o banco) e responde `pre_calculado: {gerado_em}`;
+  sem retrato recente, calcula na hora como antes (`pre_calculado: null`).
+  Dashboard mostra "Pré-calculado em …" / "Calculado agora".
+- Testes: `tests/test_sales_science_pipeline.py` (pula com reunião ativa,
+  grava payload completo, retrato ausente/corrompido/vencido, data sem
+  fuso, endpoint não consulta o banco com retrato) + Sales Science: 30 OK;
+  endpoint isolado do retrato real. Suíte completa não rodada.
+- Teste da tarefa ("latência do `/tempo-real` não muda com o job
+  rodando"): garantido por desenho (outro processo, só sem reunião ativa,
+  prioridade mínima); medição na VPS depois do deploy.
+
+---
+
 ## V.1.4.188 — Passo 7: B4 (Objection Trends), B5 (Seller Benchmark), C5 (estratégias no motor)
 
 > Data: 24/10/2026 | Backend + Dashboard + script, sem mudança na extensão | **Em produção** (`d5a5335`, deploy por bundle sem reunião ativa, `NRestarts=0`)

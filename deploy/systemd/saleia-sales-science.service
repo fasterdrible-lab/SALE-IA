@@ -1,0 +1,15 @@
+# /etc/systemd/system/saleia-sales-science.service — B3 (V.1.4.189).
+# Pipeline analítico fora do hot path: processo próprio, prioridade baixa,
+# no máximo meio núcleo. O script pula sozinho se houver reunião ativa.
+[Unit]
+Description=SALEIA - pipeline analitico Sales Science (so sem reuniao ativa)
+After=mysql.service saleia.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/saleia
+ExecStart=/opt/saleia/venv/bin/python -m scripts.sales_science_pipeline
+TimeoutStartSec=30min
+Nice=19
+IOSchedulingClass=idle
+CPUQuota=50%

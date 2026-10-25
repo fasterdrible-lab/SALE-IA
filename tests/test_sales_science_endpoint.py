@@ -67,6 +67,15 @@ class SalesScienceEndpointTest(unittest.TestCase):
         self._engine_patch = patch.object(self._database, "engine", self._engine)
         self._engine_patch.start()
         self.addCleanup(self._engine_patch.stop)
+        # B3: nunca servir um retrato real de data/ — estes testes calculam ao vivo.
+        import tempfile
+        from pathlib import Path
+        from agent import sales_science_pipeline
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        snap = patch.object(sales_science_pipeline, "SNAPSHOT_PATH", Path(tmp.name) / "ausente.json")
+        snap.start()
+        self.addCleanup(snap.stop)
 
     def test_sem_token_401(self):
         r = self.client.get("/sales-science/insights")

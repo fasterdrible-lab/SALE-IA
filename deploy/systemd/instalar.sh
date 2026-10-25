@@ -12,13 +12,17 @@ install -m 644 "$DIR/saleia-restart-diario.service" /etc/systemd/system/saleia-r
 install -m 644 "$DIR/saleia-restart-diario.timer" /etc/systemd/system/saleia-restart-diario.timer
 install -m 644 "$DIR/saleia-backup.service" /etc/systemd/system/saleia-backup.service
 install -m 644 "$DIR/saleia-backup.timer" /etc/systemd/system/saleia-backup.timer
+install -m 644 "$DIR/saleia-sales-science.service" /etc/systemd/system/saleia-sales-science.service
+install -m 644 "$DIR/saleia-sales-science.timer" /etc/systemd/system/saleia-sales-science.timer
 chmod +x "$DIR/saleia-restart-diario.sh" "$DIR/saleia-backup.sh"
 
 systemd-analyze verify /etc/systemd/system/saleia.service \
     /etc/systemd/system/saleia-restart-diario.service \
     /etc/systemd/system/saleia-restart-diario.timer \
     /etc/systemd/system/saleia-backup.service \
-    /etc/systemd/system/saleia-backup.timer
+    /etc/systemd/system/saleia-backup.timer \
+    /etc/systemd/system/saleia-sales-science.service \
+    /etc/systemd/system/saleia-sales-science.timer
 systemctl daemon-reload
-systemctl enable --now saleia-restart-diario.timer saleia-backup.timer
+systemctl enable --now saleia-restart-diario.timer saleia-backup.timer saleia-sales-science.timer
 systemctl list-timers 'saleia-*' --no-pager
