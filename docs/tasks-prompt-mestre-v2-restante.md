@@ -119,10 +119,13 @@ nova), depois extratores novos.
   sidebar (pedido do usuário, em avaliação). `tests/test_turnos.py` bate a
   conta manual. Tempo vem da legenda (aproximado).
 
-### A9 — Challenger Engine [decisão de produto]
+### A9 — Challenger Engine [DECIDIDO 25/10/2026: fora de escopo por enquanto]
 - Está no diagrama da seção 3, mas nenhuma fase o detalha. Decidir:
   construir (mesmo padrão de `negotiation_rules.py`) ou registrar como
   fora de escopo.
+- Decisão do usuário (25/10): fora de escopo por enquanto. Motivo: a C4
+  mostrou o motor (27%) abaixo do coach (40%); outro motor de raciocínio
+  não ajuda antes de o motor atual melhorar. Reabrir depois da C4/C6.
 
 ---
 
@@ -182,9 +185,11 @@ nova), depois extratores novos.
   (top > low é por construção); o valor está no confundimento. Detalhe
   no CHANGELOG.
 
-### B6 — Persistir experimentos e analisar resultado [Fase 14]
+### B6 — Persistir experimentos e analisar resultado [Fase 14] [ADIADA 25/10/2026]
 - Tabela de experimentos + atribuição pilot/control + análise via
   `pattern_discovery_rules.descobrir_padrao()`. Só faz sentido com B2.
+- Decisão do usuário (25/10): adiada até haver oportunidades ganhas/
+  perdidas registradas (hoje 1 oportunidade, 0 fechadas) — ficaria vazia.
 
 ---
 
@@ -325,7 +330,14 @@ Pedido original da C8:
 - Hoje só `prompt_version`/`rule_version`. Adicionar
   `reasoning_engine_version`, `policy_version`, `knowledge_version`,
   `model_version` em RecommendationEvent + AuditTrailEntry.
-### D7 — Load test 10/50/100 reuniões (seção 32) + hot path × analytics
+### D7 — Load test 10/50/100 reuniões (seção 32) + hot path × analytics [ferramenta pronta 25/10/2026; 1ª rodada agendada]
+- Decisão do usuário (25/10): VPS de madrugada, IA simulada. Ferramenta em
+  `scripts/loadtest/` (`rodar.sh` monta instância isolada na porta 8010
+  com banco `saleia_loadtest` e IA falsa na 8099 — atraso real do
+  DeepSeek, nenhum provedor real —, roda 10/50/100 reuniões, mede
+  latência, erros, timeouts, CPU, RAM, MySQL, fila e tokens, para se uma
+  reunião real começar e desmonta tudo; relatório em `/root/loadtest/`).
+  Hot path × analytics já medido na B3.
 ### D8 — Corrigir a corrida de DDL entre workers [CONCLUÍDA — 29/09/2026, V.1.4.147]
 - `GET_LOCK` nomeado em volta de todo o DDL do startup + tratamento do
   erro 1684 + 2ª tentativa do `create_all`. Validado no MySQL real.
@@ -402,10 +414,13 @@ Histórico da tarefa:
 Pedido original:
 - `SALES_BRAIN_ARCHITECTURE`, `SALES_SCIENCE`, `AUTONOMY_POLICY`,
   `TEST_STRATEGY`, `SECURITY_MODEL`, `DATA_DICTIONARY`. Nenhum existe.
-### D10 — Camada `domain/`/`application/` (seção 4) [decisão]
+### D10 — Camada `domain/`/`application/` (seção 4) [DECIDIDO 25/10/2026: não mover]
 - O prompt pede uma migração gradual; hoje tudo vive em `agent/*_rules.py`.
   Decidir se vale mover (risco de regressão alto) ou registrar que
   `agent/*_rules.py` cumpre o papel de domínio.
+- Decisão do usuário (25/10): `agent/*_rules.py` (funções puras, sem IA/
+  banco, testadas) cumpre o papel de camada de domínio; não mover — risco
+  de regressão alto sem ganho para o usuário.
 
 ---
 
