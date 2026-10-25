@@ -5,7 +5,7 @@
 
 ## V.1.4.190 — Trava contra a transcrição repetida (reuniões de 19-20/10)
 
-> Data: 25/10/2026 | Backend, sem mudança na extensão | Local, deploy pendente
+> Data: 25/10/2026 | Backend, sem mudança na extensão | **Em produção** (`dd4e257`, sem reunião ativa, `NRestarts=0`)
 
 - **Problema**: 4 reuniões reais (sessões 548-550 e 553, Paulo, 19-20/10)
   bateram o teto de 2 milhões de caracteres em `sessoes` (até 5,7 milhões
