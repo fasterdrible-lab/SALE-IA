@@ -20,6 +20,17 @@
   relatórios com erro (`DataError`/`HTTPException`). Provavelmente a
   mesma mudança do Meet começando.
 - Por isso não há objeções (B4) depois de 19/10.
+- Das 7 reuniões de 21-23/10 (sessões 556-566) **nenhuma tem gravação**
+  (o vendedor não clicou em Gravar) — perdidas. Há gravação de
+  `cge-xbyo-ytb`, `dmb-cwkm-ncq`, `qpr-dfvf-fnk` (19/10), `dba-zoec-jsf`
+  (20-23/10) e `nqo-hiro-bwo` (23/10). **Retenção estendida para 30 dias
+  em 25/10 ~17:11 UTC** (340 linhas de `gravacoes_audio`, `apagar_em =
+  iniciada_em + 30 d`, agora 18-22/11; backup
+  `/root/backups/saleia/manual/gravacoes_audio_pre_retencao30_20261025_171101.sql`)
+  para recuperar a transcrição pela gravação — script de transcrição
+  pós-reunião ainda não existe (Fase 3 de `tasks-legenda-tempo-real.md`).
+- Inspeção do Meet pelo Claude in Chrome não foi possível (ferramenta não
+  disponível na sessão de 25/10).
 - OpenTelemetry: envio desligado em 25/10 ~11:25 UTC
   (`OTEL_EXPORTER_OTLP_ENDPOINT` comentado no `.env`, backup
   `.env.bak_otel_off_20261025_112500`) até chegar token novo do Grafana.
