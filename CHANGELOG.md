@@ -3,6 +3,24 @@
 
 ---
 
+## V.1.4.193 + ext 1.4.39 — Painel novo do Meet ("Legendas e tradução")
+
+> Data: 04/11/2026 | Backend + extensão
+
+- **Problema**: o Meet ganhou o painel "Legendas e tradução" (botões "Ativar
+  legendas" e "Traduzir fala"). Antes de a área de legendas aparecer, os textos
+  do botão e da dica de tela eram lidos como fala: a sessão 592 gravou só
+  `Não identificado: Legendas e tradução`. A fala real segue sendo lida (sessão
+  591), e o botão agora usa `aria-label` "Desativar legenda instantânea".
+- **Ext 1.4.39**: `processarElementoLegenda` ignora texto dentro de botão ou
+  dica de tela. Substitui a 1.4.38, que não foi distribuída.
+- **V.1.4.193**: "Legendas e tradução" e "Traduzir fala" em
+  `agent/ruido_interface_rules.py`, para extensões antigas.
+- Não conferido: se o botão desligado existe com o painel fechado. Sem isso a
+  legenda não liga sozinha.
+
+---
+
 ## V.1.4.192 + ext 1.4.38 — Anel de regravação da legenda
 
 > Data: 04/11/2026 | Backend + extensão | **Servidor em produção** (`eb4e125`, sem reunião ativa, `NRestarts=0`); extensão aguarda reinstalação

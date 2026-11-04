@@ -136,6 +136,8 @@ voce ainda esta aqui
 legendas traduzidas
 camera desligada
 legenda instantanea
+legendas e traducao
+traduzir fala
 idioma da reuniao
 idioma falado padrao
 sua preferencia de idioma

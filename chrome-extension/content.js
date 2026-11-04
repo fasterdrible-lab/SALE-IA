@@ -1384,6 +1384,10 @@
     // Tarefa A1: <style>/<script> são "folhas" de texto para o observer e
     // vazavam CSS ("height: 100%;") como se fosse fala.
     if (el.closest && el.closest('style,script,noscript,template')) return;
+    // Ext 1.4.39: o painel novo do Meet ("Legendas e tradução", visto em
+    // 04/11/2026) virava fala antes de a área de legendas aparecer. Legenda
+    // nunca fica dentro de botão ou dica de tela.
+    if (el.closest && el.closest('button,[role="button"],[role="tooltip"]')) return;
     var texto = el.textContent.trim();
     // V.1.4.27: dentro da área de legendas só há fala, então resposta curta
     // ("sim", "bem", "caro") vale. Fora dela (Meet sem a área) o mínimo de

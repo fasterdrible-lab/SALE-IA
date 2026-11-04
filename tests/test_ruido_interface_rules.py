@@ -97,6 +97,18 @@ class EhTextoDeInterfaceTest(unittest.TestCase):
         self.assertFalse(eh_texto_de_interface(None))
 
 
+class PainelNovoDoMeetTest(unittest.TestCase):
+    """04/11/2026: painel "Legendas e tradução" gravado como fala (sessão 592)."""
+
+    def test_textos_do_painel_sao_interface(self):
+        for texto in ("Legendas e tradução", "Traduzir fala", "Legenda instantânea"):
+            with self.subTest(texto=texto):
+                self.assertTrue(eh_texto_de_interface(texto))
+
+    def test_fala_real_sobre_legenda_fica(self):
+        self.assertFalse(eh_texto_de_interface("Você consegue ver as legendas e a tradução da nossa conversa aí?"))
+
+
 class EhSoNomeProprioTest(unittest.TestCase):
     def test_nomes(self):
         self.assertTrue(eh_so_nome_proprio("Daniel Camargo de Andrade"))

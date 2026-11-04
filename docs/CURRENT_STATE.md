@@ -1,5 +1,14 @@
 # SALEIA - Estado Atual
 
+## 04/11/2026 (noite) — Meet novo: V.1.4.193 + ext 1.4.39
+
+O painel "Legendas e tradução" gravava texto de botão como fala; corrigido nas
+2 pontas (detalhe no CHANGELOG). A leitura da legenda continua funcionando.
+**Distribuir a ext 1.4.39, não a 1.4.38**: traz as 2 correções. Falta conferir
+numa reunião nova se a legenda liga sozinha com o painel fechado.
+`nqo`, `bcx`, `kps` e `fay` não têm linha em `sessoes`: o `/iniciar-sessao` não
+chegou, o que combina com "API desligada" (confirmar com quem estava na reunião).
+
 ## 04/11/2026 (noite) — Causa da repetição achada: V.1.4.192 EM PRODUÇÃO, ext 1.4.38 aguarda reinstalação
 
 A extensão regrava em anel quando há mais de 20 blocos de legenda no DOM (só

@@ -349,3 +349,17 @@ test('A8 (ext 1.4.37): cada fala guarda início/fim; continuação de bloco já 
   assert.ok(segunda.inicio >= primeira.fim, 'sem tempo contado 2 vezes');
   assert.ok(segunda.fim > segunda.inicio);
 });
+
+test('ext 1.4.39: botão e dica do painel "Legendas e tradução" não viram fala', { skip: !JSDOM && 'sem jsdom' }, () => {
+  const { t, regiao } = montar();
+  const d = regiao.ownerDocument;
+  const botao = d.createElement('button');
+  botao.innerHTML = '<span>Legenda instantânea</span>';
+  const dica = d.createElement('div');
+  dica.setAttribute('role', 'tooltip');
+  dica.textContent = 'Legendas e tradução';
+  regiao.append(botao, dica);
+  t.processarElementoLegenda(botao.querySelector('span'));
+  t.processarElementoLegenda(dica);
+  assert.deepEqual(puro(Object.keys(t.captionBuffer)), []);
+});
