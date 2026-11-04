@@ -1,5 +1,41 @@
 # SALEIA - Estado Atual
 
+## 04/11/2026 (tarde) — V.1.4.191: pool de IA, transcrição das gravações, novo D7
+
+`ab612ea` = VPS HEAD = GitHub, **sem restart**: a produção segue na 1.4.190 e
+passa para a 1.4.191 no reinício diário de 05/11 06:00 UTC, sem mudança de
+comportamento (pool desligado). Suíte: 2.094 testes, 1 erro (o teste achou um
+bug novo em `cpu_por_processo`, corrigido; só `test_loadtest` e
+`test_transcricao_definitiva` rodados de novo, 15 OK).
+
+- **Pool de IA**: `AI_POOL_THREADS` (por worker) abre o teto de 12 chamadas
+  simultâneas. **Desligado na produção**; só a instância de teste usa (32).
+- **Novo D7 agendado**: timer `saleia-d7-carga`, **05/11 04:00 UTC**, com
+  10/20/30/50/100 reuniões, pool ligado e CPU por processo. Relatório em
+  `/root/loadtest/d7_20261105_0400.json`. Com bom resultado, ligar na produção:
+  `AI_POOL_THREADS=32` no `.env` + restart sem reunião ativa. Atenção: cada
+  worker tem 15 conexões de banco, menos que as 32 threads; olhar isso no
+  relatório.
+- **Transcrição das gravações rodando**: `saleia-transcricao`
+  (`scripts/transcrever_gravacoes.py`, tabela `transcricao_definitiva`, Groq
+  `whisper-large-v3`, grátis, 2 h de áudio por hora e 8 h por dia). 1ª leva
+  real sem erro. São ~73 h em 9 reuniões, ~9 dias: **término previsto ~13-14/11**.
+  Ordem: `cge`, `dmb`, `qpr`, `nqo`, `bcx`, `kps`, `jaj`, `hwt` e por último
+  `dba-zoec-jsf` (quase 39 h, 1ª gravação vence 19/11). Trecho silencioso não
+  gasta cota. Pode parar e retomar: repete só o que falta. Acompanhar:
+  `journalctl -u saleia-transcricao`. O relatório da reunião ainda não usa esse
+  texto (Fase 3.2).
+- **Retenção de 30 dias também em 29-31/10** (aprovado em 04/11): 112 linhas de
+  `bcx`, `jaj`, `kps` e `hwt`, agora 28-30/11. Backup
+  `/root/backups/saleia/manual/gravacoes_audio_pre_retencao30b_20261104_132828.sql`.
+- **Achados sem correção**:
+  - **A repetição voltou com a V.1.4.190**: `hwt-zzym-rbq` (31/10, 1h44) tem
+    930 mil caracteres, só 1.610 de 3.430 falas longas únicas e linha de 3.651
+    caracteres; `jaj-nwzz-wbv` (29/10) tem 1,5 milhão. Causa não investigada.
+  - **`nqo`, `bcx` e `kps` têm gravação e nenhuma transcrição** (sem linha em
+    `sessoes` nem em `meeting_memory`). Causa não confirmada; hipótese: o botão
+    "API desligada" de 21-23/10.
+
 ## 04/11/2026 — D7: resultado do teste de carga (rodada de 26/10)
 
 A produção aguenta 10 reuniões simultâneas, com atraso, e **quebra antes de
@@ -33,8 +69,7 @@ faixas 50 e 100 a latência é otimista: quem estourou 60 s não entra na conta.
   (portas 8010/8099 livres, sem banco `saleia_loadtest`).
 - **Fora do teste**: limites de uso dos provedores reais (IA simulada).
 
-Proposta, ainda não feita: pool próprio para as chamadas de IA e nova rodada
-com CPU por processo, incluindo 20 e 30 reuniões.
+Pool próprio e nova rodada: ver a entrada acima (V.1.4.191).
 
 ## 25/10/2026 (noite) — Passo 8: D7 agendado; A9/D10 decididos; B6 adiada
 

@@ -342,8 +342,9 @@ Pedido original da C8:
   reuniões 4,8%. Teto de 12 chamadas de IA simultâneas (pool padrão de 6
   threads × 2 workers), capacidade estimada de ~20 reuniões. CPU da VPS
   sem explicação por processo. Detalhe em `CURRENT_STATE.md` (04/11).
-- Falta: pool próprio para as chamadas de IA e nova rodada com CPU por
-  processo, incluindo 20 e 30 reuniões (aguarda confirmação do usuário).
+- V.1.4.191 (04/11): pool `AI_POOL_THREADS` pronto, desligado na produção.
+  2ª rodada agendada para 05/11 04:00 UTC (10/20/30/50/100, CPU por
+  processo). Falta: ler o relatório e decidir ligar o pool.
 ### D8 — Corrigir a corrida de DDL entre workers [CONCLUÍDA — 29/09/2026, V.1.4.147]
 - `GET_LOCK` nomeado em volta de todo o DDL do startup + tratamento do
   erro 1684 + 2ª tentativa do `create_all`. Validado no MySQL real.
@@ -618,9 +619,10 @@ explícita, uma de cada vez — mesma disciplina de todo o roadmap.
   resultado), **C5**, e **C6** bloqueado pela C4.
 - **04/11/2026 — D7, resultado lido**: quebra entre 10 e 50 reuniões (31,4%
   de respostas em até 60 s com 50), teto de 12 chamadas de IA simultâneas,
-  ~20 reuniões estimadas. Só documentação. Próximo: decidir o pool de IA e a
-  nova rodada; candidatas fora da fila seguem as de 25/10, e a transcrição
-  das gravações tem prazo (vencem em 18-22/11).
+  ~20 reuniões estimadas. Na sequência, V.1.4.191: pool de IA (desligado),
+  2ª rodada agendada e transcrição das gravações rodando (fim ~13-14/11).
+  Próximo: ler o D7 de 05/11; investigar a repetição que voltou em 29-31/10
+  e as reuniões com gravação sem transcrição.
 - **25/10/2026 — B3 + passo 8**: B3 em produção (V.1.4.189, latência
   igual com o job). Passo 8: D7 com ferramenta pronta e 1ª rodada
   agendada (26/10 04:00 UTC); A9 fora de escopo, D10 não mover, B6 adiada.

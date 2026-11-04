@@ -188,6 +188,10 @@ fonte de áudio e a garantia de que nada se perde.
 ## Fase 3 — Transcrição definitiva pós-reunião (antecipa a T09)
 
 ### 3.1 Fila de transcrição das gravações
+- **Parcial (04/11/2026, V.1.4.191)**: `scripts/transcrever_gravacoes.py` e a
+  tabela `transcricao_definitiva` existem, com Groq grátis e cota respeitada,
+  mas a execução é manual, por lista de reuniões. Falta entrar sozinho ao fim
+  da reunião. A tabela tem 1 linha por gravação, com os segmentos em JSON.
 - Quando a reunião termina (todas as gravações `encerrada`, alguns
   minutos sem bloco novo), entra numa fila com **um processo por vez**.
 - Transcreve a trilha da aba (cliente) e a do microfone (vendedor) com

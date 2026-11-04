@@ -3,6 +3,33 @@
 
 ---
 
+## V.1.4.191 — Pool de IA opcional, transcrição das gravações, D7 com CPU por processo
+
+> Data: 04/11/2026 | Backend e scripts, sem mudança na extensão | **Na VPS sem restart** (`ab612ea`); entra no reinício diário de 05/11, sem mudança de comportamento
+
+- **Pool de IA** (`api/ai_router.py`): `AI_POOL_THREADS` cria um pool só para
+  `chamar_ia_async`, por worker. Ausente, 0 ou inválido mantém o pool padrão
+  (teto de 12 do D7). Copia o contexto antes de enviar ao pool, porque
+  `run_in_executor` não faz isso e o trace do Langfuse se perderia. **Ainda
+  desligado na produção.**
+- **Teste de carga**: níveis 20 e 30 no padrão, `AI_POOL_THREADS=32` na
+  instância de teste (0 repete a produção) e `cpu_pct.por_processo` no
+  relatório (app, IA falsa, Ollama, MySQL, produção e gerador).
+- **Transcrição pós-reunião** (`scripts/transcrever_gravacoes.py`,
+  `agent/transcricao_definitiva_rules.py`, Fase 3.1 parcial): processo próprio,
+  um arquivo por vez, pelo Groq `whisper-large-v3`, gravando em
+  `transcricao_definitiva` (1 linha por gravação, com segmentos e horários).
+  Respeita 2 h/hora e 8 h/dia, obedece ao `retry-after` de um 429, retoma de
+  onde parou, tenta de novo o que deu erro e não gasta cota com arquivo em
+  silêncio. Descarta segmentos sem fala (`no_speech_prob` ≥ 0,6). Roda manual:
+  ainda não entra sozinho ao fim da reunião, e o relatório não usa esse texto.
+- **Operação**: retenção de 30 dias em mais 4 reuniões de 29-31/10; 9 reuniões
+  (~73 h) na fila, previsão ~13-14/11. Detalhe em `docs/CURRENT_STATE.md`.
+- Testes: `tests/test_transcricao_definitiva.py`, `PoolDeIaTest` e CPU por
+  processo em `test_loadtest`.
+
+---
+
 ## D7 — Resultado do teste de carga (sem versão) — 04/11/2026
 
 > Data: 04/11/2026 | Só documentação; rodada de 26/10 04:00 UTC na VPS, com IA simulada | Sem mudança em código nem em produção
