@@ -3,6 +3,26 @@
 
 ---
 
+## D7 — Resultado do teste de carga (sem versão) — 04/11/2026
+
+> Data: 04/11/2026 | Só documentação; rodada de 26/10 04:00 UTC na VPS, com IA simulada | Sem mudança em código nem em produção
+
+- **Resultado** (`/root/loadtest/d7_20261026_0400.json`, 5 min por nível,
+  timeout de 60 s): 10 reuniões 100% em até 60 s (p50 16,0 s, p95 33,5 s);
+  50 reuniões 31,4% (94 de 299); 100 reuniões 4,8% (25 de 523).
+- **Gargalo**: teto de 12 chamadas de IA simultâneas nos 3 níveis, vindo do
+  pool padrão usado por `asyncio.to_thread` em `chamar_ia_async`: 6 threads
+  (2 vCPU + 4, conferido na VPS) × 2 workers. Teto teórico de ~263
+  chamadas/min, contra 257,5 medidas com 100 reuniões. Capacidade estimada
+  em ~20 reuniões (conta, não medição).
+- **Em aberto**: a instância usou só 3,5-6,9% da máquina, com a VPS a
+  83-98%. O resto não foi separado por processo (gerador de carga, IA falsa
+  e Ollama fora da conta), e o journal do Ollama de 26/10 já não existe.
+- Memória (máx. 4,4 GB) e MySQL não foram gargalo. Detalhe em
+  `docs/CURRENT_STATE.md`.
+
+---
+
 ## Operação e ferramentas (sem versão) — 25/10/2026
 
 > Data: 25/10/2026 | Sem mudança na extensão; servidor só em `requirements.txt`, `.env` e banco (detalhes abaixo)

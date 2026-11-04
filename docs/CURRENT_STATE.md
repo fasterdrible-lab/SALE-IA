@@ -1,5 +1,41 @@
 # SALEIA - Estado Atual
 
+## 04/11/2026 — D7: resultado do teste de carga (rodada de 26/10)
+
+A produção aguenta 10 reuniões simultâneas, com atraso, e **quebra antes de
+50**. Só leitura do relatório: nada mudou em código nem na VPS. Produção
+segue em V.1.4.190.
+
+| Reuniões | Respostas em até 60 s | p50 / p95 (só as respondidas) | Chamadas de IA/min | CPU da VPS (média) |
+|---|---|---|---|---|
+| 10 | **139 de 139 (100%)** | 16,0 s / 33,5 s | 129,7 | 82,9% |
+| 50 | **94 de 299 (31,4%)** | 39,7 s / 58,0 s | 206,3 | 96,4% |
+| 100 | **25 de 523 (4,8%)** | 37,0 s / 53,4 s | 257,5 | 98,5% |
+
+Reuniões enviam a cada 20 s, então com 10 o p95 já passa de 1 ciclo. Nas
+faixas 50 e 100 a latência é otimista: quem estourou 60 s não entra na conta.
+
+- **Gargalo encontrado: teto de 12 chamadas de IA simultâneas.** Ficou em
+  exatamente 12 nos 3 níveis. `chamar_ia_async` usa `asyncio.to_thread`,
+  sem pool próprio: o padrão do Python na VPS é 6 threads (conferido em
+  04/11: 2 vCPU + 4) × 2 workers = 12. Com o atraso médio da IA simulada
+  (~2,74 s), o teto dá ~263 chamadas/min, e a rodada de 100 fez 257,5.
+- **Capacidade estimada: ~20 reuniões** (263 ÷ ~13 chamadas/min por reunião).
+  É conta, não medição: nada foi testado entre 10 e 50.
+- **Não explicado: quem usou a CPU.** A instância consumiu só 3,5-6,9% da
+  máquina (cgroup), com a VPS a 83-98%. O restante não foi separado por
+  processo: gerador de carga e IA falsa rodam na mesma VPS, e o Ollama fica
+  fora da conta. O journal do Ollama de 26/10 já foi rotacionado. Isso pode
+  deixar os números piores do que a produção real, e a CPU pode virar o
+  próximo gargalo depois de abrir o teto.
+- **Não é gargalo**: memória (máx. 4,4 GB de 7,7 GB) e MySQL (até 4 threads
+  rodando, 71 consultas/s). 0 avisos do app; nada ficou de pé depois do teste
+  (portas 8010/8099 livres, sem banco `saleia_loadtest`).
+- **Fora do teste**: limites de uso dos provedores reais (IA simulada).
+
+Proposta, ainda não feita: pool próprio para as chamadas de IA e nova rodada
+com CPU por processo, incluindo 20 e 30 reuniões.
+
 ## 25/10/2026 (noite) — Passo 8: D7 agendado; A9/D10 decididos; B6 adiada
 
 - **D7 (teste de carga)**: ferramenta em `scripts/loadtest/` (instância

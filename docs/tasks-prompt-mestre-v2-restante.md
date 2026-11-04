@@ -330,7 +330,7 @@ Pedido original da C8:
 - Hoje só `prompt_version`/`rule_version`. Adicionar
   `reasoning_engine_version`, `policy_version`, `knowledge_version`,
   `model_version` em RecommendationEvent + AuditTrailEntry.
-### D7 — Load test 10/50/100 reuniões (seção 32) + hot path × analytics [ferramenta pronta 25/10/2026; 1ª rodada agendada]
+### D7 — Load test 10/50/100 reuniões (seção 32) + hot path × analytics [1ª rodada feita 26/10/2026, resultado lido 04/11; gargalo sem correção]
 - Decisão do usuário (25/10): VPS de madrugada, IA simulada. Ferramenta em
   `scripts/loadtest/` (`rodar.sh` monta instância isolada na porta 8010
   com banco `saleia_loadtest` e IA falsa na 8099 — atraso real do
@@ -338,6 +338,12 @@ Pedido original da C8:
   latência, erros, timeouts, CPU, RAM, MySQL, fila e tokens, para se uma
   reunião real começar e desmonta tudo; relatório em `/root/loadtest/`).
   Hot path × analytics já medido na B3.
+- Resultado (26/10): 10 reuniões 100% em até 60 s, 50 reuniões 31,4%, 100
+  reuniões 4,8%. Teto de 12 chamadas de IA simultâneas (pool padrão de 6
+  threads × 2 workers), capacidade estimada de ~20 reuniões. CPU da VPS
+  sem explicação por processo. Detalhe em `CURRENT_STATE.md` (04/11).
+- Falta: pool próprio para as chamadas de IA e nova rodada com CPU por
+  processo, incluindo 20 e 30 reuniões (aguarda confirmação do usuário).
 ### D8 — Corrigir a corrida de DDL entre workers [CONCLUÍDA — 29/09/2026, V.1.4.147]
 - `GET_LOCK` nomeado em volta de todo o DDL do startup + tratamento do
   erro 1684 + 2ª tentativa do `create_all`. Validado no MySQL real.
@@ -610,6 +616,11 @@ explícita, uma de cada vez — mesma disciplina de todo o roadmap.
   (Sales Science + analyzer + engine) e 39 OK (SalesEvidence + E2E).
   Restante do passo 7: **B5** (depende de P2/P3 — oportunidades com
   resultado), **C5**, e **C6** bloqueado pela C4.
+- **04/11/2026 — D7, resultado lido**: quebra entre 10 e 50 reuniões (31,4%
+  de respostas em até 60 s com 50), teto de 12 chamadas de IA simultâneas,
+  ~20 reuniões estimadas. Só documentação. Próximo: decidir o pool de IA e a
+  nova rodada; candidatas fora da fila seguem as de 25/10, e a transcrição
+  das gravações tem prazo (vencem em 18-22/11).
 - **25/10/2026 — B3 + passo 8**: B3 em produção (V.1.4.189, latência
   igual com o job). Passo 8: D7 com ferramenta pronta e 1ª rodada
   agendada (26/10 04:00 UTC); A9 fora de escopo, D10 não mover, B6 adiada.
