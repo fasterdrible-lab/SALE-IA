@@ -180,10 +180,13 @@ class BlocoReenviadoLongeDoFimTest(unittest.TestCase):
         filtrado, _ = deduplicar_fragmento(base, "Cliente: Sim.\nVendedor: Perfeito.")
         self.assertEqual(filtrado.splitlines(), ["Cliente: Sim.", "Vendedor: Perfeito."])
 
-    def test_bloco_alem_da_janela_fica(self):
+    def test_bloco_repetido_muito_longe_tambem_e_descartado(self):
+        # V.1.4.192: era "fica" (limite da janela de 300 linhas). Nas reuniões
+        # de 29-31/10, 80-97% das cópias exatas vinham de mais de 200 linhas
+        # atrás; bloco inteiro idêntico não é fala nova, a qualquer distância.
         base = "\n".join(self.BLOCO + self._meio(400))
         filtrado, _ = deduplicar_fragmento(base, "\n".join(self.BLOCO))
-        self.assertEqual(len(filtrado.splitlines()), 3)
+        self.assertEqual(filtrado, "")
 
 
 class RegistrarTranscricaoIdempotenteTest(unittest.TestCase):
@@ -329,6 +332,25 @@ class RepeticaoDe19_10Test(unittest.TestCase):
         envio = objecao + "\nCliente: Sim.\nCliente: e o prazo de entrega de vocês como funciona"
         filtrado, _ = deduplicar_fragmento(base, envio)
         self.assertEqual(filtrado.splitlines(), envio.splitlines())
+
+
+class AnelDaExtensaoTest(unittest.TestCase):
+    """V.1.4.192 — reuniões de 29-31/10: blocos antigos voltando em anel."""
+
+    def _base(self, n=400):
+        return "\n".join(f"Ana: fala numero {i} da reuniao com texto suficiente" for i in range(n))
+
+    def test_lote_de_falas_fora_da_janela_nao_volta(self):
+        lote = "\n".join(f"Ana: fala numero {i} da reuniao com texto suficiente" for i in range(5))
+        lote += "\nAna: esta sim e uma fala nova desta reuniao"
+        aceito, descartadas = deduplicar_fragmento(self._base(), lote)
+        self.assertEqual(aceito, "Ana: esta sim e uma fala nova desta reuniao")
+        self.assertEqual(descartadas, 5)
+
+    def test_objecao_repetida_sozinha_continua_p7(self):
+        base = "Cliente: acho que esta caro para o momento atual\n" + self._base()
+        lote = "Cliente: acho que esta caro para o momento atual"
+        self.assertEqual(deduplicar_fragmento(base, lote)[0], lote)
 
 
 class SubstituirVersoesParciaisTest(unittest.TestCase):

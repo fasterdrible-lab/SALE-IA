@@ -1013,6 +1013,7 @@
       var antiga = estado.transcricao[decisao.indice];
       antiga.text = decisao.texto || t;
       antiga.bloco = decisao.bloco || t;
+      SaleiaTranscricao.lembrar(estado.transcricao, antiga);
       if (fim && antiga.fim) antiga.fim = Math.max(antiga.fim, fim);
       return;
     }
@@ -1434,9 +1435,10 @@
 
     // Ignora a legenda ainda na tela que já foi gravada igual (varredura a cada 2s)
     speaker = rotuloParticipante(speaker);
+    var agora = Date.now();
+    if (SaleiaTranscricao.legendaParada(el, texto, agora)) return;
     if (SaleiaTranscricao.jaGravada(estado.transcricao, speaker, texto)) return;
 
-    var agora = Date.now();
     var buf = captionBuffer[speaker];
 
     if (!buf) {

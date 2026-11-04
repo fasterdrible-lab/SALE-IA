@@ -402,8 +402,13 @@ def deduplicar_fragmento(
     descartadas = linhas_reenviadas(recentes, linhas)
     linhas = linhas[descartadas:]
     # V.1.4.190: rajada de reenvio — tira tudo que já está gravado.
-    if eh_rajada_de_reenvio(linhas, historico, min_chars):
-        gravadas = {l.strip() for l in historico}
+    # V.1.4.192: contra a reunião inteira. A extensão até a 1.4.37 regrava
+    # em anel blocos antigos do DOM (reuniões de 29-31/10: 80-97% das cópias
+    # exatas voltavam a mais de 200 linhas); com janela, o que saía dela
+    # entrava de novo. A P7 continua valendo: uma linha só não forma rajada.
+    reuniao = _linhas(base)
+    if eh_rajada_de_reenvio(linhas, reuniao, min_chars):
+        gravadas = {l.strip() for l in reuniao}
         restantes = [l for l in linhas if l.strip() not in gravadas]
         descartadas += len(linhas) - len(restantes)
         linhas = restantes

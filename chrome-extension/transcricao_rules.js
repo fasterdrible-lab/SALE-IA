@@ -20,6 +20,13 @@
   var DEDUP_JANELA = 15;    // falas recentes olhadas para legenda × áudio
   var DEDUP_LIMIAR = 0.75;  // Dice sobre palavras (par real medido: 0.80)
   var DEDUP_MIN_CHARS = 20;
+  // Ext 1.4.38 (reuniões reais de 29-31/10): com mais blocos no DOM do que a
+  // JANELA, o que saía das últimas 20 falas parecia novo, entrava de novo e
+  // empurrava outro para fora, em anel (texto capturado até 499 vezes). Fala
+  // longa já gravada vale para a reunião inteira; a mais curta que isto é
+  // resposta legítima que se repete ("beleza") e fica com a regra da parada.
+  var MEMORIA_MIN_CHARS = 20;
+  var LEGENDA_PARADA_MS = 20000;  // maior que os 15 s do buffer da fala aberta
 
   function palavras(texto) {
     return String(texto || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -52,6 +59,48 @@
     return orig.slice(i).join(' ');
   }
 
+  function guardarNaMemoria(memoria, item) {
+    [item.text, item.bloco].forEach(function (texto) {
+      var n = normalizar(texto);
+      if (n.length >= MEMORIA_MIN_CHARS) memoria.vistos[item.speaker + '\u0000' + n] = true;
+    });
+  }
+
+  // Índice incremental das falas da reunião: as varreduras olham isto várias
+  // vezes por segundo, então não pode percorrer a transcrição inteira.
+  function memoriaDe(transcricao) {
+    var memoria = transcricao.__memoria;
+    if (!memoria) {
+      memoria = { vistos: Object.create(null), ate: 0 };
+      Object.defineProperty(transcricao, '__memoria', { value: memoria, enumerable: false });
+    }
+    for (; memoria.ate < transcricao.length; memoria.ate++) {
+      guardarNaMemoria(memoria, transcricao[memoria.ate]);
+    }
+    return memoria;
+  }
+
+  function jaNaReuniao(transcricao, speaker, normalizado) {
+    return normalizado.length >= MEMORIA_MIN_CHARS
+      && memoriaDe(transcricao).vistos[speaker + '\u0000' + normalizado] === true;
+  }
+
+  /** A fala mudou depois de indexada ('substituir'): guarda a versão nova. */
+  function lembrar(transcricao, item) {
+    guardarNaMemoria(memoriaDe(transcricao), item);
+  }
+
+  /** O mesmo elemento mostra o mesmo texto há mais de 20 s? Já passou pelo
+   *  buffer: é bloco antigo no DOM, não fala nova. Cobre a resposta curta. */
+  function legendaParada(el, texto, agora) {
+    if (el.__saleiaTexto !== texto) {
+      el.__saleiaTexto = texto;
+      el.__saleiaDesde = agora;
+      return false;
+    }
+    return agora - el.__saleiaDesde > LEGENDA_PARADA_MS;
+  }
+
   /**
    * transcricao: [{speaker, text, fonte, bloco?}] (fonte 'audio' ou ausente = legenda;
    *   bloco = texto inteiro do bloco da legenda de onde a fala saiu — V.1.4.29)
@@ -64,6 +113,7 @@
   function decidirCommit(transcricao, nova, indiceEnviado) {
     var t = normalizar(nova.text);
     if (!t) return { acao: 'ignorar', motivo: 'vazia' };
+    if (jaNaReuniao(transcricao, nova.speaker, t)) return { acao: 'ignorar', motivo: 'igual' };
     var inicio = Math.max(0, transcricao.length - JANELA);
     var ultimaDoFalante = true;
     for (var i = transcricao.length - 1; i >= inicio; i--) {
@@ -114,6 +164,7 @@
   /** A legenda ainda na tela (varredura a cada 2s) já foi gravada igual? */
   function jaGravada(transcricao, speaker, texto) {
     var t = normalizar(texto);
+    if (jaNaReuniao(transcricao, speaker, t)) return true;
     var inicio = Math.max(0, transcricao.length - JANELA);
     for (var i = transcricao.length - 1; i >= inicio; i--) {
       if (transcricao[i].speaker !== speaker) continue;
@@ -123,7 +174,8 @@
     return false;
   }
 
-  var api = { decidirCommit: decidirCommit, jaGravada: jaGravada, normalizar: normalizar };
+  var api = { decidirCommit: decidirCommit, jaGravada: jaGravada, normalizar: normalizar,
+              lembrar: lembrar, legendaParada: legendaParada };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   raiz.SaleiaTranscricao = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

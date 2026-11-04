@@ -55,6 +55,62 @@ test('legenda ainda na tela já gravada igual não é regravada pela varredura',
   assert.equal(regras.jaGravada(t, 'Bruno', 'vamos fechar na sexta feira'), false);
 });
 
+// Reproduz a varredura: cada bloco no DOM passa por jaGravada + decidirCommit.
+function varrer(transcricao, blocos, vezes) {
+  let gravadas = 0;
+  for (let v = 0; v < vezes; v++) {
+    for (const b of blocos) {
+      if (regras.jaGravada(transcricao, b.speaker, b.text)) continue;
+      const d = regras.decidirCommit(transcricao, fala(b.speaker, b.text), transcricao.length);
+      if (d.acao === 'adicionar') { transcricao.push({ speaker: b.speaker, text: d.texto || b.text, bloco: b.text }); gravadas++; }
+    }
+  }
+  return gravadas;
+}
+
+test('ext 1.4.38: mais de 20 blocos no DOM não entram em anel', () => {
+  const blocos = Array.from({ length: 80 }, (_, i) => ({
+    speaker: i % 2 ? 'Ana' : 'Bruno', text: 'fala número ' + i + ' desta reunião com bastante texto',
+  }));
+  assert.equal(varrer([], blocos, 30), 80);
+});
+
+test('ext 1.4.38: continuação de bloco já enviado segue entrando', () => {
+  const t = [{ speaker: 'Ana', text: 'vamos fechar na sexta feira', bloco: 'vamos fechar na sexta feira' }];
+  const d = regras.decidirCommit(t, fala('Ana', 'vamos fechar na sexta feira depois do almoço'), 1);
+  assert.equal(d.acao, 'adicionar');
+  assert.equal(d.texto, 'depois do almoço');
+});
+
+test('ext 1.4.38: fala igual de outra pessoa não é barrada pela memória', () => {
+  const t = [{ speaker: 'Ana', text: 'vamos fechar na sexta feira' }];
+  assert.equal(regras.jaGravada(t, 'Bruno', 'vamos fechar na sexta feira'), false);
+});
+
+test('ext 1.4.38: resposta curta que se repete continua entrando', () => {
+  const t = [{ speaker: 'Ana', text: 'beleza' }];
+  t.push(...Array.from({ length: 25 }, (_, i) => ({ speaker: 'Bruno', text: 'outra fala ' + i })));
+  assert.equal(regras.jaGravada(t, 'Ana', 'beleza'), false);
+});
+
+test('ext 1.4.38: fala trocada por substituir continua lembrada', () => {
+  const t = [{ speaker: 'Ana', text: 'começo da fala' }];
+  regras.jaGravada(t, 'Ana', 'indexa antes da troca');
+  t[0].text = 'começo da fala agora completa'; t[0].bloco = t[0].text;
+  regras.lembrar(t, t[0]);
+  t.push(...Array.from({ length: 25 }, (_, i) => ({ speaker: 'Bruno', text: 'outra fala número ' + i })));
+  assert.equal(regras.jaGravada(t, 'Ana', 'começo da fala agora completa'), true);
+});
+
+test('ext 1.4.38: legenda parada no mesmo elemento só vale depois de 20 s', () => {
+  const el = {};
+  assert.equal(regras.legendaParada(el, 'beleza', 1000), false);
+  assert.equal(regras.legendaParada(el, 'beleza', 15000), false);
+  assert.equal(regras.legendaParada(el, 'beleza', 22000), true);
+  assert.equal(regras.legendaParada(el, 'beleza agora mudou', 23000), false);
+  assert.equal(regras.legendaParada({}, 'beleza', 99000), false);
+});
+
 test('scripts de regras carregam antes do content.js no manifest', () => {
   const m = JSON.parse(fs.readFileSync(path.join(EXT, 'manifest.json'), 'utf8'));
   assert.deepEqual(m.content_scripts[0].js, ['transcricao_rules.js', 'gravacao_rules.js', 'quem_e_quem_rules.js', 'content.js']);

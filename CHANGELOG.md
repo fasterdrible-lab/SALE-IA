@@ -3,6 +3,36 @@
 
 ---
 
+## V.1.4.192 + ext 1.4.38 — Anel de regravação da legenda
+
+> Data: 04/11/2026 | Backend + extensão
+
+- **Problema**: a repetição voltou com a V.1.4.190 (`hwt-zzym-rbq` 930 mil
+  caracteres em 1h44, `jaj-nwzz-wbv` 1,5 milhão). 95-97% dos turnos de cada
+  envio já tinham sido vistos; o mesmo texto voltava a cada 20 s, até 499 vezes.
+- **Causa**: `jaGravada` e `decidirCommit` só olham as últimas 20 falas. Com
+  mais de 20 blocos no DOM, o que sai da janela parece novo, entra de novo e
+  empurra outro para fora. Simulado com o código real: 20 blocos gravam 20
+  falas por minuto; 21 gravam 630. Que o Meet mantém mais de 20 blocos é
+  inferido dos dados (textos vivos por até 90 min), sem HTML real conferido.
+  As últimas 60 linhas enviadas à IA também vinham cheias de falas antigas.
+- **Ext 1.4.38** (`transcricao_rules.js`): fala de 20+ caracteres já gravada
+  vale para a reunião inteira, por falante e com índice incremental; mesmo
+  elemento com o mesmo texto por mais de 20 s é ignorado, o que cobre as
+  respostas curtas. Uma pessoa repetir um bloco inteiro idêntico não é mais
+  regravado pela extensão.
+- **V.1.4.192** (`deduplicar_fragmento`): a rajada de reenvio compara com a
+  reunião inteira, não com as últimas 300 linhas. Uma linha sozinha continua
+  passando (P7). `test_bloco_alem_da_janela_fica` virou
+  `test_bloco_repetido_muito_longe_tambem_e_descartado`: a premissa antiga caiu.
+- **Simulação na VPS** (texto gravado, lotes de 8/26/90 linhas): `hwt` 33-37% →
+  20-21% do tamanho, `jaj` 39% → 11-13%, `cge` 9-18% → 7-11%. Só a regra nova
+  perde 1-2 palavras distintas, todas pedaços cortados de palavra que ficou.
+  O servidor sozinho não chega ao tamanho normal: isso depende da extensão.
+- Testes: Python 2.097 OK; extensão 95 OK, incluindo os 16 com HTML real.
+
+---
+
 ## V.1.4.191 — Pool de IA opcional, transcrição das gravações, D7 com CPU por processo
 
 > Data: 04/11/2026 | Backend e scripts, sem mudança na extensão | **Na VPS sem restart** (`ab612ea`); entra no reinício diário de 05/11, sem mudança de comportamento

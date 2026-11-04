@@ -1,5 +1,15 @@
 # SALEIA - Estado Atual
 
+## 04/11/2026 (noite) — Causa da repetição achada: V.1.4.192 + ext 1.4.38 (local)
+
+A extensão regrava em anel quando há mais de 20 blocos de legenda no DOM (só
+olha as últimas 20 falas). Isso também enche de falas antigas o texto enviado à
+IA. Correção nas 2 pontas, detalhe no CHANGELOG. **Só no ambiente local**:
+aguarda o "sim" para push e deploy, e a extensão precisa ser reinstalada em
+todos os vendedores. Conferir na 1ª reunião real: tamanho da transcrição e
+falas únicas. Substitui o achado "repetição voltou" da entrada abaixo.
+`nqo`, `bcx` e `kps` sem transcrição seguem sem explicação.
+
 ## 04/11/2026 (tarde) — V.1.4.191: pool de IA, transcrição das gravações, novo D7
 
 `ab612ea` = VPS HEAD = GitHub, **sem restart**: a produção segue na 1.4.190 e
