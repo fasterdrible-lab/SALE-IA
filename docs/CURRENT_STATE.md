@@ -8,13 +8,17 @@ Deploy `70055f3` por bundle com `reunioes_ativas: 0`, `NRestarts=0`, `/health`
 1.4.193 online com IA, `/dashboard` 200, journal sem erro. Suíte: 2.099 OK;
 extensão: 96 OK.
 
+**Ext 1.4.40 (04/11)**: a legenda não ligava sozinha porque o botão só existe
+com o painel aberto. Agora a extensão abre o painel, liga e fecha. Validado
+pelo usuário em reunião real. Só extensão, servidor segue na 1.4.193.
+
 **Pendências, por prioridade**
 
-1. **Reinstalar a ext 1.4.39 em todos os vendedores** (`chrome-extension.zip`,
-   ou `../chrome-extension. V.1.4.39.zip`). Traz as correções do anel e do
-   painel; a 1.4.38 não foi distribuída. Fechar e reabrir as abas do Meet.
-2. **Conferir numa reunião nova** se a legenda liga sozinha com o painel fechado
-   (o botão desligado pode só existir com o painel aberto).
+1. **Reinstalar a ext 1.4.40 em todos os vendedores** (`chrome-extension.zip`,
+   ou `../chrome-extension. V.1.4.40.zip`). Traz as correções do anel, do painel
+   e da legenda automática; a 1.4.38 e a 1.4.39 não foram distribuídas. Fechar
+   e reabrir as abas do Meet.
+2. **Sem a 1.4.40, o vendedor precisa ligar a legenda à mão** no Meet novo.
 3. **Conferir numa reunião longa** o tamanho da transcrição e as falas únicas:
    é a prova final da causa, que hoje vem dos dados e de simulação.
 4. **Ler o D7 de 05/11** (`/root/loadtest/d7_20261105_0400.json`) e decidir

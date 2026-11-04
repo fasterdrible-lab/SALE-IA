@@ -42,7 +42,7 @@ function montar() {
   w.eval(quemRegras);
   w.eval('var estado = { vendedorPadrao: "Carlos", quemEQuem: {}, quemEQuemPerguntado: true, transcricao: [], ultimoIndexEnviado: 0 };' +
     'function ocultarAvisoLegenda(){}; function atualizarResumoParticipantes(){}; var console = { log(){}, warn(){} };' + codigo +
-    ';window.__t = { processarElementoLegenda, commitarFrase, captionBuffer, estado, detectarFalantePorEstrutura, bufferPronto, lerPessoasDaChamada, listaQuemEQuem, get legendasDetectadas() { return legendasDetectadas; } };');
+    ';window.__t = { ligarLegendaSozinho, processarElementoLegenda, commitarFrase, captionBuffer, estado, detectarFalantePorEstrutura, bufferPronto, lerPessoasDaChamada, listaQuemEQuem, get legendasDetectadas() { return legendasDetectadas; } };');
   let relogio = 100000;
   w.Date.now = () => relogio;
   const regiao = w.document.querySelector('[role="region"]');
@@ -362,4 +362,58 @@ test('ext 1.4.39: botão e dica do painel "Legendas e tradução" não viram fal
   t.processarElementoLegenda(botao.querySelector('span'));
   t.processarElementoLegenda(dica);
   assert.deepEqual(puro(Object.keys(t.captionBuffer)), []);
+});
+
+// Ext 1.4.40: painel "Legendas e tradução". O botão de legenda só existe aberto.
+function montarPainel(w, { ligada = false, rotulo = 'aria' } = {}) {
+  const d = w.document;
+  const cliques = [];
+  const barra = d.createElement('button');
+  if (rotulo === 'aria') barra.setAttribute('aria-label', 'Legendas e tradução');
+  else {
+    const dica = d.createElement('div');
+    dica.id = 'dica-cc';
+    dica.textContent = 'Legendas e tradução';
+    d.body.append(dica);
+    barra.setAttribute('aria-describedby', 'dica-cc');
+  }
+  let aberto = null;
+  barra.addEventListener('click', () => {
+    cliques.push('painel');
+    if (aberto) { aberto.remove(); aberto = null; return; }
+    aberto = d.createElement('button');
+    aberto.setAttribute('aria-label', ligada ? 'Desativar legenda instantânea' : 'Ativar legenda instantânea');
+    aberto.addEventListener('click', () => { cliques.push('legenda'); ligada = !ligada; });
+    d.body.append(aberto);
+  });
+  d.body.append(barra);
+  return { cliques, ligada: () => ligada };
+}
+
+const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+
+test('ext 1.4.40: abre o painel, liga a legenda e fecha', { skip: !JSDOM && 'sem jsdom' }, async () => {
+  const { t, w } = montar();
+  const p = montarPainel(w);
+  assert.equal(t.ligarLegendaSozinho(), true);
+  await esperar(1100);
+  assert.deepEqual(puro(p.cliques), ['painel', 'legenda', 'painel']);
+  assert.equal(p.ligada(), true);
+});
+
+test('ext 1.4.40: acha o painel pela dica de tela', { skip: !JSDOM && 'sem jsdom' }, async () => {
+  const { t, w } = montar();
+  const p = montarPainel(w, { rotulo: 'dica' });
+  t.ligarLegendaSozinho();
+  await esperar(1100);
+  assert.equal(p.ligada(), true);
+});
+
+test('ext 1.4.40: legenda já ligada não é desligada', { skip: !JSDOM && 'sem jsdom' }, async () => {
+  const { t, w } = montar();
+  const p = montarPainel(w, { ligada: true });
+  t.ligarLegendaSozinho();
+  await esperar(1100);
+  assert.deepEqual(puro(p.cliques), ['painel', 'painel']);
+  assert.equal(p.ligada(), true);
 });

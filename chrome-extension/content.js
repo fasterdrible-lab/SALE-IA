@@ -1474,19 +1474,101 @@
     }
   }
 
+  // Ext 1.4.40: o Meet de 04/11/2026 tirou o botão de legenda da barra: ele só
+  // existe com o painel "Legendas e tradução" aberto. Abre o painel, vê o
+  // estado, liga e fecha. O atalho "c" é só reserva: ele alterna, então sem ver
+  // o estado poderia desligar uma legenda ligada.
+  var _ccLigadoPelaExtensao = false;
+  var _tentativasPainelCC = 0;
+  var _atalhoCCUsado = false;
+  var MAX_TENTATIVAS_PAINEL_CC = 3;
+
+  function rotulosDoBotao(b) {
+    var textos = [b.getAttribute('aria-label'), b.getAttribute('data-tooltip'), b.getAttribute('title')];
+    ['aria-describedby', 'aria-labelledby'].forEach(function (attr) {
+      (b.getAttribute(attr) || '').split(/\s+/).forEach(function (id) {
+        var alvo = id && document.getElementById(id);
+        if (alvo) textos.push(alvo.textContent);
+      });
+    });
+    return textos.filter(Boolean).join(' ');
+  }
+
+  function botaoAtivarLegenda() {
+    var direto = document.querySelector(
+      'button[aria-label*="tivar legenda" i]:not([aria-label*="esativar" i]),button[aria-label*="urn on caption" i]');
+    if (direto) return direto;
+    var botoes = document.querySelectorAll('button');
+    for (var i = 0; i < botoes.length; i++) {
+      var b = botoes[i];
+      if (b.closest('#saleia-sidebar') || /esativar|turn off/i.test(rotulosDoBotao(b))) continue;
+      if (/ativar legenda|turn on (live )?caption/i.test(b.textContent)) return b;
+    }
+    return null;
+  }
+
+  function botaoPainelLegendas() {
+    var botoes = document.querySelectorAll('button');
+    for (var i = 0; i < botoes.length; i++) {
+      if (botoes[i].closest('#saleia-sidebar')) continue;
+      if (/legendas? e tradu|captions? (and|&) transl/i.test(rotulosDoBotao(botoes[i]))) return botoes[i];
+    }
+    return null;
+  }
+
+  function ligarPeloPainel(painel) {
+    _tentativasPainelCC++;
+    painel.click();
+    setTimeout(function () {
+      var ativar = botaoAtivarLegenda();
+      if (ativar) {
+        _ccLigadoPelaExtensao = true;
+        ativar.click();
+        console.log('[SALEIA-LEGENDA] CC ligado pela extensão (painel)');
+      } else if (ccLigadoNoMeet()) {
+        _ccLigadoPelaExtensao = true;
+      } else {
+        console.warn('[SALEIA-LEGENDA] painel aberto, botão de legenda não achado');
+      }
+      setTimeout(function () {
+        if (painel.isConnected && painel.getAttribute('aria-expanded') !== 'false') painel.click();
+      }, 300);
+    }, 700);
+  }
+
+  function ligarLegendaSozinho() {
+    var ativar = botaoAtivarLegenda();
+    if (ativar) {
+      _ccLigadoPelaExtensao = true;
+      ativar.click();
+      console.log('[SALEIA-LEGENDA] CC ligado pela extensão');
+      return true;
+    }
+    var painel = botaoPainelLegendas();
+    if (painel && _tentativasPainelCC < MAX_TENTATIVAS_PAINEL_CC) {
+      ligarPeloPainel(painel);
+      return true;
+    }
+    var naChamada = document.querySelector('[aria-label*="air da chamada" i],[aria-label*="eave call" i]');
+    if (naChamada && !_atalhoCCUsado && !regiaoLegendas()) {
+      _atalhoCCUsado = true;
+      ['keydown', 'keyup'].forEach(function (tipo) {
+        document.body.dispatchEvent(new KeyboardEvent(tipo, { key: 'c', code: 'KeyC', keyCode: 67, bubbles: true }));
+      });
+      console.warn('[SALEIA-LEGENDA] botões não achados; atalho "c" enviado');
+      return true;
+    }
+    return false;
+  }
+
   function verificarLegendas() {
     if (legendasDetectadas) { ocultarAvisoLegenda(); return; }
     if (ccLigadoNoMeet()) { ocultarAvisoLegenda(); return; }
     // V.1.4.27: com a legenda escondida o vendedor nem vê o CC — liga sozinho
     // (1x por página; se ele desligar depois, só volta o aviso).
-    if (!_ccLigadoPelaExtensao) {
-      var btnCC = document.querySelector(
-        'button[aria-label*="tivar legenda" i]:not([aria-label*="esativar" i]),button[aria-label*="urn on caption" i]');
-      if (btnCC) { _ccLigadoPelaExtensao = true; btnCC.click(); console.log('[SALEIA-LEGENDA] CC ligado pela extensão'); return; }
-    }
+    if (!_ccLigadoPelaExtensao && ligarLegendaSozinho()) return;
     exibirAvisoLegenda();
   }
-  var _ccLigadoPelaExtensao = false;
   // Tarefa B8: /tempo-real devolve auth_status. Sem isso, token expirado
   // virava anônimo em silêncio e a reunião ficava sem vendedor. O aviso
   // só orienta o vendedor — nunca mostra detalhe técnico (regra da

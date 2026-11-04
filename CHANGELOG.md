@@ -3,6 +3,23 @@
 
 ---
 
+## Ext 1.4.40 — Legenda volta a ligar sozinha no Meet novo
+
+> Data: 04/11/2026 | Só extensão, sem deploy de servidor | **Validada pelo usuário em reunião real em 04/11**; aguarda reinstalação nos vendedores
+
+- **Problema**: o botão de legenda saiu da barra do Meet e, com o painel
+  "Legendas e tradução" fechado, a extensão não o encontrava: a legenda ficava
+  desligada e a reunião, sem transcrição.
+- **Correção** (`ligarLegendaSozinho`): abre o painel (achado por rótulo ou dica
+  de tela), vê o estado, liga se preciso e fecha. Legenda já ligada não é
+  mexida. Até 3 tentativas; reserva: atalho `c`, 1 vez por página, só na chamada
+  e sem área de legendas, porque ele alterna o estado.
+- Testes: painel simulado em `tests/js/test_legenda_meet.js` (liga e fecha,
+  acha pela dica, não desliga legenda ligada). HTML real do botão não conferido;
+  a validação foi o teste do usuário no Meet. Substitui a 1.4.39, não distribuída.
+
+---
+
 ## V.1.4.193 + ext 1.4.39 — Painel novo do Meet ("Legendas e tradução")
 
 > Data: 04/11/2026 | Backend + extensão | **Servidor em produção** (`70055f3`, sem reunião ativa, `NRestarts=0`); ext 1.4.39 aguarda reinstalação
@@ -16,8 +33,7 @@
   dica de tela. Substitui a 1.4.38, que não foi distribuída.
 - **V.1.4.193**: "Legendas e tradução" e "Traduzir fala" em
   `agent/ruido_interface_rules.py`, para extensões antigas.
-- Não conferido: se o botão desligado existe com o painel fechado. Sem isso a
-  legenda não liga sozinha.
+- O botão não existe com o painel fechado: resolvido na ext 1.4.40.
 
 ---
 
