@@ -621,8 +621,10 @@ explícita, uma de cada vez — mesma disciplina de todo o roadmap.
   de respostas em até 60 s com 50), teto de 12 chamadas de IA simultâneas,
   ~20 reuniões estimadas. Na sequência, V.1.4.191: pool de IA (desligado),
   2ª rodada agendada e transcrição das gravações rodando (fim ~13-14/11).
-  Próximo: ler o D7 de 05/11; investigar a repetição que voltou em 29-31/10
-  e as reuniões com gravação sem transcrição.
+  Fora da fila, no mesmo dia: V.1.4.192 + ext 1.4.38 (anel de regravação da
+  legenda, causa da repetição) e V.1.4.193 + ext 1.4.39 (painel novo do Meet),
+  em produção; extensão aguarda reinstalação. Próximo: ler o D7 de 05/11 e
+  decidir o pool. Pendências em `CURRENT_STATE.md`.
 - **25/10/2026 — B3 + passo 8**: B3 em produção (V.1.4.189, latência
   igual com o job). Passo 8: D7 com ferramenta pronta e 1ª rodada
   agendada (26/10 04:00 UTC); A9 fora de escopo, D10 não mover, B6 adiada.

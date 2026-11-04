@@ -5,7 +5,7 @@
 
 ## V.1.4.193 + ext 1.4.39 — Painel novo do Meet ("Legendas e tradução")
 
-> Data: 04/11/2026 | Backend + extensão
+> Data: 04/11/2026 | Backend + extensão | **Servidor em produção** (`70055f3`, sem reunião ativa, `NRestarts=0`); ext 1.4.39 aguarda reinstalação
 
 - **Problema**: o Meet ganhou o painel "Legendas e tradução" (botões "Ativar
   legendas" e "Traduzir fala"). Antes de a área de legendas aparecer, os textos

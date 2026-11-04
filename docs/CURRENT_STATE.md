@@ -1,13 +1,34 @@
 # SALEIA - Estado Atual
 
-## 04/11/2026 (noite) — Meet novo: V.1.4.193 + ext 1.4.39
+## 04/11/2026 (noite) — Meet novo: V.1.4.193 EM PRODUÇÃO, ext 1.4.39 aguarda reinstalação (leia primeiro)
 
 O painel "Legendas e tradução" gravava texto de botão como fala; corrigido nas
 2 pontas (detalhe no CHANGELOG). A leitura da legenda continua funcionando.
-**Distribuir a ext 1.4.39, não a 1.4.38**: traz as 2 correções. Falta conferir
-numa reunião nova se a legenda liga sozinha com o painel fechado.
-`nqo`, `bcx`, `kps` e `fay` não têm linha em `sessoes`: o `/iniciar-sessao` não
-chegou, o que combina com "API desligada" (confirmar com quem estava na reunião).
+Deploy `70055f3` por bundle com `reunioes_ativas: 0`, `NRestarts=0`, `/health`
+1.4.193 online com IA, `/dashboard` 200, journal sem erro. Suíte: 2.099 OK;
+extensão: 96 OK.
+
+**Pendências, por prioridade**
+
+1. **Reinstalar a ext 1.4.39 em todos os vendedores** (`chrome-extension.zip`,
+   ou `../chrome-extension. V.1.4.39.zip`). Traz as correções do anel e do
+   painel; a 1.4.38 não foi distribuída. Fechar e reabrir as abas do Meet.
+2. **Conferir numa reunião nova** se a legenda liga sozinha com o painel fechado
+   (o botão desligado pode só existir com o painel aberto).
+3. **Conferir numa reunião longa** o tamanho da transcrição e as falas únicas:
+   é a prova final da causa, que hoje vem dos dados e de simulação.
+4. **Ler o D7 de 05/11** (`/root/loadtest/d7_20261105_0400.json`) e decidir
+   ligar `AI_POOL_THREADS` na produção.
+5. **Perguntar aos vendedores sobre "API desligada"**: `nqo`, `bcx`, `kps` e
+   `fay` não têm linha em `sessoes`, ou seja, o `/iniciar-sessao` não chegou.
+   Candidato: aviso visível na barra lateral quando o botão estiver desligado.
+6. **Acompanhar a transcrição** (`journalctl -u saleia-transcricao`): 48
+   gravações e 7,9 h feitas em 04/11; parada na cota de 8 h/dia e retoma sozinha.
+   Fim previsto ~13-14/11; depois, Fase 3.2 (usar o texto nos relatórios).
+
+Visto de passagem: 695 respostas 401 em `/gravacao/iniciar` de 00:00 a 14:02
+UTC de 04/11, repetindo a cada 5 s; parece navegador com login vencido, não
+identificado.
 
 ## 04/11/2026 (noite) — Causa da repetição achada: V.1.4.192 EM PRODUÇÃO, ext 1.4.38 aguarda reinstalação
 
