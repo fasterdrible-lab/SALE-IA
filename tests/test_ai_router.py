@@ -1,5 +1,8 @@
+import asyncio
+import contextvars
 import os
 import tempfile
+import threading
 from pathlib import Path
 import unittest
 from unittest.mock import patch, MagicMock
@@ -253,6 +256,47 @@ class AiRouterTest(unittest.TestCase):
 
         self.assertEqual(resultado["provedor_preferido"], "openai")
         self.assertEqual(resultado["ordem_ia"], ["openai"])
+
+
+class PoolDeIaTest(unittest.TestCase):
+    """D7: teto de 12 chamadas de IA simultâneas (pool padrão × 2 workers)."""
+
+    def setUp(self):
+        self.addCleanup(setattr, ai_router, "_pool_ia", None)
+
+    def _rodar(self, env):
+        var = contextvars.ContextVar("trace", default="sem")
+
+        def falsa(*_a, **_k):
+            return {"trace": var.get(), "thread": threading.current_thread().name}
+
+        async def fluxo():
+            var.set("reuniao-1")
+            return await ai_router.chamar_ia_async("s", "u")
+
+        with patch.dict(os.environ, env), patch.object(ai_router, "chamar_ia", falsa):
+            return asyncio.run(fluxo())
+
+    def test_desligado_por_padrao(self):
+        for valor in ("0", "", "abc"):
+            with patch.dict(os.environ, {"AI_POOL_THREADS": valor}):
+                self.assertIsNone(ai_router._obter_pool_ia())
+
+    def test_desligado_mantem_contexto(self):
+        resultado = self._rodar({"AI_POOL_THREADS": "0"})
+        self.assertEqual(resultado["trace"], "reuniao-1")
+        self.assertNotIn("saleia-ia", resultado["thread"])
+
+    def test_ligado_usa_pool_proprio_e_mantem_contexto(self):
+        resultado = self._rodar({"AI_POOL_THREADS": "4"})
+        self.assertEqual(resultado["trace"], "reuniao-1")
+        self.assertIn("saleia-ia", resultado["thread"])
+
+    def test_pool_tem_o_tamanho_pedido_e_e_reaproveitado(self):
+        with patch.dict(os.environ, {"AI_POOL_THREADS": "32"}):
+            pool = ai_router._obter_pool_ia()
+            self.assertEqual(pool._max_workers, 32)
+            self.assertIs(ai_router._obter_pool_ia(), pool)
 
 
 class CallAnthropicContentParsingTest(unittest.TestCase):

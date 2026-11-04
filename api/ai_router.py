@@ -12,12 +12,15 @@ The frontend never selects providers or receives secrets. This module owns:
 from __future__ import annotations
 
 import asyncio
+import contextvars
+import functools
 import json
 import logging
 import os
 import re
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -990,6 +993,30 @@ def definir_provedor_preferido(provedor: str) -> dict:
     }
 
 
+_pool_ia: ThreadPoolExecutor | None = None
+_pool_ia_lock = threading.Lock()
+
+
+def _obter_pool_ia() -> ThreadPoolExecutor | None:
+    """Pool próprio das chamadas de IA, ou None para o pool padrão do asyncio.
+
+    O padrão tem cpu_count + 4 threads: na VPS de 2 vCPU são 6 por worker, ou
+    12 chamadas de IA simultâneas, o teto medido no D7. `AI_POOL_THREADS`
+    (por worker) ausente, 0 ou inválido mantém o pool padrão.
+    """
+    global _pool_ia
+    try:
+        tamanho = int(os.getenv("AI_POOL_THREADS", "0") or 0)
+    except ValueError:
+        tamanho = 0
+    if tamanho <= 0:
+        return None
+    with _pool_ia_lock:
+        if _pool_ia is None or _pool_ia._max_workers != tamanho:
+            _pool_ia = ThreadPoolExecutor(max_workers=tamanho, thread_name_prefix="saleia-ia")
+        return _pool_ia
+
+
 async def chamar_ia_async(
     system_prompt: str,
     user_content: str,
@@ -999,9 +1026,21 @@ async def chamar_ia_async(
     usuario_id: str | None = None,
 ) -> dict:
     """Async wrapper for FastAPI paths and async agents."""
-    return await asyncio.to_thread(
-        chamar_ia, system_prompt, user_content,
-        feature=feature, meeting_id=meeting_id, usuario_id=usuario_id,
+    pool = _obter_pool_ia()
+    if pool is None:
+        return await asyncio.to_thread(
+            chamar_ia, system_prompt, user_content,
+            feature=feature, meeting_id=meeting_id, usuario_id=usuario_id,
+        )
+    # run_in_executor não copia o contexto como o to_thread: sem isto o
+    # trace do Langfuse (ContextVar) se perderia dentro da chamada de IA.
+    contexto = contextvars.copy_context()
+    return await asyncio.get_running_loop().run_in_executor(
+        pool,
+        functools.partial(
+            contexto.run, chamar_ia, system_prompt, user_content,
+            feature=feature, meeting_id=meeting_id, usuario_id=usuario_id,
+        ),
     )
 
 

@@ -51,6 +51,13 @@ class GeradorTest(unittest.TestCase):
         self.assertEqual(r["ia"]["chamadas_por_min"], 30.0)
         self.assertEqual(r["mysql"]["consultas_por_s"], 10.0)
 
+    def test_cpu_por_processo_em_porcentagem_da_maquina(self):
+        amostras = [{"t": 100.0, "cpu_us": {"app": 0, "ollama": 5_000_000, "gerador": 0}},
+                    {"t": 110.0, "cpu_us": {"app": 2_000_000, "ollama": 15_000_000, "mysql": 9}}]
+        # 2 núcleos: 10 s de CPU em 10 s de relógio = 50% da máquina
+        self.assertEqual(gerar_carga.cpu_por_processo(amostras, 2), {"app": 10.0, "ollama": 50.0})
+        self.assertEqual(gerar_carga.cpu_por_processo(amostras[:1], 2), {})
+
 
 if __name__ == "__main__":
     unittest.main()

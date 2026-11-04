@@ -149,6 +149,34 @@ def _cpu_instancia_us():
         return 0
 
 
+UNIDADES_CPU = {"app": "saleia-lt-app", "ia_falsa": "saleia-lt-fakeai", "ollama": "ollama",
+                "mysql": "mysql", "producao": "saleia"}
+
+
+def _cpu_unidades_us() -> dict:
+    """CPU acumulada (µs) de cada unidade e do próprio gerador. A rodada de
+    26/10 deixou 80-90% da máquina sem dono por só medir a instância."""
+    total = {"gerador": int(time.process_time() * 1e6)}
+    for nome, unidade in UNIDADES_CPU.items():
+        try:
+            with open(f"/sys/fs/cgroup/system.slice/{unidade}.service/cpu.stat") as f:
+                total[nome] = next(int(l.split()[1]) for l in f if l.startswith("usage_usec"))
+        except (OSError, StopIteration, ValueError):
+            continue
+    return total
+
+
+def cpu_por_processo(amostras: list, nucleos: int) -> dict:
+    """% da máquina inteira usado por processo entre a 1ª e a última amostra."""
+    validas = [a for a in amostras if "t" in a and "cpu_us" in a]
+    if len(validas) < 2:
+        return {}
+    ini, fim = validas[0], validas[-1]
+    dt = max(1e-6, fim["t"] - ini["t"])
+    return {nome: round(100 * (fim["cpu_us"][nome] - ini["cpu_us"][nome]) / 1e6 / dt / max(1, nucleos), 1)
+            for nome in fim["cpu_us"] if nome in ini["cpu_us"]}
+
+
 def _mysql_status(conn):
     with conn.cursor() as cur:
         cur.execute("SHOW GLOBAL STATUS WHERE Variable_name IN ('Threads_connected','Threads_running','Questions','Slow_queries')")
@@ -170,7 +198,7 @@ async def amostrar(cli: httpx.AsyncClient, conn, parar: asyncio.Event, amostras:
         cpu_app = 100 * (app1 - app0) / 1e6 / max(1e-6, t1 - t0) / nucleos
         app0, t0 = app1, t1
         a = {"t": time.time(), "cpu": round(cpu, 1), "cpu_app": round(cpu_app, 1),
-             "mem_mb": _mem_usada_mb(), "rss_mb": _rss_instancia_mb()}
+             "mem_mb": _mem_usada_mb(), "rss_mb": _rss_instancia_mb(), "cpu_us": _cpu_unidades_us()}
         try:
             a["mysql"] = _mysql_status(conn)
         except Exception as e:  # noqa: BLE001 — amostra é melhor esforço
@@ -209,7 +237,8 @@ def resumir(nivel: int, res: list, amostras: list, ia0: dict, ia1: dict, duracao
         "cpu_pct": {"media": round(statistics.mean(a["cpu"] for a in amostras), 1) if amostras else None,
                     "max": max((a["cpu"] for a in amostras), default=None),
                     "instancia_media": round(statistics.mean(a.get("cpu_app", 0) for a in amostras), 1) if amostras else None,
-                    "instancia_max": max((a.get("cpu_app", 0) for a in amostras), default=None)},
+                    "instancia_max": max((a.get("cpu_app", 0) for a in amostras), default=None),
+                    "por_processo": cpu_por_processo(amostras, os.cpu_count() or 1)},
         "mem_usada_mb_max": max((a["mem_mb"] for a in amostras), default=None),
         "rss_instancia_mb_max": max((a["rss_mb"] for a in amostras), default=None),
         "mysql": {"threads_conectadas_max": max((a.get("mysql", {}).get("Threads_connected", 0) for a in amostras), default=None),

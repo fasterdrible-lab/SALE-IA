@@ -207,6 +207,29 @@ class GravacaoBloco(SQLModel, table=True):
     recebido_em: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
 
 
+class TranscricaoDefinitiva(SQLModel, table=True):
+    """Transcrição de uma gravação, feita depois da reunião
+    (`scripts/transcrever_gravacoes.py`). Uma linha por `recording_id`:
+    cada trilha já é um lado da conversa. Fica depois que o áudio é apagado."""
+
+    __tablename__ = "transcricao_definitiva"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    recording_id: str = Field(sa_column=Column(String(64), unique=True, index=True, nullable=False))
+    meeting_id: str = Field(sa_column=Column(String(200), index=True, nullable=False))
+    trilha: str = Field(sa_column=Column(String(20), nullable=False))
+    inicio: datetime = Field(sa_column=Column(DateTime, nullable=False))
+    fim: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    texto: str = Field(default="", sa_column=Column(Text, nullable=False))
+    segmentos_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    # ok | silencio | erro
+    status: str = Field(sa_column=Column(String(20), nullable=False))
+    detalhe: str = Field(default="", sa_column=Column(Text, nullable=False))
+    modelo: str = Field(default="", sa_column=Column(String(80), nullable=False))
+    duracao_s: float = Field(default=0, sa_column=Column(Float, nullable=False))
+    criada_em: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, index=True, nullable=False))
+
+
 class GravacaoNivel(SQLModel, table=True):
     """Volume (dBFS) por janela de uma gravação encerrada — painel de
     gravações do Dashboard. Calculado uma vez decodificando o áudio."""
