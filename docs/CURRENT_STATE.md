@@ -1,20 +1,21 @@
 # SALEIA - Estado Atual
 
-## 04/11/2026 (noite) — Causa da repetição achada: V.1.4.192 + ext 1.4.38 (local)
+## 04/11/2026 (noite) — Causa da repetição achada: V.1.4.192 EM PRODUÇÃO, ext 1.4.38 aguarda reinstalação
 
 A extensão regrava em anel quando há mais de 20 blocos de legenda no DOM (só
 olha as últimas 20 falas). Isso também enche de falas antigas o texto enviado à
-IA. Correção nas 2 pontas, detalhe no CHANGELOG. **Só no ambiente local**:
-aguarda o "sim" para push e deploy, e a extensão precisa ser reinstalada em
-todos os vendedores. Conferir na 1ª reunião real: tamanho da transcrição e
-falas únicas. Substitui o achado "repetição voltou" da entrada abaixo.
+IA. Correção nas 2 pontas, detalhe no CHANGELOG. Deploy `eb4e125` por bundle
+com `reunioes_ativas: 0`, `NRestarts=0`, `/health` 1.4.192 online com IA,
+`/dashboard` 200, journal sem erro. Pool de IA segue desligado.
+**Reinstalar `chrome-extension.zip` (1.4.38) em todos os vendedores**: sem isso
+o texto da IA continua com falas antigas. Conferir na 1ª reunião real: tamanho
+da transcrição e falas únicas. Substitui o achado "repetição voltou" da entrada abaixo.
 `nqo`, `bcx` e `kps` sem transcrição seguem sem explicação.
 
 ## 04/11/2026 (tarde) — V.1.4.191: pool de IA, transcrição das gravações, novo D7
 
-`ab612ea` = VPS HEAD = GitHub, **sem restart**: a produção segue na 1.4.190 e
-passa para a 1.4.191 no reinício diário de 05/11 06:00 UTC, sem mudança de
-comportamento (pool desligado). Suíte: 2.094 testes, 1 erro (o teste achou um
+`ab612ea`, sem mudança de comportamento (pool desligado); entrou em produção
+junto com a V.1.4.192. Suíte: 2.094 testes, 1 erro (o teste achou um
 bug novo em `cpu_por_processo`, corrigido; só `test_loadtest` e
 `test_transcricao_definitiva` rodados de novo, 15 OK).
 

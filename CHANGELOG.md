@@ -5,7 +5,7 @@
 
 ## V.1.4.192 + ext 1.4.38 — Anel de regravação da legenda
 
-> Data: 04/11/2026 | Backend + extensão
+> Data: 04/11/2026 | Backend + extensão | **Servidor em produção** (`eb4e125`, sem reunião ativa, `NRestarts=0`); extensão aguarda reinstalação
 
 - **Problema**: a repetição voltou com a V.1.4.190 (`hwt-zzym-rbq` 930 mil
   caracteres em 1h44, `jaj-nwzz-wbv` 1,5 milhão). 95-97% dos turnos de cada
@@ -35,7 +35,7 @@
 
 ## V.1.4.191 — Pool de IA opcional, transcrição das gravações, D7 com CPU por processo
 
-> Data: 04/11/2026 | Backend e scripts, sem mudança na extensão | **Na VPS sem restart** (`ab612ea`); entra no reinício diário de 05/11, sem mudança de comportamento
+> Data: 04/11/2026 | Backend e scripts, sem mudança na extensão | **Em produção** junto com a V.1.4.192 (`ab612ea`), sem mudança de comportamento
 
 - **Pool de IA** (`api/ai_router.py`): `AI_POOL_THREADS` cria um pool só para
   `chamar_ia_async`, por worker. Ausente, 0 ou inválido mantém o pool padrão
