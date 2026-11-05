@@ -28,14 +28,22 @@ if [ "$ativas" != "0" ]; then
     exit 0
 fi
 
+# Unidade transitória que terminou com falha fica carregada e impede o próximo
+# systemd-run ("already loaded"): foi o que derrubou a rodada de 05/11.
+limpar_unidades() {
+    systemctl stop saleia-lt-app saleia-lt-fakeai 2>/dev/null || true
+    systemctl reset-failed saleia-lt-app saleia-lt-fakeai 2>/dev/null || true
+}
+
 desmontar() {
     echo "[$(date -u +%T)] desmontando"
     journalctl -u saleia-lt-app --no-pager -o cat -p warning > "$SAIDA_DIR/d7_${CARIMBO}_app_avisos.txt" 2>/dev/null || true
-    systemctl stop saleia-lt-app saleia-lt-fakeai 2>/dev/null || true
+    limpar_unidades
     mysql -e "DROP DATABASE IF EXISTS $DB_LT" || true
     rm -rf "$LT"
 }
 trap desmontar EXIT
+limpar_unidades
 
 echo "[$(date -u +%T)] montando $LT a partir de $(git -C "$PROD" log --oneline -1)"
 rm -rf "$LT" && mkdir -p "$LT"
