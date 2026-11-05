@@ -17,8 +17,8 @@ Origem de cada número (nunca disfarçar uma pela outra):
   anterior à Tarefa D2, que só tinha a alucinação total);
 - `gap`   — não existe número; `motivo` diz por quê.
 
-Status: `atinge` / `nao_atinge` / `sem_alvo` (alvo ainda não definido —
-recommendation quality, Tarefa C4) / `sem_numero`.
+Status: `atinge` / `nao_atinge` / `sem_alvo` (alvo ainda não definido) /
+`sem_numero`.
 """
 
 from typing import Optional
@@ -39,8 +39,13 @@ CRITERIOS = (
      "alvo": 0.01, "comparacao": "max", "fonte": "lote", "alvo_texto": "≈ 0 (≤ 1%)"},
     {"nome": "policy_violation", "rotulo": "Policy violation",
      "alvo": 0, "comparacao": "max", "fonte": "ao_vivo", "alvo_texto": "= 0"},
+    # Tarefa C4 (decisão do usuário, 04/11/2026): % de "mesma estratégia ou
+    # melhor" nas objeções que o vendedor de referência superou. Nota alta não
+    # basta: inventar condição comercial ou sair de contexto também barra.
     {"nome": "recommendation_quality", "rotulo": "Recommendation quality",
-     "alvo": None, "comparacao": None, "fonte": "lote", "alvo_texto": "a definir (Tarefa C4)"},
+     "alvo": 0.50, "comparacao": "min", "fonte": "lote",
+     "alvo_texto": "≥ 50%, inventado ≤ 2%, fora de contexto ≤ 15%",
+     "travas": {"promessa_inventada": 0.02, "fora_de_contexto": 0.15}},
     {"nome": "e2e_success", "rotulo": "E2E success",
      "alvo": 0.99, "comparacao": "min", "fonte": "ao_vivo", "alvo_texto": "≥ 99%"},
     {"nome": "audit_coverage", "rotulo": "Audit coverage",
@@ -60,6 +65,14 @@ def avaliar_status(valor: Optional[float], alvo, comparacao: Optional[str]) -> s
         return "sem_alvo"
     atinge = valor <= alvo if comparacao == "max" else valor >= alvo
     return "atinge" if atinge else "nao_atinge"
+
+
+def travas_atendidas(detalhe, travas: dict) -> bool:
+    """Toda trava medida e dentro do limite. Sem medição não libera."""
+    if not isinstance(detalhe, dict):
+        return False
+    return all(isinstance(detalhe.get(nome), (int, float)) and detalhe[nome] <= limite
+               for nome, limite in travas.items())
 
 
 def _taxa(numerador: int, denominador: int) -> Optional[float]:
@@ -120,6 +133,8 @@ def montar_painel(contagens_ao_vivo: dict, medicoes_lote: Optional[dict] = None)
         else:
             item["detalhe"] = c["motivo_gap"]
         item["status"] = avaliar_status(item["valor"], c["alvo"], c["comparacao"])
+        if item["status"] == "atinge" and c.get("travas") and not travas_atendidas(item["detalhe"], c["travas"]):
+            item["status"] = "nao_atinge"
         criterios.append(item)
 
     contagem = {s: 0 for s in ("atinge", "nao_atinge", "sem_alvo", "sem_numero")}

@@ -1,5 +1,12 @@
 # SALEIA - Estado Atual
 
+## 04/11/2026 (fim do dia) — C4: alvo definido (V.1.4.194)
+
+Alvo de `recommendation_quality`: **≥ 50%, inventado ≤ 2%, fora de contexto ≤
+15%**. Motor em 27% (fora de contexto 43%): **Piloto (C6) segue bloqueado**.
+Próximo da C4: melhorar o motor, sobretudo o contexto, e medir com ≥ 200
+objeções superadas em reuniões separadas da Biblioteca.
+
 ## 04/11/2026 (noite) — Meet novo: V.1.4.193 EM PRODUÇÃO, ext 1.4.39 aguarda reinstalação (leia primeiro)
 
 O painel "Legendas e tradução" gravava texto de botão como fala; corrigido nas

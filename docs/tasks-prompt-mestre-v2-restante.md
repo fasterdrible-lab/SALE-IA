@@ -33,7 +33,7 @@ Fase 25 (critérios do Digital Twin) não tem como ser atingida.
 | objection classification | ≥ 90% | 75% | Qualidade do classificador |
 | critical hallucination | ≈ 0 | 14,44% (todas, não só críticas) | "Crítica" nunca foi definida |
 | policy violation | 0 | 0 ✅ | — |
-| recommendation quality | a definir | 52,8% uso (subestimado, fix V.1.4.140) | Reuniões novas; alvo nunca definido |
+| recommendation quality | ≥ 50%, inventado ≤ 2%, fora de contexto ≤ 15% (C4, 04/11) | motor 27% (23/10) | Motor abaixo do coach (40%) e fora de contexto em 43% |
 | E2E success | ≥ 99% | 85,5% (proxy) | Saldo DeepSeek/OpenAI + E2E real inexistente |
 | audit coverage | 100% | 100% ✅ | — |
 | human escalation functional | 100% | mecanismo pronto, nunca disparado | Nada autônomo roda ainda |
@@ -248,7 +248,18 @@ Pedido original da C8:
   "testando"), não de venda real; agreement aqui não mede valor.
   `recommended_framework` sem vocabulário fechado ("SPIN" em ~40 grafias).
   Próximo: C4 usando reuniões reais (ex.: as do Paulo) como referência.
-### C4 — Definir o alvo de recommendation quality e a métrica de qualidade
+### C4 — Definir o alvo de recommendation quality e a métrica de qualidade [ALVO DEFINIDO — 04/11/2026; motor abaixo do alvo]
+- **Decisão do usuário (04/11/2026)**: **≥ 50%** de "mesma estratégia ou melhor"
+  nas objeções superadas, **e** promessa/dado inventado **≤ 2%**, **e** fora de
+  contexto **≤ 15%**. Sem as travas medidas, não atinge. Motor em 23/10: 27%,
+  fora de contexto 43%. Coach: 40%, inventado 10,5%.
+- **`quality` do Shadow Mode não usa juíza por comparação**: rodada manual
+  quando motor ou coach mudar (~US$ 1,55 por 200 momentos em 23/10). Registrar
+  em `detalhe` as chaves `promessa_inventada` e `fora_de_contexto`, em fração
+  (saem de `risco_%` do `c4_julgar.py`).
+- **Tamanho da próxima rodada**: a métrica usa só as superadas. Com as 100 de
+  hoje, a margem é de ~10 pontos: 40% e 50% se sobrepõem. Usar ≥ 200 superadas
+  (~7 pontos), em reuniões separadas das que alimentaram a Biblioteca.
 - O prompt deixa o alvo "a definir". Decidir o número e se `quality`
   do Shadow Mode usa LLM-judge (custo real por comparação).
 - **17-18/10/2026**: caminho escolhido = usar as reuniões reais do Paulo
@@ -623,8 +634,10 @@ explícita, uma de cada vez — mesma disciplina de todo o roadmap.
   2ª rodada agendada e transcrição das gravações rodando (fim ~13-14/11).
   Fora da fila, no mesmo dia: V.1.4.192 + ext 1.4.38 (anel de regravação da
   legenda, causa da repetição) e V.1.4.193 + ext 1.4.39-1.4.40 (Meet novo),
-  em produção; extensão aguarda reinstalação. Próximo: ler o D7 de 05/11 e
-  decidir o pool. Pendências em `CURRENT_STATE.md`.
+  em produção; extensão aguarda reinstalação. **C4**: alvo decidido pelo
+  usuário (≥ 50% + 2 travas), motor abaixo dele; C6 segue bloqueada. Próximo:
+  ler o D7 de 05/11 e decidir o pool; melhorar o motor antes de nova rodada C4.
+  Pendências em `CURRENT_STATE.md`.
 - **25/10/2026 — B3 + passo 8**: B3 em produção (V.1.4.189, latência
   igual com o job). Passo 8: D7 com ferramenta pronta e 1ª rodada
   agendada (26/10 04:00 UTC); A9 fora de escopo, D10 não mover, B6 adiada.

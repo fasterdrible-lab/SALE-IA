@@ -3,6 +3,23 @@
 
 ---
 
+## V.1.4.194 — C4: alvo de qualidade da recomendação
+
+> Data: 04/11/2026 | Backend, sem mudança na extensão
+
+- **Decisão do usuário**: `recommendation_quality` ≥ 50% de "mesma estratégia ou
+  melhor" nas objeções superadas, com promessa/dado inventado ≤ 2% e fora de
+  contexto ≤ 15%. Medição por rodada manual quando motor ou coach mudar.
+- `agent/readiness_rules.py`: alvo e travas no critério, que só atinge com as 2
+  travas medidas e dentro do limite. `/admin/readiness` passa a mostrar "não
+  atinge" para o motor (27%), em vez de "sem alvo". O painel segue com 9 critérios.
+- A C6 (Piloto) continua bloqueada. Próxima rodada com ≥ 200 objeções superadas
+  e reuniões separadas das que alimentaram a Biblioteca: com 100, a margem de
+  ~10 pontos não separa 40% de 50%.
+- Testes: `AlvoC4Test` em `tests/test_readiness.py`.
+
+---
+
 ## Ext 1.4.40 — Legenda volta a ligar sozinha no Meet novo
 
 > Data: 04/11/2026 | Só extensão, sem deploy de servidor | **Validada pelo usuário em reunião real em 04/11**; aguarda reinstalação nos vendedores

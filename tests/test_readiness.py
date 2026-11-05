@@ -46,6 +46,31 @@ class AvaliarStatusTest(unittest.TestCase):
         self.assertEqual(avaliar_status(None, 0.9, "min"), "sem_numero")
 
 
+
+class AlvoC4Test(unittest.TestCase):
+    """C4: alvo de 50% com travas de inventado e fora de contexto."""
+
+    def _status(self, valor, detalhe):
+        medicoes = {"recommendation_quality": {"valor": valor, "origem": "real", "amostra": 200, "detalhe": detalhe}}
+        painel = montar_painel(_SEM_DADO, medicoes)
+        return {i["criterio"]: i for i in painel["criterios"]}["recommendation_quality"]["status"]
+
+    def test_medicao_atual_do_motor_nao_atinge(self):
+        self.assertEqual(self._status(0.27, {"motor": 0.27}), "nao_atinge")
+
+    def test_alvo_com_travas_dentro_atinge(self):
+        self.assertEqual(self._status(0.50, {"promessa_inventada": 0.02, "fora_de_contexto": 0.15}), "atinge")
+
+    def test_inventar_barra_mesmo_com_nota_alta(self):
+        self.assertEqual(self._status(0.80, {"promessa_inventada": 0.03, "fora_de_contexto": 0.05}), "nao_atinge")
+
+    def test_fora_de_contexto_barra_mesmo_com_nota_alta(self):
+        self.assertEqual(self._status(0.80, {"promessa_inventada": 0.0, "fora_de_contexto": 0.16}), "nao_atinge")
+
+    def test_trava_sem_medicao_nao_libera(self):
+        self.assertEqual(self._status(0.80, {"promessa_inventada": 0.0}), "nao_atinge")
+        self.assertEqual(self._status(0.80, None), "nao_atinge")
+
 class MontarPainelTest(unittest.TestCase):
     def test_sempre_os_9_criterios_na_ordem_da_fase_25(self):
         painel = montar_painel(_SEM_DADO, {})
@@ -88,7 +113,7 @@ class MontarPainelTest(unittest.TestCase):
         self.assertEqual(c["transcription_reliability"]["status"], "atinge")
         self.assertEqual(c["objection_classification"]["status"], "nao_atinge")
         self.assertEqual(c["critical_hallucination"]["origem"], "proxy")
-        self.assertEqual(c["recommendation_quality"]["status"], "sem_alvo")
+        self.assertEqual(c["recommendation_quality"]["status"], "nao_atinge")
         self.assertEqual(c["transcription_reliability"]["medido_em"], "2026-09-24T10:00:00")
         self.assertFalse(painel["resumo"]["pronto_para_digital_twin"])
         self.assertEqual(painel["resumo"]["atinge"], 3)
