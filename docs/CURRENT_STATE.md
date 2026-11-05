@@ -1,5 +1,16 @@
 # SALEIA - Estado Atual
 
+## 05/11/2026 — V.1.4.194 em produção; D7 reagendado para 06/11
+
+Deploy `68f0625` por bundle com `reunioes_ativas: 0`, `NRestarts=0`, `/health`
+1.4.194, `/dashboard` 200, journal sem erro; `recommendation_quality` aparece
+como "não atinge". O D7 de 05/11 04:00 UTC **não rodou** (`saleia-lt-app` falha
+ficou carregada no systemd); `rodar.sh` corrigido em `a52d51e`. Teste mínimo em
+05/11 (2 reuniões, 1 min, pool ligado) OK: **Ollama usou 27,2 pontos dos 33% de
+CPU da máquina**, a instância 1,7. Primeira pista de quem consumiu a CPU na
+rodada de 26/10, com amostra muito pequena. Rodada completa: timer
+`saleia-d7-carga`, 06/11 04:00 UTC.
+
 ## 04/11/2026 (fim do dia) — C4: alvo definido (V.1.4.194)
 
 Alvo de `recommendation_quality`: **≥ 50%, inventado ≤ 2%, fora de contexto ≤
@@ -28,7 +39,7 @@ pelo usuário em reunião real. Só extensão, servidor segue na 1.4.193.
 2. **Sem a 1.4.40, o vendedor precisa ligar a legenda à mão** no Meet novo.
 3. **Conferir numa reunião longa** o tamanho da transcrição e as falas únicas:
    é a prova final da causa, que hoje vem dos dados e de simulação.
-4. **Ler o D7 de 05/11** (`/root/loadtest/d7_20261105_0400.json`) e decidir
+4. **Ler o D7 de 06/11** (`/root/loadtest/d7_20261106_0400.json`) e decidir
    ligar `AI_POOL_THREADS` na produção.
 5. **Perguntar aos vendedores sobre "API desligada"**: `nqo`, `bcx`, `kps` e
    `fay` não têm linha em `sessoes`, ou seja, o `/iniciar-sessao` não chegou.

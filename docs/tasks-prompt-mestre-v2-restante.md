@@ -354,8 +354,9 @@ Pedido original da C8:
   threads × 2 workers), capacidade estimada de ~20 reuniões. CPU da VPS
   sem explicação por processo. Detalhe em `CURRENT_STATE.md` (04/11).
 - V.1.4.191 (04/11): pool `AI_POOL_THREADS` pronto, desligado na produção.
-  2ª rodada agendada para 05/11 04:00 UTC (10/20/30/50/100, CPU por
-  processo). Falta: ler o relatório e decidir ligar o pool.
+  2ª rodada de 05/11 falhou por unidade presa no systemd (corrigido);
+  reagendada para 06/11 04:00 UTC (10/20/30/50/100, CPU por processo).
+  Falta: ler o relatório e decidir ligar o pool.
 ### D8 — Corrigir a corrida de DDL entre workers [CONCLUÍDA — 29/09/2026, V.1.4.147]
 - `GET_LOCK` nomeado em volta de todo o DDL do startup + tratamento do
   erro 1684 + 2ª tentativa do `create_all`. Validado no MySQL real.
@@ -636,7 +637,7 @@ explícita, uma de cada vez — mesma disciplina de todo o roadmap.
   legenda, causa da repetição) e V.1.4.193 + ext 1.4.39-1.4.40 (Meet novo),
   em produção; extensão aguarda reinstalação. **C4**: alvo decidido pelo
   usuário (≥ 50% + 2 travas), motor abaixo dele; C6 segue bloqueada. Próximo:
-  ler o D7 de 05/11 e decidir o pool; melhorar o motor antes de nova rodada C4.
+  ler o D7 de 06/11 e decidir o pool; melhorar o motor antes de nova rodada C4.
   Pendências em `CURRENT_STATE.md`.
 - **25/10/2026 — B3 + passo 8**: B3 em produção (V.1.4.189, latência
   igual com o job). Passo 8: D7 com ferramenta pronta e 1ª rodada
