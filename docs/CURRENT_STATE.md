@@ -1,5 +1,32 @@
 # SALEIA - Estado Atual
 
+## 05/11/2026 (tarde) — Limpeza de reuniões; bug do corte de contexto achado
+
+**Limpeza no banco de produção** (pedido do usuário): 84 reuniões avaliadas, 47
+apagadas (13 vazias, 8 com pouco texto, 26 testes), 37 mantidas. Saíram de
+`sessoes`, `meeting_memory`, `turnos_fala`, `sales_events`, `sales_evidences`,
+`recommendation_events`, `shadow_mode_comparisons` e gravações. Custo
+(`ai_usage_events`), `otimizacao_decisoes` e `audit_trail_entries` foram mantidos.
+`turnos_fala`: 273.400 linhas do anel removidas (20+ caracteres, duração zero,
+texto repetido); tempo de fala igual, 12.243 s. Reuniões com gravação e sem
+transcrição foram mantidas. Backup
+`/root/backups/saleia/manual/pre_limpeza_reunioes_20261105_142236.sql.gz`;
+lista em `limpeza_reunioes_20261105_lista.txt`, na mesma pasta.
+
+**Bug grave, ainda sem correção**: o corte de contexto (Fase 5,
+`aplicar_corte_contexto`) mantém o FIM do texto, e o prompt do coach traz a
+conversa atual no COMEÇO. `events_json` e `current_diagnosis` entram sem limite
+(prompts de até 476 mil caracteres, limite 20 mil). Desde 20/10, 81% das chamadas
+do coach foram cortadas; nas 6 reuniões simuladas com o estado final, o fim da
+conversa não chegou à IA. No motor, o corte tira as regras (4.418 vezes desde
+21/09), o que explica as ~40 grafias de "SPIN" da C3. A C4 de 23/10 rodou sem
+esse corte, então 40% e 27% superestimam a produção.
+**Corrigir antes de medir ou ajustar prompts.** Tarefa 9 (prompt v2 do motor e
+scripts da C4) segue local e sem medição válida: a comparação de 05/11 foi
+descartada sem julgar.
+
+DeepSeek recarregado em 05/11 (US$ 12,96).
+
 ## 05/11/2026 — V.1.4.194 em produção; D7 reagendado para 06/11
 
 Deploy `68f0625` por bundle com `reunioes_ativas: 0`, `NRestarts=0`, `/health`
