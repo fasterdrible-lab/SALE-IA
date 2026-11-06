@@ -9,6 +9,7 @@ mantendo compatibilidade total com a extensão Chrome e o dashboard.
 import asyncio
 import logging
 import os
+import time
 
 from agent.base_conhecimento import buscar_contexto_similar
 from agent.multiagente.coach_agent import analisar_coach
@@ -19,6 +20,44 @@ from agent.multiagente.bigfive_agent import analisar_bigfive
 from agent.propensao_rules import classificar_propensao
 
 logger = logging.getLogger(__name__)
+
+# 05/11/2026 (D7): o RAG embutia a cada ciclo de 20 s o mesmo texto longo 3
+# vezes (base, Sales Memory, Biblioteca) e o Ollama ocupava 73-88% da CPU. A
+# busca usa só o fim da conversa e o resultado vale por RAG_INTERVALO_S por
+# reunião (por worker). O contexto do cliente (por reunião) não entra aqui.
+RAG_CONSULTA_MAX_CHARS = 1500
+_rag_por_reuniao: dict = {}
+
+
+def _rag_intervalo_s() -> float:
+    try:
+        return float(os.getenv("RAG_INTERVALO_S", "120"))
+    except ValueError:
+        return 120.0
+
+
+def consulta_rag(transcricao_parcial: str, historico: str) -> str:
+    """O fim da conversa: o que está sendo falado agora."""
+    texto = (transcricao_parcial or "").strip() or (historico or "").strip()
+    return texto[-RAG_CONSULTA_MAX_CHARS:]
+
+
+def rag_em_cache(meeting_id, agora: float):
+    if not meeting_id or meeting_id == "default":
+        return None
+    item = _rag_por_reuniao.get(meeting_id)
+    if item and agora - item[0] < _rag_intervalo_s():
+        return item[1]
+    return None
+
+
+def guardar_rag(meeting_id, agora: float, contexto: str) -> None:
+    if not meeting_id or meeting_id == "default":
+        return
+    _rag_por_reuniao[meeting_id] = (agora, contexto)
+    if len(_rag_por_reuniao) > 500:
+        for velho in sorted(_rag_por_reuniao, key=lambda k: _rag_por_reuniao[k][0])[:100]:
+            _rag_por_reuniao.pop(velho, None)
 
 
 def bigfive_agent_ativo() -> bool:
@@ -941,49 +980,57 @@ async def analisar_fragmento_multi(
     except Exception:
         retrieval_span = None
 
-    # RAG context — busca uma vez e compartilha entre agentes via client_context
-    try:
-        query_rag = f"{transcricao_parcial} {historico}"
-        rag = await buscar_contexto_similar(query_rag, top_k=3)
-        if rag:
-            client_context = (client_context or "") + f"\n\n{rag}"
+    # RAG (base, Sales Memory, Biblioteca): 1 consulta curta, reaproveitada
+    # por RAG_INTERVALO_S na mesma reunião. O mesmo texto é embutido 1 vez só
+    # (cache de vetores do provedor).
+    agora_rag = time.monotonic()
+    rag_total = rag_em_cache(meeting_id, agora_rag)
+    if rag_total is None:
+        consulta = consulta_rag(transcricao_parcial, historico)
+        partes = []
         try:
-            obs.record_retrieval(source="base_conhecimento", query=query_rag,
-                                  result_count=1 if rag else 0, meeting_id=meeting_id)
-        except Exception:
-            pass
-    except Exception as _e:
-        logger.debug("[Multiagente] RAG falhou: %s", _e)
+            rag = await buscar_contexto_similar(consulta, top_k=3)
+            if rag:
+                partes.append(rag)
+            try:
+                obs.record_retrieval(source="base_conhecimento", query=consulta,
+                                      result_count=1 if rag else 0, meeting_id=meeting_id)
+            except Exception:
+                pass
+        except Exception as _e:
+            logger.debug("[Multiagente] RAG falhou: %s", _e)
 
-    # Sales Memory — memórias comerciais extraídas de reuniões anteriores
-    try:
-        from agent.sales_memory import buscar_contexto_para_reuniao
-        query_mem = f"{transcricao_parcial} {historico}"
-        mem_ctx = buscar_contexto_para_reuniao(query_mem, top_k=3)
-        if mem_ctx:
-            client_context = (client_context or "") + f"\n\n{mem_ctx}"
+        # Sales Memory — memórias comerciais extraídas de reuniões anteriores
         try:
-            obs.record_retrieval(source="sales_memory", query=query_mem,
-                                  result_count=1 if mem_ctx else 0, meeting_id=meeting_id)
-        except Exception:
-            pass
-    except Exception as _e:
-        logger.debug("[Multiagente] Sales Memory falhou: %s", _e)
+            from agent.sales_memory import buscar_contexto_para_reuniao
+            mem_ctx = await asyncio.to_thread(buscar_contexto_para_reuniao, consulta, 3)
+            if mem_ctx:
+                partes.append(mem_ctx)
+            try:
+                obs.record_retrieval(source="sales_memory", query=consulta,
+                                      result_count=1 if mem_ctx else 0, meeting_id=meeting_id)
+            except Exception:
+                pass
+        except Exception as _e:
+            logger.debug("[Multiagente] Sales Memory falhou: %s", _e)
 
-    # Knowledge Compiler (Fase 3) — KnowledgeItems aprovados (livros/playbooks compilados)
-    try:
-        from api.database import buscar_conhecimento_compilado_similar
-        query_kc = f"{transcricao_parcial} {historico}"
-        kc_ctx = buscar_conhecimento_compilado_similar(query_kc, top_k=2)
-        if kc_ctx:
-            client_context = (client_context or "") + f"\n\n{kc_ctx}"
+        # Knowledge Compiler (Fase 3) — KnowledgeItems aprovados (livros/playbooks compilados)
         try:
-            obs.record_retrieval(source="knowledge_compiler", query=query_kc,
-                                  result_count=1 if kc_ctx else 0, meeting_id=meeting_id)
-        except Exception:
-            pass
-    except Exception as _e:
-        logger.debug("[Multiagente] Knowledge Compiler RAG falhou: %s", _e)
+            from api.database import buscar_conhecimento_compilado_similar
+            kc_ctx = await asyncio.to_thread(buscar_conhecimento_compilado_similar, consulta, 2)
+            if kc_ctx:
+                partes.append(kc_ctx)
+            try:
+                obs.record_retrieval(source="knowledge_compiler", query=consulta,
+                                      result_count=1 if kc_ctx else 0, meeting_id=meeting_id)
+            except Exception:
+                pass
+        except Exception as _e:
+            logger.debug("[Multiagente] Knowledge Compiler RAG falhou: %s", _e)
+        rag_total = "".join("\n\n" + p for p in partes)
+        guardar_rag(meeting_id, agora_rag, rag_total)
+    if rag_total:
+        client_context = (client_context or "") + rag_total
 
     try:
         if retrieval_span is not None:

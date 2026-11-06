@@ -11,7 +11,9 @@ import asyncio
 import concurrent.futures
 import logging
 import os
+import threading
 import time
+from collections import OrderedDict
 from typing import Optional
 
 import httpx
@@ -22,6 +24,34 @@ logger = logging.getLogger("saleia.embeddings.ollama")
 
 _TRANSIENT_STATUS = {408, 425, 429, 500, 502, 503, 504}
 _MAX_RETRIES = 2
+
+# 05/11/2026 (D7): o Ollama usou 73-88% da CPU da VPS no teste de carga; o
+# mesmo texto era embutido várias vezes por ciclo (3 buscas do RAG). Vetores
+# recentes ficam em memória por processo, por (modelo, texto exato).
+_CACHE_MAX = 256
+_cache_vetores: "OrderedDict[tuple, list]" = OrderedDict()
+_cache_lock = threading.Lock()
+
+
+def _do_cache(chave: tuple):
+    with _cache_lock:
+        vec = _cache_vetores.get(chave)
+        if vec is not None:
+            _cache_vetores.move_to_end(chave)
+        return vec
+
+
+def _guardar(chave: tuple, vec: list) -> None:
+    with _cache_lock:
+        _cache_vetores[chave] = vec
+        _cache_vetores.move_to_end(chave)
+        while len(_cache_vetores) > _CACHE_MAX:
+            _cache_vetores.popitem(last=False)
+
+
+def limpar_cache_embeddings() -> None:
+    with _cache_lock:
+        _cache_vetores.clear()
 _RETRY_BACKOFF_BASE = 0.5  # segundos
 
 
@@ -95,12 +125,16 @@ class OllamaEmbeddingProvider(EmbeddingProvider):
         raise RuntimeError("Falha desconhecida ao chamar Ollama")
 
     async def embed_async(self, text: str) -> Optional[EmbeddingResult]:
-        try:
-            async with httpx.AsyncClient() as client:
-                vec = await self._post_embedding(client, text)
-        except Exception as e:
-            logger.warning("[Ollama] Erro ao gerar embedding: %s", e)
-            return None
+        chave = (self._base_url, self._model, text)
+        vec = _do_cache(chave)
+        if vec is None:
+            try:
+                async with httpx.AsyncClient() as client:
+                    vec = await self._post_embedding(client, text)
+            except Exception as e:
+                logger.warning("[Ollama] Erro ao gerar embedding: %s", e)
+                return None
+            _guardar(chave, vec)
         self._dimension = len(vec)
         return EmbeddingResult(vector=vec, provider=self.provider_name, model=self._model, dimension=len(vec))
 
