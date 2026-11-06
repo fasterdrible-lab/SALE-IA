@@ -3,6 +3,27 @@
 
 ---
 
+## V.1.4.197 — RAG mais leve: o Ollama deixa de dominar a CPU
+
+> Data: 06/11/2026 | Backend, sem mudança na extensão
+
+- **Problema** (D7 de 06/11): o Ollama usou 73-88% da CPU da VPS e limitou a
+  ~20 reuniões simultâneas. Cada ciclo de 20 s embutia 3 vezes o mesmo texto de
+  4-6 mil caracteres (base de conhecimento, Sales Memory, Biblioteca), e 2 dessas
+  buscas eram síncronas dentro do ciclo assíncrono.
+- **Correção**: a consulta passa a ser o fim da conversa (1.500 caracteres;
+  antes, o começo do trecho); o resultado vale 120 s por reunião
+  (`RAG_INTERVALO_S`, cache por worker); vetores recentes ficam em memória por
+  texto exato (`services/embeddings/ollama_provider.py`, até 256); Sales Memory
+  e Biblioteca rodam fora do loop (`asyncio.to_thread`).
+- Efeito na qualidade: o contexto pode ficar até 2 min atrás do assunto. A C4
+  não mede isso.
+- Teste de carga com este código agendado para 07/11 04:00 UTC
+  (`/root/rodar_ref.sh`, branch `loadtest-196` na VPS), níveis 10/20/30/50.
+- Testes: `tests/test_rag_por_ciclo.py`.
+
+---
+
 ## V.1.4.196 — Reunião analisada vai para o SalesOS
 
 > Data: 06/11/2026 | Backend, sem mudança na extensão | Tarefa V2-7.2 do SalesOS

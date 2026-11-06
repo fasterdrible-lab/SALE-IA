@@ -357,7 +357,8 @@ Pedido original da C8:
   2ª rodada de 05/11 falhou por unidade presa no systemd (corrigido);
   reagendada para 06/11 04:00 UTC (10/20/30/50/100, CPU por processo).
   Feita em 06/11: pool não ajuda; Ollama usa 73-88% da CPU e ~20 reuniões
-  é o limite. Falta: reduzir o embedding por ciclo e medir de novo.
+  é o limite. V.1.4.197 (06/11): RAG com consulta curta e cache por reunião;
+  medir no D7 de 07/11 04:00 UTC.
 ### D8 — Corrigir a corrida de DDL entre workers [CONCLUÍDA — 29/09/2026, V.1.4.147]
 - `GET_LOCK` nomeado em volta de todo o DDL do startup + tratamento do
   erro 1684 + 2ª tentativa do `create_all`. Validado no MySQL real.

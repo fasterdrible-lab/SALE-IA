@@ -1,5 +1,29 @@
 # SALEIA - Estado Atual
 
+## 06/11/2026 (noite) — V.1.4.197: RAG mais leve (leia primeiro)
+
+Redução do uso do Ollama, que limitava a VPS a ~20 reuniões (detalhe no
+CHANGELOG). D7 com este código em 07/11 04:00 UTC: comparar com o de 06/11
+(Ollama 73-88% da CPU; 20 reuniões = 91,7% em até 60 s; 30 = 62,6%).
+
+**Atenção**: em 06/11 duas sessões do Claude trabalharam em paralelo na mesma
+pasta e na mesma VPS (V.1.4.196 numa, V.1.4.195/197 na outra). Usar uma por vez:
+um restart de uma derruba o deploy da outra.
+
+**Pendências, por prioridade**
+
+1. Reinstalar a ext 1.4.40 nos vendedores (em 05/11, 2.808 registros ainda da
+   1.4.37 contra 43 da 1.4.40).
+2. Relatório automático falhando desde 27/10 (entrada da V.1.4.196 abaixo):
+   sem ele nada vai ao SalesOS.
+3. Trocar o token do Grafana (apareceu em parte no chat, entrada abaixo) e a
+   chave do DeepSeek no `.env` local (inválida, 401).
+4. Política comercial real: enviada ao responsável em 06/11; destrava a trava
+   de inventado da C4 (motor 4,7%, limite 2%).
+5. Ler o D7 de 07/11 e confirmar o ganho da V.1.4.197.
+6. Transcrição das gravações: 149 gravações e 23,7 h em 06/11; fila
+   `saleia-transcricao2` (4 reuniões de 04-05/11) depois da atual.
+
 ## 06/11/2026 — V.1.4.196 em produção: reunião analisada vai para o SalesOS
 
 Envio ao SalesOS depois do relatório automático (detalhe no CHANGELOG), com
