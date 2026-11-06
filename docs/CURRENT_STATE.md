@@ -1,12 +1,25 @@
 # SALEIA - Estado Atual
 
-## 06/11/2026 — V.1.4.196: reunião analisada vai para o SalesOS (local)
+## 06/11/2026 — V.1.4.196 em produção: reunião analisada vai para o SalesOS
 
 Envio ao SalesOS depois do relatório automático (detalhe no CHANGELOG), com
-fila e reenvio em `sessoes.salesos_*`. **Ainda não publicado.** Para ligar:
-`SALESOS_EVENTS_URL` e `SALESOS_EVENTS_SECRET` no `.env` da VPS (gerados em
-saleos.tech → Configurações → SALEIA, organização NEX-ALS, conectada em 06/11).
-Sem isso, nada é enviado. Reuniões anteriores ao deploy não vão.
+fila e reenvio em `sessoes.salesos_*`. Publicado em 06/11 ~19:40 UTC
+(`241f4a3`), validado: ativo, `NRestarts=0`, journal sem erro, `/health`
+1.4.196, `/dashboard` 200. `.env` ganhou `SALESOS_EVENTS_URL` e
+`SALESOS_EVENTS_SECRET` (organização NEX-ALS do SalesOS; segredo decifrado e
+gravado na própria VPS, nunca exibido; backup `.env.bak_salesos_*`). Evento
+assinado e inválido de teste: SalesOS respondeu 400 (assinatura aceita) e 401
+com segredo errado. As 41 sessões existentes ficaram `salesos_status = anterior`.
+
+**Bloqueio, anterior a esta versão**: nenhuma sessão tem relatório automático
+`ok`. Desde 27/10, os 7 últimos falham com `StatementError` "Datetime values
+must have timezone information" (sessões 595, 597, 600…); antes houve 3
+`DataError` e 3 `HTTPException`. Sem relatório, nada vai para o SalesOS.
+Corrigir é tarefa à parte (pedir confirmação).
+
+**Segurança**: no teste, `. ./.env` no bash exibiu no chat o começo do valor
+da linha 22 do `.env` (token do Grafana Cloud, `MTY4MjY1NDpnbGNf…`). Trocar
+esse token. O `.env` está com permissão 644 (já estava assim).
 
 ## 06/11/2026 (noite) — C4 medida de novo com a V.1.4.195
 
