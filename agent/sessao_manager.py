@@ -466,6 +466,23 @@ def migrar_colunas_sessoes():
                     conn.commit()
                 except Exception:
                     conn.rollback()
+            # V.1.4.196: envio ao SalesOS (api/salesos_envio.py).
+            try:
+                cur.execute("ALTER TABLE sessoes ADD COLUMN salesos_status VARCHAR(20) NULL DEFAULT NULL")
+                # Só quando a coluna nasce: reuniões já relatadas não vão ao
+                # SalesOS sozinhas (testes e reuniões antigas virariam registro lá).
+                cur.execute("UPDATE sessoes SET salesos_status = 'anterior', updated_at = updated_at")
+                conn.commit()
+            except Exception:
+                conn.rollback()
+            for sql in ("ALTER TABLE sessoes ADD COLUMN salesos_tentativas INT NULL DEFAULT NULL",
+                        "ALTER TABLE sessoes ADD COLUMN salesos_em DATETIME NULL DEFAULT NULL",
+                        "ALTER TABLE sessoes ADD COLUMN salesos_detalhe VARCHAR(200) NULL DEFAULT NULL"):
+                try:
+                    cur.execute(sql)
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
         conn.close()
     except Exception as e:
         logger.error("[Sessões] Erro ao migrar colunas de sessoes: %s", e)

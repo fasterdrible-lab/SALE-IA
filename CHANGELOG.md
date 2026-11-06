@@ -3,6 +3,35 @@
 
 ---
 
+## V.1.4.196 — Reunião analisada vai para o SalesOS
+
+> Data: 06/11/2026 | Backend, sem mudança na extensão | Tarefa V2-7.2 do SalesOS
+
+- **O quê**: depois do relatório pós-reunião automático (V.1.4.185), o SALE-IA
+  envia a reunião ao SalesOS (`saleos.tech`), que a liga à empresa e à
+  negociação. Contrato: `docs/INTEGRACAO_SALEIA.md` do SalesOS (evento
+  `meeting.analyzed` v1, HMAC-SHA256 sobre `timestamp.corpo`).
+- **Conteúdo**, todo do relatório já gerado, sem chamada de IA a mais: resumo
+  executivo + propensão + probabilidade; próximos passos e `como_avancar`
+  (recomendações); objeções; dores; fatores positivos (sinais de compra, com a
+  citação) e negativos (atenção); etapa sugerida por palavra dos próximos passos
+  ("proposta" → Proposta; contrato/assinatura/fechamento/negociação →
+  Negociação). Empresa do `cliente_identificado` vai em `links.companyName`.
+  Participantes só com nome (o SALE-IA não guarda e-mail). A transcrição não vai.
+- **Fila** (`api/salesos_envio.py`, regras puras em `agent/salesos_event_rules.py`):
+  roda no laço do relatório automático, depois dele. Sessões com relatório `ok`;
+  reserva por sessão (2 workers); rede/5xx/429 = `erro` e reenvio em 5 min,
+  30 min, 2 h e 6 h (5 tentativas); 400/401 = `recusado`; sem resumo = `pulado`.
+  Colunas novas em `sessoes`: `salesos_status`, `salesos_tentativas`,
+  `salesos_em`, `salesos_detalhe`. Quando a coluna nasce, as sessões existentes
+  viram `anterior` e não são enviadas.
+- **Desligado** sem `SALESOS_EVENTS_URL` (https) e `SALESOS_EVENTS_SECRET` no .env.
+- Testes: `tests/test_salesos_envio.py` (21), com vetor de assinatura gerado
+  pelo SalesOS. Ponta a ponta contra o SalesOS local: 201, reenvio 200, 401 com
+  assinatura antiga ou segredo errado.
+
+---
+
 ## V.1.4.195 — A conversa atual volta a chegar à IA
 
 > Data: 05/11/2026 | Backend, sem mudança na extensão
