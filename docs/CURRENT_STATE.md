@@ -1,5 +1,33 @@
 # SALEIA - Estado Atual
 
+## 06/11/2026 — V.1.4.196: reunião analisada vai para o SalesOS (local)
+
+Envio ao SalesOS depois do relatório automático (detalhe no CHANGELOG), com
+fila e reenvio em `sessoes.salesos_*`. **Ainda não publicado.** Para ligar:
+`SALESOS_EVENTS_URL` e `SALESOS_EVENTS_SECRET` no `.env` da VPS (gerados em
+saleos.tech → Configurações → SALEIA, organização NEX-ALS, conectada em 06/11).
+Sem isso, nada é enviado. Reuniões anteriores ao deploy não vão.
+
+## 06/11/2026 (noite) — C4 medida de novo com a V.1.4.195
+
+235 objeções novas (208 reuniões fora da amostra de 23/10, 135 superadas), código
+de produção, julgadas pela mesma IA juíza (na VPS: a chave do DeepSeek no `.env`
+local é inválida). Custo ~US$ 3,20 (saldo 12,96 → 8,55, inclui a tentativa
+descartada de 05/11).
+
+| | Alvo | Motor v3 | Coach | (23/10: motor / coach) |
+|---|---|---|---|---|
+| Mesma estratégia ou melhor | ≥ 50% | **56,3%** ✅ | 43,0% | 27% / 40% |
+| Promessa/dado inventado | ≤ 2% | **4,7%** ❌ | 8,5% | 3,5% / 10,5% |
+| Fora de contexto | ≤ 15% | **14,0%** ✅ | 20,9% | 43% / 18,5% |
+| Endereçou a objeção (sim) | | 58,7% | 40,4% | 38% / 42% |
+
+Registrado no `/admin/readiness` (`nao_atinge`, barrado só pela trava de
+inventado). Ressalvas: amostra diferente da de 23/10; margem ~8 pontos (56,3%
+não é com certeza > 50%). **O motor agora é melhor que o coach** que o vendedor
+vê. Próximo: tirar a invenção de condição comercial (política comercial real no
+motor e no coach) e medir de novo. C6 segue bloqueada.
+
 ## 06/11/2026 — D7 com pool ligado: o gargalo é o Ollama (CPU)
 
 Rodada de 06/11 04:00 UTC (código 1.4.194, `AI_POOL_THREADS=32`, IA simulada):

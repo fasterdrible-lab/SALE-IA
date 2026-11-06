@@ -248,7 +248,7 @@ Pedido original da C8:
   "testando"), não de venda real; agreement aqui não mede valor.
   `recommended_framework` sem vocabulário fechado ("SPIN" em ~40 grafias).
   Próximo: C4 usando reuniões reais (ex.: as do Paulo) como referência.
-### C4 — Definir o alvo de recommendation quality e a métrica de qualidade [ALVO DEFINIDO — 04/11/2026; motor abaixo do alvo]
+### C4 — Definir o alvo de recommendation quality e a métrica de qualidade [ALVO DEFINIDO — 04/11/2026; 06/11: motor 56,3% e contexto 14%, barrado por inventado 4,7%]
 - **Decisão do usuário (04/11/2026)**: **≥ 50%** de "mesma estratégia ou melhor"
   nas objeções superadas, **e** promessa/dado inventado **≤ 2%**, **e** fora de
   contexto **≤ 15%**. Sem as travas medidas, não atinge. Motor em 23/10: 27%,
