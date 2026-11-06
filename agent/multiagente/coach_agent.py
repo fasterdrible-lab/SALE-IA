@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+from agent.contexto_ia_rules import MAX_CHARS_EVENTOS, MAX_CHARS_SCORES, dividir_prompt, limitar_diagnostico, limitar_lista
 from agent.multiagente.claude_fallback import chamar_ia_com_fallback_claude
 from api import ai_features
 
@@ -26,14 +27,15 @@ async def analisar_coach(
         .replace("{transcricao_parcial}", transcricao_parcial)
         .replace("{historico}", historico)
         .replace("{resumo_vivo}", resumo_vivo)
-        .replace("{diagnostico_atual}", json.dumps(diagnostico_atual, ensure_ascii=False))
-        .replace("{eventos}", json.dumps(eventos, ensure_ascii=False))
+        .replace("{diagnostico_atual}", json.dumps(limitar_diagnostico(diagnostico_atual), ensure_ascii=False))
+        .replace("{eventos}", json.dumps(limitar_lista(eventos, MAX_CHARS_EVENTOS), ensure_ascii=False))
         .replace("{client_context}", client_context or "")
         .replace("{skill_context}", skill_context or "")
     )
+    regras, dados = dividir_prompt(prompt)
     return await chamar_ia_com_fallback_claude(
-        "Voce e um Coach de vendas consultivas. Responda SEMPRE em JSON valido, sem texto antes ou depois.",
-        prompt,
+        "Voce e um Coach de vendas consultivas. Responda SEMPRE em JSON valido, sem texto antes ou depois." + "\n\n" + regras,
+        dados,
         usuario_id,
         feature=ai_features.REALTIME_COACH,
         meeting_id=meeting_id,

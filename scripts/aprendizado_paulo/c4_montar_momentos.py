@@ -13,8 +13,13 @@ produção manda para a IA (`Vendedor:` / `Cliente:`), com os mesmos cortes
 de 6.000 caracteres de `api/processador_tempo_real.py::_limitar_contexto_ia`
 para `transcricao_parcial` (o trecho mais recente) e `historico` (o anterior).
 
-Uso: python -I c4_montar_momentos.py [pasta_dados]
+Uso: python -I c4_montar_momentos.py [pasta_dados] [rodada]
 Saída (fora do git, conversa pseudonimizada): <pasta>/c4/momentos.json
+
+Com `rodada` (ex.: rodada2), a saída vai para <pasta>/rodada2/c4/momentos.json:
+200 superadas + 50 + 50, sem nenhuma reunião da amostra original, para medir
+com casos que não serviram de diagnóstico e separar 40% de 50% (margem de ~7
+pontos com 200 superadas; ~10 com 100).
 """
 import json, random, re, sys, unicodedata
 from collections import Counter
@@ -24,9 +29,11 @@ sys.stdout.reconfigure(encoding="utf-8")
 PASTA = Path(sys.argv[1] if len(sys.argv) > 1 else r"C:\SALEIA_dados\paulo")
 LOTE = PASTA / "completo"
 EXTR = LOTE / "extracoes_deepseek-flash"
-SAIDA = PASTA / "c4"
+RODADA = sys.argv[2] if len(sys.argv) > 2 else None
+ORIGINAL = PASTA / "c4" / "momentos.json"
+SAIDA = PASTA / RODADA / "c4" if RODADA else PASTA / "c4"
 DINHEIRO = ("preco", "capacidade_financeira")
-COTA = {"superada": 100, "parcial": 50, "nao_superada": 50}
+COTA = {"superada": 200 if RODADA else 100, "parcial": 50, "nao_superada": 50}
 MAX_CHARS = 6000  # _MAX_CONTEXT_CHARS de api/processador_tempo_real.py
 MIN_FALAS_ANTES = 20  # objeção no começo da conversa não tem contexto para sugerir nada
 
@@ -77,7 +84,10 @@ def candidatos():
 
 def main():
     todos = list(candidatos())
-    random.seed(4)
+    if RODADA:
+        usadas = {m["reuniao"] for m in json.loads(ORIGINAL.read_text(encoding="utf-8"))}
+        todos = [m for m in todos if m["reuniao"] not in usadas]
+    random.seed(sum(map(ord, RODADA)) if RODADA else 4)
     escolhidos = []
     for desfecho, cota in COTA.items():
         for grupo in ("dinheiro", "outras"):
@@ -90,7 +100,7 @@ def main():
             resto = [m for m in todos if m["desfecho"] == desfecho and m["id"] not in usados]
             random.shuffle(resto)
             escolhidos += resto[:faltam]
-    SAIDA.mkdir(exist_ok=True)
+    SAIDA.mkdir(parents=True, exist_ok=True)
     (SAIDA / "momentos.json").write_text(json.dumps(escolhidos, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"candidatos {len(todos)} | escolhidos {len(escolhidos)}")
     print("por desfecho:", dict(Counter(m["desfecho"] for m in escolhidos)))

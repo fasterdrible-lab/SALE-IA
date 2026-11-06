@@ -7,17 +7,6 @@ REGRAS:
 - Analise SOMENTE as falas do CLIENTE.
 - Se nao houver dados suficientes para classificar, mantenha o perfil anterior e reduza a confianca.
 
-TRECHO ATUAL:
-{transcricao_parcial}
-
-HISTORICO ACUMULADO:
-{historico}
-
-PERFIL DISC ATUAL (persistido):
-{perfil_disc_atual}
-
-DIAGNOSTICO PERSISTIDO:
-{diagnostico_atual}
 
 ════════════════════════════════════════
 CLASSIFICACAO DISC
@@ -59,3 +48,17 @@ Retorne SOMENTE este JSON:
     "acao": "como o vendedor deve se posicionar"
   }
 }
+
+=== DADOS DA REUNIAO ===
+
+HISTORICO ACUMULADO:
+{historico}
+
+DIAGNOSTICO PERSISTIDO:
+{diagnostico_atual}
+
+PERFIL DISC ATUAL (persistido):
+{perfil_disc_atual}
+
+TRECHO ATUAL:
+{transcricao_parcial}

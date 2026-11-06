@@ -8,23 +8,6 @@ REGRAS:
 - Nunca repita a transcricao na resposta.
 - Se nao houver dados suficientes, retorne null nos campos opcionais.
 
-TRECHO ATUAL:
-{transcricao_parcial}
-
-HISTORICO ACUMULADO:
-{historico}
-
-RESUMO VIVO:
-{resumo_vivo}
-
-DIAGNOSTICO PERSISTIDO:
-{diagnostico_atual}
-
-EVENTOS ANTERIORES:
-{eventos}
-
-{client_context}
-{skill_context}
 
 ════════════════════════════════════════
 DETECAO DO ESTAGIO DA CONVERSA
@@ -107,3 +90,23 @@ Retorne SOMENTE este JSON (sem texto antes ou depois):
     }
   ]
 }
+
+=== DADOS DA REUNIAO ===
+
+HISTORICO ACUMULADO:
+{historico}
+
+DIAGNOSTICO PERSISTIDO:
+{diagnostico_atual}
+
+EVENTOS ANTERIORES:
+{eventos}
+
+RESUMO VIVO:
+{resumo_vivo}
+
+{client_context}
+{skill_context}
+
+TRECHO ATUAL:
+{transcricao_parcial}

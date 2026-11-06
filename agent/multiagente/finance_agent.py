@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+from agent.contexto_ia_rules import dividir_prompt
 from agent.multiagente.claude_fallback import chamar_ia_com_fallback_claude
 from api import ai_features
 
@@ -23,9 +24,10 @@ async def analisar_finance(
         .replace("{historico}", historico)
         .replace("{mapa_financeiro}", json.dumps(mapa_financeiro or {}, ensure_ascii=False))
     )
+    regras, dados = dividir_prompt(prompt)
     return await chamar_ia_com_fallback_claude(
-        "Voce e um especialista em diagnostico financeiro de vendas. Responda SEMPRE em JSON valido, sem texto antes ou depois.",
-        prompt,
+        "Voce e um especialista em diagnostico financeiro de vendas. Responda SEMPRE em JSON valido, sem texto antes ou depois." + "\n\n" + regras,
+        dados,
         usuario_id,
         feature=ai_features.REALTIME_FINANCE,
         meeting_id=meeting_id,

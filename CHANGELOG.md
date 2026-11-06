@@ -3,6 +3,31 @@
 
 ---
 
+## V.1.4.195 — A conversa atual volta a chegar à IA
+
+> Data: 05/11/2026 | Backend, sem mudança na extensão
+
+- **Problema**: `current_diagnosis` (até 88 mil caracteres) e `events_json` (até
+  372 mil) entravam sem limite nos prompts, que chegaram a 476 mil. O corte da
+  Fase 5 (`aplicar_corte_contexto`, limite de 20 mil) mantém o FIM do texto, e os
+  templates traziam regras e conversa atual no COMEÇO. Desde 20/10, 81% das
+  chamadas do coach foram cortadas (1.156 de 1.418), em média 110 mil caracteres.
+  Simulado com o estado final de 6 reuniões, sem RAG: nas 6, o fim da conversa
+  não chegava à IA. No motor, o corte tirou as regras 4.418 vezes desde 21/09, o
+  que explica as ~40 grafias de "SPIN" da C3. O diagnóstico ainda guardava cópias
+  de eventos, momentos-chave e scores.
+- **Correção** (`agent/contexto_ia_rules.py`, 5 agentes ao vivo + motor):
+  diagnóstico sem as cópias e com teto de 2.500 caracteres, eventos 2.500 e scores
+  800, ficando os mais recentes. As regras vão para o system_prompt, que nunca é
+  cortado. Os dados ficam depois de `=== DADOS DA REUNIAO ===`, com a conversa
+  atual por último; se ainda sobrar excesso, sai primeiro o histórico.
+- **Motor**: prompt v3 = correção estrutural + regra da tarefa 9, que responde
+  primeiro à última fala do cliente.
+- Fora desta versão: `report.*` também sofre corte (34 vezes).
+- Testes: `tests/test_contexto_ia.py`, com os tamanhos reais.
+
+---
+
 ## V.1.4.194 — C4: alvo de qualidade da recomendação
 
 > Data: 04/11/2026 | Backend, sem mudança na extensão

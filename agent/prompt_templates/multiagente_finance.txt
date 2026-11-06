@@ -8,14 +8,6 @@ REGRAS:
 - Nunca invente valores — apenas registre o que foi mencionado explicitamente.
 - Se nao houver mencao clara, retorne null.
 
-TRECHO ATUAL:
-{transcricao_parcial}
-
-HISTORICO ACUMULADO:
-{historico}
-
-MAPA FINANCEIRO JA COLETADO:
-{mapa_financeiro}
 
 ════════════════════════════════════════
 O QUE COLETAR
@@ -50,3 +42,14 @@ Retorne SOMENTE este JSON:
     "resposta_pronta": "como responder com base no perfil do cliente"
   }
 }
+
+=== DADOS DA REUNIAO ===
+
+HISTORICO ACUMULADO:
+{historico}
+
+MAPA FINANCEIRO JA COLETADO:
+{mapa_financeiro}
+
+TRECHO ATUAL:
+{transcricao_parcial}

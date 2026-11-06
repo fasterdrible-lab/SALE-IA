@@ -8,17 +8,6 @@ REGRAS:
 - Score_compra e maturity_score sao independentes — calcule separadamente.
 - Seja conservador: so eleve scores com evidencias concretas.
 
-TRECHO ATUAL:
-{transcricao_parcial}
-
-RESUMO VIVO ACUMULADO:
-{resumo_vivo}
-
-HISTORICO DE SCORE:
-{historico_scores}
-
-DIAGNOSTICO PERSISTIDO:
-{diagnostico_atual}
 
 ════════════════════════════════════════
 REGRA PARA score_compra.valor (0 a 100)
@@ -71,3 +60,17 @@ Retorne SOMENTE este JSON:
   "acao_recomendada": "igual ao proxima_acao",
   "proxima_pergunta": "pergunta que avanca sem pressionar"
 }
+
+=== DADOS DA REUNIAO ===
+
+DIAGNOSTICO PERSISTIDO:
+{diagnostico_atual}
+
+HISTORICO DE SCORE:
+{historico_scores}
+
+RESUMO VIVO ACUMULADO:
+{resumo_vivo}
+
+TRECHO ATUAL:
+{transcricao_parcial}

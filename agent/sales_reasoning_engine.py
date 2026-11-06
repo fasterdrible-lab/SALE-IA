@@ -46,6 +46,13 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+from agent.contexto_ia_rules import (
+    MAX_CHARS_EVENTOS,
+    MAX_CHARS_SCORES,
+    dividir_prompt,
+    limitar_diagnostico,
+    limitar_lista,
+)
 from agent.multiagente.claude_fallback import chamar_ia_com_fallback_claude
 from api import ai_features
 
@@ -212,7 +219,7 @@ def validar_output_raciocinio(saida: dict) -> None:
 # entrada/saída deste arquivo mudar. Seção 34 do prompt mestre ("qual
 # versão recomendou isso") não define formato — string livre, mesma
 # decisão já tomada no schema do `AuditTrailEntry`.
-_PROMPT_VERSION = "sales_reasoning_engine.v1"
+_PROMPT_VERSION = "sales_reasoning_engine.v3"
 _RULE_VERSION = "sales_reasoning_engine.v1"
 
 
@@ -261,6 +268,22 @@ def _registrar_audit_trail(
         logger.debug("[SalesReasoningEngine] Falha ao gravar audit trail (melhor esforço): %s", _e)
 
 
+def _memoria_para_ia(memoria):
+    """Com teto, e com a conversa atual por último: é o que sobrevive a um corte."""
+    if not isinstance(memoria, dict):
+        return memoria
+    resultado = {k: v for k, v in memoria.items() if k != "transcricao_parcial"}
+    if "diagnostico_atual" in resultado:
+        resultado["diagnostico_atual"] = limitar_diagnostico(resultado["diagnostico_atual"])
+    if "eventos" in resultado:
+        resultado["eventos"] = limitar_lista(resultado["eventos"], MAX_CHARS_EVENTOS)
+    if "historico_scores" in resultado:
+        resultado["historico_scores"] = limitar_lista(resultado["historico_scores"], MAX_CHARS_SCORES)
+    if "transcricao_parcial" in memoria:
+        resultado["transcricao_parcial"] = memoria["transcricao_parcial"]
+    return resultado
+
+
 async def raciocinar_async(
     entrada: dict,
     usuario_id: Optional[str] = None,
@@ -283,6 +306,7 @@ async def raciocinar_async(
     """
     validar_input_raciocinio(entrada)
     bundle = {**construir_input_vazio(), **entrada}
+    bundle["meeting_memory"] = _memoria_para_ia(bundle["meeting_memory"])
 
     template = _PROMPT_PATH.read_text(encoding="utf-8")
     prompt = template
@@ -291,10 +315,11 @@ async def raciocinar_async(
         serializado = json.dumps(valor, ensure_ascii=False) if valor is not None else "null"
         prompt = prompt.replace("{" + campo + "}", serializado)
 
+    regras, dados = dividir_prompt(prompt)
     try:
         resposta = await chamar_ia_com_fallback_claude(
-            _SYSTEM_PROMPT,
-            prompt,
+            _SYSTEM_PROMPT + "\n\n" + regras,
+            dados,
             usuario_id,
             feature=ai_features.SALES_REASONING_RACIOCINIO,
             meeting_id=meeting_id,

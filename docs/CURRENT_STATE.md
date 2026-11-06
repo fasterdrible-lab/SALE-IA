@@ -1,5 +1,15 @@
 # SALEIA - Estado Atual
 
+## 06/11/2026 — V.1.4.195: conversa atual volta a chegar à IA
+
+Correção do corte de contexto (detalhe no CHANGELOG): diagnóstico, eventos e
+scores com teto, regras no system_prompt e conversa atual por último, nos 5
+agentes ao vivo e no motor. Motor no prompt v3 (correção + regra da tarefa 9).
+Suíte: 2.117 OK. Falta medir de novo coach e motor (C4) com o código novo.
+Retenção de 30 dias também em `fay`, `uqb`, `sxa` e `zjo` (até 04-05/12),
+fila `saleia-transcricao2` depois da atual. Backup
+`/root/backups/saleia/manual/gravacoes_audio_pre_retencao30c_20261105_171307.sql`.
+
 ## 05/11/2026 (tarde) — Limpeza de reuniões; bug do corte de contexto achado
 
 **Limpeza no banco de produção** (pedido do usuário): 84 reuniões avaliadas, 47

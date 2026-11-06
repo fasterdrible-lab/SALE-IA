@@ -9,17 +9,6 @@ REGRAS:
 - Cada dimensao deve vir acompanhada de uma evidencia curta e literal (trecho da fala) que sustente a estimativa, ou null se nao houver.
 - Nunca use astrologia, signo ou qualquer dado simbolico como entrada ou justificativa — a analise e 100% baseada no comportamento observado na conversa.
 
-TRECHO ATUAL:
-{transcricao_parcial}
-
-HISTORICO ACUMULADO:
-{historico}
-
-PERFIL BIG FIVE ATUAL (persistido):
-{perfil_bigfive_atual}
-
-DIAGNOSTICO PERSISTIDO:
-{diagnostico_atual}
 
 ════════════════════════════════════════
 AS 5 DIMENSOES (escala 0-100)
@@ -48,3 +37,17 @@ Retorne SOMENTE este JSON:
     }
   }
 }
+
+=== DADOS DA REUNIAO ===
+
+HISTORICO ACUMULADO:
+{historico}
+
+DIAGNOSTICO PERSISTIDO:
+{diagnostico_atual}
+
+PERFIL BIG FIVE ATUAL (persistido):
+{perfil_bigfive_atual}
+
+TRECHO ATUAL:
+{transcricao_parcial}

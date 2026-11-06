@@ -8,6 +8,7 @@ inferencia comportamental."""
 import json
 from pathlib import Path
 
+from agent.contexto_ia_rules import dividir_prompt, limitar_diagnostico
 from agent.multiagente.claude_fallback import chamar_ia_com_fallback_claude
 from api import ai_features
 
@@ -28,11 +29,12 @@ async def analisar_bigfive(
         .replace("{transcricao_parcial}", transcricao_parcial)
         .replace("{historico}", historico)
         .replace("{perfil_bigfive_atual}", json.dumps(perfil_bigfive_atual or {}, ensure_ascii=False))
-        .replace("{diagnostico_atual}", json.dumps(diagnostico_atual or {}, ensure_ascii=False))
+        .replace("{diagnostico_atual}", json.dumps(limitar_diagnostico(diagnostico_atual), ensure_ascii=False))
     )
+    regras, dados = dividir_prompt(prompt)
     return await chamar_ia_com_fallback_claude(
-        "Voce e um especialista em inferencia comportamental de personalidade (Big Five). Responda SEMPRE em JSON valido, sem texto antes ou depois.",
-        prompt,
+        "Voce e um especialista em inferencia comportamental de personalidade (Big Five). Responda SEMPRE em JSON valido, sem texto antes ou depois." + "\n\n" + regras,
+        dados,
         usuario_id,
         feature=ai_features.REALTIME_BIGFIVE,
         meeting_id=meeting_id,

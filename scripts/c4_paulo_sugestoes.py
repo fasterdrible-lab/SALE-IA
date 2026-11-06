@@ -21,6 +21,9 @@ de produção. As chamadas de IA ficam marcadas com `meeting_id=c4_paulo:<id>`
 **Custa IA de verdade** (~5 chamadas por momento). `--dry-run` (padrão)
 só conta. Rodar de novo retoma (pula o que já está na saída).
 
+`--so-motor` gera só a sugestão do motor. `--prompt arquivo.txt` usa outra
+versão do prompt, para comparar 2 versões nos mesmos momentos.
+
 Uso (na VPS, em /opt/saleia):
     venv/bin/python -m scripts.c4_paulo_sugestoes momentos.json saida.jsonl
     venv/bin/python -m scripts.c4_paulo_sugestoes momentos.json saida.jsonl --real
@@ -86,7 +89,10 @@ async def _motor(m: dict) -> dict:
         extrair_buyer_motivation_async(m["transcricao_parcial"], m["historico"]),
         return_exceptions=True,
     )
-    entrada = {"meeting_memory": {"transcricao_parcial": m["transcricao_parcial"]},
+    # Como na produção: histórico e RAG. Até 04/11 o motor era medido sem os 2.
+    contexto = await _contexto_rag(m["transcricao_parcial"], m["historico"])
+    entrada = {"meeting_memory": {"transcricao_parcial": m["transcricao_parcial"], "historico": m["historico"]},
+               "rag_context": contexto or None,
                "spin_state": None if isinstance(spin, Exception) else spin,
                "behavioral_signals": None if isinstance(sinais, Exception) else sinais,
                "buyer_motivation": None if isinstance(motivacao, Exception) else motivacao}
@@ -95,7 +101,22 @@ async def _motor(m: dict) -> dict:
                                   "reason", "confidence", "current_state")}
 
 
-async def _rodar(momentos: list, saida: Path) -> None:
+async def _esperar_sem_reuniao() -> None:
+    """O RAG usa o Ollama, que disputa a CPU da VPS com as reuniões reais."""
+    import httpx
+
+    while True:
+        try:
+            async with httpx.AsyncClient(timeout=10) as cli:
+                ativas = (await cli.get("http://127.0.0.1:8000/health")).json().get("reunioes_ativas")
+        except (httpx.HTTPError, ValueError):
+            ativas = None
+        if ativas == 0:
+            return
+        await asyncio.sleep(60)
+
+
+async def _rodar(momentos: list, saida: Path, so_motor: bool = False) -> None:
     feitos = set()
     if saida.exists():
         feitos = {json.loads(l)["id"] for l in saida.read_text(encoding="utf-8").splitlines() if l.strip()}
@@ -106,8 +127,12 @@ async def _rodar(momentos: list, saida: Path) -> None:
 
     async def um(m):
         async with sem:
+            await _esperar_sem_reuniao()
             t0 = time.time()
-            coach, motor = await asyncio.gather(_coach(m), _motor(m), return_exceptions=True)
+            if so_motor:
+                coach, motor = None, (await asyncio.gather(_motor(m), return_exceptions=True))[0]
+            else:
+                coach, motor = await asyncio.gather(_coach(m), _motor(m), return_exceptions=True)
             linha = {"id": m["id"], "segundos": round(time.time() - t0, 1),
                      "coach": None if isinstance(coach, Exception) else coach,
                      "motor": None if isinstance(motor, Exception) else motor,
@@ -126,12 +151,18 @@ def main() -> None:
     parser.add_argument("momentos")
     parser.add_argument("saida")
     parser.add_argument("--real", action="store_true", help="Chama IA de verdade (custo real). Sem esta flag, só conta.")
+    parser.add_argument("--so-motor", action="store_true")
+    parser.add_argument("--prompt", help="Prompt do motor no lugar do atual.")
     args = parser.parse_args()
+    if args.prompt:
+        import agent.sales_reasoning_engine as motor
+
+        motor._PROMPT_PATH = Path(args.prompt)
     momentos = json.loads(Path(args.momentos).read_text(encoding="utf-8"))
     if not args.real:
         print(f"[DRY-RUN] {len(momentos)} momentos × (1 coach + 3 extratores + 1 motor) = até {len(momentos) * 5} chamadas de IA")
         return
-    asyncio.run(_rodar(momentos, Path(args.saida)))
+    asyncio.run(_rodar(momentos, Path(args.saida), args.so_motor))
 
 
 if __name__ == "__main__":
