@@ -1,5 +1,23 @@
 # SALEIA - Estado Atual
 
+## 06/11/2026 — D7 com pool ligado: o gargalo é o Ollama (CPU)
+
+Rodada de 06/11 04:00 UTC (código 1.4.194, `AI_POOL_THREADS=32`, IA simulada):
+
+| Reuniões | Em até 60 s | p95 | Ollama (% da máquina) | CPU da VPS |
+|---|---|---|---|---|
+| 10 | 100% | 46,8 s | 73,5 | 87% |
+| 20 | 91,7% | 54,6 s | 83,0 | 91% |
+| 30 | 62,6% | 56,0 s | 88,3 | 98% |
+| 50 | 36,8% | 58,9 s | 86,8 | 100% |
+| 100 | 13,4% | 64,7 s | 88,1 | 100% |
+
+O pool abriu o teto de 12 (até 64 chamadas simultâneas), mas não melhorou: com
+10 reuniões o p95 foi de 33,5 s (26/10) para 46,8 s. O app usa 4-7% da máquina;
+o **Ollama (embeddings do RAG a cada ciclo) usa 73-88%**. Capacidade real: ~20
+reuniões, agora medida. **Pool segue desligado na produção.** Próximo: reduzir
+o embedding por ciclo (cache por reunião, intervalo maior ou modelo menor).
+
 ## 06/11/2026 — V.1.4.195: conversa atual volta a chegar à IA
 
 Correção do corte de contexto (detalhe no CHANGELOG): diagnóstico, eventos e

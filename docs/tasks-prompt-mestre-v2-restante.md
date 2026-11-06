@@ -341,7 +341,7 @@ Pedido original da C8:
 - Hoje só `prompt_version`/`rule_version`. Adicionar
   `reasoning_engine_version`, `policy_version`, `knowledge_version`,
   `model_version` em RecommendationEvent + AuditTrailEntry.
-### D7 — Load test 10/50/100 reuniões (seção 32) + hot path × analytics [1ª rodada feita 26/10/2026, resultado lido 04/11; gargalo sem correção]
+### D7 — Load test 10/50/100 reuniões (seção 32) + hot path × analytics [2 rodadas; gargalo real = CPU do Ollama, sem correção]
 - Decisão do usuário (25/10): VPS de madrugada, IA simulada. Ferramenta em
   `scripts/loadtest/` (`rodar.sh` monta instância isolada na porta 8010
   com banco `saleia_loadtest` e IA falsa na 8099 — atraso real do
@@ -356,7 +356,8 @@ Pedido original da C8:
 - V.1.4.191 (04/11): pool `AI_POOL_THREADS` pronto, desligado na produção.
   2ª rodada de 05/11 falhou por unidade presa no systemd (corrigido);
   reagendada para 06/11 04:00 UTC (10/20/30/50/100, CPU por processo).
-  Falta: ler o relatório e decidir ligar o pool.
+  Feita em 06/11: pool não ajuda; Ollama usa 73-88% da CPU e ~20 reuniões
+  é o limite. Falta: reduzir o embedding por ciclo e medir de novo.
 ### D8 — Corrigir a corrida de DDL entre workers [CONCLUÍDA — 29/09/2026, V.1.4.147]
 - `GET_LOCK` nomeado em volta de todo o DDL do startup + tratamento do
   erro 1684 + 2ª tentativa do `create_all`. Validado no MySQL real.
