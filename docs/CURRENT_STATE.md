@@ -1,13 +1,15 @@
 # SALEIA - Estado Atual
 
-## 06/11/2026 (noite) — V.1.4.198: relatório automático volta a gravar (local)
+## 06/11/2026 (noite) — V.1.4.198: relatório automático volta a gravar (em produção)
 
 Causa do relatório falhando desde 27/10: sqlmodel 0.0.48 na VPS (0.0.38 no
 venv local) transforma `Relatorio.criado_em` em `UTCDateTime`, que recusa
 datetime sem fuso. Corrigido com coluna explícita (detalhe no CHANGELOG),
 reproduzido e verificado com o sqlmodel da VPS numa cópia em `/tmp`.
-**Ainda não publicado.** As 13 sessões em `erro` não são reprocessadas
-sozinhas.
+**Publicado em 07/11 01:17 UTC** (`da75dfc`; restart com 0 reuniões ativas,
+teste novo passa na VPS com sqlmodel 0.0.48). Confirmar na próxima reunião
+real que o relatório sai `ok`. As 13 sessões em `erro` não são reprocessadas
+sozinhas (decidir: custa IA e cria cliente/oportunidade).
 
 ## 06/11/2026 (noite) — V.1.4.197: RAG mais leve (leia primeiro)
 
@@ -23,8 +25,8 @@ um restart de uma derruba o deploy da outra.
 
 1. Reinstalar a ext 1.4.40 nos vendedores (em 05/11, 2.808 registros ainda da
    1.4.37 contra 43 da 1.4.40).
-2. Relatório automático falhando desde 27/10: causa achada e corrigida na
-   V.1.4.198 (acima), falta publicar.
+2. Relatório automático: corrigido e publicado na V.1.4.198 (acima); falta
+   ver o 1º relatório `ok` e decidir sobre as 13 sessões em `erro`.
 3. Trocar o token do Grafana (apareceu em parte no chat, entrada abaixo) e a
    chave do DeepSeek no `.env` local (inválida, 401).
 4. Política comercial real: enviada ao responsável em 06/11; destrava a trava
