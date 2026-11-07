@@ -1,5 +1,13 @@
 # SALEIA - Estado Atual
 
+## 07/11/2026 — V.1.4.199: o relatório cabe na tabela (local)
+
+A V.1.4.198 sozinha não bastava: `relatorio.dados_json` é **VARCHAR(255)** na
+VPS (tabela com 0 linhas — nenhum relatório gravado desde a VPS nova). Corrigido
+com MEDIUMTEXT + migração no startup, provado no MySQL da VPS numa tabela
+temporária (detalhe no CHANGELOG). **Ainda não publicado.** Depois do deploy,
+reprocessar as 13 sessões em `erro` (pedido do usuário).
+
 ## 06/11/2026 (noite) — V.1.4.198: relatório automático volta a gravar (em produção)
 
 Causa do relatório falhando desde 27/10: sqlmodel 0.0.48 na VPS (0.0.38 no
@@ -25,8 +33,8 @@ um restart de uma derruba o deploy da outra.
 
 1. Reinstalar a ext 1.4.40 nos vendedores (em 05/11, 2.808 registros ainda da
    1.4.37 contra 43 da 1.4.40).
-2. Relatório automático: corrigido e publicado na V.1.4.198 (acima); falta
-   ver o 1º relatório `ok` e decidir sobre as 13 sessões em `erro`.
+2. Relatório automático: V.1.4.198 em produção não basta (coluna VARCHAR);
+   publicar a V.1.4.199 e reprocessar as 13 sessões em `erro`.
 3. Trocar o token do Grafana (apareceu em parte no chat, entrada abaixo) e a
    chave do DeepSeek no `.env` local (inválida, 401).
 4. Política comercial real: enviada ao responsável em 06/11; destrava a trava

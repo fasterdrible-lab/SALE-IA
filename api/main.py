@@ -335,6 +335,12 @@ def _inicializar_schema():
     except Exception as e:
         logger.warning("Colunas de versionamento não migradas: %s", e)
     try:
+        # V.1.4.199: relatorio.dados_json VARCHAR(255) -> MEDIUMTEXT.
+        from api.database import migrar_coluna_relatorio_dados
+        migrar_coluna_relatorio_dados()
+    except Exception as e:
+        logger.warning("relatorio.dados_json não migrado: %s", e)
+    try:
         from agent.sessao_manager import criar_tabela_sessoes, criar_tabela_usuarios, migrar_colunas_usuarios, migrar_colunas_sessoes
         criar_tabela_sessoes()
         migrar_colunas_sessoes()
@@ -873,7 +879,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.198",
+        "versao":              "1.4.199",
         "timestamp":           datetime.now().isoformat(),
         "ia_disponivel":       ia["ia_disponivel"],
         "ia_fora_desde":       ia["ia_fora_desde"],
@@ -914,7 +920,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.198",
+        "versao":          "1.4.199",
         "timestamp":       datetime.now().isoformat(),
     }
 

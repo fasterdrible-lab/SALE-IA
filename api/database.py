@@ -48,7 +48,10 @@ class Relatorio(SQLModel, table=True):
     # desde 21/10) usa UTCDateTime, que recusa datetime sem fuso — todo
     # relatório automático falhava no INSERT desde 27/10.
     criado_em: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
-    dados_json: str  # JSON serializado do relatório completo
+    # JSON serializado do relatório completo. V.1.4.199: texto longo explícito.
+    # Sem `sa_column`, `str` vira VARCHAR(255) no MySQL — foi assim que a
+    # tabela nasceu na VPS nova e nenhum relatório coube (DataError, 19/10).
+    dados_json: str = Field(sa_column=Column(_LongText, nullable=False))
 
 
 class ClaudeConnection(SQLModel, table=True):
@@ -3829,6 +3832,31 @@ def migrar_colunas_versionamento() -> list:
     if adicionadas:
         logger.info("Colunas de versionamento adicionadas: %s", ", ".join(adicionadas))
     return adicionadas
+
+
+def migrar_coluna_relatorio_dados() -> bool:
+    """V.1.4.199: `relatorio.dados_json` nasceu VARCHAR(255) na VPS nova
+    (21/10) e nenhum relatório coube. `create_all()` não altera coluna
+    existente, então converte aqui para MEDIUMTEXT. Só MySQL (no SQLite o
+    tipo não limita tamanho). Idempotente, roda no startup dentro do lock
+    de DDL da D8. Retorna se alterou."""
+    from sqlalchemy import inspect
+
+    if engine.dialect.name != "mysql":
+        return False
+    inspetor = inspect(engine)
+    if "relatorio" not in inspetor.get_table_names():
+        return False
+    tipo = next((c["type"] for c in inspetor.get_columns("relatorio") if c["name"] == "dados_json"), None)
+    # Só tamanho fixo. MEDIUMTEXT/LONGTEXT do dialeto MySQL não herdam de
+    # `Text` no SQLAlchemy: checar `isinstance(tipo, Text)` faria o ALTER a
+    # cada startup.
+    if type(tipo).__name__ not in ("VARCHAR", "CHAR", "NVARCHAR", "NCHAR"):
+        return False
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE relatorio MODIFY dados_json MEDIUMTEXT NOT NULL"))
+    logger.info("relatorio.dados_json convertido de %s para MEDIUMTEXT", tipo)
+    return True
 
 
 def _audit_trail_entry_to_dict(row: "AuditTrailEntry") -> dict:

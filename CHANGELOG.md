@@ -3,6 +3,34 @@
 
 ---
 
+## V.1.4.199 — O relatório cabe na tabela
+
+> Data: 07/11/2026 | Backend, sem mudança na extensão
+
+- **Problema**: a V.1.4.198 tirou o erro de fuso, mas o `INSERT INTO relatorio`
+  ainda falharia. Na VPS nova a tabela nasceu com `dados_json` **VARCHAR(255)**
+  (campo `str` sem `sa_column` vira VARCHAR no MySQL) e um relatório tem
+  dezenas de milhares de caracteres: `DataError` 1406 "Data too long", o mesmo
+  das sessões 548, 549 e 555 (19-21/10). A tabela `relatorio` de produção tem
+  **0 linhas**: nenhum relatório foi gravado na VPS nova.
+- **Correção**: `Relatorio.dados_json` com `_LongText` (MEDIUMTEXT no MySQL) e
+  `migrar_coluna_relatorio_dados()` no startup (dentro do lock de DDL):
+  `ALTER TABLE relatorio MODIFY dados_json MEDIUMTEXT NOT NULL` só quando a
+  coluna é VARCHAR/CHAR. Cuidado: MEDIUMTEXT/LONGTEXT do dialeto MySQL não
+  herdam de `Text` no SQLAlchemy; checar `isinstance(Text)` faria o ALTER a
+  cada startup (pego pelo teste).
+- **Prova no MySQL da VPS** (tabela temporária `CREATE TABLE ... LIKE relatorio`,
+  removida): antes, insert de 30 mil caracteres = 1406; depois do ALTER, grava;
+  o tipo lido passa a MEDIUMTEXT e a migração não roda de novo.
+- **Testes**: `tests/test_relatorio_schema.py` (modelo, nenhuma coluna `*_json`
+  em VARCHAR, relatório de 30 mil caracteres grava e volta, migração só em
+  VARCHAR no MySQL).
+- **Depois do deploy**: reprocessar as 13 sessões com `relatorio_status = erro`
+  (pedido do usuário em 07/11) voltando o status para vazio; continuam
+  `salesos_status = anterior`.
+
+---
+
 ## V.1.4.198 — Relatório automático volta a gravar
 
 > Data: 06/11/2026 | Backend, sem mudança na extensão
