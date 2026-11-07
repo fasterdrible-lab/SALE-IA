@@ -3,6 +3,33 @@
 
 ---
 
+## V.1.4.198 — Relatório automático volta a gravar
+
+> Data: 06/11/2026 | Backend, sem mudança na extensão
+
+- **Problema**: nenhuma sessão tinha relatório automático `ok`. Desde 27/10,
+  todo relatório falhava no `INSERT INTO relatorio` com `StatementError`
+  "Datetime values must have timezone information" (7 sessões, 595 a 600).
+  Sem relatório, também não rodavam cliente/oportunidade, memórias, playbook,
+  indexação e Seller DNA, e nada ia para o SalesOS (V.1.4.196).
+- **Causa**: na migração para a VPS nova (21/10), o venv foi instalado com
+  `sqlmodel 0.0.48` (`requirements.txt` só pede `>=0.0.21`; o venv local tem
+  0.0.38). A partir do 0.0.4x, campo `datetime` sem `sa_column` vira
+  `UTCDateTime`, que recusa datetime sem fuso. `Relatorio.criado_em` era o
+  único dos 31 modelos nessa situação (conferido com o sqlmodel da VPS) e usa
+  `datetime.now()`.
+- **Correção**: `criado_em` com `sa_column=Column(DateTime, nullable=False)`,
+  igual aos demais modelos. A tabela no MySQL não muda.
+- **Teste**: `tests/test_colunas_datetime.py` — nenhuma coluna de data exige
+  fuso. Com o sqlmodel da VPS, numa cópia em `/tmp`: código anterior = teste
+  falha e o `INSERT` dá o erro de produção; com a correção, os dois passam.
+- **Não feito**: as 13 sessões com `relatorio_status = erro` não são
+  reprocessadas sozinhas (a fila só pega status vazio). Reprocessar custa IA e
+  cria cliente/oportunidade; decidir antes. Elas estão `salesos_status =
+  anterior` e não iriam ao SalesOS.
+
+---
+
 ## V.1.4.197 — RAG mais leve: o Ollama deixa de dominar a CPU
 
 > Data: 06/11/2026 | Backend, sem mudança na extensão

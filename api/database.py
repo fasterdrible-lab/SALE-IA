@@ -44,7 +44,10 @@ class Relatorio(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     meeting_id: str = Field(index=True)
     nome_reuniao: str = Field(default="Reunião de Vendas")
-    criado_em: datetime = Field(default_factory=datetime.now)
+    # V.1.4.198: coluna explícita. Sem ela, o sqlmodel >= 0.0.4x (0.0.48 na VPS
+    # desde 21/10) usa UTCDateTime, que recusa datetime sem fuso — todo
+    # relatório automático falhava no INSERT desde 27/10.
+    criado_em: datetime = Field(default_factory=datetime.now, sa_column=Column(DateTime, nullable=False))
     dados_json: str  # JSON serializado do relatório completo
 
 
