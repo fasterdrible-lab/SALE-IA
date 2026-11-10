@@ -142,6 +142,52 @@ class EventoTest(unittest.TestCase):
         self.assertIsNone(r.serializar({"x": "y" * (r.MAX_BYTES + 1)}))
 
 
+class OfertaTest(unittest.TestCase):
+    """V.1.4.200 — `offer` para o "Só diagnóstico" (V2-8.2/8.3 do SalesOS)."""
+
+    def com_oferta(self, oferta):
+        return evento(relatorio={"recapitulacao": dict(RECAP, oferta=oferta)})["offer"]
+
+    def test_nao_apresentada_leva_o_motivo(self):
+        self.assertEqual(
+            self.com_oferta({"apresentada": False, "motivo_nao_apresentada": "  O decisor   não estava. "}),
+            {"presented": False, "reason": "O decisor não estava."},
+        )
+
+    def test_apresentada_nao_leva_motivo(self):
+        self.assertEqual(
+            self.com_oferta({"apresentada": True, "motivo_nao_apresentada": "qualquer"}),
+            {"presented": True, "reason": None},
+        )
+
+    def test_sem_avaliacao_fica_nulo(self):
+        self.assertIsNone(evento()["offer"])  # relatório antigo, sem o campo
+        for valor in (None, "true", "false", "sim", 1, "null"):
+            self.assertIsNone(self.com_oferta({"apresentada": valor}), valor)
+        self.assertIsNone(self.com_oferta("texto"))
+
+    def test_motivo_placeholder_ou_vazio_vira_nulo(self):
+        for motivo in ("motivo ou null", "null", "", None, "x"):
+            self.assertEqual(
+                self.com_oferta({"apresentada": False, "motivo_nao_apresentada": motivo}),
+                {"presented": False, "reason": None},
+                motivo,
+            )
+
+    def test_motivo_respeita_o_limite(self):
+        oferta = self.com_oferta({"apresentada": False, "motivo_nao_apresentada": "m" * 5000})
+        self.assertEqual(len(oferta["reason"]), r.MAX_TEXTO)
+
+    def test_offer_vai_no_corpo_serializado(self):
+        e = evento(relatorio={"recapitulacao": dict(RECAP, oferta={"apresentada": False, "motivo_nao_apresentada": "Faltou tempo"})})
+        self.assertEqual(json.loads(r.serializar(e))["offer"], {"presented": False, "reason": "Faltou tempo"})
+
+    def test_prompt_pede_a_oferta(self):
+        from api import main as m
+        self.assertIn('REGRAS PARA "oferta"', m.PROMPT_RECAPITULACAO)
+        self.assertIn('"oferta": {"apresentada"', m.PROMPT_RECAPITULACAO)
+
+
 class ReenvioTest(unittest.TestCase):
     def test_classifica_respostas(self):
         self.assertEqual(r.classificar_resposta(201), r.STATUS_OK)

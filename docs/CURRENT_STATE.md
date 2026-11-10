@@ -1,5 +1,14 @@
 # SALEIA - Estado Atual
 
+## 10/11/2026 — V.1.4.200: oferta apresentada vai ao SalesOS (local)
+
+O relatório automático passa a dizer se a oferta foi apresentada na reunião
+(campo `oferta` no `PROMPT_RECAPITULACAO`, mesma chamada de IA), e o envio ao
+SalesOS leva `offer` ("Só diagnóstico", V2-8.2/8.3 do SalesOS). Sem commit e
+**não publicado**; depende da V.1.4.199 publicada (sem ela nenhum relatório
+grava) e da V.1.28.0 do SalesOS em produção (antes dela o SalesOS ignora o
+campo, sem erro).
+
 ## 07/11/2026 — V.1.4.199: o relatório cabe na tabela (local)
 
 A V.1.4.198 sozinha não bastava: `relatorio.dados_json` é **VARCHAR(255)** na

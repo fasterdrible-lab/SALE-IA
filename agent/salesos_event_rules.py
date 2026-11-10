@@ -147,6 +147,28 @@ def montar_insights(recap: dict) -> list[dict]:
     return unicos[:MAX_INSIGHTS]
 
 
+# Texto de exemplo do schema de "oferta" no PROMPT_RECAPITULACAO, caso a IA o copie.
+_MOTIVOS_PLACEHOLDER = {"motivo ou null", "null", "none", "n/a", "-", "nao informado", "não informado"}
+
+
+def montar_oferta(recap: dict) -> dict | None:
+    """`offer` do contrato (V2-8.2 do SalesOS), ou None quando não deu para avaliar.
+
+    Só um booleano de verdade conta: "true", "sim" ou o texto do schema
+    copiado pela IA viram None (reunião "não avaliada" no SalesOS).
+    """
+    oferta = _dict(recap.get("oferta"))
+    apresentada = oferta.get("apresentada")
+    if not isinstance(apresentada, bool):
+        return None
+    if apresentada:
+        return {"presented": True, "reason": None}
+    motivo = _texto(oferta.get("motivo_nao_apresentada"))
+    if motivo.lower() in _MOTIVOS_PLACEHOLDER or len(motivo) < 2:
+        motivo = ""
+    return {"presented": False, "reason": motivo or None}
+
+
 def montar_evento(
     *,
     meeting_id: str,
@@ -191,6 +213,7 @@ def montar_evento(
         },
         "links": {"opportunityId": None, "companyName": cliente.get("empresa")},
         "insights": montar_insights(recap),
+        "offer": montar_oferta(recap),
     }
 
 

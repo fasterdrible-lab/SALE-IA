@@ -3,6 +3,32 @@
 
 ---
 
+## V.1.4.200 — Oferta apresentada vai ao SalesOS
+
+> Data: 10/11/2026 | Backend, sem mudança na extensão
+
+- **Para quê**: o Report do SalesOS conta as reuniões "só diagnóstico" (a
+  oferta não foi apresentada) e pede que uma pessoa confirme o motivo
+  (V2-8.2 do SalesOS, V.1.28.0). Esta versão é a V2-8.3: o SALE-IA envia
+  essa informação.
+- **Relatório**: `PROMPT_RECAPITULACAO` (`api/main.py`) ganhou
+  `"oferta": {"apresentada", "motivo_nao_apresentada"}`, na mesma chamada de
+  IA (sem custo a mais). `true` = solução apresentada com valor, preço ou
+  condições; `false` = só diagnóstico; `null` = não dá para afirmar.
+- **Envio**: `montar_oferta()` (`agent/salesos_event_rules.py`) vira o campo
+  `offer: {presented, reason}` do evento `meeting.analyzed` (contrato v1,
+  campo opcional). Só booleano de verdade conta ("true", "sim" ou o texto do
+  schema copiado pela IA viram `null` = "não avaliada"); motivo só quando
+  `false`, sem placeholder, até 2.000 caracteres.
+- **Compatível**: relatório antigo, sem `oferta`, envia `offer: null`. O
+  SalesOS antes da V.1.28.0 ignora o campo.
+- **Testes**: 7 novos em `tests/test_salesos_envio.py` (28 no arquivo). Os
+  quatro casos (sem campo, apresentada, não apresentada com e sem motivo)
+  passaram no validador Zod do SalesOS (`lib/validations/saleia-event.ts`).
+  Suíte completa: 2.163 testes, OK (1 skip e 2 falhas esperadas, já existentes).
+
+---
+
 ## V.1.4.199 — O relatório cabe na tabela
 
 > Data: 07/11/2026 | Backend, sem mudança na extensão

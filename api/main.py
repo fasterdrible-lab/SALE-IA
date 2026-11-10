@@ -756,6 +756,17 @@ REGRAS PARA "cliente_identificado":
 - NUNCA infira, NUNCA invente, NUNCA use termos genéricos ("Cliente",
   "Prospect", "a empresa") — o que não estiver claro vira null.
 
+REGRAS PARA "oferta" (a oferta foi apresentada nesta reunião?):
+- "apresentada": true se o vendedor apresentou ao cliente a solução com
+  valor, preço ou condições comerciais (proposta) durante a reunião;
+  false se a reunião ficou só no diagnóstico (levantamento de dores,
+  contexto, objetivos) sem apresentar oferta; null se a transcrição não
+  permitir afirmar nenhum dos dois. Nunca chute.
+- "motivo_nao_apresentada": só quando "apresentada" for false — 1 ou 2
+  frases com o motivo, baseado no que foi dito (ex.: decisor ausente,
+  tempo acabou, faltou informação, nova reunião marcada). null nos
+  outros casos e quando o motivo não aparecer na conversa.
+
 REGRAS PARA "perfil_bigfive" (inferência comportamental, não questionário):
 - Mesma lógica do DISC: infira as 5 dimensões (0-100) a partir de COMO o
   cliente se comportou na conversa, nunca do signo/astrologia. Se não
@@ -814,6 +825,7 @@ Retorne APENAS um JSON válido (sem markdown):
   },
   "data_nascimento_mencionada": {"dia": 0, "mes": 0},
   "cliente_identificado": {"nome": "nome do cliente ou null", "empresa": "empresa do cliente ou null"},
+  "oferta": {"apresentada": null, "motivo_nao_apresentada": "motivo ou null"},
   "objecoes_com_motivo": [
     {"objecao": "objeção real levantada", "motivo_provavel": "causa comportamental, citando DISC/Big Five"}
   ],
@@ -879,7 +891,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.199",
+        "versao":              "1.4.200",
         "timestamp":           datetime.now().isoformat(),
         "ia_disponivel":       ia["ia_disponivel"],
         "ia_fora_desde":       ia["ia_fora_desde"],
@@ -920,7 +932,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.199",
+        "versao":          "1.4.200",
         "timestamp":       datetime.now().isoformat(),
     }
 
