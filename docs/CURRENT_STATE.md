@@ -1,6 +1,21 @@
 # SALEIA - Estado Atual
 
-## 10/11/2026 — V.1.4.200: oferta apresentada vai ao SalesOS (local)
+## 11/11/2026 — V.1.4.199 e V.1.4.200 em produção
+
+Publicadas juntas em 11/11 19:47 UTC (`fd09d16`, bundle a partir de `7d0ddef`;
+restart com 0 reuniões ativas; `is-active`, `NRestarts=0`, journal sem erro,
+`/health` 1.4.200, `/dashboard` 200). No startup o log confirmou
+`relatorio.dados_json convertido de VARCHAR(255) ... para MEDIUMTEXT`. O SalesOS
+já está na V.1.29.0 (`salesos-web:16`), que aceita `offer`.
+
+Estado logo após o deploy: `relatorio` com 0 linhas; `sessoes.relatorio_status`
+= 19 `anterior`, 18 `erro`, 3 `pulado` (eram 13 em `erro` em 07/11);
+`salesos_status` = 35 `anterior`, 5 sem valor. **Falta**: confirmar na próxima
+reunião real que o relatório sai `ok` e chega ao SalesOS
+(`journalctl -u saleia | grep '\[SalesOS\]'`), e decidir o reprocessamento das
+sessões em `erro` (custa IA e cria cliente/oportunidade; não foi feito).
+
+## 10/11/2026 — V.1.4.200: oferta apresentada vai ao SalesOS (publicada em 11/11)
 
 O relatório automático passa a dizer se a oferta foi apresentada na reunião
 (campo `oferta` no `PROMPT_RECAPITULACAO`, mesma chamada de IA), e o envio ao
@@ -9,7 +24,7 @@ SalesOS leva `offer` ("Só diagnóstico", V2-8.2/8.3 do SalesOS). Sem commit e
 grava) e da V.1.28.0 do SalesOS em produção (antes dela o SalesOS ignora o
 campo, sem erro).
 
-## 07/11/2026 — V.1.4.199: o relatório cabe na tabela (local)
+## 07/11/2026 — V.1.4.199: o relatório cabe na tabela (publicada em 11/11)
 
 A V.1.4.198 sozinha não bastava: `relatorio.dados_json` é **VARCHAR(255)** na
 VPS (tabela com 0 linhas — nenhum relatório gravado desde a VPS nova). Corrigido
