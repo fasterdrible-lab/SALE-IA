@@ -3,6 +3,28 @@
 
 ---
 
+## V.1.4.201 — Ícone do SALEIA na aba do navegador
+
+> Data: 13/11/2026 | Backend + páginas, sem mudança na extensão
+
+- **Problema**: a aba do navegador mostrava o ícone genérico. Nenhuma página
+  declarava `<link rel="icon">` e `GET /favicon.ico` devolvia 404.
+- **Ícones**: `frontend/static/favicon.ico` (16, 32 e 48 px, só o "S") e
+  `frontend/static/apple-touch-icon.png` (180 px, "S" com o aro), recortados
+  de `logo-saleia.png`.
+- **Rotas** (`api/main.py`): `/favicon.ico`, `/apple-touch-icon.png` e
+  `/apple-touch-icon-precomposed.png`, públicas, com cache de 1 dia. São
+  servidas pelo FastAPI, sem depender do `/static` do proxy.
+- **Páginas**: as 7 de `frontend/*.html` ganharam `<link rel="icon">` e
+  `<link rel="apple-touch-icon">`. As páginas montadas dentro do `main.py`
+  pegam o ícone pelo pedido automático do navegador a `/favicon.ico`.
+- **Verificado** com `TestClient`: as duas rotas devolvem 200 com o tipo
+  certo, e `/dashboard` e `/login` saem com o `<link>`.
+- **Depois do deploy**: o navegador guarda o "sem ícone" em cache; pode ser
+  preciso Ctrl+F5 ou abrir `/favicon.ico` uma vez.
+
+---
+
 ## V.1.4.200 — Oferta apresentada vai ao SalesOS
 
 > Data: 10/11/2026 | Backend, sem mudança na extensão

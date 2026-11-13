@@ -891,7 +891,7 @@ def health_check():
     return {
         "status":              status,
         "servico":             "SALEIA Backend",
-        "versao":              "1.4.200",
+        "versao":              "1.4.201",
         "timestamp":           datetime.now().isoformat(),
         "ia_disponivel":       ia["ia_disponivel"],
         "ia_fora_desde":       ia["ia_fora_desde"],
@@ -932,7 +932,7 @@ def monitor_metricas(authorization: str | None = Header(default=None)):
         },
         "reunioes_ativas": contar_reunioes_ativas(minutos=5),
         "reunioes_hoje":   contar_reunioes_hoje(),
-        "versao":          "1.4.200",
+        "versao":          "1.4.201",
         "timestamp":       datetime.now().isoformat(),
     }
 
@@ -2424,6 +2424,24 @@ def recapitulacao_manual(req: RecapitulacaoRequest, background_tasks: Background
         logger.warning("Não foi possível agendar pipeline pós-reunião: %s", e)
 
     return resultado
+
+
+_PASTA_ESTATICOS = Path(__file__).parent.parent / "frontend" / "static"
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    """Ícone da aba do navegador (o navegador pede este caminho sozinho)."""
+    return FileResponse(_PASTA_ESTATICOS / "favicon.ico", media_type="image/x-icon",
+                        headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.get("/apple-touch-icon.png", include_in_schema=False)
+@app.get("/apple-touch-icon-precomposed.png", include_in_schema=False)
+def apple_touch_icon():
+    """Ícone usado ao fixar o SALEIA na tela inicial do celular."""
+    return FileResponse(_PASTA_ESTATICOS / "apple-touch-icon.png", media_type="image/png",
+                        headers={"Cache-Control": "public, max-age=86400"})
 
 
 @app.get("/login", response_class=HTMLResponse, include_in_schema=False)
