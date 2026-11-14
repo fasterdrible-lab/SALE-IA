@@ -1,13 +1,15 @@
 # SALEIA - Estado Atual
 
-## 13/11/2026 — V.1.4.201: ícone na aba do navegador (não publicada)
+## 13/11/2026 — V.1.4.201: ícone na aba do navegador (em produção)
 
 A aba de `api.saleia.app.br` mostrava o ícone genérico: nenhuma página tinha
 `<link rel="icon">` e `/favicon.ico` dava 404. Agora há `favicon.ico` e
 `apple-touch-icon.png` em `frontend/static/`, rotas no `api/main.py` e o
-`<link>` nas 7 páginas. Testado local com `TestClient`. Sem commit e **não
-publicado**; muda código do servidor, então o deploy pede restart com 0
-reuniões ativas.
+`<link>` nas 7 páginas. Testado local com `TestClient`.
+
+Publicada em 13/11 20:17 UTC (`9d7ceb2`, bundle a partir de `fd09d16`; restart
+com 0 reuniões ativas; `is-active`, `NRestarts=0`, journal sem erro, `/health`
+1.4.201, `/favicon.ico`, `/apple-touch-icon.png` e `/dashboard` 200).
 
 ## 11/11/2026 — V.1.4.199 e V.1.4.200 em produção
 
