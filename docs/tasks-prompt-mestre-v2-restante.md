@@ -341,7 +341,7 @@ Pedido original da C8:
 - Hoje só `prompt_version`/`rule_version`. Adicionar
   `reasoning_engine_version`, `policy_version`, `knowledge_version`,
   `model_version` em RecommendationEvent + AuditTrailEntry.
-### D7 — Load test 10/50/100 reuniões (seção 32) + hot path × analytics [2 rodadas; gargalo real = CPU do Ollama, sem correção]
+### D7 — Load test 10/50/100 reuniões (seção 32) + hot path × analytics [3 rodadas; Ollama resolvido na V.1.4.197 (50 reuniões = 100%); falta ligar o pool na produção]
 - Decisão do usuário (25/10): VPS de madrugada, IA simulada. Ferramenta em
   `scripts/loadtest/` (`rodar.sh` monta instância isolada na porta 8010
   com banco `saleia_loadtest` e IA falsa na 8099 — atraso real do
@@ -359,6 +359,11 @@ Pedido original da C8:
   Feita em 06/11: pool não ajuda; Ollama usa 73-88% da CPU e ~20 reuniões
   é o limite. V.1.4.197 (06/11): RAG com consulta curta e cache por reunião;
   medir no D7 de 07/11 04:00 UTC.
+- 3ª rodada (07/11, lida em 16/11), com o RAG da V.1.4.197 e pool 32: 10, 20,
+  30 e 50 reuniões com 100% em até 60 s; com 50, p95 10,7 s, Ollama 26,5% e CPU
+  da VPS 55%. 100 reuniões não rodado. Falta ligar `AI_POOL_THREADS=32` na
+  produção (decisão do usuário): sem ele o teto segue em 12 chamadas
+  simultâneas (~20 reuniões). Tabela em `CURRENT_STATE.md` (16/11).
 ### D8 — Corrigir a corrida de DDL entre workers [CONCLUÍDA — 29/09/2026, V.1.4.147]
 - `GET_LOCK` nomeado em volta de todo o DDL do startup + tratamento do
   erro 1684 + 2ª tentativa do `create_all`. Validado no MySQL real.
@@ -641,6 +646,10 @@ explícita, uma de cada vez — mesma disciplina de todo o roadmap.
   usuário (≥ 50% + 2 travas), motor abaixo dele; C6 segue bloqueada. Próximo:
   ler o D7 de 06/11 e decidir o pool; melhorar o motor antes de nova rodada C4.
   Pendências em `CURRENT_STATE.md`.
+- **16/11/2026 — D7, 3ª rodada lida**: a V.1.4.197 tirou o gargalo do Ollama
+  (50 reuniões com 100% em até 60 s, p95 10,7 s, com pool 32). Próximo: decisão
+  do usuário de ligar `AI_POOL_THREADS=32` na produção. C4 segue barrada por
+  inventado 4,7% (espera a política comercial real); C6 bloqueada.
 - **25/10/2026 — B3 + passo 8**: B3 em produção (V.1.4.189, latência
   igual com o job). Passo 8: D7 com ferramenta pronta e 1ª rodada
   agendada (26/10 04:00 UTC); A9 fora de escopo, D10 não mover, B6 adiada.

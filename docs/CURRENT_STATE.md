@@ -1,5 +1,32 @@
 # SALEIA - Estado Atual
 
+## 16/11/2026 — D7 de 07/11 lido: a V.1.4.197 resolveu o gargalo do Ollama
+
+Só leitura do relatório (`/root/loadtest/d7_20261107_0400.json`, código
+`407e1b2` = RAG da V.1.4.197, IA simulada, `AI_POOL_THREADS=32`). Nada mudou em
+código nem na VPS; produção segue na 1.4.201.
+
+| Reuniões | Em até 60 s (06/11 → 07/11) | p50 | p95 | Ollama (% da máquina) | CPU da VPS |
+|---|---|---|---|---|---|
+| 10 | 100% → 100% | 19,9 → 5,9 s | 46,8 → 46,7 s | 73,5 → 12,9 | 87 → 24% |
+| 20 | 91,7% → **100%** | 29,7 → 5,5 s | 54,6 → 9,1 s | 83,0 → 9,2 | 91 → 27% |
+| 30 | 62,6% → **100%** | 36,1 → 5,5 s | 56,0 → 9,5 s | 88,3 → 16,0 | 98 → 39% |
+| 50 | 36,8% → **100%** | 40,8 → 5,6 s | 58,9 → 10,7 s | 86,8 → 26,5 | 100 → 55% |
+
+- 50 reuniões: 748 pedidos, 0 timeout, 707 chamadas de IA/min, memória máxima
+  5,4 GB de 7,7 GB, MySQL com até 23 conexões. 100 reuniões não foi rodado.
+- O p95 de 46,7 s com 10 reuniões é do primeiro nível da rodada (p50 5,9 s);
+  causa não investigada, provável aquecimento.
+- **A produção ainda não aproveita acima de ~20 reuniões**: o teste rodou com
+  o pool ligado (32) e a produção não tem `AI_POOL_THREADS` no `.env`, então
+  segue no teto de 12 chamadas de IA simultâneas (~263/min; 20 reuniões pedem
+  286). Em 06/11 o pool não ajudava porque o Ollama travava antes; agora ajuda.
+- **Decisão pendente do usuário**: ligar `AI_POOL_THREADS=32` no `.env` da
+  produção + restart sem reunião ativa. Cada worker tem 15 conexões de banco,
+  menos que as 32 threads; no teste não deu erro.
+- Fora do teste: limites dos provedores reais (IA simulada) e o efeito na
+  qualidade de o contexto do RAG ficar até 2 min atrás.
+
 ## 13/11/2026 — V.1.4.201: ícone na aba do navegador (em produção)
 
 A aba de `api.saleia.app.br` mostrava o ícone genérico: nenhuma página tinha
