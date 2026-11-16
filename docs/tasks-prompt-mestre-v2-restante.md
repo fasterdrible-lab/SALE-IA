@@ -248,7 +248,14 @@ Pedido original da C8:
   "testando"), não de venda real; agreement aqui não mede valor.
   `recommended_framework` sem vocabulário fechado ("SPIN" em ~40 grafias).
   Próximo: C4 usando reuniões reais (ex.: as do Paulo) como referência.
-### C4 — Definir o alvo de recommendation quality e a métrica de qualidade [ALVO DEFINIDO — 04/11/2026; 06/11: motor 56,3% e contexto 14%, barrado por inventado 4,7%]
+### C4 — Definir o alvo de recommendation quality e a métrica de qualidade [ALVO DEFINIDO — 04/11/2026; 06/11: motor 56,3% e contexto 14%, barrado por inventado 4,7%; 16/11: política comercial nos prompts (V.1.4.202), medição aguarda recarga do DeepSeek]
+- **16/11/2026 — V.1.4.202 em produção**: política comercial recebida do
+  responsável (sem limite no cartão: entrada + recorrente no cartão; sem
+  cartão: entrada + boleto) nos prompts do coach e do motor (v4), com
+  proibição de citar outra condição. Remedir nas mesmas 235 objeções de 06/11
+  (`/root/c4r2`, comparar com `sug_v195.jsonl`) quando o DeepSeek tiver
+  ≥ US$ 5 (estava em US$ 2,34). Falta da política: entrada, parcelas, preço,
+  desconto, garantia e bônus (pedido em 16/11).
 - **Decisão do usuário (04/11/2026)**: **≥ 50%** de "mesma estratégia ou melhor"
   nas objeções superadas, **e** promessa/dado inventado **≤ 2%**, **e** fora de
   contexto **≤ 15%**. Sem as travas medidas, não atinge. Motor em 23/10: 27%,
@@ -648,8 +655,9 @@ explícita, uma de cada vez — mesma disciplina de todo o roadmap.
   Pendências em `CURRENT_STATE.md`.
 - **16/11/2026 — D7, 3ª rodada lida**: a V.1.4.197 tirou o gargalo do Ollama
   (50 reuniões com 100% em até 60 s, p95 10,7 s, com pool 32). Pool ligado na
-  produção no mesmo dia (`AI_POOL_THREADS=32`). C4 segue barrada por
-  inventado 4,7% (espera a política comercial real); C6 bloqueada.
+  produção no mesmo dia (`AI_POOL_THREADS=32`). C4: política comercial
+  recebida e publicada na V.1.4.202; remedição espera recarga do DeepSeek
+  (US$ 2,34). C6 bloqueada até a C4 passar nas 3 travas.
 - **25/10/2026 — B3 + passo 8**: B3 em produção (V.1.4.189, latência
   igual com o job). Passo 8: D7 com ferramenta pronta e 1ª rodada
   agendada (26/10 04:00 UTC); A9 fora de escopo, D10 não mover, B6 adiada.
