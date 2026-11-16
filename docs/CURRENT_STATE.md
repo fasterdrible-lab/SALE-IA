@@ -1,5 +1,15 @@
 # SALEIA - Estado Atual
 
+## 16/11/2026 — V.1.4.202: política comercial real no coach e no motor
+
+Política recebida do responsável comercial (só a objeção de limite ou falta de
+cartão: entrada + recorrente no cartão, que não consome o limite; sem cartão,
+entrada + boleto) entrou nos prompts do coach e do motor, com proibição de
+citar qualquer outra condição (detalhe no CHANGELOG). Objetivo: baixar o
+"inventado" da C4 (motor 4,7%, coach 8,5%, limite 2%). Medição nova na VPS com
+as mesmas 235 objeções de 06/11 (`/root/c4r2`). Pedido ao responsável o resto
+da política: entrada, parcelas, desconto, garantia e bônus.
+
 ## 16/11/2026 — D7 de 07/11 lido: a V.1.4.197 resolveu o gargalo do Ollama
 
 Só leitura do relatório (`/root/loadtest/d7_20261107_0400.json`, código

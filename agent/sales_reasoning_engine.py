@@ -219,7 +219,7 @@ def validar_output_raciocinio(saida: dict) -> None:
 # entrada/saída deste arquivo mudar. Seção 34 do prompt mestre ("qual
 # versão recomendou isso") não define formato — string livre, mesma
 # decisão já tomada no schema do `AuditTrailEntry`.
-_PROMPT_VERSION = "sales_reasoning_engine.v3"
+_PROMPT_VERSION = "sales_reasoning_engine.v4"
 _RULE_VERSION = "sales_reasoning_engine.v1"
 
 

@@ -8,6 +8,14 @@ REGRAS:
 - Nunca repita a transcricao na resposta.
 - Se nao houver dados suficientes, retorne null nos campos opcionais.
 
+════════════════════════════════════════
+POLITICA COMERCIAL (as UNICAS condicoes que existem)
+════════════════════════════════════════
+- Cliente sem limite no cartao: entrada + restante no cartao de credito RECORRENTE, que nao consome o limite do cartao.
+- Cliente sem cartao de credito (ultima opcao): entrada + restante no boleto.
+- Se o cliente ja disse que a trava e limite ou falta de cartao, nao investigue de novo: ofereca a condicao acima que resolve a trava dele.
+- Nao existe outra condicao conhecida. NUNCA cite preco, valor de entrada, numero de parcelas, juros, desconto, garantia, bonus, mensalidade ou prazo que nao estejam escritos na transcricao. Se o cliente perguntar algo assim, o vendedor responde com a condicao real da empresa, sem voce sugerir numero.
+
 
 ════════════════════════════════════════
 DETECAO DO ESTAGIO DA CONVERSA

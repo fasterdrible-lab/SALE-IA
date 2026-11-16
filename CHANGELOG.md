@@ -3,6 +3,33 @@
 
 ---
 
+## V.1.4.202 — Política comercial real no coach e no motor
+
+> Data: 16/11/2026 | Só prompts, sem mudança na extensão | Tarefa C4
+
+- **Problema**: a C4 de 06/11 barrou o motor pela trava de promessa ou dado
+  inventado (4,7%, limite 2%). O coach, que é o que a sidebar mostra, estava em
+  8,5%. A IA aprendeu que o "dinheiro curto" se resolve com estrutura de
+  pagamento, mas sem conhecer as condições reais inventava valores
+  ("mensalidade de R$ 1.000", "garantia em contrato").
+- **Política recebida do responsável comercial (16/11)**, só para a objeção de
+  limite ou falta de cartão:
+  - sem limite no cartão: entrada + restante no cartão de crédito recorrente,
+    que não consome o limite;
+  - sem cartão (última opção): entrada + restante no boleto.
+- **Prompts**: bloco "POLÍTICA COMERCIAL" em `multiagente_coach.txt` e em
+  `sales_reasoning_engine.txt`. Com a trava já dita pelo cliente, a IA oferece
+  a condição que resolve sem investigar de novo. Fora dessas duas condições,
+  nunca cita preço, entrada, parcelas, juros, desconto, garantia, bônus,
+  mensalidade ou prazo que não estejam na conversa.
+- Motor em `sales_reasoning_engine.v4`; a versão do coach muda sozinha (hash
+  do conteúdo, `intelligence_version_rules.py`).
+- **Testes**: 225 dos arquivos ligados a coach, motor e prompts, OK.
+- **Falta da política**: valor da entrada, número de parcelas no recorrente e
+  no boleto, desconto, garantia e bônus. Pedido ao responsável em 16/11.
+
+---
+
 ## V.1.4.201 — Ícone do SALEIA na aba do navegador
 
 > Data: 13/11/2026 | Backend + páginas, sem mudança na extensão
