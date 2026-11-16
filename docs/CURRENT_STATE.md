@@ -21,9 +21,12 @@ código nem na VPS; produção segue na 1.4.201.
   o pool ligado (32) e a produção não tem `AI_POOL_THREADS` no `.env`, então
   segue no teto de 12 chamadas de IA simultâneas (~263/min; 20 reuniões pedem
   286). Em 06/11 o pool não ajudava porque o Ollama travava antes; agora ajuda.
-- **Decisão pendente do usuário**: ligar `AI_POOL_THREADS=32` no `.env` da
-  produção + restart sem reunião ativa. Cada worker tem 15 conexões de banco,
-  menos que as 32 threads; no teste não deu erro.
+- **Pool ligado na produção em 16/11 14:19 UTC** (autorizado pelo usuário):
+  `AI_POOL_THREADS=32` no `.env` (backup `.env.bak_pool32_20261116_141909`),
+  restart com 0 reuniões ativas; `is-active`, `NRestarts=0`, journal sem erro,
+  `/health` 1.4.201 com IA, `/dashboard` 200. Cada worker tem 15 conexões de
+  banco, menos que as 32 threads (no teste não deu erro): olhar o journal na
+  1ª reunião real. Desfazer: tirar a linha do `.env` + restart sem reunião.
 - Fora do teste: limites dos provedores reais (IA simulada) e o efeito na
   qualidade de o contexto do RAG ficar até 2 min atrás.
 
