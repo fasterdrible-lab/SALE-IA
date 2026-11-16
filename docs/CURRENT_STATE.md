@@ -6,9 +6,17 @@ Política recebida do responsável comercial (só a objeção de limite ou falta
 cartão: entrada + recorrente no cartão, que não consome o limite; sem cartão,
 entrada + boleto) entrou nos prompts do coach e do motor, com proibição de
 citar qualquer outra condição (detalhe no CHANGELOG). Objetivo: baixar o
-"inventado" da C4 (motor 4,7%, coach 8,5%, limite 2%). Medição nova na VPS com
-as mesmas 235 objeções de 06/11 (`/root/c4r2`). Pedido ao responsável o resto
-da política: entrada, parcelas, desconto, garantia e bônus.
+"inventado" da C4 (motor 4,7%, coach 8,5%, limite 2%). Pedido ao responsável o
+resto da política: entrada, parcelas, desconto, garantia e bônus.
+
+**Em produção 16/11 ~14:50 UTC** (`1a1003c`, bundle a partir de `ebd0982`;
+restart com 0 reuniões ativas; `is-active`, `NRestarts=0`, journal sem erro,
+`/health` 1.4.202 com IA, `/dashboard` 200). **Medição da C4 não rodada**:
+saldo do DeepSeek em **US$ 2,34** (a medição custa ~US$ 3, a juíza exige
+≥ US$ 5, e o saldo atende as reuniões reais). Depois da recarga, na VPS:
+`cd /opt/saleia && venv/bin/python -m scripts.c4_paulo_sugestoes
+/root/c4r2/momentos.json /root/c4r2/sug_v202.jsonl --real`, depois julgar em
+`/root/c4r2/j` como na rodada de 06/11 (`sug_v195.jsonl`) e comparar.
 
 ## 16/11/2026 — D7 de 07/11 lido: a V.1.4.197 resolveu o gargalo do Ollama
 
